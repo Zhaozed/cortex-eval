@@ -1,0 +1,299 @@
+[
+  {
+    "description": "Planner｜Navigation｜工具结果处理｜turn_direction",
+    "threshold": 1,
+    "vars": {
+      "request_body": {
+        "lang": "zh-Hans",
+        "time": "2026-05-14T10:05:15+08:00",
+        "timezone": "Asia/Shanghai",
+        "conversation": [
+          {
+            "role": "user",
+            "text": "发送"
+          },
+          {
+            "role": "assistant",
+            "text": "搞定啦！会议取消通知已经发送成功：\n\n✅ 测试频道 - 已发送\n✅ 赵朋（私信）- 已发送  \n✅ 周壮（私信）- 已发送\n✅ 张晴雪（私信）- 已发送\n\n大家都收到通知了，今晚不用开会啦！"
+          },
+          {
+            "role": "user",
+            "text": "转到后边看看。"
+          },
+          {
+            "role": "assistant",
+            "text": "转到后边看看？你是想让我转动一下身体，还是指别的什么地方呀？"
+          },
+          {
+            "role": "user",
+            "text": "我是"
+          },
+          {
+            "role": "assistant",
+            "text": "你是想说“我是...”然后话没说完吗？快接着说，我听着呢。"
+          },
+          {
+            "role": "user",
+            "text": "我想让你转动身体到后边看看。"
+          },
+          {
+            "role": "assistant",
+            "text": "好嘞，这就转过去看看后面有啥！"
+          }
+        ],
+        "task_history": [
+          {
+            "uid": 2044313780782891008,
+            "type": "USER_INPUT",
+            "req_id": "666F8EDA-F05F-4479-A617-62517B2267D8",
+            "step_id": "step_MQj05YVJQHKTyOw03BnOQ",
+            "task_id": "task_V7Jr9wwHSWia1pXwRjKEw",
+            "step_idx": 1,
+            "user_text": "我想让你转动身体到后边看看。",
+            "created_at": "2026-05-14T02:05:05.571000Z"
+          },
+          {
+            "uid": 2044313780782891008,
+            "type": "THINK",
+            "action": "CALL_TOOL",
+            "reason": "",
+            "req_id": "666F8EDA-F05F-4479-A617-62517B2267D8",
+            "step_id": "step_jy3LHQFhTSG3SgO28tb0MQ",
+            "task_id": "task_V7Jr9wwHSWia1pXwRjKEw",
+            "step_idx": 2,
+            "created_at": "2026-05-14T02:05:09.340149Z",
+            "reply_text": "好嘞，这就转过去看看后面有啥！",
+            "reply_type": "NOTICE",
+            "asst_msg_id": "asst_HcwWBl3zRbOf3XS6v97vg"
+          },
+          {
+            "uid": 2044313780782891008,
+            "type": "TOOL_CALL",
+            "req_id": "666F8EDA-F05F-4479-A617-62517B2267D8",
+            "step_id": "step_RwBXe7ZwQaSFCdc7RtbOIA",
+            "task_id": "task_V7Jr9wwHSWia1pXwRjKEw",
+            "step_idx": 3,
+            "tool_call": {
+              "name": "turn_direction",
+              "param": {
+                "direction": "back"
+              },
+              "version": 1,
+              "tool_kind": "LOCAL",
+              "timeout_ms": 30000,
+              "tool_request_id": "tool_wGz2smeoQtaWb2dBAd5Bg"
+            },
+            "created_at": "2026-05-14T02:05:09.340150Z"
+          },
+          {
+            "uid": 2044313780782891008,
+            "type": "TOOL_RESULT",
+            "req_id": "B46C9AFC-71CA-4804-AADF-A1E481A01EFB",
+            "step_id": "step_fmRC8clnTXOGwPNfpmGQlg",
+            "task_id": "task_V7Jr9wwHSWia1pXwRjKEw",
+            "step_idx": 4,
+            "tool_ret": {
+              "name": "turn_direction",
+              "tool_request_id": "tool_wGz2smeoQtaWb2dBAd5Bg"
+            },
+            "created_at": "2026-05-14T02:05:15.407000Z"
+          }
+        ]
+      },
+      "type": "planner"
+    },
+    "metadata": {
+      "case_id": "PLANNER-SCH-554",
+      "req_id": "B46C9AFC-71CA-4804-AADF-A1E481A01EFB",
+      "task_id": "task_V7Jr9wwHSWia1pXwRjKEw",
+      "business_module": "Navigation",
+      "scenario_tag": "tool_result_handling"
+    },
+    "assert": [
+      {
+        "type": "is-json",
+        "value": {
+          "type": "object",
+          "required": [
+            "parsed_output"
+          ],
+          "properties": {
+            "parsed_output": {
+              "type": "object",
+              "required": [
+                "tools"
+              ],
+              "properties": {
+                "tools": {
+                  "type": "array"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "is-json",
+        "value": {
+          "type": "object",
+          "required": [
+            "parsed_output"
+          ],
+          "properties": {
+            "parsed_output": {
+              "type": "object",
+              "required": [
+                "present_mode"
+              ],
+              "properties": {
+                "present_mode": {
+                  "const": "none"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "description": "Planner｜Navigation｜导航路线｜我想让你转动身体到后边看看。",
+    "threshold": 1,
+    "vars": {
+      "request_body": {
+        "lang": "zh-Hans",
+        "time": "2026-05-14T10:05:05+08:00",
+        "timezone": "Asia/Shanghai",
+        "conversation": [
+          {
+            "role": "assistant",
+            "text": "好的，要向测试频道、赵鹏、周壮和张晴雪发送这条消息吗？"
+          },
+          {
+            "role": "user",
+            "text": "帮我在 Slack 中发送说今天晚上的会议取消，发送给测试频道，私信给赵鹏、周壮、张晴雪。"
+          },
+          {
+            "role": "assistant",
+            "text": "好的，要向测试频道发送这条消息吗？"
+          },
+          {
+            "role": "user",
+            "text": "发送"
+          },
+          {
+            "role": "assistant",
+            "text": "搞定啦！会议取消通知已经发送成功：\n\n✅ 测试频道 - 已发送\n✅ 赵朋（私信）- 已发送  \n✅ 周壮（私信）- 已发送\n✅ 张晴雪（私信）- 已发送\n\n大家都收到通知了，今晚不用开会啦！"
+          },
+          {
+            "role": "user",
+            "text": "转到后边看看。"
+          },
+          {
+            "role": "assistant",
+            "text": "转到后边看看？你是想让我转动一下身体，还是指别的什么地方呀？"
+          },
+          {
+            "role": "user",
+            "text": "我是"
+          },
+          {
+            "role": "assistant",
+            "text": "你是想说“我是...”然后话没说完吗？快接着说，我听着呢。"
+          },
+          {
+            "role": "user",
+            "text": "我想让你转动身体到后边看看。"
+          }
+        ],
+        "task_history": [
+          {
+            "uid": 2044313780782891008,
+            "type": "USER_INPUT",
+            "req_id": "666F8EDA-F05F-4479-A617-62517B2267D8",
+            "step_id": "step_MQj05YVJQHKTyOw03BnOQ",
+            "task_id": "task_V7Jr9wwHSWia1pXwRjKEw",
+            "step_idx": 1,
+            "user_text": "我想让你转动身体到后边看看。",
+            "created_at": "2026-05-14T02:05:05.571000Z"
+          }
+        ]
+      },
+      "type": "planner"
+    },
+    "metadata": {
+      "case_id": "PLANNER-SCH-555",
+      "req_id": "666F8EDA-F05F-4479-A617-62517B2267D8",
+      "task_id": "task_V7Jr9wwHSWia1pXwRjKEw",
+      "business_module": "Navigation",
+      "scenario_tag": "navigation"
+    },
+    "assert": [
+      {
+        "type": "is-json",
+        "value": {
+          "type": "object",
+          "required": [
+            "parsed_output"
+          ],
+          "properties": {
+            "parsed_output": {
+              "type": "object",
+              "required": [
+                "tools"
+              ],
+              "properties": {
+                "tools": {
+                  "type": "array",
+                  "allOf": [
+                    {
+                      "contains": {
+                        "type": "object",
+                        "required": [
+                          "tool_name",
+                          "args_json"
+                        ],
+                        "properties": {
+                          "tool_name": {
+                            "const": "turn_direction"
+                          },
+                          "args_json": {
+                            "const": {
+                              "direction": "back"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "is-json",
+        "value": {
+          "type": "object",
+          "required": [
+            "parsed_output"
+          ],
+          "properties": {
+            "parsed_output": {
+              "type": "object",
+              "required": [
+                "present_mode"
+              ],
+              "properties": {
+                "present_mode": {
+                  "const": "none"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+]

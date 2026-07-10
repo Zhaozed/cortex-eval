@@ -1,0 +1,11 @@
+{
+  "invalid_jsonl": "第 {line_no} 行不是合法 JSON，已跳过：{error}",
+  "invalid_record": "第 {line_no} 行不是 JSON object，已跳过",
+  "invalid_request_body_json": "case_id={case_id} 的 request_body 不是合法 JSON 字符串，已跳过：{error}",
+  "unsupported_type": "case_id={case_id} 的 type={case_type} 不支持，已跳过",
+  "missing_required_field": "case_id={case_id} 缺少必需字段 {field}，已跳过",
+  "mismatched_tool_args": "case_id={case_id} 的 expected_tool_name 数量为 {tool_count}，expected_tool_args_json 数量为 {args_count}，无法成对校验，已跳过",
+  "invalid_expected_list": "case_id={case_id} 的 {field} 不是 list，已跳过",
+  "unsupported_expected_field": "case_id={case_id} 的 {field} 当前不支持自动转换，已跳过",
+  "summary": "转换完成：读取 {read_count} 条，输出 {write_count} 条，跳过 {skip_count} 条"
+}

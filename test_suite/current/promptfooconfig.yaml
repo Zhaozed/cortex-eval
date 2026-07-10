@@ -1,0 +1,12 @@
+description: cortex-eval Loona local REST run
+
+commandLineOptions:
+  cache: false
+#  write: false
+
+prompts:
+  - "{{ request_body | dump }}"
+
+providers: file://provider.yaml
+
+tests: file://cases/loona_promptfoo_tests.json
