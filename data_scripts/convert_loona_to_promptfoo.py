@@ -146,6 +146,29 @@ def build_parsed_output_const_schema(field: str, value: Any) -> dict[str, Any]:
     }
 
 
+def build_parsed_output_nested_const_schema(parent_field: str, field: str, value: Any) -> dict[str, Any]:
+    """Build JSON Schema for one fixed nested parsed_output field."""
+    return {
+        "type": "object",
+        "required": ["parsed_output"],
+        "properties": {
+            "parsed_output": {
+                "type": "object",
+                "required": [parent_field],
+                "properties": {
+                    parent_field: {
+                        "type": "object",
+                        "required": [field],
+                        "properties": {
+                            field: {"const": value},
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+
 def build_planner_tool_items_schema(
         tool_names: list[Any], tool_args: list[Any]
 ) -> dict[str, Any]:
@@ -248,7 +271,7 @@ def build_test_case(row: dict[str, Any], messages: dict[str, str]) -> dict[str, 
     return {
         "description": str(row.get("case_name") or case_id),
         "threshold": 1,
-        "vars": {"request_body": request_body, "type": row.get("type").lower()},
+        "vars": {"request_body": request_body, "task": row.get("type").lower()},
         "metadata": {field: row.get(field) for field in METADATA_FIELDS},
         "assert": assertions,
     }
@@ -263,7 +286,14 @@ def append_task_contract_assertion(case_type: str, assertions: list[dict[str, An
         return
     if case_type == "planner":
         assertions.append(
-            {"type": "is-json", "value": build_parsed_output_const_schema("present_mode", "none")}
+            {
+                "type": "is-json",
+                "value": build_parsed_output_nested_const_schema(
+                    "reply_user_json",
+                    "present_mode",
+                    "none",
+                ),
+            }
         )
 
 
@@ -373,7 +403,7 @@ def write_json_output(output_path: Path, tests: list[dict[str, Any]], pretty: bo
     payload: Any = {"tests": tests} if wrap_tests else tests
     with output_path.open("w", encoding="utf-8") as output_file:
         if pretty:
-            json.dump(payload[-2:], output_file, ensure_ascii=False, indent=2)
+            json.dump(payload, output_file, ensure_ascii=False, indent=2)
         else:
             json.dump(payload, output_file, ensure_ascii=False, separators=(",", ":"))
         output_file.write("\n")
@@ -394,7 +424,11 @@ def parse_args() -> argparse.Namespace:
         description="Convert Loona JSONL test cases to promptfoo test case JSON."
     )
     parser.add_argument("--input", default="loona_test_cases_export.jsonl", help="source JSONL file")
-    parser.add_argument("--output", default="loona_promptfoo_tests.json", help="target JSON file")
+    parser.add_argument(
+        "--output",
+        default="loona_promptfoo_tests.json",
+        help="target output file",
+    )
     parser.add_argument("--jsonl", action="store_true", help="write JSONL instead of JSON")
     parser.add_argument("--include-disabled", action="store_true", help="include enabled=false cases")
     parser.add_argument("--pretty", action="store_true", help="pretty-print JSON output")
@@ -421,7 +455,7 @@ def main() -> int:
         except ConversionSkip as error:
             print(str(error), file=sys.stderr)
             skip_count += 1
-
+    tests=tests[-2:]
     if args.jsonl:
         write_jsonl_output(output_path, tests)
     else:
