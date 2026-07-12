@@ -32,5 +32,18 @@ export function formatRunnerMessage(
   key: string,
   values: Record<string, unknown> = {}
 ): string {
-  return messages[key].replace(/{(\w+)}/g, (_match, name: string) => String(values[name] ?? ""));
+  const template = messages[key];
+  if (template === undefined) {
+    throw new Error(`Unknown runner message key: ${key}`);
+  }
+  return template.replace(/{(\w+)}/g, (_match, name: string) => {
+    const value = values[name];
+    if (value === undefined || value === null) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+      return String(value);
+    }
+    if (value instanceof Error) return value.message;
+    return JSON.stringify(value);
+  });
 }

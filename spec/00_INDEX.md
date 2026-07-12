@@ -108,6 +108,11 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 - [data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)：当前 REST 运行器测试族。
 - [data_scripts/convert_loona_to_promptfoo.py](../data_scripts/convert_loona_to_promptfoo.py)：当前原始数据转换入口。
 - [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：当前转换测试族。
+- [package.json](../package.json)：Node 24 下的格式、Lint、架构、类型、测试、覆盖率、文档和构建门禁。
+- [tooling/src/runtime-doctor.ts](../tooling/src/runtime-doctor.ts)：Node、Python 与 Ruby 运行时事实检查。
+- [tooling/src/promptfoo-process-probe.ts](../tooling/src/promptfoo-process-probe.ts)：固定版本预计算输出、退出码、组件和解释器真实进程探针。
+- [tooling/facts/promptfoo-0.121.18-capabilities.json](../tooling/facts/promptfoo-0.121.18-capabilities.json)：Assertion 能力矩阵。
+- [tooling/facts/p0-environment.json](../tooling/facts/p0-environment.json)：P0 macOS ARM64 环境与性能基线。
 - [test_suite/current/cases/loona_promptfoo_tests.json](../test_suite/current/cases/loona_promptfoo_tests.json)：当前测试集 Fixture。
 - [test_suite/current/provider.json](../test_suite/current/provider.json)：当前 Endpoint Fixture。
 - [test_suite/current/llm_config.json](../test_suite/current/llm_config.json)：当前 LLM 配置 Fixture。

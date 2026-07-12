@@ -29,7 +29,8 @@ interface FixturePaths {
 async function readRequestBody(request: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const unknownChunk: unknown = chunk;
+    chunks.push(Buffer.isBuffer(unknownChunk) ? unknownChunk : Buffer.from(String(unknownChunk)));
   }
   return Buffer.concat(chunks).toString("utf8");
 }
@@ -77,24 +78,32 @@ async function readResult(filePath: string): Promise<PromptfooTestCase[]> {
   return JSON.parse(await readFile(filePath, "utf8")) as PromptfooTestCase[];
 }
 
-test("sends templated JSON requests and stores JSON or text providerOutput", async () => {
-  const observed: ObservedRequest[] = [];
-  const server = createServer(async (request: IncomingMessage, response: ServerResponse) => {
-    const bodyText = await readRequestBody(request);
-    observed.push({
-      path: request.url ?? "",
-      body: JSON.parse(bodyText)
-    });
-    assert.equal(request.headers["content-type"], "application/json");
-    assert.equal(request.headers["x-case"], request.url?.split("/").at(-1));
+// Return one required result row with explicit bounds handling.
+function requireResultCase(cases: PromptfooTestCase[], index: number): PromptfooTestCase {
+  const testCase = cases[index];
+  if (!testCase) {
+    throw new Error(`Missing result case at index ${index}`);
+  }
+  return testCase;
+}
 
-    if (request.url?.endsWith("/text")) {
-      response.writeHead(200, { "Content-Type": "text/plain" });
-      response.end("plain response");
-      return;
-    }
-    response.writeHead(200, { "Content-Type": "application/json" });
-    response.end(JSON.stringify({ parsed_output: { ok: true } }));
+void test("sends templated JSON requests and stores JSON or text providerOutput", async () => {
+  const observed: ObservedRequest[] = [];
+  const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+    void readRequestBody(request)
+      .then((bodyText) => {
+        observed.push({ path: request.url ?? "", body: JSON.parse(bodyText) as unknown });
+        assert.equal(request.headers["content-type"], "application/json");
+        assert.equal(request.headers["x-case"], request.url?.split("/").at(-1));
+        if (request.url?.endsWith("/text")) {
+          response.writeHead(200, { "Content-Type": "text/plain" });
+          response.end("plain response");
+          return;
+        }
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ parsed_output: { ok: true } }));
+      })
+      .catch((error: unknown) => response.destroy(error instanceof Error ? error : undefined));
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 
@@ -117,8 +126,8 @@ test("sends templated JSON requests and stores JSON or text providerOutput", asy
       failed: 0,
       outputPath: fixture.outputPath
     });
-    assert.deepEqual(result[0].providerOutput, { parsed_output: { ok: true } });
-    assert.equal(result[1].providerOutput, "plain response");
+    assert.deepEqual(requireResultCase(result, 0).providerOutput, { parsed_output: { ok: true } });
+    assert.equal(requireResultCase(result, 1).providerOutput, "plain response");
     assert.deepEqual(
       observed.sort((left, right) => left.path.localeCompare(right.path)),
       [
@@ -133,16 +142,17 @@ test("sends templated JSON requests and stores JSON or text providerOutput", asy
   }
 });
 
-test("limits active requests to maxConcurrency", async () => {
+void test("limits active requests to maxConcurrency", async () => {
   let active = 0;
   let peak = 0;
-  const server = createServer(async (_request, response) => {
+  const server = createServer((_request, response) => {
     active += 1;
     peak = Math.max(peak, active);
-    await new Promise((resolve) => setTimeout(resolve, 25));
-    active -= 1;
-    response.writeHead(200, { "Content-Type": "application/json" });
-    response.end("{}");
+    setTimeout(() => {
+      active -= 1;
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end("{}");
+    }, 25);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 
@@ -165,7 +175,7 @@ test("limits active requests to maxConcurrency", async () => {
   }
 });
 
-test("resumes successful cases while preserving the current input definition", async () => {
+void test("resumes successful cases while preserving the current input definition", async () => {
   let requestCount = 0;
   const server = createServer((_request, response) => {
     requestCount += 1;
@@ -196,10 +206,12 @@ test("resumes successful cases while preserving the current input definition", a
     assert.equal(requestCount, 1);
     assert.equal(summary.skipped, 1);
     assert.equal(result.length, 2);
-    assert.deepEqual(result[0].vars?.request_body, { value: 99 });
-    assert.deepEqual(result[0].assert, [{ type: "equals", value: "current assertion" }]);
-    assert.deepEqual(result[0].providerOutput, { cached: true });
-    assert.deepEqual(result[1].providerOutput, { fresh: true });
+    assert.deepEqual(requireResultCase(result, 0).vars?.request_body, { value: 99 });
+    assert.deepEqual(requireResultCase(result, 0).assert, [
+      { type: "equals", value: "current assertion" }
+    ]);
+    assert.deepEqual(requireResultCase(result, 0).providerOutput, { cached: true });
+    assert.deepEqual(requireResultCase(result, 1).providerOutput, { fresh: true });
 
     const forcedSummary = await runPromptfooRestSuite({
       ...fixture,
@@ -210,7 +222,7 @@ test("resumes successful cases while preserving the current input definition", a
     assert.equal(requestCount, 3);
     assert.equal(forcedSummary.skipped, 0);
     assert.equal(forcedSummary.succeeded, 2);
-    assert.deepEqual(forcedResult[0].providerOutput, { fresh: true });
+    assert.deepEqual(requireResultCase(forcedResult, 0).providerOutput, { fresh: true });
   } finally {
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve()))
@@ -218,7 +230,7 @@ test("resumes successful cases while preserving the current input definition", a
   }
 });
 
-test("times out one case and continues with remaining cases", async () => {
+void test("times out one case and continues with remaining cases", async () => {
   const server = createServer((request, response) => {
     if (request.url?.endsWith("/slow")) {
       setTimeout(() => {
@@ -246,8 +258,8 @@ test("times out one case and continues with remaining cases", async () => {
 
     assert.equal(summary.failed, 1);
     assert.equal(summary.succeeded, 1);
-    assert.match(result[0].metadata?.rest_run_error?.message ?? "", /15/);
-    assert.deepEqual(result[1].providerOutput, { completed: true });
+    assert.match(requireResultCase(result, 0).metadata?.rest_run_error?.message ?? "", /15/);
+    assert.deepEqual(requireResultCase(result, 1).providerOutput, { completed: true });
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) =>
@@ -256,7 +268,7 @@ test("times out one case and continues with remaining cases", async () => {
   }
 });
 
-test("records failed cases without providerOutput and retries them later", async () => {
+void test("records failed cases without providerOutput and retries them later", async () => {
   let shouldFail = true;
   const server = createServer((_request, response) => {
     if (shouldFail) {
@@ -278,15 +290,18 @@ test("records failed cases without providerOutput and retries them later", async
     const failedSummary = await runPromptfooRestSuite({ ...fixture });
     const failedResult = await readResult(fixture.outputPath);
     assert.equal(failedSummary.failed, 1);
-    assert.equal(Object.hasOwn(failedResult[0], "providerOutput"), false);
-    assert.equal(failedResult[0].metadata?.rest_run_error?.status, 503);
+    assert.equal(Object.hasOwn(requireResultCase(failedResult, 0), "providerOutput"), false);
+    assert.equal(requireResultCase(failedResult, 0).metadata?.rest_run_error?.status, 503);
 
     shouldFail = false;
     const recoveredSummary = await runPromptfooRestSuite({ ...fixture });
     const recoveredResult = await readResult(fixture.outputPath);
     assert.equal(recoveredSummary.succeeded, 1);
-    assert.deepEqual(recoveredResult[0].providerOutput, { recovered: true });
-    assert.equal(Object.hasOwn(recoveredResult[0].metadata ?? {}, "rest_run_error"), false);
+    assert.deepEqual(requireResultCase(recoveredResult, 0).providerOutput, { recovered: true });
+    assert.equal(
+      Object.hasOwn(requireResultCase(recoveredResult, 0).metadata ?? {}, "rest_run_error"),
+      false
+    );
   } finally {
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve()))

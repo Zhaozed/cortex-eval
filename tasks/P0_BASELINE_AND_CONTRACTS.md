@@ -2,7 +2,7 @@
 
 ## 状态与依赖
 
-- 状态：`PENDING`
+- 状态：`COMPLETED`
 - 依赖：无
 
 ## 目标
@@ -46,6 +46,14 @@
 - Promptfoo 能力矩阵可由自动测试证明无漏项。
 - 工具链、真实 Fixture 和性能 Harness 可重复运行。
 - 未开始实现的功能仍明确标记为目标状态。
+
+## 完成证据
+
+- `pnpm verify` 通过：32 个 Vitest、5 个 Python 回归测试、5 个 TypeScript 回归测试，以及格式、Lint、架构、Strict TypeScript、文档、Secret 与构建门禁全部通过。
+- 工具链覆盖率：语句 91.80%、分支 88.54%、函数 100%、行 91.52%。
+- 真实 REST Fixture 的 4 个 Case 和原始 18 条 Assertion 在隔离副本中由 Promptfoo 执行，主 Provider 请求为 0，4 次 `llm-rubric` 通过本机隔离 Evaluator，Case ID、Assertion 类型顺序与组件结果完全对齐；原始 Assertion Fail 退出码为 100。
+- Runtime Doctor 实测 Node 24.18.0、Python 3.12.12、Ruby 2.6.10；Python 与 Ruby 内联 Assertion Smoke 通过。
+- 1,000 Case Benchmark 在 macOS ARM64 实测中位数 0.651 ms、P95/P99 0.963 ms。
 
 ## 阻塞条件
 

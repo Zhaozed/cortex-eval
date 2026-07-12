@@ -49,6 +49,9 @@ function parseCliArguments(argv: string[], messages: Messages): CliArguments {
   const parsed: CliArguments = { help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
+    if (argument === undefined) {
+      throw new Error(formatRunnerMessage(messages, "unknown_argument", { argument: "" }));
+    }
     if (argument === "--help") {
       parsed.help = true;
       continue;

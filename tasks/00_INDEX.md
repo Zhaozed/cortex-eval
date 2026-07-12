@@ -25,7 +25,7 @@
 
 ## 阶段状态
 
-- [ ] [P0：事实源、工具链与契约探针](P0_BASELINE_AND_CONTRACTS.md) — `PENDING`
+- [x] [P0：事实源、工具链与契约探针](P0_BASELINE_AND_CONTRACTS.md) — `COMPLETED`
 - [ ] [P1：Contracts 与 Domain](P1_CONTRACTS_AND_DOMAIN.md) — `PENDING`
 - [ ] [P2：SQLite 与 Application 基础](P2_STORAGE_AND_APPLICATION.md) — `PENDING`
 - [ ] [P3：Local API 与资源管理](P3_LOCAL_API_AND_RESOURCES.md) — `PENDING`

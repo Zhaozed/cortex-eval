@@ -725,7 +725,7 @@ Promptfoo 主 Provider 始终使用 Echo 和预计算 Provider Output。需要 P
 - Promptfoo HTTP Provider、Evaluator Bridge 和官方 SDK 都显式关闭重试。
 - 取消时先发送 `SIGTERM`，5 秒未退出再发送 `SIGKILL`，随后关闭 Bridge 并回收临时资源。
 
-Assertion 失败对应的 Promptfoo 失败退出码是评估事实。进程启动、配置、信号、文件和未知格式错误才是系统错误。
+Assertion 失败对应的 Promptfoo 原始退出码 `100` 是评估事实，CLI Adapter 对外映射为退出码 `1`。进程启动、配置、信号、文件和未知格式错误才是系统错误。该事实由固定版本真实进程探针验证，不从自然语言输出推断。
 
 ### 12.3 Importer
 

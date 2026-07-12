@@ -10,7 +10,7 @@ Cortex Eval 是面向本地单用户的测试集管理、REST 结果获取、Pro
 
 ## 实现状态
 
-当前仓库已经存在测试数据转换脚本、REST 运行脚本、脚本测试和真实 Fixture。目标 Web、本地 HTTP API、SQLite 业务存储、模块化 Application、Domain、Contracts、Reporting 和 Work Package 尚未落地。
+当前仓库已完成 P0 工程基线：Node 24/pnpm Workspace、严格 TypeScript、格式/Lint/架构/文档/覆盖率门禁、Runtime Doctor、真实 Fixture 契约与 Secret 扫描、Promptfoo 固定版本进程探针、137 条完全展开的 Assertion 能力契约和确定性 Benchmark Harness 已落地。真实 Fixture 只在隔离副本中执行，保留原始 18 条 Assertion，验证主 Provider 零调用、本机 Evaluator 调用、Case ID、Assertion 类型顺序和组件结果对齐。测试数据转换脚本与 REST 运行脚本继续作为回归基线。目标 Web、本地 HTTP API、SQLite 业务存储、模块化 Application、Domain、Contracts、Reporting 和 Work Package 尚未落地。
 
 本文档描述 [REQ.md](../REQ.md) 和 [TECH.md](../TECH.md) 已确认的目标系统。未落地路径统一称为目标代码落点，不视为当前代码事实。
 
@@ -70,3 +70,7 @@ Evaluator 与 Analyzer 只支持统一接口下的 Gemini 和 OpenAI-compatible 
 - 当前 REST 实现：[data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)
 - 当前转换实现：[data_scripts/convert_loona_to_promptfoo.py](../data_scripts/convert_loona_to_promptfoo.py)
 - Goal 执行入口：[tasks/00_INDEX.md](../tasks/00_INDEX.md)
+- P0 工具链入口：[package.json](../package.json)
+- P0 Runtime Doctor：[tooling/src/runtime-doctor.ts](../tooling/src/runtime-doctor.ts)
+- Promptfoo 能力矩阵：[tooling/facts/promptfoo-0.121.18-capabilities.json](../tooling/facts/promptfoo-0.121.18-capabilities.json)
+- P0 测试入口：[tooling/test](../tooling/test)

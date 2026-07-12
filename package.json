@@ -1,0 +1,48 @@
+{
+  "name": "cortex-eval",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.3.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": "11.3.0"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check:architecture": "tsx tooling/src/check-architecture.ts",
+    "check:docs": "tsx tooling/src/check-document-links.ts",
+    "check:runtime": "tsx tooling/src/runtime-doctor-cli.ts --check-node-only",
+    "check:secrets:fixtures": "tsx tooling/src/secret-scan-cli.ts test_suite/current/run_result/loona_promptfoo_tests.json test_suite/current/eval_result/result.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "benchmark:p0": "tsx tooling/src/p0-benchmark-cli.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:legacy:python": "python3 -m unittest data_scripts/test_convert_loona_to_promptfoo.py",
+    "test:legacy:typescript": "tsx --test data_scripts/run_promptfoo_rest.test.ts",
+    "test:p0": "vitest run tooling/test",
+    "typecheck": "tsc -b --pretty false",
+    "verify": "PATH=/opt/homebrew/opt/node@24/bin:$PATH pnpm run verify:node24",
+    "verify:node24": "pnpm run check:runtime && pnpm run format:check && pnpm run lint && pnpm run check:architecture && pnpm run typecheck && pnpm run test:coverage && pnpm run test:legacy:python && pnpm run test:legacy:typescript && pnpm run check:docs && pnpm run check:secrets:fixtures && pnpm run build",
+    "verify:release": "PATH=/opt/homebrew/opt/node@24/bin:$PATH pnpm run verify:release:node24",
+    "verify:release:node24": "pnpm run verify:node24 && tsx tooling/src/release-gate.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.13.3",
+    "@vitest/coverage-v8": "4.1.10",
+    "eslint": "10.7.0",
+    "prettier": "3.9.5",
+    "promptfoo": "0.121.18",
+    "tsx": "4.23.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.63.0",
+    "vitest": "4.1.10"
+  },
+  "dependencies": {
+    "@google/genai": "2.11.0",
+    "openai": "6.46.0"
+  }
+}

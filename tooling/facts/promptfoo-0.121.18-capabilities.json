@@ -1,0 +1,4274 @@
+{
+  "version": "0.121.18",
+  "capabilities": [
+    {
+      "type": "agent-rubric",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "OBJECT", "STRING_LIST", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "agent-rubric",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleAgentRubric",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:agent-rubric:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:agent-rubric:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:agent-rubric:component-alignment"
+      }
+    },
+    {
+      "type": "answer-relevance",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "answer-relevance",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleAnswerRelevance",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:answer-relevance:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:answer-relevance:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:answer-relevance:component-alignment"
+      }
+    },
+    {
+      "type": "bleu",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "bleu",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleBleuScore",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:bleu:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:bleu:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:bleu:component-alignment"
+      }
+    },
+    {
+      "type": "classifier",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_CLASSIFICATION_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "classifier",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleClassifier",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:classifier:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:classifier:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:classifier:component-alignment"
+      }
+    },
+    {
+      "type": "contains",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "NUMBER"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "contains",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleContains",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:contains:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:contains:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:contains:component-alignment"
+      }
+    },
+    {
+      "type": "contains-all",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "contains-all",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleContainsAll",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:contains-all:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:contains-all:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:contains-all:component-alignment"
+      }
+    },
+    {
+      "type": "contains-any",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "contains-any",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleContainsAny",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:contains-any:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:contains-any:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:contains-any:component-alignment"
+      }
+    },
+    {
+      "type": "contains-html",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "contains-html",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleContainsHtml",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:contains-html:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:contains-html:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:contains-html:component-alignment"
+      }
+    },
+    {
+      "type": "contains-json",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "OBJECT"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "contains-json",
+        "metric": "capability-probe",
+        "value": {
+          "type": "object"
+        }
+      },
+      "sourceEvidence": "handleContainsJson",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:contains-json:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:contains-json:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:contains-json:component-alignment"
+      }
+    },
+    {
+      "type": "contains-sql",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "OBJECT", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["NODE_SQL_PARSER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "contains-sql",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleContainsSql",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:contains-sql:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:contains-sql:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:contains-sql:component-alignment"
+      }
+    },
+    {
+      "type": "contains-xml",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "STRING_LIST", "OBJECT", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "contains-xml",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsXml",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:contains-xml:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:contains-xml:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:contains-xml:component-alignment"
+      }
+    },
+    {
+      "type": "context-faithfulness",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "context-faithfulness",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleContextFaithfulness",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:context-faithfulness:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:context-faithfulness:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:context-faithfulness:component-alignment"
+      }
+    },
+    {
+      "type": "context-recall",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "context-recall",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleContextRecall",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:context-recall:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:context-recall:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:context-recall:component-alignment"
+      }
+    },
+    {
+      "type": "context-relevance",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "context-relevance",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleContextRelevance",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:context-relevance:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:context-relevance:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:context-relevance:component-alignment"
+      }
+    },
+    {
+      "type": "conversation-relevance",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "conversation-relevance",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleConversationRelevance",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:conversation-relevance:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:conversation-relevance:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:conversation-relevance:component-alignment"
+      }
+    },
+    {
+      "type": "cost",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": true
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "cost",
+        "metric": "capability-probe",
+        "threshold": 1
+      },
+      "sourceEvidence": "handleCost",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:cost:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:cost:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:cost:component-alignment"
+      }
+    },
+    {
+      "type": "equals",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": [
+          "NONE",
+          "STRING",
+          "NUMBER",
+          "BOOLEAN",
+          "NULL",
+          "OBJECT",
+          "STRING_LIST",
+          "ARRAY"
+        ],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "equals",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleEquals",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:equals:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:equals:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:equals:component-alignment"
+      }
+    },
+    {
+      "type": "factuality",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "factuality",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleFactuality",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:factuality:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:factuality:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:factuality:component-alignment"
+      }
+    },
+    {
+      "type": "finish-reason",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "finish-reason",
+        "metric": "capability-probe",
+        "value": "stop"
+      },
+      "sourceEvidence": "handleFinishReason",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:finish-reason:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:finish-reason:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:finish-reason:component-alignment"
+      }
+    },
+    {
+      "type": "g-eval",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "g-eval",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleGEval",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:g-eval:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:g-eval:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:g-eval:component-alignment"
+      }
+    },
+    {
+      "type": "gleu",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "gleu",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleGleuScore",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:gleu:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:gleu:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:gleu:component-alignment"
+      }
+    },
+    {
+      "type": "guardrails",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "guardrails",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleGuardrails",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:guardrails:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:guardrails:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:guardrails:component-alignment"
+      }
+    },
+    {
+      "type": "icontains",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "NUMBER"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "icontains",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleIContains",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:icontains:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:icontains:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:icontains:component-alignment"
+      }
+    },
+    {
+      "type": "icontains-all",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "icontains-all",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleIContainsAll",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:icontains-all:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:icontains-all:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:icontains-all:component-alignment"
+      }
+    },
+    {
+      "type": "icontains-any",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "icontains-any",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleIContainsAny",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:icontains-any:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:icontains-any:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:icontains-any:component-alignment"
+      }
+    },
+    {
+      "type": "is-html",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "is-html",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsHtml",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:is-html:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:is-html:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:is-html:component-alignment"
+      }
+    },
+    {
+      "type": "is-json",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "OBJECT"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "is-json",
+        "metric": "capability-probe",
+        "value": {
+          "type": "object"
+        }
+      },
+      "sourceEvidence": "handleIsJson",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:is-json:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:is-json:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:is-json:component-alignment"
+      }
+    },
+    {
+      "type": "is-refusal",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "is-refusal",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsRefusal",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:is-refusal:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:is-refusal:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:is-refusal:component-alignment"
+      }
+    },
+    {
+      "type": "is-sql",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "OBJECT", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["NODE_SQL_PARSER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "is-sql",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsSql",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:is-sql:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:is-sql:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:is-sql:component-alignment"
+      }
+    },
+    {
+      "type": "is-valid-function-call",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TARGET_PROVIDER_TOOL_PROTOCOL"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "is-valid-function-call",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsValidFunctionCall",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:is-valid-function-call:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:is-valid-function-call:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:is-valid-function-call:component-alignment"
+      }
+    },
+    {
+      "type": "is-valid-openai-function-call",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TARGET_PROVIDER_TOOL_PROTOCOL"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "is-valid-openai-function-call",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsValidFunctionCall",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:is-valid-openai-function-call:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:is-valid-openai-function-call:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:is-valid-openai-function-call:component-alignment"
+      }
+    },
+    {
+      "type": "is-valid-openai-tools-call",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TARGET_PROVIDER_TOOL_PROTOCOL"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "is-valid-openai-tools-call",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsValidOpenAiToolsCall",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:is-valid-openai-tools-call:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:is-valid-openai-tools-call:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:is-valid-openai-tools-call:component-alignment"
+      }
+    },
+    {
+      "type": "is-xml",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "STRING_LIST", "OBJECT", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "is-xml",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsXml",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:is-xml:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:is-xml:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:is-xml:component-alignment"
+      }
+    },
+    {
+      "type": "javascript",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["SCRIPT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["JAVASCRIPT_VM"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "javascript",
+        "metric": "capability-probe",
+        "value": "return output.length > 0"
+      },
+      "sourceEvidence": "handleJavascript",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:javascript:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:javascript:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:javascript:component-alignment"
+      }
+    },
+    {
+      "type": "latency",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": true
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "latency",
+        "metric": "capability-probe",
+        "threshold": 1
+      },
+      "sourceEvidence": "handleLatency",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:latency:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:latency:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:latency:component-alignment"
+      }
+    },
+    {
+      "type": "levenshtein",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "levenshtein",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleLevenshtein",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:levenshtein:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:levenshtein:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:levenshtein:component-alignment"
+      }
+    },
+    {
+      "type": "llm-rubric",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "OBJECT", "STRING_LIST", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "llm-rubric",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleLlmRubric",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:llm-rubric:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:llm-rubric:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:llm-rubric:component-alignment"
+      }
+    },
+    {
+      "type": "pi",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PI_SCORER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "pi",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handlePiScorer",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:pi:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:pi:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:pi:component-alignment"
+      }
+    },
+    {
+      "type": "meteor",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["NATURAL_PACKAGE"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "meteor",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleMeteorAssertion",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:meteor:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:meteor:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:meteor:component-alignment"
+      }
+    },
+    {
+      "type": "model-graded-closedqa",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "model-graded-closedqa",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleModelGradedClosedQa",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:model-graded-closedqa:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:model-graded-closedqa:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:model-graded-closedqa:component-alignment"
+      }
+    },
+    {
+      "type": "model-graded-factuality",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "model-graded-factuality",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleFactuality",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:model-graded-factuality:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:model-graded-factuality:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:model-graded-factuality:component-alignment"
+      }
+    },
+    {
+      "type": "moderation",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING_LIST", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_MODERATION_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "moderation",
+        "metric": "capability-probe",
+        "value": ["expected-a", "expected-b"]
+      },
+      "sourceEvidence": "handleModeration",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:moderation:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:moderation:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:moderation:component-alignment"
+      }
+    },
+    {
+      "type": "perplexity",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "perplexity",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handlePerplexity",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:perplexity:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:perplexity:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:perplexity:component-alignment"
+      }
+    },
+    {
+      "type": "perplexity-score",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "perplexity-score",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handlePerplexityScore",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:perplexity-score:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:perplexity-score:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:perplexity-score:component-alignment"
+      }
+    },
+    {
+      "type": "python",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["SCRIPT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PYTHON_RUNTIME"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "python",
+        "metric": "capability-probe",
+        "value": "output != ''"
+      },
+      "sourceEvidence": "handlePython",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:python:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:python:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:python:component-alignment"
+      }
+    },
+    {
+      "type": "regex",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "regex",
+        "metric": "capability-probe",
+        "value": "^expected$"
+      },
+      "sourceEvidence": "handleRegex",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:regex:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:regex:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:regex:component-alignment"
+      }
+    },
+    {
+      "type": "rouge-n",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "rouge-n",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleRougeScore",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:rouge-n:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:rouge-n:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:rouge-n:component-alignment"
+      }
+    },
+    {
+      "type": "ruby",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["SCRIPT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["RUBY_RUNTIME"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "ruby",
+        "metric": "capability-probe",
+        "value": "output != ''"
+      },
+      "sourceEvidence": "handleRuby",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:ruby:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:ruby:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:ruby:component-alignment"
+      }
+    },
+    {
+      "type": "similar",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EMBEDDING_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "similar",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleSimilar",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:similar:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:similar:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:similar:component-alignment"
+      }
+    },
+    {
+      "type": "similar:cosine",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EMBEDDING_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "similar:cosine",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleSimilar",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:similar:cosine:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:similar:cosine:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:similar:cosine:component-alignment"
+      }
+    },
+    {
+      "type": "similar:dot",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EMBEDDING_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "similar:dot",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleSimilar",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:similar:dot:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:similar:dot:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:similar:dot:component-alignment"
+      }
+    },
+    {
+      "type": "similar:euclidean",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EMBEDDING_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "similar:euclidean",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleSimilar",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:similar:euclidean:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:similar:euclidean:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:similar:euclidean:component-alignment"
+      }
+    },
+    {
+      "type": "starts-with",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "starts-with",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleStartsWith",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:starts-with:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:starts-with:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:starts-with:component-alignment"
+      }
+    },
+    {
+      "type": "tool-call-f1",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "tool-call-f1",
+        "metric": "capability-probe",
+        "value": ["lookup"]
+      },
+      "sourceEvidence": "handleToolCallF1",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:tool-call-f1:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:tool-call-f1:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:tool-call-f1:component-alignment"
+      }
+    },
+    {
+      "type": "skill-used",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "skill-used",
+        "metric": "capability-probe",
+        "value": "lookup"
+      },
+      "sourceEvidence": "handleSkillUsed",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:skill-used:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:skill-used:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:skill-used:component-alignment"
+      }
+    },
+    {
+      "type": "trajectory:goal-success",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER", "TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "trajectory:goal-success",
+        "metric": "capability-probe",
+        "value": "complete the task"
+      },
+      "sourceEvidence": "handleTrajectoryGoalSuccess",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:trajectory:goal-success:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:trajectory:goal-success:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:trajectory:goal-success:component-alignment"
+      }
+    },
+    {
+      "type": "trajectory:tool-args-match",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "trajectory:tool-args-match",
+        "metric": "capability-probe",
+        "value": {
+          "name": "lookup",
+          "args": {
+            "id": "1"
+          }
+        }
+      },
+      "sourceEvidence": "handleTrajectoryToolArgsMatch",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:trajectory:tool-args-match:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:trajectory:tool-args-match:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:trajectory:tool-args-match:component-alignment"
+      }
+    },
+    {
+      "type": "trajectory:step-count",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "trajectory:step-count",
+        "metric": "capability-probe",
+        "value": {
+          "min": 0
+        }
+      },
+      "sourceEvidence": "handleTrajectoryStepCount",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:trajectory:step-count:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:trajectory:step-count:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:trajectory:step-count:component-alignment"
+      }
+    },
+    {
+      "type": "trajectory:tool-sequence",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING_LIST", "OBJECT", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "trajectory:tool-sequence",
+        "metric": "capability-probe",
+        "value": ["lookup"]
+      },
+      "sourceEvidence": "handleTrajectoryToolSequence",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:trajectory:tool-sequence:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:trajectory:tool-sequence:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:trajectory:tool-sequence:component-alignment"
+      }
+    },
+    {
+      "type": "trajectory:tool-used",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "trajectory:tool-used",
+        "metric": "capability-probe",
+        "value": "lookup"
+      },
+      "sourceEvidence": "handleTrajectoryToolUsed",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:trajectory:tool-used:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:trajectory:tool-used:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:trajectory:tool-used:component-alignment"
+      }
+    },
+    {
+      "type": "trace-error-spans",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "NUMBER", "OBJECT"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "trace-error-spans",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleTraceErrorSpans",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:trace-error-spans:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:trace-error-spans:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:trace-error-spans:component-alignment"
+      }
+    },
+    {
+      "type": "trace-span-count",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "trace-span-count",
+        "metric": "capability-probe",
+        "value": {
+          "pattern": "*",
+          "min": 0
+        }
+      },
+      "sourceEvidence": "handleTraceSpanCount",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:trace-span-count:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:trace-span-count:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:trace-span-count:component-alignment"
+      }
+    },
+    {
+      "type": "trace-span-duration",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "trace-span-duration",
+        "metric": "capability-probe",
+        "value": {
+          "pattern": "*",
+          "max": 1000
+        }
+      },
+      "sourceEvidence": "handleTraceSpanDuration",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:trace-span-duration:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:trace-span-duration:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:trace-span-duration:component-alignment"
+      }
+    },
+    {
+      "type": "search-rubric",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "NUMBER", "BOOLEAN", "OBJECT", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER", "PROMPTFOO_SEARCH_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "search-rubric",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleSearchRubric",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:search-rubric:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:search-rubric:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:search-rubric:component-alignment"
+      }
+    },
+    {
+      "type": "webhook",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["URL"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["WEBHOOK_HTTP"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "webhook",
+        "metric": "capability-probe",
+        "value": "https://example.invalid/assert"
+      },
+      "sourceEvidence": "handleWebhook",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:webhook:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:webhook:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:webhook:component-alignment"
+      }
+    },
+    {
+      "type": "word-count",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "NUMBER", "OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "word-count",
+        "metric": "capability-probe",
+        "value": 1
+      },
+      "sourceEvidence": "handleWordCount",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:word-count:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:word-count:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:word-count:component-alignment"
+      }
+    },
+    {
+      "type": "not-agent-rubric",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "OBJECT", "STRING_LIST", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-agent-rubric",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleAgentRubric",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-agent-rubric:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-agent-rubric:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-agent-rubric:component-alignment"
+      }
+    },
+    {
+      "type": "not-answer-relevance",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-answer-relevance",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleAnswerRelevance",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-answer-relevance:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-answer-relevance:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-answer-relevance:component-alignment"
+      }
+    },
+    {
+      "type": "not-bleu",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-bleu",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleBleuScore",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-bleu:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-bleu:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-bleu:component-alignment"
+      }
+    },
+    {
+      "type": "not-classifier",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_CLASSIFICATION_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-classifier",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleClassifier",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-classifier:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-classifier:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-classifier:component-alignment"
+      }
+    },
+    {
+      "type": "not-contains",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "NUMBER"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-contains",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleContains",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-contains:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-contains:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-contains:component-alignment"
+      }
+    },
+    {
+      "type": "not-contains-all",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-contains-all",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleContainsAll",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-contains-all:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-contains-all:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-contains-all:component-alignment"
+      }
+    },
+    {
+      "type": "not-contains-any",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-contains-any",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleContainsAny",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-contains-any:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-contains-any:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-contains-any:component-alignment"
+      }
+    },
+    {
+      "type": "not-contains-html",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-contains-html",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleContainsHtml",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-contains-html:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-contains-html:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-contains-html:component-alignment"
+      }
+    },
+    {
+      "type": "not-contains-json",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "OBJECT"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-contains-json",
+        "metric": "capability-probe",
+        "value": {
+          "type": "object"
+        }
+      },
+      "sourceEvidence": "handleContainsJson",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-contains-json:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-contains-json:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-contains-json:component-alignment"
+      }
+    },
+    {
+      "type": "not-contains-sql",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "OBJECT", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["NODE_SQL_PARSER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-contains-sql",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleContainsSql",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-contains-sql:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-contains-sql:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-contains-sql:component-alignment"
+      }
+    },
+    {
+      "type": "not-contains-xml",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "STRING_LIST", "OBJECT", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-contains-xml",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsXml",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-contains-xml:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-contains-xml:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-contains-xml:component-alignment"
+      }
+    },
+    {
+      "type": "not-context-faithfulness",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-context-faithfulness",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleContextFaithfulness",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-context-faithfulness:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-context-faithfulness:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-context-faithfulness:component-alignment"
+      }
+    },
+    {
+      "type": "not-context-recall",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-context-recall",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleContextRecall",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-context-recall:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-context-recall:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-context-recall:component-alignment"
+      }
+    },
+    {
+      "type": "not-context-relevance",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-context-relevance",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleContextRelevance",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-context-relevance:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-context-relevance:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-context-relevance:component-alignment"
+      }
+    },
+    {
+      "type": "not-conversation-relevance",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-conversation-relevance",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleConversationRelevance",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-conversation-relevance:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-conversation-relevance:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-conversation-relevance:component-alignment"
+      }
+    },
+    {
+      "type": "not-cost",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": true
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-cost",
+        "metric": "capability-probe",
+        "threshold": 1
+      },
+      "sourceEvidence": "handleCost",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-cost:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-cost:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-cost:component-alignment"
+      }
+    },
+    {
+      "type": "not-equals",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": [
+          "NONE",
+          "STRING",
+          "NUMBER",
+          "BOOLEAN",
+          "NULL",
+          "OBJECT",
+          "STRING_LIST",
+          "ARRAY"
+        ],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-equals",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleEquals",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-equals:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-equals:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-equals:component-alignment"
+      }
+    },
+    {
+      "type": "not-factuality",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-factuality",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleFactuality",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-factuality:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-factuality:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-factuality:component-alignment"
+      }
+    },
+    {
+      "type": "not-finish-reason",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-finish-reason",
+        "metric": "capability-probe",
+        "value": "stop"
+      },
+      "sourceEvidence": "handleFinishReason",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-finish-reason:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-finish-reason:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-finish-reason:component-alignment"
+      }
+    },
+    {
+      "type": "not-g-eval",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-g-eval",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleGEval",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-g-eval:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-g-eval:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-g-eval:component-alignment"
+      }
+    },
+    {
+      "type": "not-gleu",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-gleu",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleGleuScore",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-gleu:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-gleu:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-gleu:component-alignment"
+      }
+    },
+    {
+      "type": "not-guardrails",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-guardrails",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleGuardrails",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-guardrails:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-guardrails:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-guardrails:component-alignment"
+      }
+    },
+    {
+      "type": "not-icontains",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "NUMBER"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-icontains",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleIContains",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-icontains:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-icontains:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-icontains:component-alignment"
+      }
+    },
+    {
+      "type": "not-icontains-all",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-icontains-all",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleIContainsAll",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-icontains-all:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-icontains-all:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-icontains-all:component-alignment"
+      }
+    },
+    {
+      "type": "not-icontains-any",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-icontains-any",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleIContainsAny",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-icontains-any:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-icontains-any:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-icontains-any:component-alignment"
+      }
+    },
+    {
+      "type": "not-is-html",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-is-html",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsHtml",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-is-html:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-is-html:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-is-html:component-alignment"
+      }
+    },
+    {
+      "type": "not-is-json",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "OBJECT"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-is-json",
+        "metric": "capability-probe",
+        "value": {
+          "type": "object"
+        }
+      },
+      "sourceEvidence": "handleIsJson",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-is-json:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-is-json:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-is-json:component-alignment"
+      }
+    },
+    {
+      "type": "not-is-refusal",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-is-refusal",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsRefusal",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-is-refusal:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-is-refusal:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-is-refusal:component-alignment"
+      }
+    },
+    {
+      "type": "not-is-sql",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "OBJECT", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["NODE_SQL_PARSER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-is-sql",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsSql",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-is-sql:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-is-sql:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-is-sql:component-alignment"
+      }
+    },
+    {
+      "type": "not-is-valid-function-call",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TARGET_PROVIDER_TOOL_PROTOCOL"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-is-valid-function-call",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsValidFunctionCall",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-is-valid-function-call:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-is-valid-function-call:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-is-valid-function-call:component-alignment"
+      }
+    },
+    {
+      "type": "not-is-valid-openai-function-call",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TARGET_PROVIDER_TOOL_PROTOCOL"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-is-valid-openai-function-call",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsValidFunctionCall",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-is-valid-openai-function-call:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-is-valid-openai-function-call:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-is-valid-openai-function-call:component-alignment"
+      }
+    },
+    {
+      "type": "not-is-valid-openai-tools-call",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TARGET_PROVIDER_TOOL_PROTOCOL"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-is-valid-openai-tools-call",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsValidOpenAiToolsCall",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-is-valid-openai-tools-call:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-is-valid-openai-tools-call:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-is-valid-openai-tools-call:component-alignment"
+      }
+    },
+    {
+      "type": "not-is-xml",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "STRING_LIST", "OBJECT", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-is-xml",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleIsXml",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-is-xml:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-is-xml:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-is-xml:component-alignment"
+      }
+    },
+    {
+      "type": "not-javascript",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["SCRIPT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["JAVASCRIPT_VM"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-javascript",
+        "metric": "capability-probe",
+        "value": "return output.length > 0"
+      },
+      "sourceEvidence": "handleJavascript",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-javascript:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-javascript:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-javascript:component-alignment"
+      }
+    },
+    {
+      "type": "not-latency",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": true
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-latency",
+        "metric": "capability-probe",
+        "threshold": 1
+      },
+      "sourceEvidence": "handleLatency",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-latency:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-latency:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-latency:component-alignment"
+      }
+    },
+    {
+      "type": "not-levenshtein",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-levenshtein",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleLevenshtein",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-levenshtein:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-levenshtein:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-levenshtein:component-alignment"
+      }
+    },
+    {
+      "type": "not-llm-rubric",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING", "OBJECT", "STRING_LIST", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-llm-rubric",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleLlmRubric",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-llm-rubric:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-llm-rubric:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-llm-rubric:component-alignment"
+      }
+    },
+    {
+      "type": "not-pi",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PI_SCORER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-pi",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handlePiScorer",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-pi:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-pi:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-pi:component-alignment"
+      }
+    },
+    {
+      "type": "not-meteor",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["NATURAL_PACKAGE"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-meteor",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleMeteorAssertion",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-meteor:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-meteor:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-meteor:component-alignment"
+      }
+    },
+    {
+      "type": "not-model-graded-closedqa",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-model-graded-closedqa",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleModelGradedClosedQa",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-model-graded-closedqa:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-model-graded-closedqa:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-model-graded-closedqa:component-alignment"
+      }
+    },
+    {
+      "type": "not-model-graded-factuality",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-model-graded-factuality",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleFactuality",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-model-graded-factuality:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-model-graded-factuality:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-model-graded-factuality:component-alignment"
+      }
+    },
+    {
+      "type": "not-moderation",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "STRING_LIST", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_MODERATION_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-moderation",
+        "metric": "capability-probe",
+        "value": ["expected-a", "expected-b"]
+      },
+      "sourceEvidence": "handleModeration",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-moderation:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-moderation:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-moderation:component-alignment"
+      }
+    },
+    {
+      "type": "not-perplexity",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-perplexity",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handlePerplexity",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-perplexity:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-perplexity:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-perplexity:component-alignment"
+      }
+    },
+    {
+      "type": "not-perplexity-score",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-perplexity-score",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handlePerplexityScore",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-perplexity-score:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-perplexity-score:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-perplexity-score:component-alignment"
+      }
+    },
+    {
+      "type": "not-python",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["SCRIPT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PYTHON_RUNTIME"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-python",
+        "metric": "capability-probe",
+        "value": "output != ''"
+      },
+      "sourceEvidence": "handlePython",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-python:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-python:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-python:component-alignment"
+      }
+    },
+    {
+      "type": "not-regex",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-regex",
+        "metric": "capability-probe",
+        "value": "^expected$"
+      },
+      "sourceEvidence": "handleRegex",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-regex:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-regex:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-regex:component-alignment"
+      }
+    },
+    {
+      "type": "not-rouge-n",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-rouge-n",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleRougeScore",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-rouge-n:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-rouge-n:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-rouge-n:component-alignment"
+      }
+    },
+    {
+      "type": "not-ruby",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["SCRIPT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["RUBY_RUNTIME"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-ruby",
+        "metric": "capability-probe",
+        "value": "output != ''"
+      },
+      "sourceEvidence": "handleRuby",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-ruby:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-ruby:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-ruby:component-alignment"
+      }
+    },
+    {
+      "type": "not-similar",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EMBEDDING_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-similar",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleSimilar",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-similar:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-similar:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-similar:component-alignment"
+      }
+    },
+    {
+      "type": "not-similar:cosine",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EMBEDDING_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-similar:cosine",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleSimilar",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-similar:cosine:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-similar:cosine:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-similar:cosine:component-alignment"
+      }
+    },
+    {
+      "type": "not-similar:dot",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EMBEDDING_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-similar:dot",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleSimilar",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-similar:dot:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-similar:dot:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-similar:dot:component-alignment"
+      }
+    },
+    {
+      "type": "not-similar:euclidean",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EMBEDDING_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-similar:euclidean",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleSimilar",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-similar:euclidean:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-similar:euclidean:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-similar:euclidean:component-alignment"
+      }
+    },
+    {
+      "type": "not-starts-with",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-starts-with",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleStartsWith",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-starts-with:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-starts-with:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-starts-with:component-alignment"
+      }
+    },
+    {
+      "type": "not-tool-call-f1",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-tool-call-f1",
+        "metric": "capability-probe",
+        "value": ["lookup"]
+      },
+      "sourceEvidence": "handleToolCallF1",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-tool-call-f1:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-tool-call-f1:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-tool-call-f1:component-alignment"
+      }
+    },
+    {
+      "type": "not-skill-used",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-skill-used",
+        "metric": "capability-probe",
+        "value": "lookup"
+      },
+      "sourceEvidence": "handleSkillUsed",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-skill-used:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-skill-used:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-skill-used:component-alignment"
+      }
+    },
+    {
+      "type": "not-trajectory:goal-success",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER", "TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-trajectory:goal-success",
+        "metric": "capability-probe",
+        "value": "complete the task"
+      },
+      "sourceEvidence": "handleTrajectoryGoalSuccess",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-trajectory:goal-success:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-trajectory:goal-success:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-trajectory:goal-success:component-alignment"
+      }
+    },
+    {
+      "type": "not-trajectory:tool-args-match",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-trajectory:tool-args-match",
+        "metric": "capability-probe",
+        "value": {
+          "name": "lookup",
+          "args": {
+            "id": "1"
+          }
+        }
+      },
+      "sourceEvidence": "handleTrajectoryToolArgsMatch",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-trajectory:tool-args-match:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-trajectory:tool-args-match:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-trajectory:tool-args-match:component-alignment"
+      }
+    },
+    {
+      "type": "not-trajectory:step-count",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-trajectory:step-count",
+        "metric": "capability-probe",
+        "value": {
+          "min": 0
+        }
+      },
+      "sourceEvidence": "handleTrajectoryStepCount",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-trajectory:step-count:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-trajectory:step-count:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-trajectory:step-count:component-alignment"
+      }
+    },
+    {
+      "type": "not-trajectory:tool-sequence",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING_LIST", "OBJECT", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-trajectory:tool-sequence",
+        "metric": "capability-probe",
+        "value": ["lookup"]
+      },
+      "sourceEvidence": "handleTrajectoryToolSequence",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-trajectory:tool-sequence:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-trajectory:tool-sequence:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-trajectory:tool-sequence:component-alignment"
+      }
+    },
+    {
+      "type": "not-trajectory:tool-used",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-trajectory:tool-used",
+        "metric": "capability-probe",
+        "value": "lookup"
+      },
+      "sourceEvidence": "handleTrajectoryToolUsed",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-trajectory:tool-used:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-trajectory:tool-used:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-trajectory:tool-used:component-alignment"
+      }
+    },
+    {
+      "type": "not-trace-error-spans",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "NUMBER", "OBJECT"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-trace-error-spans",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "handleTraceErrorSpans",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-trace-error-spans:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-trace-error-spans:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-trace-error-spans:component-alignment"
+      }
+    },
+    {
+      "type": "not-trace-span-count",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-trace-span-count",
+        "metric": "capability-probe",
+        "value": {
+          "pattern": "*",
+          "min": 0
+        }
+      },
+      "sourceEvidence": "handleTraceSpanCount",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-trace-span-count:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-trace-span-count:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-trace-span-count:component-alignment"
+      }
+    },
+    {
+      "type": "not-trace-span-duration",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["TRACE_DATA"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-trace-span-duration",
+        "metric": "capability-probe",
+        "value": {
+          "pattern": "*",
+          "max": 1000
+        }
+      },
+      "sourceEvidence": "handleTraceSpanDuration",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-trace-span-duration:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-trace-span-duration:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-trace-span-duration:component-alignment"
+      }
+    },
+    {
+      "type": "not-search-rubric",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "STRING_LIST", "NUMBER", "BOOLEAN", "OBJECT", "ARRAY"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER", "PROMPTFOO_SEARCH_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-search-rubric",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "handleSearchRubric",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-search-rubric:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-search-rubric:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-search-rubric:component-alignment"
+      }
+    },
+    {
+      "type": "not-webhook",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["URL"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["WEBHOOK_HTTP"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-webhook",
+        "metric": "capability-probe",
+        "value": "https://example.invalid/assert"
+      },
+      "sourceEvidence": "handleWebhook",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-webhook:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-webhook:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-webhook:component-alignment"
+      }
+    },
+    {
+      "type": "not-word-count",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING", "NUMBER", "OBJECT"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "not-word-count",
+        "metric": "capability-probe",
+        "value": 1
+      },
+      "sourceEvidence": "handleWordCount",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:not-word-count:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:not-word-count:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:not-word-count:component-alignment"
+      }
+    },
+    {
+      "type": "select-best",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["STRING"],
+        "valueRequired": true,
+        "thresholdRequired": false
+      },
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "select-best",
+        "metric": "capability-probe",
+        "value": "expected"
+      },
+      "sourceEvidence": "processSelectBestAssertionForTest",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:select-best:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:select-best:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:select-best:component-alignment"
+      }
+    },
+    {
+      "type": "human",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["HUMAN_INPUT"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "human",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "human: \"human\";",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:human:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:human:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:human:component-alignment"
+      }
+    },
+    {
+      "type": "max-score",
+      "kind": "ASSERTION",
+      "payload": {
+        "acceptedKinds": ["NONE", "OBJECT", "ARRAY"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "max-score",
+        "metric": "capability-probe",
+        "value": {
+          "method": "average"
+        }
+      },
+      "sourceEvidence": "processMaxScoreAssertionForTest",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:max-score:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:max-score:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:max-score:component-alignment"
+      }
+    },
+    {
+      "type": "promptfoo:redteam:*",
+      "kind": "DYNAMIC_PATTERN",
+      "payload": {
+        "acceptedKinds": ["NONE", "PLUGIN_DEFINED"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": ["REDTEAM_PLUGIN_PROTOCOL"],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "promptfoo:redteam:*",
+        "metric": "capability-probe"
+      },
+      "sourceEvidence": "`promptfoo:redteam:${string}`",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:promptfoo:redteam:*:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:promptfoo:redteam:*:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:promptfoo:redteam:*:component-alignment"
+      }
+    },
+    {
+      "type": "assert-set",
+      "kind": "ASSERTION_SET",
+      "payload": {
+        "acceptedKinds": ["OBJECT"],
+        "valueRequired": false,
+        "thresholdRequired": false
+      },
+      "dependencies": [],
+      "rejectionBoundaries": [
+        "FILE_REFERENCE",
+        "EXTERNAL_MODULE",
+        "PROVIDER_OVERRIDE",
+        "CAPABILITY_PAYLOAD_KIND"
+      ],
+      "schemaProbe": {
+        "type": "assert-set",
+        "metric": "capability-probe",
+        "assert": [
+          {
+            "type": "equals",
+            "value": "expected",
+            "metric": "nested-probe"
+          }
+        ]
+      },
+      "sourceEvidence": "type: z.ZodLiteral<\"assert-set\">",
+      "importerAlignment": {
+        "resultPath": "gradingResult.componentResults",
+        "keys": ["caseKey", "ordinal", "assertionIndex", "definitionHash"]
+      },
+      "probes": {
+        "positive": "promptfoo-0.121.18:assert-set:legal-payload",
+        "invalidOrCapabilityError": "promptfoo-0.121.18:assert-set:rejection-boundary",
+        "importerAlignment": "promptfoo-0.121.18:assert-set:component-alignment"
+      }
+    }
+  ]
+}

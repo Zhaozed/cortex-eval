@@ -1,0 +1,13 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "tooling"
+
+allowBuilds:
+  "@google/genai": true
+  "@playwright/browser-chromium": true
+  "@swc/core": true
+  esbuild: true
+  onnxruntime-node: true
+  protobufjs: true
+  sharp: true

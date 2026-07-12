@@ -1,0 +1,26 @@
+{
+  "recordedAt": "2026-07-13",
+  "platform": "macOS 15.7.4",
+  "architecture": "arm64",
+  "cpu": "Apple M4 Pro",
+  "logicalCores": 12,
+  "memoryBytes": 51539607552,
+  "node": "24.18.0",
+  "pnpm": "11.3.0",
+  "sqlite": "3.53.3",
+  "promptfoo": "0.121.18",
+  "python": "3.12.12",
+  "ruby": "2.6.10",
+  "benchmark": {
+    "name": "generate-and-serialize-1000-cases",
+    "warmups": 1,
+    "measurements": 5,
+    "samplesMs": [
+      0.7564160000000015, 0.9625830000000022, 0.6430829999999901, 0.6506250000000051,
+      0.6343750000000057
+    ],
+    "medianMs": 0.6506250000000051,
+    "p95Ms": 0.9625830000000022,
+    "p99Ms": 0.9625830000000022
+  }
+}

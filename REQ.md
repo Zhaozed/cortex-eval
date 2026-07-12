@@ -461,7 +461,7 @@ Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式设置阶段
 6. 为 REST Error Cases 生成 `NOT_EVALUATED` 规范化结果。
 7. 按冻结 Case 顺序合并完整结果集合，全部稳定事实生成后再计算结果哈希。
 
-Promptfoo 因 Assertion 失败返回的失败退出码属于评估事实，不等同于系统执行失败。进程启动、配置、文件或未知输出结构错误才属于系统失败。
+Promptfoo 因 Assertion 失败返回的失败退出码属于评估事实，不等同于系统执行失败。固定版本 `0.121.18` 的真实进程探针确认该原始退出码为 `100`；平台和 CLI Adapter 必须识别该事实，目标 CLI 对外仍映射为退出码 `1`。进程启动、配置、文件或未知输出结构错误才属于系统失败。
 
 如果全部 REST 请求失败，则跳过 Promptfoo，全部 Cases 标记为 `NOT_EVALUATED`，仍允许生成完整错误报告。
 

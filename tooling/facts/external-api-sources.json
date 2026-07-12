@@ -1,0 +1,29 @@
+{
+  "checkedAt": "2026-07-13",
+  "sources": [
+    {
+      "subject": "Promptfoo precomputed providerOutput and result components",
+      "url": "https://www.promptfoo.dev/docs/configuration/reference/"
+    },
+    {
+      "subject": "Promptfoo JSON output and componentResults",
+      "url": "https://www.promptfoo.dev/docs/configuration/outputs/"
+    },
+    {
+      "subject": "Google Gen AI JavaScript SDK and structured output",
+      "url": "https://github.com/googleapis/js-genai"
+    },
+    {
+      "subject": "Gemini generateContent request fields",
+      "url": "https://ai.google.dev/api/generate-content"
+    },
+    {
+      "subject": "OpenAI Node SDK Chat Completions, retries and timeout",
+      "url": "https://github.com/openai/openai-node#retries"
+    },
+    {
+      "subject": "OpenAI Chat Completions protocol",
+      "url": "https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create"
+    }
+  ]
+}

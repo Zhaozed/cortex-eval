@@ -42,7 +42,7 @@ interface RequestSuccess {
 /** Error carrying an optional HTTP status. */
 class RequestCaseError extends Error {
   /** HTTP response status when available. */
-  readonly status?: number;
+  readonly status: number | undefined;
 
   // Create one case-scoped request error.
   constructor(message: string, status?: number) {
@@ -70,7 +70,9 @@ async function readJson(path: string, messages: RunnerMessages): Promise<unknown
   try {
     return JSON.parse(content) as unknown;
   } catch (error) {
-    throw new Error(formatRunnerMessage(messages, "invalid_json", { path, error }));
+    throw new Error(formatRunnerMessage(messages, "invalid_json", { path, error }), {
+      cause: error
+    });
   }
 }
 
@@ -92,7 +94,7 @@ function parseTestCases(
     if (!isRecord(item)) {
       throw new Error(formatRunnerMessage(messages, "invalid_test_case", { path, index }));
     }
-    return item as PromptfooTestCase;
+    return item;
   });
 }
 
@@ -245,12 +247,15 @@ async function executeRequest(
   const startedAt = performance.now();
 
   try {
-    const response = await fetch(url, {
+    const request: RequestInit = {
       method: provider.method,
       headers,
-      body,
       signal: controller.signal
-    });
+    };
+    if (body !== undefined) {
+      request.body = body;
+    }
+    const response = await fetch(url, request);
     const responseText = await response.text();
     if (!response.ok) {
       throw new RequestCaseError(
@@ -313,6 +318,9 @@ async function runWithConcurrency(
     while (cursor < indexes.length) {
       const current = indexes[cursor];
       cursor += 1;
+      if (current === undefined) {
+        break;
+      }
       await worker(current);
     }
   };
@@ -343,8 +351,8 @@ function mergeExistingOutputs(
       return merged;
     }
     delete merged.providerOutput;
-    delete merged.metadata?.rest_run;
-    delete merged.metadata?.rest_run_error;
+    delete merged.metadata.rest_run;
+    delete merged.metadata.rest_run_error;
     pending.push(index);
     return merged;
   });
@@ -397,6 +405,11 @@ export async function runPromptfooRestSuite(
   await writeResult();
   await runWithConcurrency(merged.pending, maxConcurrency, async (index) => {
     const testCase = merged.cases[index];
+    if (!testCase) {
+      throw new Error(
+        formatRunnerMessage(messages, "invalid_test_case", { path: inputPath, index })
+      );
+    }
     try {
       const result = await executeRequest(testCase, provider, timeoutMs, messages);
       testCase.providerOutput = result.output;
@@ -416,13 +429,14 @@ export async function runPromptfooRestSuite(
           ? error
           : new RequestCaseError(formatRunnerMessage(messages, "request_failure", { error }));
       delete testCase.providerOutput;
+      const restRunError = {
+        message: requestError.message,
+        occurred_at: new Date().toISOString(),
+        ...(requestError.status === undefined ? {} : { status: requestError.status })
+      };
       testCase.metadata = {
         ...(testCase.metadata ?? {}),
-        rest_run_error: {
-          message: requestError.message,
-          status: requestError.status,
-          occurred_at: new Date().toISOString()
-        }
+        rest_run_error: restRunError
       };
       delete testCase.metadata.rest_run;
       failed += 1;

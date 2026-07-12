@@ -22,6 +22,7 @@ artifacts/
 .promptfoo-cache/
 .work/
 coverage/
+.cortex-eval/
 
 # ===== IDE =====
 .idea/

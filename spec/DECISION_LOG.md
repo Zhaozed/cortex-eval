@@ -502,3 +502,29 @@ Playwright 验收 1440×900 与 1280×800、键盘、焦点、错误关联和 Re
 ### 状态
 
 生效。
+
+## Node 24 隔离执行与 Promptfoo 探针事实
+
+### 决策
+
+仓库门禁显式使用 Homebrew `node@24`，不链接或覆盖用户全局 Node。Promptfoo 固定版本通过隔离临时目录真实执行；原始 Assertion Fail 退出码 `100` 由 Adapter 映射为目标 CLI 退出码 `1`。
+
+### 原因
+
+仅声明 Engine 不能证明 pnpm、Promptfoo 和子进程实际运行在 Node 24。Promptfoo 退出码与组件结构必须来自固定版本探针，不能凭记忆或自然语言输出推断。
+
+### 代码影响
+
+`pnpm verify` 前置 Node 24 路径并运行 Runtime Doctor。真实 Fixture 不在原路径执行探针，所有临时输入输出在隔离目录创建和回收。Promptfoo 子进程统一设置超时，先发送 `SIGTERM`，宽限期后发送 `SIGKILL`，并等待进程关闭后再回收临时目录。
+
+### 测试影响
+
+测试校验实际 `process.execPath`、Promptfoo 版本、主 Provider 与隔离 Evaluator 请求计数、退出码、真实 Fixture Case ID、原始 Assertion 类型顺序、18 个组件结果以及 Python/Ruby 内联 Assertion。完整 Runtime Doctor 自身返回 Python/Ruby Smoke 结果，并把显式选择的 `PROMPTFOO_PYTHON`、`PROMPTFOO_RUBY` 原样传给 Smoke 子进程。能力矩阵不再由类型名隐式生成契约，而是逐项保存全部合法 Payload 形态、值与阈值必填性、依赖、拒绝边界、Schema Probe、精确源码证据和 Importer 对齐键；测试对每项实际执行拒绝与映射，把类型精确映射到安装包处理器，并用真实进程固定布尔 `equals` 和数字数组 `contains-any`。
+
+### 排障影响
+
+先检查 Runtime Doctor、固定版本声明、隔离探针错误和原始退出码，再检查 Adapter 映射。
+
+### 状态
+
+生效。

@@ -9,7 +9,11 @@
 - [data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)：REST 模板、并发、续跑、超时和失败隔离。
 - [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：原始数据到 Promptfoo Case 的转换规则。
 
-目标 Vitest Workspace、Package 测试目录和架构测试尚未落地。
+Vitest、V8 覆盖率和架构测试已在 P0 落地。当前工具链核心行/函数覆盖率门禁为 90%，分支为 85%；P1 起各核心 Package 沿用该门禁，全仓最终门禁仍以本 Goal 全局要求为准。
+
+- [tooling/test](../tooling/test)：Runtime Doctor、Fixture、Secret、文档、架构、能力矩阵、官方 SDK 契约、Promptfoo 真实进程和 Benchmark 测试。
+- [vitest.config.ts](../vitest.config.ts)：当前覆盖率范围与阈值。
+- [package.json](../package.json)：`pnpm verify` 确定性门禁入口。
 
 ## Domain 测试
 
@@ -41,9 +45,9 @@ REST、Eval、Analysis 分别验证默认并发 4、2、1，范围 1–64、1–
 
 ## Promptfoo 契约测试
 
-覆盖 Promptfoo `0.121.18`、受控配置、Echo Provider、预计算 Provider Output、Rubric Prompt、Assertion 对齐、退出码和真实 Fixture 完整导入。
+覆盖 Promptfoo `0.121.18`、受控配置、Echo Provider、预计算 Provider Output、Rubric Prompt、Assertion 对齐、退出码和真实 Fixture 完整导入。P0 的真实进程测试在隔离副本中执行 4 个当前 REST Case 和原始 18 条 Assertion，验证主 Provider 零调用、本机隔离 Evaluator 调用、Case ID、Assertion 类型顺序和组件数量；子进程测试验证超时后 `SIGTERM` 与 `SIGKILL` 回收。每个探针使用独立 `PROMPTFOO_CONFIG_DIR`，并行测试不共享 Promptfoo 状态。
 
-精确版本能力矩阵中的每个 Assertion 类型必须至少有正例、非法 Payload 或能力错误和 Importer 对齐测试。真实进程覆盖可信内联 JavaScript、Python、Ruby、Transform、Context Transform 和嵌套 Assertion Set；稳定拒绝 `file://`、外部模块、额外依赖、Assertion Provider 覆盖和 Provider 插件。
+精确版本能力矩阵的 137 条完全展开契约逐条保存全部合法 Payload 形态、值与阈值必填性、Evaluator/解释器/协议依赖、拒绝边界、合法 Schema Probe、精确运行时代码证据和 Importer 对齐键。测试逐条执行非法 Payload、`file://`、外部模块、Provider 覆盖拒绝以及组件身份映射，并把每个类型精确映射到锁定包处理器；处理器名称即使存在于包内，只要不属于该类型也会失败。布尔 `equals` 和数字数组 `contains-any` 另由真实进程正例固定。P0 真实进程覆盖内联 JavaScript、Python 和 Ruby；P6 必须继续覆盖 Transform、Context Transform、嵌套 Assertion Set 和矩阵中的全部能力，并稳定拒绝 `file://`、外部模块、额外依赖、Assertion Provider 覆盖和 Provider 插件。
 
 Evaluator Bridge 测试 Capability、Run/Execution 绑定、调用预算、取消、超时、端口并发、无自动重试、Secret 脱敏和不能作为任意代理。
 
