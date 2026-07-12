@@ -10,6 +10,8 @@
 
 系统采用 TypeScript 模块化单体架构。本地平台由 Web、本地 HTTP API 和单文件 SQLite 组成；离线 CLI 使用文件工作包执行相同的 REST、评估、报告和分析阶段。
 
+当前只支持并验证 macOS ARM64，运行时固定为 Node.js 24 LTS。生产数据默认位于项目根 `.cortex-eval/`，Local Server 默认监听 `127.0.0.1:4310` 并同源提供 Web 与 `/api/v1`。
+
 当前只实现 SQLite，不同时维护 PostgreSQL 兼容层。未来多用户平台通过版本化导出契约迁移到外置 PostgreSQL，并重新设计租户、授权、调度和 Secret 管理。
 
 平台包含十张业务表：
@@ -25,7 +27,7 @@
 - `eval_result`
 - `case_analysis`
 
-系统不建立资源版本、Attempt、Job、Artifact 或 Prompt 关联历史表。并发 Token 只用于防止覆盖，不表示历史版本。
+系统不建立资源版本、Attempt、Job、独立 Artifact 或 Prompt 关联历史表。Artifact 预期元数据保存在 `run_log.artifact_manifest_json`，每 Case Allowlist Evidence 元数据保存在 `eval_result`；文件当前存在性由边界校验。并发 Token 只用于防止覆盖，不表示历史版本。
 
 API、Web 和 CLI 不承载业务规则。所有业务入口调用 Application Use Case；Domain 保持纯粹；SQLite、文件、REST、Promptfoo 和 LLM 调用位于系统边缘。
 
@@ -39,7 +41,7 @@ API、Web 和 CLI 不承载业务规则。所有业务入口调用 Application U
 - `test_suite/current/rubric_prompt/*.json`：LLM Rubric Prompts。
 - `test_suite/current/pf_config.yaml`：生成配置的结构参考。
 
-当前 Assertion 至少包含 `is-json` 和 `llm-rubric`。技术方案必须覆盖 `rubricPrompt`、`transform`、组件级 Grading Result 和预计算 `providerOutput`。
+系统支持 Promptfoo `0.121.18` 能力矩阵列出的全部内置 Assertion。技术方案必须覆盖 `rubricPrompt`、可信内联 JavaScript/Python/Ruby、`transform`、`contextTransform`、嵌套 Assertion Set、组件级 Grading Result 和预计算 `providerOutput`。当前不支持 `file://` 外部代码、外部模块、额外依赖或自定义 Provider 插件。
 
 ## 4. 项目架构设计
 
@@ -82,11 +84,17 @@ API、Web 和 CLI 不承载业务规则。所有业务入口调用 Application U
 - 不依赖 Zod、HTTP DTO、数据库类型或第三方协议。
 - 不接收 `unknown`、未校验 JSON 或第三方原始响应。
 
-`application` 依赖 `domain`：
+`reporting` 是纯计算层：
+
+- 只依赖 `domain` 和完成 JSON Schema Diff 所需的纯计算库。
+- 不依赖 `contracts`、`application`、数据库、文件、网络或 Entrypoint。
+- 返回 Domain Report Model 或结构化对账错误，不返回跨进程 DTO。
+
+`application` 依赖 `domain` 和纯 `reporting`：
 
 - 保存 Use Case、业务 Port、事务边界和跨聚合协调。
 - 决定何时读写事实、何时调用外部副作用以及如何收敛错误。
-- 不依赖具体 SQLite、文件或 Provider SDK。
+- 不依赖 `contracts`、具体 SQLite、文件或 Provider SDK。
 
 `contracts` 保存跨入口稳定协议：
 
@@ -95,7 +103,7 @@ API、Web 和 CLI 不承载业务规则。所有业务入口调用 Application U
 - 稳定 Error Code。
 - Zod 边界 Schema。
 
-`contracts` 不保存业务规则。边界 Mapper 负责 Contracts 与 Application/Domain 类型转换，避免 `domain` 反向依赖 `contracts`。
+`contracts` 不保存业务规则，也不依赖 `domain`、`reporting` 或 `application`。边界 Mapper 同时依赖 Contracts 与 Application/Domain 类型并负责转换，避免核心层反向依赖跨进程协议。
 
 Infrastructure 实现 Application Port：
 
@@ -185,7 +193,7 @@ LLM 配置可以承担 Evaluator 或 Analyzer 角色，角色由评估运行或�
 
 #### Promptfoo Evaluation
 
-负责生成受控 Promptfoo 输入、启动固定版本子进程、导入原始结果和生成规范化 Eval 事实。
+负责生成受控 Promptfoo 输入、启动固定版本子进程、通过本机临时 Evaluator Bridge 调用统一 Evaluator Adapter、导入原始结果和生成规范化 Eval 事实。
 
 不使用 Promptfoo 自带数据库或 UI 作为平台事实。
 
@@ -284,8 +292,11 @@ Case Analysis 是独立事实。应用建议时由 Application 协调：
 - Secret 脱敏在边界完成，脱敏后的 DTO 才能进入快照和响应。
 - 取消信号由 Application 管理，Adapter 负责终止自身资源。
 - 所有外部进程和临时目录在 `finally` 中回收。
+- REST、Evaluator、Analyzer 和 Promptfoo Provider 均显式关闭自动重试。重跑由新的 Run 或 Execution 表达。
 
 ### 4.10 未来演进边界
+
+当前 M6 只实现 Canonical Export v1。导出使用版本化 Manifest 和按实体稳定排序的 Canonical JSONL，覆盖当前资源、历史 Run/Case/Eval、当前 Analysis、Contract Versions 和 Artifact 预期元数据。读回执行计数、引用、实体 Hash 和文件 Hash 四类对账；Secret 不展开，Raw Evidence 默认不内嵌，缺失 Raw 记录 `present=false`。
 
 未来 PostgreSQL 平台通过以下方式迁移：
 
@@ -301,6 +312,9 @@ Kysely 隔离查询实现，不保证 SQLite Schema 或 Migration 自动转换�
 
 - 自动测试阻止 Domain 导入 Contracts、Infrastructure 或 Entrypoint。
 - Web 不能导入 Domain 和 Storage。
+- Application 只能导入 Domain、Reporting 和自身 Port，不能导入 Contracts 或 Infrastructure。
+- Reporting 只能导入 Domain 和纯计算库，不能导入 Contracts、Application、Infrastructure 或 Entrypoint。
+- Contracts 不能导入 Domain、Reporting 或 Application。
 - Route 和 CLI 不包含统计、状态归并或 Case 写入规则。
 - SQLite Repository 与 File Workspace 分别通过自身契约测试。
 - 平台和离线阶段对相同 Execution Context 生成相同规范化结果。
@@ -312,7 +326,7 @@ Kysely 隔离查询实现，不保证 SQLite Schema 或 Migration 自动转换�
 
 ### 5.1 应用栈
 
-- Node.js 当前 LTS，安装包和容器锁定已验证版本。
+- Node.js 24 LTS，仅支持并验证 macOS ARM64。
 - TypeScript Strict Mode。
 - pnpm Workspace。
 - Fastify HTTP API。
@@ -326,7 +340,7 @@ Kysely 隔离查询实现，不保证 SQLite Schema 或 Migration 自动转换�
 - React Hook Form 管理表单。
 - Commander 构建 CLI。
 - Vitest 执行单元和集成测试。
-- Promptfoo 使用 Lockfile 中的精确版本。
+- Promptfoo 使用 Lockfile 中的精确版本 `0.121.18`。
 
 选择 better-sqlite3 是基于本地单写者、短事务、成熟生态和 Kysely 适配能力。同步数据库调用只能出现在短 Repository 操作中，禁止包裹外部调用或大规模 CPU 工作。
 
@@ -358,9 +372,15 @@ Promptfoo 是评估执行器，不是业务数据库、报告事实源或平台 
 
 系统不依赖 Promptfoo 未承诺稳定的内部 JS API。原始 JSON 经过严格 Importer 转换后才能进入平台事实。
 
+系统从精确版本生成 Assertion 能力矩阵。矩阵记录每种类型、合法 Payload、是否需要 Evaluator、解释器或外部协议，以及 Importer 对齐规则；测试门禁保证矩阵中每个类型都有对应契约测试。
+
+Assertion 中的内联 JavaScript、Python、Ruby、`transform` 和 `contextTransform` 默认可信，不检测、不提示、不沙箱。`file://` 外部代码、外部模块、额外依赖、Assertion 内嵌 Provider 和 Provider 插件在边界拒绝。
+
+P0 Doctor 冻结发布环境前置：Python 使用 `PROMPTFOO_PYTHON` 或 `python3`，版本不低于 3.7；Ruby 使用 `PROMPTFOO_RUBY` 或 `ruby`，并以真实内联 Assertion Smoke 判定兼容。发布记录实际解释器路径与版本，但不把机器绝对路径写入 Work Package。系统不自动安装解释器或第三方语言依赖。
+
 ## 6. 通用类型约定
 
-- 内部 ID 使用应用生成 UUID，SQLite 保存为 `TEXT`。
+- 内部 ID 使用应用生成 UUIDv7，SQLite 保存为 `TEXT`。
 - 时间保存为 UTC ISO 8601 `TEXT`。
 - JSON 保存为规范化 `TEXT`，写入前必须通过强类型 Schema。
 - Boolean 保存为受检查约束的 `INTEGER`。
@@ -368,6 +388,8 @@ Promptfoo 是评估执行器，不是业务数据库、报告事实源或平台 
 - Score 和近似 Cost 保存为 `REAL`，不存在的事实保存 `NULL`。
 - Hash 使用 RFC 8785 Canonical JSON 和 SHA-256，保存为 64 位小写十六进制 `TEXT`。
 - 状态保存为带 Check Constraint 的 `TEXT`，TypeScript 使用穷尽联合类型。
+
+`RunExecutionLimitsV1` 包含 `restConcurrency` 和 `evalConcurrency`。平台 Create Run 和离线 Create Execution 接受该契约；REST 默认来自 Endpoint 配置且新建 Endpoint 默认为 4，Eval 默认 2，范围分别为 1–64 和 1–16。`AnalysisExecutionLimitsV1` 包含 `analysisConcurrency`，默认 1、范围 1–8，在每次 Analysis 请求或离线 Execution 创建时冻结。两类限制都进入对应 Snapshot/Execution Context 和 Hash。
 - 第三方未提供事实时保存 `NULL`，不得伪造为零或空对象。
 
 数据层避免 PostgreSQL 专属 ARRAY、JSONB、ENUM、GIN、Advisory Lock 和表达式查询依赖。
@@ -412,6 +434,10 @@ Definition JSON 保存完整稳定 Case Definition。筛选列只用于查询优
 
 Header 值是 `LiteralHeaderValue | EnvSecretRef` 判别联合。只有固定安全列表中的 `Content-Type`、`Accept` 和 `User-Agent` 允许 Literal；其他 Header，包括任意自定义 Header，必须使用 EnvSecretRef。URL 禁止 User Info，名称包含 Key、Token、Secret、Credential、Password 或 Auth 的 Query 参数禁止 Literal。
 
+Method 固定为 `POST`。URL 模板只允许读取 `vars` 下任意层级标量叶子并按单个 URL 组件编码，不能替换协议、Host 或端口。Body Selector 使用 RFC 6901 JSON Pointer，选中值必须为 JSON 对象。
+
+新建 Endpoint 的 Concurrency 默认值为 4，允许范围为 1–64；它是 Create Run 的 REST 并发默认值。
+
 ### 7.4 llm_config
 
 保存当前 Evaluator 或 Analyzer LLM 配置。
@@ -421,6 +447,8 @@ Header 值是 `LiteralHeaderValue | EnvSecretRef` 判别联合。只有固定安
 表中不保存固定角色。同一配置可以被不同运行分别选择为 Evaluator 或 Analyzer。
 
 Options JSON 使用 Provider 白名单 Schema。任意层级出现 `apiKey`、`token`、`secret`、`password`、`credential`、`authorization` 或同义字段时拒绝保存，Secret 只能通过独立 EnvSecretRef 字段提供。
+
+Provider Type 只允许 `GOOGLE_GEMINI` 和 `OPENAI_COMPATIBLE`。两者统一公开 `model`、`thinkingLevel`、`temperature`、`topP`、`maxOutputTokens` 和 `timeoutMs`。OpenAI-compatible 只实现 Chat Completions；远程 Base URL 必须使用 HTTPS 与 Bearer EnvSecretRef，本地回环可显式选择无认证。Analyzer 结构输出能力显式为 `JSON_SCHEMA | JSON_OBJECT`。
 
 ### 7.5 llm_rubric_prompt
 
@@ -444,13 +472,15 @@ Prompt Key 唯一。当前 Case 引用通过 `test_case.rubric_prompt_keys_json`
 
 核心字段：
 
-- ID、Source Type、Source Package ID、Execution ID。
+- ID、Source Type、Source Package ID、Execution ID、Source Run ID、Rerun Mode。
 - Suite、Endpoint 和 Evaluator 当前来源 ID。
 - 各类脱敏 Snapshot JSON。
 - Run Context Hash、Promptfoo Version、Contract Versions。
+- 冻结的 Run Execution Limits JSON。
 - Run Mode、Status、Stage、Lock Revision、Cancel Requested At。
 - REST 和 Eval Counters。
 - Summary JSON、Result Set Hash。
+- Artifact Manifest JSON，保存受控相对路径、Kind、预期 Hash、大小和 Contract Version。
 - Error Code、Error Message 和阶段时间。
 
 离线导入使用 Execution ID 唯一约束实现幂等。来源资源删除后 ID 可以为空，历史快照保持有效。
@@ -459,7 +489,7 @@ Prompt Key 唯一。当前 Case 引用通过 `test_case.rubric_prompt_keys_json`
 
 保存一个 Run/Case 的 REST 执行事实和不可变 Case 快照。
 
-核心字段：Run ID、Case Key、Ordinal、Case Definition JSON/Hash、REST Status、HTTP Status、Provider Output、Duration、规范化错误、Completed At 和 Run Result Hash。
+核心字段：Run ID、Case Key、Ordinal、Case Definition JSON/Hash、REST Status、HTTP Status、Provider Output、Duration、规范化错误、Completed At、Run Result Hash、Reused From Run/Execution ID 和 Reused Result Hash。
 
 主键为 `(run_id, case_key)`，`(run_id, ordinal)` 唯一。
 
@@ -481,6 +511,7 @@ REST `SUCCEEDED` 必须有合法 Provider Output；`ERROR` 必须有规范化错
 - Latency、Token Usage 和 Cost。
 - Allowlist Raw Evidence JSON。
 - Eval Result Hash、Final Case Result Hash。
+- Reused From Run/Execution ID 和 Reused Eval Result Hash。
 - Created At、Updated At。
 
 主键为 `(run_id, case_key)`，联合外键引用 Case Result。
@@ -499,6 +530,7 @@ REST 阶段完成但 Eval 未开始时不创建 Eval Result。完整报告要求
 - Analysis Prompt Key、Hash 和脱敏 Snapshot。
 - Analyzer Config Hash、Provider、Model 和脱敏 Snapshot。
 - Analysis Input Contract Version、Analysis Output Contract Version 和 Analysis Input Hash。
+- 冻结的 Analysis Execution Limits JSON。
 - Analysis Status、Classification、Confidence、Evidence、Explanation、Recommended Action。
 - Proposal JSON。
 - Decision、Apply Status、Base/Applied Definition Hash。
@@ -566,15 +598,18 @@ Analysis 是报告完成后的独立 Case 级流程，不作为 Run Stage。
 - 配置和 Prompt Hashes。
 - Promptfoo 和生成 Contract Version。
 - 各阶段 Required Env Keys。
+- Run/Analysis Execution Limits 的导出默认值与允许范围。
 - 输入文件清单和 Hash。
+
+Work Package v1 在 Contracts 阶段一次冻结完整协议，首版即包含 Tests、Endpoint、Evaluator、Analyzer、Rubric Prompts、Analysis Prompt、REST/Eval/Report/Analysis Env Keys、最终阶段依赖图和全部 Artifact 文件槽位。后续阶段只注册能力和写入产物，不修改 v1 Schema。
 
 Manifest 创建后不可修改。阶段状态不能写回 Manifest，避免自引用 Hash 变化。
 
 ### 9.2 可变执行状态
 
-每个 `executions/<execution_id>/execution.json` 保存 Execution ID、阶段状态、时间、Error Code 和输出文件 Hash。
+每个 `executions/<execution_id>/execution.json` 保存 Execution ID、冻结的 Run/Analysis Execution Limits、Execution Context Hash、阶段状态、时间、Error Code 和输出文件 Hash。Manifest 保存导出默认值与允许范围；CLI 在创建 Execution 时显式传入或采用默认值，首个阶段开始后不可修改。
 
-同一工作包每次新执行生成新 Execution ID。成功提交的阶段产物不可覆盖；重建任何已完成阶段都必须创建新的 Execution。
+同一工作包每次新执行生成新 Execution ID。成功提交的阶段产物不可覆盖；重建、失败重跑或强制重跑都必须创建新的 Execution。
 
 ### 9.3 文件结构
 
@@ -596,14 +631,14 @@ Manifest 创建后不可修改。阶段状态不能写回 Manifest，避免自�
 - 根目录和临时目录使用当前用户权限。
 - 普通文件仅当前用户可读写。
 - 所有相对路径先规范化并确认仍位于工作包根目录。
-- 禁止绝对路径、`..`、符号链接逃逸和未知可执行文件。
+- 禁止绝对路径、`..` 和符号链接逃逸。可信内联 Assertion 不是工作包文件；`file://` 外部代码、外部模块和额外依赖被 Schema 拒绝。
 - 写入先落临时文件，Flush 后原子 Rename。
 - 同包使用跨进程 Lock File 或原子独占文件。
 - 锁记录 PID、Execution ID 和开始时间。
 - 遗留锁只有在确认进程不存在且状态可恢复时才能清理。
 - 不同工作包允许并行。
 - 后续阶段只能追加当前 Execution 尚未完成的产物。
-- 不提供覆盖已完成阶段的 `--force` 语义。
+- `--force` 创建新的 Execution 并全量执行，不提供覆盖已完成阶段的语义。
 
 ### 9.5 Secret
 
@@ -643,6 +678,8 @@ Case Analysis Prompt 不被 Case Definition 直接引用。分析开始时在短
 
 REST Executor 只接受已校验 Endpoint 和 Frozen Cases。
 
+Endpoint 只支持 `POST`，不跟随 Redirect。允许固定 Host 的 HTTP/HTTPS；禁止 User Info 和 Fragment。单 Case 请求体最大 5 MiB、响应体最大 10 MiB，读取过程受控计数，超限不截断、不生成 Provider Output。超时默认 60 秒，范围 100 毫秒至 10 分钟。
+
 错误类型固定为：
 
 - `TIMEOUT`
@@ -659,6 +696,10 @@ HTTP 2xx 且 Provider Output 合法视为 REST `SUCCEEDED`，包括业务 `ok=fa
 
 平台可以增量提交已完成 Case Result，但 REST 阶段完成标记必须在所有已派发请求收口并对账后提交。
 
+REST 不自动重试。失败重跑创建新 Run/Execution，复用来源成功事实；`--force` 在新身份下重新执行全部 Cases。
+
+平台 `RetryRunFailed` 和离线 `--retry-failed` 使用同一选择规则：复制 REST `SUCCEEDED`；重新请求 REST `ERROR`；复制与复用 REST 事实对齐的 Eval `PASS/FAIL`；重新评估 `EVALUATION_ERROR`、缺失 Eval 事实，以及 REST 重试后新成功的 `NOT_EVALUATED`。REST 重试仍失败的 Case 保持 `NOT_EVALUATED`。新运行记录每条复用 Provenance 并重新生成 Result Set Hash。`ForceRun`/`--force` 使用来源冻结上下文重新执行全部 REST 和 Eval。
+
 ## 12. Promptfoo 执行和导入
 
 ### 12.1 配置生成
@@ -666,11 +707,13 @@ HTTP 2xx 且 Provider Output 合法视为 REST `SUCCEEDED`，包括业务 `ok=fa
 生成器从 Frozen Execution Context 物化：
 
 - REST 成功 Cases 的 Tests JSON。
-- Evaluator 配置。
+- 本机 Evaluator Bridge 的临时 HTTP Provider 配置。
 - 引用的 Rubric Prompt 文件。
 - 受控 Promptfoo Config。
 
 Secret 只在子进程启动前注入环境，不写入生成文件。
+
+Promptfoo 主 Provider 始终使用 Echo 和预计算 Provider Output。需要 Provider 的 Assertion 统一调用仅绑定随机回环端口的 Evaluator Bridge；Bridge 通过一次性 Capability、Run/Execution 身份、请求 Schema、调用预算、并发和超时限制请求，只能调用冻结的统一 Gemini/OpenAI-compatible SDK Adapter，不能转发任意 Provider、Model、URL、Header 或 Secret。
 
 ### 12.2 子进程
 
@@ -679,6 +722,8 @@ Secret 只在子进程启动前注入环境，不写入生成文件。
 - 禁用 Share 和非必要本地持久化。
 - 显式写 Raw JSON Output。
 - 记录安全 Exit Code、耗时和文件 Hash。
+- Promptfoo HTTP Provider、Evaluator Bridge 和官方 SDK 都显式关闭重试。
+- 取消时先发送 `SIGTERM`，5 秒未退出再发送 `SIGKILL`，随后关闭 Bridge 并回收临时资源。
 
 Assertion 失败对应的 Promptfoo 失败退出码是评估事实。进程启动、配置、信号、文件和未知格式错误才是系统错误。
 
@@ -830,10 +875,14 @@ Analysis Status 为 `PENDING | RUNNING | SUCCEEDED | ERROR`。Decision 为 `NO_P
 - `/runs`
 - `/runs/:id/cases`
 - `/runs/:id/analysis`
+- `/runs/:id/retry-failed`
+- `/runs/:id/force`
 - `/work-packages/export`
 - `/executions/import`
 
-列表使用 Cursor 分页。大 JSON 只在详情返回。写请求返回稳定 Error Code 和字段路径。
+列表使用不透明版本化 Cursor 分页，默认 50、最大 200。稳定排序必须包含内部 ID Tie-breaker；Case 默认使用 Ordinal。字段间过滤为 AND，同字段多值为 OR，文本搜索使用转义后的大小写不敏感字面子串，其他筛选使用精确成员。大 JSON 只在详情返回。写请求返回稳定 Error Code 和字段路径。
+
+API 固定前缀为 `/api/v1`，同源默认地址为 `127.0.0.1:4310`。Fastify Schema 生成并提交 OpenAPI JSON。能力采用阶段注册：未闭环的 Run、Eval、Report 或 Analysis Route 不存在于 OpenAPI。
 
 运行 API 支持创建、启动当前阶段、一键运行、查询进度、取消、生成报告和发起分析。
 
@@ -845,13 +894,17 @@ TanStack Query 管理服务端缓存和失效；TanStack Table 管理表格状�
 
 页面刷新后通过 API 恢复当前事实，不依赖浏览器内存维持运行。
 
+Web 使用简体中文、浅色本地实验室仪表台视觉和桌面优先布局，只正式验收 1440×900 与 1280×800，并满足 WCAG 2.2 AA。Feature 只在对应后端闭环完成时注册导航和 Dashboard 卡片。
+
 ### 15.3 CLI
 
 平台命令通过本地 API 导出工作包和导入结果。
 
 离线命令调用工作包阶段 Use Case，不与 HTTP Endpoint 一一对应。CLI 与 API 共享结果 DTO、Error Code 和阶段语义，但文件交互与 HTTP 交互保持独立。
 
-CLI 用户文案从消息资源加载。`--json` 输出稳定机器协议；普通模式输出简洁进度和结果路径。
+CLI 用户文案从消息资源加载。`--json` 使用 NDJSON，stdout 只输出机器协议，诊断写 stderr；普通模式输出中文进度和结果路径。退出码固定为 0 成功、1 Eval Fail、2 输入/配置错误、3 外部或阶段系统错误、4 冲突/锁、130 取消。
+
+离线 Pipeline 在 P9 注册 Analysis 阶段。选择 Analysis 时必须存在 Report Artifact 或同时选择 Report，并提供 Analyzer、Analysis Prompt 和 Case Selector。依赖缺失属于输入错误；Analysis 调用失败返回退出码 3，但不回滚或改变已经完成的 Report Artifact。无可分析 Case 时写入零结果成功事实。
 
 ## 16. 并发、取消和恢复
 
@@ -864,6 +917,8 @@ CLI 用户文案从消息资源加载。`--json` 输出稳定机器协议；普�
 - 外部调用不持有 SQLite 事务。
 - 应用启动把遗留 `RUNNING` 收敛为 `INTERRUPTED`。
 - 强制终止遗留临时目录只按固定前缀和 TTL 清理。
+- Pipeline 默认 REST、Evaluation、Report，也可显式设置满足依赖的阶段列表；Analysis 只有显式选择范围时执行。
+- 平台 Create Run API 接受 `RunExecutionLimitsV1`，默认 REST 取 Endpoint 值、Eval 为 2；平台 Analyze API 接受 `AnalysisExecutionLimitsV1`，默认 1。离线 CLI 在创建 Execution 时接受两类限制。冻结值分别控制 REST、Promptfoo/Bridge 和 Analysis 的最大在途数，平台与离线使用相同契约。
 
 ## 17. 安全边界
 
@@ -875,7 +930,7 @@ CLI 用户文案从消息资源加载。`--json` 输出稳定机器协议；普�
 - Endpoint URL 禁止 User Info 和敏感 Query Literal。
 - LLM Options 使用 Provider 白名单并递归拒绝 Secret 字段。
 - API、Snapshot、Work Package 和日志不包含展开 Secret。
-- 外部 JSON、Template、Selector 和 Transform 在边界校验。
+- 外部 JSON、URL Template 和 Body Selector 在边界校验。可信内联 Assertion、Transform 和 Context Transform 交给锁定版 Promptfoo 执行，不做检测、警告或沙箱承诺。
 - Promptfoo 仅使用受控配置、Echo Provider 和应用生成路径。
 - 子进程禁用 Shell。
 - 工作包和临时文件使用最小权限。
@@ -896,7 +951,7 @@ CLI 用户文案从消息资源加载。`--json` 输出稳定机器协议；普�
 - 分析建议已应用/发生冲突。
 - 临时资源清理失败。
 
-日志包含 Run ID、Package ID、Execution ID、Case Key、安全状态、Error Code 和耗时，不包含敏感正文。
+日志包含 Run ID、Package ID、Execution ID、Case Key、安全状态、Error Code 和耗时，不包含敏感正文。内部事件结构化，落盘和控制台使用单行中文可读文本；单文件 10 MiB 轮转并保留最近 10 个文件。日志写入失败只向 stderr 输出脱敏降级提示，不改变业务事实。
 
 ## 19. 测试策略
 
@@ -943,7 +998,9 @@ CLI 用户文案从消息资源加载。`--json` 输出稳定机器协议；普�
 
 - 精确版本检查。
 - Echo Provider 和预计算 Provider Output。
-- `is-json`、`llm-rubric`、Rubric Prompt 和 Transform。
+- 能力矩阵中全部 Assertion 的正例、非法 Payload 或能力错误和 Importer 对齐。
+- 可信内联 JavaScript、Python、Ruby、Transform、Context Transform 和嵌套 Assertion Set 的真实进程执行。
+- `file://`、外部模块、额外依赖、Provider 覆盖和 Bridge 滥用的稳定拒绝。
 - Assertion Component 对齐。
 - Assertion 失败退出码与系统失败区分。
 - 当前真实 Fixture 完整导入。
@@ -979,58 +1036,44 @@ CLI 用户文案从消息资源加载。`--json` 输出稳定机器协议；普�
 - REST 进度批量提交。
 - 千级报告聚合和 Markdown 生成。
 
+固定 1,000 Case、Node 24、本地磁盘，参考环境为至少 4 个逻辑核和至少 8 GiB 可用内存的 macOS ARM64，不做人工资源限速并记录实际硬件。独立门禁为：测试集导入不超过 10 秒；查询预热后 p95 不超过 250 毫秒且 p99 不超过 500 毫秒；报告与 Markdown 不超过 5 秒；Work Package 导出不超过 10 秒；Execution Result 导入不超过 10 秒；目标尺寸关键列表页可交互不超过 2.5 秒。测量协议、样本次数和环境信息由 `tasks/P10_FINAL_HARDENING.md` 固定。
+
 ## 20. 实现阶段
 
-### M1：契约和 SQLite
+Goal 的可执行单一入口为 [tasks/00_INDEX.md](tasks/00_INDEX.md)。阶段按 P0–P10 顺序推进，每阶段先测试、再实现、再运行完整相关门禁并更新 spec。
 
-- Domain、Contracts 和十表 Migration。
-- 当前资源 Repository 和 CaseDefinitionWriter。
-- 架构边界测试。
+原 M1–M6 范围保持不变：M1 对应 P1–P2，M2 对应 P3–P4，M3 对应 P5–P7，M4 对应 P8，M5 对应 P9，M6 对应 P10；P0 是正式实现前的事实源和契约基线。
 
-### M2：本地平台资源 UI
-
-- Local API。
-- shadcn/ui 基础布局。
-- 测试集、Case、配置和 Prompt 管理。
-
-### M3：执行和工作包
-
-- Run Orchestration。
-- REST Executor。
-- Work Package 导出、锁和阶段 Artifact。
-- Promptfoo Adapter 和 Importer。
-
-### M4：报告
-
-- 规范化结果。
-- JSON Schema Diff。
-- 整体、By Metric 和 Markdown 报告。
-- UI 报告页面。
-
-### M5：分析闭环
-
-- Case Analysis Prompt。
-- Analysis Model Adapter。
-- 分析页面和 Case 修改确认。
-- 离线分析结果导入。
-
-### M6：迁移边界验证
-
-- Canonical Export DTO 和全量对账测试。
-- 记录 PostgreSQL、多用户和 Secret Manager 所需变更。
-- 不实现运行期双数据库兼容或 PostgreSQL Adapter。
+- P0：同步事实源，建立工具链、Promptfoo 契约探针、全 Assertion 能力矩阵和性能 Harness。
+- P1：冻结 Contracts、Domain、Evaluator Bridge、Work Package v1 和 Canonical Export v1。
+- P2：实现十表 SQLite、Application 基础、Artifact 元数据、删除与冻结一致性。
+- P3：实现 Local API、资源管理、OpenAPI、日志与 SSE 基础，不提前注册 Run Route。
+- P4：实现简体中文资源 Web、Case 双编辑器、配置页面和可访问性。
+- P5：实现 Run 与 REST 闭环，只注册 REST 能力。
+- P6：实现 Promptfoo Evaluation、Evaluator Bridge 和全 Assertion 契约，注册 Eval 能力。
+- P7：发布完整 Work Package v1、REST/Eval CLI、失败重跑、`--force` 和结果导入基础；Report 导入入口在 P8 注册。
+- P8：实现 Reporting、Markdown 和报告 UI/CLI，扩展 Pipeline 到 Report。
+- P9：实现 Analysis、Proposal 应用和工作包分析闭环。
+- P10：实现 Canonical Export、迁移边界文档、性能、安全、真实 Gemini 和最终文档验收。
 
 ## 21. 生效决策
 
 - 当前使用单文件 SQLite，不要求本地 PostgreSQL。
+- 当前只支持并验证 macOS ARM64、Node 24 LTS。
 - 数据库保持十张职责明确的业务表。
 - REST Result 和 Eval Result 分表保存不同阶段事实。
 - Case Analysis Prompt 单独建表。
 - UI 使用 shadcn/ui。
+- UI 使用简体中文、浅色桌面优先设计并满足 WCAG 2.2 AA。
 - UI 支持分阶段和一键执行。
 - CLI 按不可变离线工作包设计，不直接访问平台 SQLite。
 - 工作包不导出任何 API Key，只导出 Env Key 名称和 `.env.example`。
 - Promptfoo 是固定版本外部执行器，不是业务事实源。
+- Promptfoo 固定为 `0.121.18`，支持能力矩阵中的全部 Assertion；内联可执行 Assertion 默认可信，不检测、不提示、不沙箱。
+- Provider 只支持统一接口下的 Gemini 和 OpenAI-compatible Chat Completions，所有调用不自动重试。
+- Provider-dependent Assertion 通过本机临时 Evaluator Bridge 使用 Run Evaluator，不能内嵌独立 Provider 或 Secret。
+- REST Endpoint 只支持 POST；失败重跑和 `--force` 创建新 Run/Execution，不覆盖来源。
+- 运行数据默认位于项目根 `.cortex-eval/`，Local API 固定前缀 `/api/v1`。
 - Raw Promptfoo、Normalized Eval、JSON Report 和 Markdown Report 分离。
 - Case 参数波动是单次结果下的语义等价判断，不自动重复执行。
 - 同一时刻只允许一个平台阶段运行，同一工作包只允许一个 CLI 写进程。

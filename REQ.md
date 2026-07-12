@@ -6,6 +6,8 @@
 
 技术选型、项目架构、模块边界、数据字段、工作包协议、事务、并发和测试设计以 `TECH.md` 为准。本文档不包含具体实现代码。
 
+当前版本只支持并验证 macOS ARM64。运行数据默认位于项目根目录 `.cortex-eval/`，本地服务默认通过 `127.0.0.1:4310` 同源提供 Web 和 `/api/v1`。Linux、Windows、x64、Docker、安装器和桌面应用封装不在当前验收范围。
+
 ## 2. 产品结论
 
 Cortex Eval 是面向本地单用户的测试集管理、REST 结果获取、Promptfoo 评估、报告查看和失败分析工具。
@@ -106,16 +108,13 @@ Case 支持以下顶层信息：
 
 ### 5.3 Assertion
 
-当前真实样例至少包含：
-
-- `is-json`：使用 `value` 保存 JSON Schema。
-- `llm-rubric`：使用 `rubricPrompt` 关联 LLM Rubric Prompt，并可使用受控 `transform` 提取待评估内容。
+系统支持锁定 Promptfoo `0.121.18` 提供的全部内置 Assertion 类型，包括 Assertion Set、模型评分、内联 JavaScript、Python、Ruby、`transform` 和 `contextTransform`。能力范围以版本化 Assertion 能力矩阵为单一事实源。
 
 每条 Assertion 必须有非空 `type` 和 `metric`。`weight` 可选，有效权重不得为负数。
 
-`llm-rubric.rubricPrompt` 只允许受控相对引用。导入和编辑时必须解析 Prompt Key 并确认对应 Rubric Prompt 存在。
+`llm-rubric.rubricPrompt` 在平台内统一使用 `prompt://<prompt-key>`。导入当前 Fixture 时只额外接受 `file://rubric_prompt/<prompt-key>.json` 并规范化；其他文件路径被拒绝。
 
-`transform` 只允许明确支持的受控表达式，禁止任意代码执行。
+Assertion 和内联可执行表达式默认可信，执行权限等同当前用户。系统不做可信标记、运行警告、额外授权或可执行内容检测。当前不支持 `file://` 外部脚本、外部模块、额外 npm/pip 依赖、Assertion 内嵌 Provider 或 Provider 插件。需要 Provider 的 Assertion 统一使用 Run 选择的 Evaluator。
 
 ### 5.4 Endpoint 配置
 
@@ -124,21 +123,29 @@ Case 支持以下顶层信息：
 Endpoint 配置包含：
 
 - URL 模板。
-- HTTP Method。
+- HTTP Method，当前固定为 `POST`。
 - Headers。
 - Body Selector。
 - 单 Case 超时。
-- 并发数。
+- REST 默认并发数，新建 Endpoint 默认 4。
 
 Header 值使用普通值或环境变量秘密引用的显式判别类型。只有 `Content-Type`、`Accept`、`User-Agent` 等固定安全 Header 允许普通值；Authorization、API Key、Token 及其他自定义 Header 必须使用环境变量引用。秘密值不得保存在数据库、导出文件、日志或 UI 响应中。
 
-URL 模板变量采用白名单。Body Selector 只允许显式 JSON 路径，不执行任意表达式。
+URL 模板可以引用 `vars` 下任意层级的标量叶子。变量值作为单个 URL 组件安全编码，不能替换协议、Host 或端口；缺失、`null`、对象或数组返回 `TEMPLATE_INPUT`。Body Selector 使用 RFC 6901 JSON Pointer，根对象固定为 Case `vars`，选中值必须是 JSON 对象。
+
+Endpoint 支持 HTTP 和 HTTPS，包括本地与内网 HTTP；禁止 User Info、Fragment 和 Redirect。单 Case 请求体最大 5 MiB，响应体最大 10 MiB；超限拒绝且不截断。超时默认 60 秒，可配置范围为 100 毫秒至 10 分钟。系统不自动重试 REST POST。
 
 ### 5.5 LLM 配置
 
 `test_suite/current/llm_config.json` 是当前 LLM 配置样例。
 
-LLM 配置保存 Provider、Model、受控 Options 和环境变量秘密引用，不保存 API Key 展开值。
+LLM 配置统一支持 `GOOGLE_GEMINI` 和 `OPENAI_COMPATIBLE`。OpenAI-compatible 严格表示 Chat Completions 协议，不支持 Responses、Assistants、Azure 专用参数或厂商私有扩展。
+
+两类 Provider 使用相同推理接口和参数：`model`、`thinkingLevel`、`temperature`、`topP`、`maxOutputTokens` 和 `timeoutMs`。`thinkingLevel` 固定为 `OFF | LOW | MEDIUM | HIGH`，由 Adapter 映射到 Provider 协议；不支持时返回能力错误，不静默忽略。实现优先使用 Gemini 和 OpenAI 官方 SDK，不重复实现通用 Client。
+
+Gemini 使用环境变量 Secret 引用。OpenAI-compatible 使用 Base URL、`BEARER_ENV | NONE` 认证和环境变量 Secret 引用；远程地址必须使用 HTTPS 和 Bearer，`NONE` 只允许回环地址。Base URL 禁止 User Info、Query、Fragment 和任意自定义 Header。
+
+Analyzer 结构输出能力显式配置为 `JSON_SCHEMA` 或 `JSON_OBJECT`，默认 `JSON_OBJECT`。执行不自动降级、不自动重试；所有响应最终通过统一结构契约。
 
 评估和分析可以选择同一条 LLM 配置，也可以选择不同配置。每次执行必须明确配置角色：
 
@@ -226,6 +233,9 @@ HTTP 非 2xx、网络错误、超时、JSON 解析失败或结构校验失败才
 - 查看 Case 和 Assertion 详情。
 - 使用大模型分析 Case 评估结果。
 - 将离线结果导回平台。
+- 基于来源运行创建新的失败重跑或 `--force` 全量重跑，不覆盖原运行。
+
+平台 Retry 与离线 `--retry-failed` 使用同一集合：复制 REST `SUCCEEDED`，重新请求 REST `ERROR`；复制与复用 REST 事实对齐的 Eval `PASS/FAIL`；重新评估 `EVALUATION_ERROR`、缺失 Eval 事实，以及 REST 重试后新成功的 `NOT_EVALUATED`。REST 重试仍失败时保持 `NOT_EVALUATED`。新 Run/Execution 记录来源和每条复用 Hash，并重新计算 Result Set Hash。Force 使用来源冻结上下文重新执行全部 REST 和 Eval。
 
 ### 6.3 UI 修改闭环
 
@@ -241,11 +251,16 @@ HTTP 非 2xx、网络错误、超时、JSON 解析失败或结构校验失败才
 - 断点续跑或未知外部副作用的自动推测恢复。
 - 持久任务队列、多实例 Worker、Redis 和消息队列。
 - 用户认证、权限、租户和多人协作。
-- 任意可执行 Assertion、Provider、脚本、模板表达式或用户路径。
+- `file://` 外部 Assertion 脚本、外部模块、额外 npm/pip 依赖和自定义 Provider 插件。
+- Assertion 内嵌独立 Provider、Secret 或任意 Header。
+- 外部调用自动重试。
 - CLI 中编辑工作包的冻结测试输入并作为新平台资源导入。
 - 自动重复执行 Case 来统计判断“参数波动”。
+- Linux、Windows、x64、Docker、安装器、桌面封装、完整移动端和深色主题。
 
 ## 7. UI 需求
+
+Web 使用简体中文，面向宽度不低于 1024px 的桌面技术用户，正式验收 1440×900 和 1280×800。视觉采用浅色本地实验室仪表台风格，并满足 WCAG 2.2 AA、键盘操作、可见焦点、表单错误关联和 Reduced Motion。小屏只提供可读提示，不实现完整移动流程。
 
 ### 7.1 总览
 
@@ -271,6 +286,8 @@ HTTP 非 2xx、网络错误、超时、JSON 解析失败或结构校验失败才
 - 校验错误必须定位到字段路径，批量导入错误还要包含 Case 顺序和 Case ID。
 - 删除和批量替换不能改变历史运行快照。
 
+Case 列表使用不透明版本化 Cursor，默认每页 50 条、最大 200 条，默认按 Ordinal 和内部 ID 稳定排序。字段之间组合过滤使用 AND，同一字段多值使用 OR；Case ID 和描述使用转义后的大小写不敏感字面子串，其他筛选使用精确成员匹配。
+
 ### 7.4 配置和 Prompt 页面
 
 - Endpoint 页面展示普通配置和 Secret 引用名称，不显示 Secret 值。
@@ -287,8 +304,9 @@ HTTP 非 2xx、网络错误、超时、JSON 解析失败或结构校验失败才
 - Endpoint 配置。
 - Evaluator LLM 配置。
 - 分阶段或一键执行模式。
+- REST 与 Eval 并发；默认分别来自 Endpoint 配置和系统默认值 2。
 
-启动前展示 Case 数、Rubric 依赖、评估阶段所需环境变量名称、REST 并发和超时，并完成结构校验。Analyzer LLM 和 Case Analysis Prompt 在用户发起分析时选择，不进入原评估运行上下文。
+启动前展示 Case 数、Rubric 依赖、评估阶段所需环境变量名称、REST/Eval 并发和 REST 超时，并完成结构校验。Run 创建时把 `RunExecutionLimits` 与运行上下文一起冻结。Analyzer LLM、Case Analysis Prompt 和 Analysis 并发在用户发起分析时选择并冻结，不进入原评估运行上下文。
 
 ### 7.6 分阶段运行页面
 
@@ -298,6 +316,7 @@ HTTP 非 2xx、网络错误、超时、JSON 解析失败或结构校验失败才
 - 评估完成后允许生成报告。
 - 报告完成后允许发起 Case 分析。
 - 页面刷新不影响后端执行和已完成事实。
+- 终态或已中断 Run 提供“重跑系统失败”和“强制全量重跑”，两者创建新 Run，并展示来源 Run 和复用结果数量。
 
 ### 7.7 一键运行页面
 
@@ -345,6 +364,8 @@ HTTP 非 2xx、网络错误、超时、JSON 解析失败或结构校验失败才
 
 每次离线执行有唯一 `execution_id`。同一工作包可以执行多次，每次执行写入独立的 `executions/<execution_id>/` 目录并形成独立结果。
 
+Manifest 保存导出的执行限制默认值与允许范围。创建 Execution 时由 CLI 接受或使用默认 `RunExecutionLimits` 与 `AnalysisExecutionLimits`，在首个阶段开始前写入 `execution.json` 并纳入 Execution Context Hash；后续阶段不得修改。
+
 Execution 中已经成功提交的阶段产物不可覆盖。重新执行必须创建新的 `execution_id`，不得让同一 Execution 身份对应两组不同结果。
 
 工作包保存源测试集 ID、Suite Hash、每个 Case 的 Base Definition Hash、配置哈希和文件哈希。
@@ -354,6 +375,8 @@ Execution 中已经成功提交的阶段产物不可覆盖。重新执行必须�
 工作包只提供 `.env.example`，其中只有空值 Key 和用途说明。
 
 CLI 从当前进程环境或用户显式指定的 Env 文件读取 Secret。Env 文件不是工作包内容，不参与导入。
+
+使用 Python/Ruby Assertion 时，运行前必须能解析对应解释器。Python 通过 `PROMPTFOO_PYTHON` 或 `python3` 选择，最低为 Promptfoo 文档要求的 Python 3.7；Ruby 通过 `PROMPTFOO_RUBY` 或 `ruby` 选择，并必须通过内联 Assertion Doctor Smoke。系统不自动安装解释器、Gem 或 Python Package。
 
 环境依赖按阶段校验：
 
@@ -372,8 +395,14 @@ CLI 从当前进程环境或用户显式指定的 Env 文件读取 Secret。Env 
 - `analyze run`：生成 Case 分析结果文件。
 - `pipeline run`：按顺序执行全部阶段。
 - `result import`：通过本地 API 导入规范化结果。
+- `--retry-failed <source-execution-id>`：创建新 Execution，按统一重跑集合复用成功事实并补齐系统错误或缺失 Eval 事实。
+- `--force <source-execution-id>`：使用相同冻结输入创建新 Execution 并重新执行全部 Cases。
 
-每个阶段可以独立执行。后续阶段通过 `execution_id` 读取同一执行的既有产物。已完成阶段不可覆盖；重建任何已完成阶段都必须创建新的 Execution。正在执行的工作包锁不能绕过。
+Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式设置阶段列表。Analysis 只有显式选择并指定 Case 范围时执行。阶段列表必须满足 Artifact 依赖，系统不自动补跑未选择阶段。
+
+离线 Pipeline 包含 Analysis 时必须已有或同时选择 Report，并提供 Analyzer、Analysis Prompt 和 `failed | errors | all` Selector。Analysis 失败使 CLI 返回阶段系统错误，但不改变已完成 Report JSON、Markdown 或导入事实。无可分析 Case 时 Analysis 以零结果成功结束。
+
+每个阶段可以独立执行。后续阶段通过 `execution_id` 读取同一执行的既有产物。已完成阶段不可覆盖；重建、失败重跑或强制重跑都必须创建新的 Execution。正在执行的工作包锁不能绕过。
 
 ### 8.5 结果导入
 
@@ -394,6 +423,12 @@ CLI 从当前进程环境或用户显式指定的 Env 文件读取 Secret。Env 
 导出后平台当前 Case 即使已经修改，历史结果仍可导入。只有应用分析建议时才校验 Base Definition Hash 并产生冲突。
 
 报告和分析可以分两次导入。报告导入先按 Execution ID 建立 Run；后续分析导入必须绑定已经存在的 Final Case Result Hash。相同 Analysis Input Hash 重复导入幂等，不同分析输入按“当前分析”覆盖规则处理。
+
+### 8.6 Canonical Data Export
+
+平台通过 API 和 CLI `data export` 输出版本化 Manifest 和稳定排序的 Canonical JSONL。导出包含当前资源、历史 Runs、Case/Eval 规范化结果、当前 Analysis、Contract Versions 和 Artifact 预期元数据，不包含展开 Secret，默认不内嵌 Raw Evidence。
+
+系统重新读取导出并完成计数、引用、实体 Hash 和文件 Hash 四类对账。Raw Artifact 缺失不阻止导出，但必须标记不存在并保留预期 Hash 与大小。当前不实现 Canonical Import、PostgreSQL Adapter 或备份恢复。
 
 ## 9. 执行流程
 
@@ -460,6 +495,7 @@ Promptfoo 因 Assertion 失败返回的失败退出码属于评估事实，不�
 - 已真实完成的阶段事实可以保留。
 - 未执行的 Case 不生成伪造结果。
 - 进程重启后遗留的运行中状态收敛为 `INTERRUPTED`，不自动推测或续跑。
+- REST、Evaluator 和 Analyzer 均不自动重试。Promptfoo 先接收 `SIGTERM`，5 秒未退出再接收 `SIGKILL`。
 
 ## 10. 报告口径
 
@@ -594,6 +630,7 @@ Proposal 使用判别联合明确动作和目标：
 - 同一工作包同一时刻只允许一个 CLI 进程写入。
 - 不同工作包可以并行执行。
 - 已完成 Execution 不允许覆盖；重建必须创建新的 Execution。
+- 版本化 `RunExecutionLimits` 包含 REST/Eval 并发，在平台 Run 或离线 Execution 创建时冻结；REST 默认采用 Endpoint 值且新建 Endpoint 默认为 4，Eval 默认 2，范围为 1–64、1–16。`AnalysisExecutionLimits` 在每次平台 Analysis 请求或离线 Execution 创建时冻结，默认 1、范围 1–8。冻结值进入对应 Snapshot、Manifest/Execution 和 Hash，之后不可修改。
 
 ## 14. 安全要求
 
@@ -603,10 +640,11 @@ Proposal 使用判别联合明确动作和目标：
 - UI 只展示 Secret 环境变量名称。
 - 工作包目录默认仅当前用户可访问，文件默认仅当前用户可读写。
 - 工作包虽然不含 API Key，但可能包含 Case、请求、Provider Output 和模型分析等敏感业务数据。
-- 外部 JSON 在进入核心逻辑前必须完成结构校验。
+- 外部 JSON 在进入核心逻辑前必须完成结构校验。可信内联 Assertion 由 Promptfoo 执行，不做代码安全检测或沙箱承诺。
 - 临时目录和文件使用受控名称，禁止路径逃逸和符号链接逃逸。
 - Promptfoo 使用固定参数启动，不通过 Shell 拼接用户输入。
 - 日志不记录完整 Vars、Provider Output、Prompt、Secret 或第三方堆栈。
+- 日志以单行中文可读文本记录安全字段，单文件 10 MiB 轮转并保留最近 10 个文件；日志写入失败只做脱敏 stderr 降级，不改变业务事实。
 
 ## 15. 非功能需求
 
@@ -618,6 +656,8 @@ Proposal 使用判别联合明确动作和目标：
 - 工作包写入采用临时文件和原子替换，避免半写文件。
 - CLI 和 UI 对同一规范化输入生成相同统计结果。
 - 错误提供稳定 Error Code、可读消息和必要字段路径。
+- 测试集 JSON 导入最大 200 MiB；边界读取必须受控并在取消或失败后清理临时文件。
+- 在 Node 24、至少 4 个逻辑核、至少 8 GiB 可用内存、本地磁盘的 macOS ARM64 参考环境中，不做人工 CPU/内存限速并记录实际硬件：1,000 Case 测试集导入不超过 10 秒，查询 p95 不超过 250 毫秒且 p99 不超过 500 毫秒，报告与 Markdown 不超过 5 秒，工作包导出不超过 10 秒，Execution Result 导入不超过 10 秒，关键列表页可交互不超过 2.5 秒。所有对象独立计时。
 
 ## 16. 验收标准
 
@@ -645,6 +685,7 @@ Proposal 使用判别联合明确动作和目标：
 - 页面刷新不影响执行。
 - 部分 REST Error 不阻止成功 Cases 评估。
 - 全部 REST Error 可以生成完整 Not Evaluated 报告。
+- 平台失败重跑和 Force 创建新 Run，来源快照与结果不可变，复用 Provenance 可查询。
 
 ### 16.4 CLI 工作包
 
@@ -656,6 +697,7 @@ Proposal 使用判别联合明确动作和目标：
 - 原始 Promptfoo、规范化结果、JSON 报告、Markdown 报告和分析结果分开保存。
 - 相同 Execution 重复导入幂等。
 - 平台当前 Case 变化不阻止历史结果导入，但阻止过期建议应用。
+- 失败重跑与 `--force` 创建新 Execution，来源 Execution 和已完成 Artifact 保持不可变。
 
 ### 16.5 报告
 
@@ -682,6 +724,15 @@ Proposal 使用判别联合明确动作和目标：
 - 重启能把遗留运行收敛为 Interrupted。
 - 工作包半写、Hash 错误和路径逃逸被稳定拒绝。
 - Secret 不出现在数据库、工作包、日志、快照或 API 响应中。
+- Promptfoo `0.121.18` 能力矩阵中的每个 Assertion 类型都有契约测试；可信内联 JavaScript、Python、Ruby、Transform、Context Transform 和嵌套 Assertion Set 能真实执行。
+- `pnpm verify:release` 在 macOS ARM64 上通过，并包含一次真实 Gemini `llm-rubric` 和一次真实 Analyzer 结构输出；任何层不得自动重试。
+
+### 16.8 Canonical Export 和迁移边界
+
+- Canonical Export 的计数、引用、实体 Hash 和文件 Hash 四类对账全部通过。
+- Secret 不展开，Raw Evidence 默认不内嵌，缺失 Raw Artifact 被准确标记。
+- `spec/MIGRATION_BOUNDARY.md` 明确可迁移事实和必须重新设计的租户、授权、调度、Secret 与 Artifact 边界。
+- 不把 PostgreSQL、多用户、Worker、认证授权或 Secret Manager 冒充为当前已实现能力。
 
 ## 17. 未来范围
 

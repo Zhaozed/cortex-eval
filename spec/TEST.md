@@ -1,0 +1,101 @@
+# 测试规范
+
+## 测试目标
+
+测试证明业务不变量、协议边界、存储约束、外部适配、并发恢复和 UI/CLI 行为。测试优先覆盖错误路径、边界、竞争状态和回归风险，不测试 Prompt 具体文案和可变配置值。
+
+## 当前测试入口
+
+- [data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)：REST 模板、并发、续跑、超时和失败隔离。
+- [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：原始数据到 Promptfoo Case 的转换规则。
+
+目标 Vitest Workspace、Package 测试目录和架构测试尚未落地。
+
+## Domain 测试
+
+覆盖 Case、Assertion、Provider Output、Prompt 变量、状态机、统计、Metric 聚合、Canonical Hash、四种分析分类和建议冲突规则。纯规则使用确定输入，不依赖数据库、网络或时间。
+
+## 架构边界测试
+
+冻结唯一依赖图：阻止 Domain 导入外层；阻止 Reporting 导入 Contracts/Application/Infrastructure；阻止 Application 导入 Contracts/Infrastructure；阻止 Contracts 导入 Domain/Reporting/Application；阻止 Web 导入 Domain 与 Storage；阻止 Route 和 CLI 承载业务规则；阻止生产源码引用 Test Support。
+
+## SQLite 测试
+
+覆盖十表 Migration、外键、唯一约束、索引、删除策略、Case Definition Writer 原子性、唯一运行双进程竞争、阶段条件提交、取消竞争、恢复和 Execution ID 幂等导入。
+
+每个数据库测试使用独立临时数据库。并发正确性必须使用独立连接或独立进程验证，不能仅用进程内 Mock 代替。
+
+## Work Package 测试
+
+覆盖 Manifest 不可变、文件 Hash、Execution 状态、分阶段 Env 校验、原子写入、路径与符号链接逃逸、同包双进程锁、遗留锁恢复、已完成阶段不可覆盖和不同工作包并行。
+
+每个测试使用独立临时目录，结束后验证受控资源回收。
+
+## REST 测试
+
+覆盖 HTTP 状态、网络、超时、解析、Provider Output、模板、Selector、EnvSecretRef、合法 `ok=false`、部分与全部失败、取消和并发限制。
+
+断言传输错误不产生 Provider Output，合法业务失败仍进入评估。外部服务使用明确的本地 Stub，不访问真实生产 Endpoint。
+
+REST、Eval、Analysis 分别验证默认并发 4、2、1，范围 1–64、1–16、1–8，最大在途数、越界拒绝、冻结后不可修改和平台/CLI 一致性。
+
+## Promptfoo 契约测试
+
+覆盖 Promptfoo `0.121.18`、受控配置、Echo Provider、预计算 Provider Output、Rubric Prompt、Assertion 对齐、退出码和真实 Fixture 完整导入。
+
+精确版本能力矩阵中的每个 Assertion 类型必须至少有正例、非法 Payload 或能力错误和 Importer 对齐测试。真实进程覆盖可信内联 JavaScript、Python、Ruby、Transform、Context Transform 和嵌套 Assertion Set；稳定拒绝 `file://`、外部模块、额外依赖、Assertion Provider 覆盖和 Provider 插件。
+
+Evaluator Bridge 测试 Capability、Run/Execution 绑定、调用预算、取消、超时、端口并发、无自动重试、Secret 脱敏和不能作为任意代理。
+
+原始结果测试必须经过 Importer，不直接把 Promptfoo 内部字段当作平台事实。
+
+## Reporting 测试
+
+覆盖整体统计、By Metric、同 Case 同 Metric 去重、空分母、JSON Schema Diff、Validator 差异、结果对账、JSON Report 和 Markdown Renderer。
+
+Markdown 断言关注结构和事实，不对无关排版做脆弱快照。
+
+## Analysis 测试
+
+覆盖变量白名单、模型错误、输出 Schema、Analysis Input Hash、Revision、四种分类、Proposal 判别联合、当前 Case 漂移和应用冲突。
+
+不测试 Prompt 具体文本和模型生成措辞。模型调用使用结构化 Stub，业务规则不依赖真实模型概率。
+
+## API、CLI 与 Web 测试
+
+API 覆盖 Cursor 分页、字段路径、稳定错误、Host、Origin 和脱敏。CLI 覆盖分阶段、Pipeline、机器输出、导出和导入。Web 覆盖资源管理、搜索过滤、分页、运行刷新恢复、取消、报告和分析修改闭环。
+
+入口测试证明协议转换与 Application 契约，不复制 Domain 单元测试组合。
+
+能力必须按阶段注册。OpenAPI、CLI Help、Web 导航和 Dashboard 不得暴露尚未闭环的 Run、Eval、Report 或 Analysis 能力。
+
+## 性能测试
+
+覆盖千级 Case 导入、全量 Hash、常用搜索与组合过滤、REST 进度批量提交、报告聚合和 Markdown 生成。性能门禁使用固定数据规模与环境说明，不断言具体配置参数。
+
+固定 1,000 Case、Node 24、本地磁盘，参考环境至少 4 个逻辑核和 8 GiB 可用内存，不做人工资源限速并记录实际硬件。测试集导入、Work Package 导出、Execution Result 导入分别计时且各不超过 10 秒；查询预热后 p95 不超过 250 毫秒且 p99 不超过 500 毫秒；报告与 Markdown 不超过 5 秒；1440×900 与 1280×800 关键列表页可交互不超过 2.5 秒。测量次数、预热、统计方法和重测规则以 [P10_FINAL_HARDENING.md](../tasks/P10_FINAL_HARDENING.md) 为准。
+
+## 边界与发布测试
+
+- 测试集导入覆盖 `200 MiB-1`、等于和超过 200 MiB。
+- REST 请求覆盖 `5 MiB-1`、等于和超过 5 MiB；响应覆盖 `10 MiB-1`、等于和超过 10 MiB。
+- Timeout 覆盖 100 毫秒、10 分钟及上下越界。
+- `pnpm verify` 运行全部确定性门禁；`pnpm verify:release` 额外运行一次真实 Gemini Rubric 和一次真实 Analyzer，所有层重试为 0。
+- Runtime Doctor 验证 Python 3.7+ 和 Ruby 解释器；发布环境必须真实执行两种内联 Assertion，并记录实际命令与版本。
+- 当前只对实际运行通过的 macOS ARM64 声明支持。
+
+## 断言模型
+
+- 先断言结构化状态和事实，再断言用户可见映射。
+- 错误测试同时断言无非法事实写入、资源已回收和后续 Case 不受污染。
+- 并发测试断言最终唯一事实，不依赖执行先后。
+- UI 与 CLI 对相同规范化输入必须产生相同统计。
+- 所有计数非负且不超过总数，阶段时间不能逆序。
+
+## 禁止方式
+
+- 不通过修改运行时语义满足类型检查。
+- 不用 `assert` 代替生产错误处理。
+- 不把 Fixture 当作测试结论。
+- 不测试 Prompt 文案、Secret 展开值或具体配置值。
+- 不只运行最小测试；变更必须运行全部相关测试族。
