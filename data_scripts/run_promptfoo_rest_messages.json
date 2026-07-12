@@ -1,0 +1,20 @@
+{
+  "usage": "用法：npx tsx data_scripts/run_promptfoo_rest.ts [选项]\n\n选项：\n  --input <path>             promptfoo 测试用例 JSON\n  --provider <path>          REST provider JSON\n  --output <path>            输出 JSON\n  --max-concurrency <number> 最大并发数，默认 4\n  --timeout-ms <number>      单次请求超时毫秒数，默认 60000\n  --force                    忽略已有成功结果并全部重跑\n  --help                     显示帮助",
+  "summary": "运行完成：共 {total} 条，跳过已有结果 {skipped} 条，成功 {succeeded} 条，失败 {failed} 条；输出 {outputPath}",
+  "unknown_argument": "未知参数：{argument}",
+  "missing_argument_value": "参数 {argument} 缺少值",
+  "invalid_positive_integer": "参数 {argument} 必须是正整数，实际为 {value}",
+  "invalid_json": "文件 {path} 不是合法 JSON：{error}",
+  "invalid_test_array": "文件 {path} 必须包含 promptfoo 测试用例数组",
+  "invalid_test_case": "文件 {path} 的第 {index} 条测试用例必须是 JSON object",
+  "duplicate_case_key": "测试用例标识重复：{key}",
+  "invalid_provider": "文件 {path} 必须包含 REST provider object",
+  "invalid_provider_url": "provider.url 必须是非空字符串",
+  "invalid_provider_method": "provider.method 必须是非空字符串",
+  "invalid_provider_headers": "provider.headers 必须是字符串键值 object",
+  "missing_template_variable": "测试用例缺少模板变量：{expression}",
+  "unsupported_template_value": "模板变量 {expression} 不能作为字符串插值",
+  "http_failure": "HTTP {status}：{body}",
+  "request_timeout": "请求超过 {timeoutMs} 毫秒",
+  "request_failure": "REST 请求失败：{error}"
+}

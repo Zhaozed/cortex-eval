@@ -7,5 +7,11 @@
   "mismatched_tool_args": "case_id={case_id} 的 expected_tool_name 数量为 {tool_count}，expected_tool_args_json 数量为 {args_count}，无法成对校验，已跳过",
   "invalid_expected_list": "case_id={case_id} 的 {field} 不是 list，已跳过",
   "unsupported_expected_field": "case_id={case_id} 的 {field} 当前不支持自动转换，已跳过",
+  "metric_reply_text": "有回复文本",
+  "metric_router_intent": "路由分类",
+  "metric_router_tools": "路由工具",
+  "metric_router_domain": "路由domain",
+  "metric_planner_tools": "思考工具",
+  "metric_present_mode": "输出模式",
   "summary": "转换完成：读取 {read_count} 条，输出 {write_count} 条，跳过 {skip_count} 条"
 }

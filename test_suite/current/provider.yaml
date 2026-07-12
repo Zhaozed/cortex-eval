@@ -1,9 +1,0 @@
-- id: https
-  config:
-    url: "http://localhost:8082/run_llm_task/{{ request_type }}"
-    method: POST
-    headers:
-      Content-Type: application/json
-    body: {}
-    transformRequest: "vars.request_type = vars.type; return vars.request_body"
-    transformResponse: "JSON.stringify(json)"

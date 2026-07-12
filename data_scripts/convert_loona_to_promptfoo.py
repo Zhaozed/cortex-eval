@@ -146,27 +146,59 @@ def build_parsed_output_const_schema(field: str, value: Any) -> dict[str, Any]:
     }
 
 
-def build_parsed_output_nested_const_schema(parent_field: str, field: str, value: Any) -> dict[str, Any]:
-    """Build JSON Schema for one fixed nested parsed_output field."""
+def build_reply_text_schema() -> dict[str, Any]:
+    """Build JSON Schema requiring a non-empty parsed_output.reply_text."""
     return {
         "type": "object",
         "required": ["parsed_output"],
         "properties": {
             "parsed_output": {
                 "type": "object",
-                "required": [parent_field],
+                "required": ["reply_text"],
                 "properties": {
-                    parent_field: {
+                    "reply_text": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+    }
+
+
+def build_optional_present_mode_schema() -> dict[str, Any]:
+    """Build JSON Schema allowing an absent reply_user_json and none/null mode."""
+    return {
+        "type": "object",
+        "required": ["parsed_output"],
+        "properties": {
+            "parsed_output": {
+                "type": "object",
+                "properties": {
+                    "reply_user_json": {
                         "type": "object",
-                        "required": [field],
                         "properties": {
-                            field: {"const": value},
+                            "present_mode": {"enum": ["none", None]},
                         },
                     },
                 },
             },
         },
     }
+
+
+def build_schema_assertion(
+        schema: dict[str, Any],
+        messages: dict[str, str],
+        metric_key: str,
+        weight: int | None = None,
+) -> dict[str, Any]:
+    """Build one named promptfoo JSON Schema assertion."""
+    assertion: dict[str, Any] = {
+        "type": "is-json",
+        "value": schema,
+        "metric": messages[metric_key],
+    }
+    if weight is not None:
+        assertion["weight"] = weight
+    return assertion
 
 
 def build_planner_tool_items_schema(
@@ -248,7 +280,7 @@ def build_test_case(row: dict[str, Any], messages: dict[str, str]) -> dict[str, 
 
     assertions: list[dict[str, Any]] = []
     if case_type == "router":
-        append_router_assertions(row, assertions)
+        append_router_assertions(row, assertions, messages)
     if case_type == "planner":
         append_planner_assertions(row, assertions, messages, case_id)
 
@@ -262,9 +294,23 @@ def build_test_case(row: dict[str, Any], messages: dict[str, str]) -> dict[str, 
             )
         )
 
-    if not assertions:
-        assertions.append({"type": "is-json", "value": build_base_schema(case_type)})
-    append_task_contract_assertion(case_type, assertions)
+    if case_type == "planner" and not assertions:
+        assertions.append(
+            build_schema_assertion(
+                build_base_schema(case_type),
+                messages,
+                "metric_planner_tools",
+            )
+        )
+    append_task_contract_assertion(case_type, assertions, messages)
+    assertions.append(
+        build_schema_assertion(
+            build_reply_text_schema(),
+            messages,
+            "metric_reply_text",
+            weight=0,
+        )
+    )
 
     request_body = parse_request_body(row.get("request_body"), messages, case_id)
 
@@ -277,35 +323,56 @@ def build_test_case(row: dict[str, Any], messages: dict[str, str]) -> dict[str, 
     }
 
 
-def append_task_contract_assertion(case_type: str, assertions: list[dict[str, Any]]) -> None:
+def append_task_contract_assertion(
+        case_type: str,
+        assertions: list[dict[str, Any]],
+        messages: dict[str, str],
+) -> None:
     """Append fixed parsed_output contract assertions for a task type."""
     if case_type == "router":
         assertions.append(
-            {"type": "is-json", "value": build_parsed_output_const_schema("domain", "other")}
+            build_schema_assertion(
+                build_parsed_output_const_schema("domain", "other"),
+                messages,
+                "metric_router_domain",
+            )
         )
         return
     if case_type == "planner":
         assertions.append(
-            {
-                "type": "is-json",
-                "value": build_parsed_output_nested_const_schema(
-                    "reply_user_json",
-                    "present_mode",
-                    "none",
-                ),
-            }
+            build_schema_assertion(
+                build_optional_present_mode_schema(),
+                messages,
+                "metric_present_mode",
+            )
         )
 
 
-def append_router_assertions(row: dict[str, Any], assertions: list[dict[str, Any]]) -> None:
+def append_router_assertions(
+        row: dict[str, Any],
+        assertions: list[dict[str, Any]],
+        messages: dict[str, str],
+) -> None:
     """Append router-specific structured assertions."""
     tool_names = row.get("expected_tool_name")
     if not is_empty(tool_names):
-        assertions.append({"type": "is-json", "value": build_router_tools_schema(tool_names)})
+        assertions.append(
+            build_schema_assertion(
+                build_router_tools_schema(tool_names),
+                messages,
+                "metric_router_tools",
+            )
+        )
 
     intent_type = row.get("expected_intent_type_router")
     if not is_empty(intent_type):
-        assertions.append({"type": "is-json", "value": build_router_intent_schema(intent_type)})
+        assertions.append(
+            build_schema_assertion(
+                build_router_intent_schema(intent_type),
+                messages,
+                "metric_router_intent",
+            )
+        )
 
 
 def append_planner_assertions(
@@ -354,10 +421,11 @@ def append_planner_assertions(
         )
 
     assertions.append(
-        {
-            "type": "is-json",
-            "value": build_planner_tool_items_schema(tool_names, tool_args),
-        }
+        build_schema_assertion(
+            build_planner_tool_items_schema(tool_names, tool_args),
+            messages,
+            "metric_planner_tools",
+        )
     )
 
 
@@ -455,7 +523,7 @@ def main() -> int:
         except ConversionSkip as error:
             print(str(error), file=sys.stderr)
             skip_count += 1
-    tests=tests[-2:]
+    tests=tests[:2]+tests[-2:]
     if args.jsonl:
         write_jsonl_output(output_path, tests)
     else:

@@ -1,0 +1,15 @@
+{
+  "options": {
+    "provider": {
+      "id": "google:gemini-3.5-flash",
+      "config": {
+        "apiKey": "{{ env.GOOGLE_API_KEY }}",
+        "generationConfig": {
+          "thinkingConfig": {
+            "thinkingLevel": "MEDIUM"
+          }
+        }
+      }
+    }
+  }
+}
