@@ -8,8 +8,10 @@
 
 - [data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)：REST 模板、并发、续跑、超时和失败隔离。
 - [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：原始数据到 Promptfoo Case 的转换规则。
+- [packages/contracts/test](../packages/contracts/test)：P1 Schema、版本、Secret、Work Package、Bridge、Snapshot、Artifact、Canonical Export、137 条能力映射和真实 Fixture。
+- [packages/domain/test](../packages/domain/test)：P1 纯 Case/Result、状态、Revision、统计、Proposal 和专用哈希输入。
 
-Vitest、V8 覆盖率和架构测试已在 P0 落地。当前工具链核心行/函数覆盖率门禁为 90%，分支为 85%；P1 起各核心 Package 沿用该门禁，全仓最终门禁仍以本 Goal 全局要求为准。
+Vitest、V8 覆盖率和架构测试已在 P0 落地。P1 已把 Contracts 与 Domain 纳入覆盖率范围。当前工具链核心行/函数覆盖率门禁为 90%，分支为 85%；各核心 Package 沿用该门禁，全仓最终门禁仍以本 Goal 全局要求为准。
 
 - [tooling/test](../tooling/test)：Runtime Doctor、Fixture、Secret、文档、架构、能力矩阵、官方 SDK 契约、Promptfoo 真实进程和 Benchmark 测试。
 - [vitest.config.ts](../vitest.config.ts)：当前覆盖率范围与阈值。

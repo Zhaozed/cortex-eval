@@ -4,6 +4,8 @@
 
 本文档定义 Cortex Eval 本地版的产品目标、使用方式、业务对象、用户流程、UI 与 CLI 能力、报告口径、异常行为和验收标准。
 
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P1 已冻结本文件涉及的纯 Contracts/Domain 协议，但未注册 API、OpenAPI、CLI 或 Web 能力。
+
 技术选型、项目架构、模块边界、数据字段、工作包协议、事务、并发和测试设计以 `TECH.md` 为准。本文档不包含具体实现代码。
 
 当前版本只支持并验证 macOS ARM64。运行数据默认位于项目根目录 `.cortex-eval/`，本地服务默认通过 `127.0.0.1:4310` 同源提供 Web 和 `/api/v1`。Linux、Windows、x64、Docker、安装器和桌面应用封装不在当前验收范围。

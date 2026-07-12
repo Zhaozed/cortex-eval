@@ -7,7 +7,9 @@
 - 当前 REST 模块入口：[data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)
 - 当前转换模块入口：[data_scripts/convert_loona_to_promptfoo.py](../data_scripts/convert_loona_to_promptfoo.py)
 - Goal 分阶段方案：[tasks/00_INDEX.md](../tasks/00_INDEX.md)
-- 目标 `apps`、`packages`、SQLite、Work Package、Reporting 和 Analysis 代码入口尚未落地。
+- P1 Contracts 入口：[packages/contracts/src](../packages/contracts/src)
+- P1 Domain 入口：[packages/domain/src](../packages/domain/src)
+- `apps`、Application、SQLite、Work Package 文件运行时与 Reporting 入口尚未落地。
 
 ## 单文件 SQLite
 
@@ -425,6 +427,32 @@ POST 可能有未知副作用，一个 Run/Execution ID 必须始终对应一组
 
 生效。
 
+## Endpoint 模板选择器
+
+### 决策
+
+Endpoint URL 模板只支持可组合的 `vars.name`、`vars["任意 JSON 键"]` 和 `vars.items[0]` 选择器。字符串键使用 JSON 字符串转义，数组索引使用非负十进制整数；不接受运算、函数、任意表达式或残留模板。
+
+### 原因
+
+需要覆盖任意层级 JSON 标量叶子，同时让语法可静态验证，避免把表达式解析和 Secret 风险推迟到 Adapter。
+
+### 代码影响
+
+Contracts 在解析 URL 前验证选择器语法、固定 Authority、HTTP/HTTPS、敏感 Query 参数名、User Info 和 Fragment。Adapter 只读取已验证路径并对单个 URL 组件编码。
+
+### 测试影响
+
+测试覆盖普通键、任意 JSON 键、数组索引、嵌套组合、残留模板、表达式、动态 Host 和敏感 Query 名。
+
+### 排障影响
+
+先区分选择器语法、变量缺失、非标量值和 URL 约束，不执行或猜测非法表达式。
+
+### 状态
+
+生效。
+
 ## Work Package v1 提前冻结
 
 ### 决策
@@ -437,7 +465,7 @@ P7 导出的不可变工作包必须能由后续 Report/Analysis 能力继续执
 
 ### 代码影响
 
-阶段能力注册只控制入口是否可执行。P7 提交 Golden Package，P8/P9 只增加 Writer、Importer 和入口注册。
+阶段能力注册只控制入口是否可执行。Manifest 输入路径和 Rubric Prompt Key 唯一；Execution 校验固定阶段依赖与 Artifact 槽位。版本化 Execution Context Hash 输入包含 Package ID、Manifest Hash 和两类执行限制。P7 提交 Golden Package，P8/P9 只增加 Writer、Importer 和入口注册。
 
 ### 测试影响
 

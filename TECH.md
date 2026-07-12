@@ -6,6 +6,8 @@
 
 产品行为和验收口径以 `REQ.md` 为准。本文档不包含具体实现代码。
 
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P1 已落地 Contracts、Domain、Work Package v1、Evaluator Bridge 和 Canonical Export v1 的纯协议事实；持久化、运行时 Adapter 与入口能力仍按后续阶段推进。
+
 ## 2. 总体结论
 
 系统采用 TypeScript 模块化单体架构。本地平台由 Web、本地 HTTP API 和单文件 SQLite 组成；离线 CLI 使用文件工作包执行相同的 REST、评估、报告和分析阶段。

@@ -23,12 +23,15 @@ Case Analysis 是独立事实。应用建议时按 Analysis、Suite、Case、Rub
 - 完整报告要求每个冻结 Case 有一个 Case Result 和一个 Eval Result。
 - 未开始 Evaluation 时不创建 Eval Result。
 - Analysis 不属于 Run Stage，不修改原 Run Context Hash。
+- Run 和 Analysis 的每次可见状态写入都校验调用方 Revision；合法转换递增 Revision，旧 Revision 返回稳定冲突。
 
 ## 幂等与身份
 
 Case 业务身份使用测试集内唯一的 `metadata.case_id`，内部 ID 与业务 ID 分离。导入、编辑、分析建议和结果导入不得静默修改 Case ID。
 
 资源、Case、运行上下文、结果集合、最终 Case 结果和分析输入使用规范化 JSON 与 SHA-256 形成身份。第三方随机 ID、绝对路径、Secret 和不稳定 metadata 不进入平台业务哈希。
+
+离线 Execution Context 使用独立 `cortex.execution-context.v1` 哈希输入。输入包含 Package ID、Manifest Hash、Run Execution Limits 和 Analysis Execution Limits；任一限制变化都形成不同 Execution Context Hash。
 
 相同 Execution ID 与相同 Result Set Hash 的导入幂等；相同 Execution ID 对应不同结果冲突。相同 Analysis Input Hash 的分析导入幂等，不同输入按当前分析 Revision 条件更新。
 
@@ -66,10 +69,11 @@ Secret 统一使用 EnvSecretRef，只在外部调用前从环境展开。数据
 ## 相关模块
 
 - 目标内部约束来源：[TECH.md](../TECH.md)
-- 当前 REST 类型入口：[data_scripts/run_promptfoo_rest_types.ts](../data_scripts/run_promptfoo_rest_types.ts)
+- 当前 Domain 状态入口：[PACKAGES/DOMAIN.md](PACKAGES/DOMAIN.md)
+- 当前 Contracts Snapshot 与 Execution 入口：[PACKAGES/CONTRACTS.md](PACKAGES/CONTRACTS.md)
 - 当前 REST 并发与原子写入入口：[data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)
 - 当前 REST 竞争与错误测试：[data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)
-- 目标 Domain、Application、SQLite 和 Work Package 入口尚未落地。
+- Application、SQLite 和 Work Package 文件运行时入口尚未落地。
 - [PACKAGES/DOMAIN.md](PACKAGES/DOMAIN.md)
 - [APPLICATION/OVERVIEW.md](APPLICATION/OVERVIEW.md)
 - [PACKAGES/STORAGE_SQLITE.md](PACKAGES/STORAGE_SQLITE.md)

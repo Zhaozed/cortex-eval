@@ -12,22 +12,26 @@ Domain 位于依赖最内层，不依赖其他业务 Package。Application 调�
 
 ## 实现状态
 
-目标 Package 尚未落地。当前脚本类型只描述局部 REST 运行器，不是完整 Domain 契约。
+P1 已落地纯 Domain Package。当前实现包含 Case/Assertion 与 Provider Output 规则、Run/Analysis 状态机、Metric/Rate、Analysis Proposal、RFC 8785/SHA-256 和专用哈希输入。
 
-## 目标代码落点
+Application 聚合协调、Repository、Adapter 和入口仍未落地。Domain 不执行副作用、不接收 `unknown`，也不依赖 Contracts 或 Zod。
 
-`packages/domain`
+## 代码事实入口
 
-## 当前代码事实入口
-
-- [run_promptfoo_rest_types.ts](../../data_scripts/run_promptfoo_rest_types.ts)：当前局部 JSON、Case、Provider 和运行汇总类型。
-- [convert_loona_to_promptfoo.py](../../data_scripts/convert_loona_to_promptfoo.py)：当前 Case 与 Assertion 构造规则。
+- [domain-evaluation.ts](../../packages/domain/src/domain-evaluation.ts)：Case、递归 Assertion、Provider Output、REST/Eval 事实不变量。
+- [domain-run-state.ts](../../packages/domain/src/domain-run-state.ts)：带 Lock Revision 的 Run 状态机。
+- [domain-analysis-state.ts](../../packages/domain/src/domain-analysis-state.ts)：带 Revision 的 Analysis 状态机。
+- [domain-analysis.ts](../../packages/domain/src/domain-analysis.ts)：四类分析与 Proposal 纯校验。
+- [domain-metrics.ts](../../packages/domain/src/domain-metrics.ts)：Metric 去重、优先级和 Rate。
+- [domain-canonical-hash.ts](../../packages/domain/src/domain-canonical-hash.ts)：I-JSON、RFC 8785 与 SHA-256。
+- [domain-hash-inputs.ts](../../packages/domain/src/domain-hash-inputs.ts)：Case、Run Context、Final Case Result 和 Analysis Input 哈希输入。
 
 ## 当前样例与测试入口
 
 - [loona_promptfoo_tests.json](../../test_suite/current/cases/loona_promptfoo_tests.json)
 - [run_promptfoo_rest.test.ts](../../data_scripts/run_promptfoo_rest.test.ts)
 - [test_convert_loona_to_promptfoo.py](../../data_scripts/test_convert_loona_to_promptfoo.py)
+- [domain tests](../../packages/domain/test)：纯规则、错误路径、边界、Revision 竞争、Hash 和联合动作测试。
 
 ## 对外接口
 
@@ -59,4 +63,4 @@ Domain 规则必须确定、可穷尽测试且不访问时钟、随机数或环�
 
 ## 相关测试
 
-目标测试覆盖 Case、Assertion、Provider Output、Prompt 变量、状态机、Metric、Rate、Canonical Hash、四种分析分类、Proposal 联合和非法状态。
+当前测试覆盖 Case、Assertion、Provider Output、状态机、Metric、Rate、Canonical Hash、四种分析分类、Proposal 联合、Revision 竞争和非法状态。

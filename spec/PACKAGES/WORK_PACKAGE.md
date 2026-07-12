@@ -12,7 +12,7 @@ Package 依赖 Contracts Schema、文件系统和安全 Hash 工具，实现 Wor
 
 ## 实现状态
 
-目标 Package 尚未落地。当前脚本直接读写固定 JSON 路径，不具备目标 Manifest、Execution、锁和导入协议。
+P1 已在 Contracts 冻结完整 Manifest v1、Execution v1、固定阶段依赖图、六类 Artifact 槽位、Artifact Manifest 与 Result Import Schema。`packages/work-package` 文件运行时尚未落地；当前脚本仍直接读写固定 JSON 路径，不具备路径安全、锁、原子 Artifact Store 或导入实现。
 
 ## 目标代码落点
 
@@ -20,6 +20,9 @@ Package 依赖 Contracts Schema、文件系统和安全 Hash 工具，实现 Wor
 
 ## 当前代码事实入口
 
+- [work-package-contracts.ts](../../packages/contracts/src/work-package-contracts.ts)：不可修改的 Manifest v1 与 Execution v1 Schema。
+- [artifact-contracts.ts](../../packages/contracts/src/artifact-contracts.ts)：阶段 Artifact 与 Artifact Manifest Schema。
+- [result-import-contracts.ts](../../packages/contracts/src/result-import-contracts.ts)：报告/分析分次导入协议。
 - [run_promptfoo_rest.ts](../../data_scripts/run_promptfoo_rest.ts)：当前原子结果文件写入参考。
 - [run_promptfoo_rest_cli.ts](../../data_scripts/run_promptfoo_rest_cli.ts)：当前文件参数入口参考。
 
@@ -33,6 +36,8 @@ Package 依赖 Contracts Schema、文件系统和安全 Hash 工具，实现 Wor
 Manifest v1 在 Contracts 阶段一次冻结，保存 Package Version、Package ID、来源 Suite 与 Hash、Case Base Hashes、Endpoint、Evaluator、Analyzer、两类 Prompt、Promptfoo 与 Contract Version、全部阶段 Env Keys、Run/Analysis Execution Limits 默认值与范围、最终阶段依赖图、全部 Artifact 槽位和输入文件 Hash。
 
 每个 `executions/<execution_id>/execution.json` 保存独立执行身份、冻结的 Run/Analysis Execution Limits、Execution Context Hash、阶段状态、时间、Error Code 和输出文件 Hash。CLI 在创建 Execution 时显式传入或使用 Manifest 默认值；首个阶段开始后不可修改。Artifact 分为 REST Results、Raw Promptfoo Evidence、Normalized Eval、Report JSON、Report Markdown 和 Analysis Results。
+
+Manifest 中所有输入文件路径唯一，Rubric Prompt Key 唯一。Execution Context Hash 的版本化输入固定包含 Package ID、Manifest Hash、Run Execution Limits 和 Analysis Execution Limits。Execution Schema 校验顶层生命周期、固定阶段依赖、单一运行阶段、来源 Execution 不自指，并把每个阶段绑定到固定 Artifact Kind、路径和 Contract Version。
 
 Analysis 是 Report 后的可选执行步骤，不属于平台 Run Stage。离线 Pipeline 选择 Analysis 时必须有 Report Artifact 或同时选择 Report，并显式提供 Case Selector；Analysis 失败不覆盖 Report 文件或 Hash。
 

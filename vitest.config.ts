@@ -5,6 +5,8 @@ export default defineConfig({
     coverage: {
       exclude: ["**/*.test.ts", "**/test-support/**"],
       include: [
+        "packages/contracts/src/**/*.ts",
+        "packages/domain/src/**/*.ts",
         "tooling/src/architecture-boundaries.ts",
         "tooling/src/benchmark-harness.ts",
         "tooling/src/deterministic-cases.ts",
@@ -24,7 +26,7 @@ export default defineConfig({
         statements: 90
       }
     },
-    include: ["tooling/test/**/*.test.ts"],
+    include: ["packages/*/test/**/*.test.ts", "tooling/test/**/*.test.ts"],
     testTimeout: 30_000
   }
 });

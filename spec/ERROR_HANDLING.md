@@ -52,6 +52,8 @@ Raw Artifact 缺失或损坏时保留数据库规范化事实，API、CLI 和 UI
 
 非法 Run 转换返回 `RUN_STATE_CONFLICT`。阶段抢占失败不伪造 `RUNNING`，提交冲突不覆盖已落库事实。
 
+非法 Analysis 转换或旧 Revision 返回 `ANALYSIS_STATE_CONFLICT`。Provider 能力、Evaluator 绑定、预算、超时、取消和请求失败使用独立稳定 Error Code；所有中文消息由 Contracts 消息资源提供。
+
 进程重启时遗留 `RUNNING` 收敛为 `INTERRUPTED/DONE`。系统不自动推测外部副作用或断点续跑。遗留工作包锁只在确认进程不存在且状态可恢复时清理。
 
 ## 资源回收与降级
@@ -68,4 +70,6 @@ Adapter 在资源回收路径中终止子进程、释放 Abort 资源并清理�
 - 目标错误语义来源：[REQ.md](../REQ.md) 与 [TECH.md](../TECH.md)
 - 当前脚本错误处理：[data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)
 - 当前脚本错误行为测试：[data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)
-- 目标 Contracts、Application 与 Adapter 错误入口尚未落地。
+- 当前稳定 Error Code：[packages/contracts/src/error-contracts.ts](../packages/contracts/src/error-contracts.ts)
+- 当前中文消息资源：[packages/contracts/messages/zh-CN.json](../packages/contracts/messages/zh-CN.json)
+- Application 与 Adapter 错误收敛入口尚未落地。

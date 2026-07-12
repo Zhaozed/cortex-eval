@@ -1,0 +1,9 @@
+{
+  "name": "@cortex-eval/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "canonicalize": "3.0.0"
+  }
+}

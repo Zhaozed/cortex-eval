@@ -25,8 +25,11 @@ Canonical Export v1 导出当前测试集与 Cases、当前配置与 Prompts、�
 
 当前 Goal 不实现 PostgreSQL、Canonical Import、多用户、认证授权、Worker、任务队列、Secret Manager、外置 Artifact Store 或备份恢复。
 
+P1 已冻结 Canonical Export v1 的请求默认值、Manifest、Canonical Entity JSONL Record、Artifact 存在性和四类对账结果 Schema。导出执行、读回和性能门禁仍属于 P10。
+
 ## 目标代码与测试入口
 
 - 目标阶段：[tasks/P10_FINAL_HARDENING.md](../tasks/P10_FINAL_HARDENING.md)
+- 协议事实：[packages/contracts/src/canonical-export-contracts.ts](../packages/contracts/src/canonical-export-contracts.ts)
 - 目标代码：`packages/contracts`、`packages/application`、`apps/cli`、`apps/local-server`
 - 代码和测试尚未落地；落地后必须替换为真实入口。

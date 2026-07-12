@@ -4,7 +4,7 @@
 
 `spec/` 是 Cortex Eval 目标系统的稳定事实入口，服务人类工程师和 AI coding agent。产品行为以 [REQ.md](../REQ.md) 为来源，技术架构以 [TECH.md](../TECH.md) 为来源，文档组织规则以 [SPEC_DOC.md](../SPEC_DOC.md) 为来源。
 
-当前仓库处于系统初始化阶段。`REQ.md` 和 `TECH.md` 描述已确认的目标契约，不代表目标代码已经实现。当前状态、现有入口与目标落点由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
+当前仓库已完成 P0，并已落地 P1 的纯 Contracts 与 Domain。`REQ.md` 和 `TECH.md` 仍描述完整目标，不代表后续 Application、Storage、Adapter 或入口已经实现。当前状态、现有入口与目标落点由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
 
 Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入口。每个阶段必须同步更新本索引和直接相关 spec，未落地能力不得提前改写为代码事实。
 
@@ -102,6 +102,10 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 
 ## 当前代码、测试与样例入口
 
+- [packages/contracts/src](../packages/contracts/src)：P1 跨入口协议、版本化 Schema、Error Code、Work Package v1、Bridge 与 Canonical Export v1。
+- [packages/contracts/test](../packages/contracts/test)：P1 Contracts 正反例、真实 Fixture 和能力映射测试。
+- [packages/domain/src](../packages/domain/src)：P1 纯业务类型、状态机、统计、Proposal 和哈希输入。
+- [packages/domain/test](../packages/domain/test)：P1 Domain 单元、边界、竞争和回归测试。
 - [data_scripts/run_promptfoo_rest_types.ts](../data_scripts/run_promptfoo_rest_types.ts)：当前 REST 运行器公开类型。
 - [data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)：当前 REST 请求、并发、续跑和原子输出实现。
 - [data_scripts/run_promptfoo_rest_cli.ts](../data_scripts/run_promptfoo_rest_cli.ts)：当前 REST 运行器 CLI 入口。
