@@ -12,7 +12,7 @@ Domain 位于依赖最内层，不依赖其他业务 Package。Application 调�
 
 ## 实现状态
 
-P1 已落地纯 Domain Package。当前实现包含 Case/Assertion 与 Provider Output 规则、Run/Analysis 状态机、Metric/Rate、Analysis Proposal、RFC 8785/SHA-256 和专用哈希输入。
+P1 已落地纯 Domain Package；P2 补充 Suite、Endpoint、LLM、两类 Prompt 的纯模型/校验、Case 派生投影，以及 Suite/Endpoint/LLM/Prompt/Rubric Prompt Set 版本化哈希。
 
 Application 聚合协调、Repository、Adapter 和入口仍未落地。Domain 不执行副作用、不接收 `unknown`，也不依赖 Contracts 或 Zod。
 
@@ -25,6 +25,9 @@ Application 聚合协调、Repository、Adapter 和入口仍未落地。Domain �
 - [domain-metrics.ts](../../packages/domain/src/domain-metrics.ts)：Metric 去重、优先级和 Rate。
 - [domain-canonical-hash.ts](../../packages/domain/src/domain-canonical-hash.ts)：I-JSON、RFC 8785 与 SHA-256。
 - [domain-hash-inputs.ts](../../packages/domain/src/domain-hash-inputs.ts)：Case、Run Context、Final Case Result 和 Analysis Input 哈希输入。
+- [domain-resource-models.ts](../../packages/domain/src/domain-resource-models.ts)：当前资源纯模型、安全校验和 Prompt 引用/变量派生。
+- [domain-resource-hashes.ts](../../packages/domain/src/domain-resource-hashes.ts)：资源运行语义哈希。
+- [domain-case-projection.ts](../../packages/domain/src/domain-case-projection.ts)：稳定 Case JSON 与筛选投影。
 
 ## 当前样例与测试入口
 

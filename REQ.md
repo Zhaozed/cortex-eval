@@ -131,7 +131,7 @@ Endpoint 配置包含：
 - 单 Case 超时。
 - REST 默认并发数，新建 Endpoint 默认 4。
 
-Header 值使用普通值或环境变量秘密引用的显式判别类型。只有 `Content-Type`、`Accept`、`User-Agent` 等固定安全 Header 允许普通值；Authorization、API Key、Token 及其他自定义 Header 必须使用环境变量引用。秘密值不得保存在数据库、导出文件、日志或 UI 响应中。
+Header 值使用普通值或环境变量秘密引用的显式判别类型。Header 名必须是合法 HTTP Token，按大小写无关语义拒绝重复并以小写名称参与 Endpoint Hash。只有 `Content-Type`、`Accept`、`User-Agent` 等固定安全 Header 允许普通值；Authorization、API Key、Token 及其他自定义 Header 必须使用环境变量引用。秘密值不得保存在数据库、导出文件、日志或 UI 响应中。
 
 URL 模板可以引用 `vars` 下任意层级的标量叶子。变量值作为单个 URL 组件安全编码，不能替换协议、Host 或端口；缺失、`null`、对象或数组返回 `TEMPLATE_INPUT`。Body Selector 使用 RFC 6901 JSON Pointer，根对象固定为 Case `vars`，选中值必须是 JSON 对象。
 
@@ -620,6 +620,7 @@ Proposal 使用判别联合明确动作和目标：
 - Rubric Prompt 被当前 Case 引用时禁止删除或修改 Prompt Key。
 - Case Analysis Prompt 被历史分析引用时仍可修改当前内容，历史分析保留当次 Prompt Hash 和脱敏快照。
 - 并发控制 Token 只用于防止覆盖，不表示版本历史。
+- Test Suite、Test Case、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 分别保存独立 Revision。名称等不进入运行语义 Hash 的显示字段变化仍递增 Revision；Case 写入同时校验 Suite Revision，编辑既有 Case 时再校验 Case Revision。
 
 ## 13. 并发和一致性
 

@@ -9,7 +9,9 @@
 - Goal 分阶段方案：[tasks/00_INDEX.md](../tasks/00_INDEX.md)
 - P1 Contracts 入口：[packages/contracts/src](../packages/contracts/src)
 - P1 Domain 入口：[packages/domain/src](../packages/domain/src)
-- `apps`、Application、SQLite、Work Package 文件运行时与 Reporting 入口尚未落地。
+- P2 Application 入口：[packages/application/src](../packages/application/src)
+- P2 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
+- `apps`、Work Package 文件运行时与 Reporting 入口尚未落地。
 
 ## 单文件 SQLite
 
@@ -552,6 +554,86 @@ Playwright 验收 1440×900 与 1280×800、键盘、焦点、错误关联和 Re
 ### 排障影响
 
 先检查 Runtime Doctor、固定版本声明、隔离探针错误和原始退出码，再检查 Adapter 映射。
+
+### 状态
+
+生效。
+
+## 当前资源 Revision 与运行语义 Hash 分离
+
+### 决策
+
+Test Suite、Test Case、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 分别保存独立 Revision。Revision 覆盖所有可编辑字段并用于条件更新；运行语义 Hash 只覆盖会影响执行或 Prompt 解释的内容。
+
+Suite Hash 包含按 Ordinal 排序的 Case Key、Ordinal 和 Definition Hash。Endpoint Hash 包含完整请求语义；LLM Hash 包含 Provider、统一参数、Secret 引用名称和结构输出能力；Prompt Hash 包含 Kind、Key 和有序 Messages。ID、显示名称、Revision 和时间均不进入这些运行语义 Hash。
+
+### 原因
+
+显示名称变化也必须防止丢失更新，但不能无意义地改变冻结运行身份。把 Revision 与 Hash 混用会在并发控制和执行身份之间制造隐式耦合。
+
+### 代码影响
+
+资源更新、删除和 Prompt Key 修改携带 expected Revision。任何 Case 写入先条件更新 Suite Revision；编辑既有 Case 还校验 Case Revision。
+
+### 测试影响
+
+测试覆盖旧 Revision 冲突、仅改名称、Rubric Key 引用、两连接竞争和 Hash 包含/排除语义。
+
+### 排障影响
+
+编辑冲突检查 Revision；执行身份差异检查对应版本化 Hash，不从二者之一推断另一项。
+
+### 状态
+
+生效。
+
+## Kysely 托管 SQLite 事务与显式项目根
+
+### 决策
+
+当前固定 Kysely `0.29.3`、better-sqlite3 `12.11.1` 和类型 `7.6.13`。只使用 Kysely 托管事务，事务回调可以等待数据库 Promise，但只获得事务绑定 Repository。Storage 必须接收装配层解析的绝对项目根，不读取 `process.cwd()` 或自行搜索项目目录。只对 `SQLITE_BUSY` 与 `SQLITE_BUSY_SNAPSHOT` 最多重启四次完整短事务，耗尽后收敛为 `STORAGE_TRANSACTION_CONFLICT`。
+
+### 原因
+
+Kysely 的事务与 SQLite 查询接口本身返回 Promise；拒绝 Promise 会使 Repository 无法工作。显式项目根避免从子目录启动时写入不同数据库。
+
+### 代码影响
+
+数据库路径固定为 `<projectRoot>/.cortex-eval/db/cortex-eval.sqlite3`。状态目录权限为 `0700`，数据库和 WAL/SHM 为 `0600`。每个连接启用 Foreign Keys、WAL、5 秒 Busy Timeout 和 `synchronous=FULL`。Busy 重启每次创建新的 Kysely 托管事务，不在已失败事务内续跑，也不扩展到外部副作用。不混用 better-sqlite3 事务或手工 `BEGIN/COMMIT`。
+
+### 测试影响
+
+测试覆盖不同 `cwd`、已有过宽权限收敛、每连接 PRAGMA、Kysely Migration 内部表、独立连接真实 `Promise.all` 竞争和独立进程竞争。
+
+### 排障影响
+
+先检查装配层传入的绝对项目根、目录权限、连接 PRAGMA 和 Migration 结果，再检查 Repository。
+
+### 状态
+
+生效。
+
+## 历史 Run Provenance 删除限制
+
+### 决策
+
+`source_run_id` 和 Case/Eval 的复用来源 Run 外键使用 `ON DELETE RESTRICT`；当前 Suite、Endpoint、Evaluator 来源外键使用 `ON DELETE SET NULL`。P2 不提供历史 Run 删除用例。
+
+### 原因
+
+重跑和复用来源必须持续可查询，当前资源则允许在冻结后删除且不影响历史快照。
+
+### 代码影响
+
+当前资源删除后来源 ID 为空，快照、Artifact Manifest 和规范化结果保持；存在 Provenance 链的历史 Run 不能删除。
+
+### 测试影响
+
+测试覆盖历史 Run 删除拒绝、终态当前资源删除、来源 ID 清空和快照/Artifact 事实保留。
+
+### 排障影响
+
+历史删除冲突先检查重跑与复用链；当前资源删除后的运行事实从冻结快照读取。
 
 ### 状态
 

@@ -10,8 +10,10 @@
 - [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：原始数据到 Promptfoo Case 的转换规则。
 - [packages/contracts/test](../packages/contracts/test)：P1 Schema、版本、Secret、Work Package、Bridge、Snapshot、Artifact、Canonical Export、137 条能力映射和真实 Fixture。
 - [packages/domain/test](../packages/domain/test)：P1 纯 Case/Result、状态、Revision、统计、Proposal 和专用哈希输入。
+- [packages/application/test](../packages/application/test)：P2 资源用例、统一 Case Writer、Revision、引用、Cursor、导出和事务外验证。
+- [packages/storage-sqlite/test](../packages/storage-sqlite/test)：P2 十表、严格行映射与 Hash 对账、约束、权限、双连接/双进程竞争、Execution 幂等和千级性能。
 
-Vitest、V8 覆盖率和架构测试已在 P0 落地。P1 已把 Contracts 与 Domain 纳入覆盖率范围。当前工具链核心行/函数覆盖率门禁为 90%，分支为 85%；各核心 Package 沿用该门禁，全仓最终门禁仍以本 Goal 全局要求为准。
+Vitest、V8 覆盖率和架构测试已在 P0 落地。P2 已把 Application 与 Storage SQLite 纳入覆盖率范围。当前工具链核心行/函数覆盖率门禁为 90%，分支为 85%；各核心 Package 沿用该门禁，全仓最终门禁仍以本 Goal 全局要求为准。
 
 - [tooling/test](../tooling/test)：Runtime Doctor、Fixture、Secret、文档、架构、能力矩阵、官方 SDK 契约、Promptfoo 真实进程和 Benchmark 测试。
 - [vitest.config.ts](../vitest.config.ts)：当前覆盖率范围与阈值。
@@ -27,9 +29,11 @@ Vitest、V8 覆盖率和架构测试已在 P0 落地。P1 已把 Contracts 与 D
 
 ## SQLite 测试
 
-覆盖十表 Migration、外键、唯一约束、索引、删除策略、Case Definition Writer 原子性、唯一运行双进程竞争、阶段条件提交、取消竞争、恢复和 Execution ID 幂等导入。
+当前覆盖十表 Migration、外键、唯一约束、索引、删除策略、Case Definition Writer 原子性、真实 SQLite 首/中/末 Case 删除与重排失败回滚、闭合 JSON 键集合、大小写无关字面搜索、唯一运行双进程竞争、Suite/唯一字段/Execution 双连接竞争和 Execution ID 幂等导入。阶段条件提交、取消竞争和恢复随 P5 Run 编排落地。
 
 每个数据库测试使用独立临时数据库。并发正确性必须使用独立连接或独立进程验证，不能仅用进程内 Mock 代替。
+
+P2 千级门禁固定生成 1,000 Case；导入同时覆盖全量校验、Hash 与事务写入并限制为 10 秒。组合查询先预热 5 次，再采集 30 个独立样本，nearest-rank p95 不超过 250 毫秒、p99 不超过 500 毫秒；JSON1 必须证明精确成员查询。
 
 ## Work Package 测试
 

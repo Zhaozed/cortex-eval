@@ -14,7 +14,7 @@ Package 使用 Kysely 构建显式 SQL，使用 better-sqlite3 访问当前唯�
 
 ## 实现状态
 
-目标 Package、Schema 和 Migration 尚未落地。
+P2 已落地十张业务表、Kysely Migration、连接策略、Repository、托管事务、严格行映射、Revision 条件更新、JSON1 查询、Execution 幂等原语和删除/Provenance 约束。Case 与四类 Configuration 读取会核对闭合键集合、派生字段和语义 Hash，不接受形状合法但事实不一致的脏行。
 
 ## 目标代码落点
 
@@ -22,11 +22,14 @@ Package 使用 Kysely 构建显式 SQL，使用 better-sqlite3 访问当前唯�
 
 ## 当前代码事实入口
 
-尚无当前数据库代码入口。
+- [sqlite-initial-migration.ts](../../packages/storage-sqlite/src/sqlite-initial-migration.ts)：十表、约束和索引。
+- [sqlite-database.ts](../../packages/storage-sqlite/src/sqlite-database.ts)：绝对项目根、权限、PRAGMA、Migration 和连接生命周期。
+- [sqlite-application-repositories.ts](../../packages/storage-sqlite/src/sqlite-application-repositories.ts)：Application Port 实现。
+- [sqlite-row-mappers.ts](../../packages/storage-sqlite/src/sqlite-row-mappers.ts)：脏持久化边界清洗。
 
 ## 当前样例与测试入口
 
-当前 Fixture 只提供未来 Repository 契约输入，不是数据库测试。目标 Migration 与 Repository 测试尚未落地。
+[storage-sqlite tests](../../packages/storage-sqlite/test) 覆盖 Migration、跨字段约束、四类配置、Case Writer、权限、双连接/双进程竞争、Execution 幂等和千级性能。
 
 ## 对外接口
 
@@ -40,7 +43,7 @@ Repository、Transaction Manager 和查询对象实现 Application 定义的窄 
 
 `run_log` 保存运行身份、脱敏快照、阶段、进度、Summary 和错误；`case_result` 保存冻结 Case 与 REST 事实；`eval_result` 保存规范化评估、Assertion、Diff、Metric 和结果 Hash；`case_analysis` 保存 Run/Case 当前分析与决策。
 
-字段和约束的权威来源将是目标 Migration、Schema 类型和 Repository 映射，不由本文档复制完整清单。
+字段和约束的代码权威来源是当前 Migration、Schema 类型和 Repository 映射，不由本文档复制完整清单。Kysely 自有两张 Migration 元数据表不计入十张业务表。
 
 ## 写入与读取路径
 
@@ -56,12 +59,12 @@ Web、API 和 CLI 不直接查询数据库；所有读取通过 Application Repo
 
 ## 错误收敛
 
-唯一、外键、Check、Busy 和条件更新失败映射为稳定存储或业务冲突，不泄露 SQL 和本地路径。事务失败整体回滚，不做 catch-log-reraise。
+唯一、外键、Check、Busy 和条件更新失败映射为稳定存储或业务冲突，不泄露 SQL 和本地路径。唯一字段竞争返回领域冲突；SQLite Busy 只允许最多四次完整短事务重启，耗尽返回 `STORAGE_TRANSACTION_CONFLICT`。事务失败整体回滚，不做 catch-log-reraise。
 
 ## 观测与验收
 
-连接启用 Foreign Keys、WAL、Busy Timeout 和受控同步模式。默认数据库位于项目根 `.cortex-eval/db/cortex-eval.sqlite3`。查询日志只记录操作名、耗时、计数和安全 ID。常用千级过滤和报告查询必须通过性能验收。
+每个连接启用 Foreign Keys、WAL、5 秒 Busy Timeout 和 `synchronous=FULL`。装配层必须传入绝对项目根；Storage 不读取 `cwd`，默认数据库位于 `<projectRoot>/.cortex-eval/db/cortex-eval.sqlite3`。目录权限收敛为 `0700`，数据库与 WAL/SHM 收敛为 `0600`。千级 Case 导入低于 10 秒，查询预热 5 次后测量 30 次并执行 p95 250 毫秒、p99 500 毫秒失败门禁。
 
 ## 相关测试
 
-目标测试覆盖十表 Migration、约束、索引、删除、Case Writer、双进程唯一运行、条件提交、取消竞争、恢复、幂等导入和千级查询。
+当前测试覆盖十表 Migration、约束、索引、删除、严格行映射、Case Writer、真实 SQLite Case 首/中/末删除和重排失败回滚、双连接 Revision/唯一字段/Execution 竞争、双进程唯一运行、Execution 身份幂等和千级查询。阶段条件提交、取消竞争与恢复随 P5 Run 编排落地。

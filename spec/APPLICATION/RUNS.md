@@ -14,7 +14,7 @@ Feature 依赖 Domain Run 规则、资源与 Run Repository、Transaction Manage
 
 ## 实现状态
 
-目标 Feature 尚未落地。当前 REST 脚本提供局部执行行为，但没有目标 Run 聚合和状态机。
+P2 已落地十表 Run 持久化约束、当前资源 READY/RUNNING 删除保护、历史来源删除策略、全库唯一 `RUNNING` 部分索引和独立进程竞争证明。Create Run、资源冻结写入、阶段编排、取消与恢复仍从 P5 开始实现，未暴露任何 Run 入口。
 
 ## 目标代码落点
 

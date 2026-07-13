@@ -6,6 +6,8 @@
 
 ## 资源写入
 
+P2 已实现内部资源写入与读取用例，但尚未注册 HTTP、CLI 或 Web 能力。所有当前资源更新使用独立 Revision；Case 创建、编辑、复制、删除、全量替换与建议接受入口共用 CaseDefinitionWriter。
+
 1. Entrypoint 校验外部协议并映射为 Application 输入。
 2. Application 调用统一 Case Definition Writer 或配置用例。
 3. Domain 校验 Case、Assertion、Prompt 引用、禁止字段和安全约束。

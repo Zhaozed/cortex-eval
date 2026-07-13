@@ -5,8 +5,10 @@ export default defineConfig({
     coverage: {
       exclude: ["**/*.test.ts", "**/test-support/**"],
       include: [
+        "packages/application/src/**/*.ts",
         "packages/contracts/src/**/*.ts",
         "packages/domain/src/**/*.ts",
+        "packages/storage-sqlite/src/**/*.ts",
         "tooling/src/architecture-boundaries.ts",
         "tooling/src/benchmark-harness.ts",
         "tooling/src/deterministic-cases.ts",

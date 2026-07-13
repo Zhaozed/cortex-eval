@@ -40,6 +40,8 @@ Case 业务身份使用测试集内唯一的 `metadata.case_id`，内部 ID 与�
 ## 并发与顺序
 
 - SQLite 部分唯一索引和条件更新共同保证唯一运行，进程内锁不作为正确性来源。
+- 当前资源使用独立 Revision 防止丢失更新；业务语义 Hash 不承担并发 Token 职责。Case 写入校验 Suite Revision，编辑既有 Case 再校验 Case Revision。
+- SQLite 锁竞争只在 Storage 边界重启完整短事务，最多四次；耗尽返回稳定存储冲突。任何外部副作用都不进入该重启范围。
 - `READY` 阶段不占用全局运行互斥。
 - 取消与阶段提交竞争时只有一个条件更新成功。
 - 同一工作包使用跨进程文件锁；不同工作包允许并行。
@@ -53,6 +55,8 @@ Case 业务身份使用测试集内唯一的 `metadata.case_id`，内部 ID 与�
 Artifact 预期 Kind、相对路径、Hash、大小和 Contract Version 保存在 Run Artifact Manifest。文件存在性按需校验；Raw 文件缺失或损坏不改变已经落库的规范化结果和报告事实。
 
 当前资源不保存版本历史。重新分析覆盖同一 Run/Case 当前分析，Revision 只用于并发控制和当前记录演进，不表示可查询历史。
+
+历史 Run 的重跑/复用 Provenance 外键使用删除限制；当前 Suite、Endpoint、Evaluator 来源使用 `SET NULL`，删除后快照、Artifact Manifest 和规范化事实保持。
 
 ## Secret 与日志
 

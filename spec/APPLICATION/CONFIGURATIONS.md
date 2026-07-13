@@ -12,7 +12,7 @@ Feature 依赖 Domain 配置规则、Configuration Repository、Transaction Mana
 
 ## 实现状态
 
-目标 Feature 尚未落地。当前仅存在配置 Fixture。
+P2 已落地 Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 的内部 CRUD、独立 Revision、Domain 校验与语义 Hash、Rubric 引用保护、Prompt 变量预览和事务外外部验证 Port。P3 才映射为资源 API。
 
 ## 目标代码落点
 
@@ -20,7 +20,9 @@ Feature 依赖 Domain 配置规则、Configuration Repository、Transaction Mana
 
 ## 当前代码事实入口
 
-当前没有配置 Repository 或 Use Case 实现。
+- [configuration-service.ts](../../packages/application/src/features/configurations/configuration-service.ts)
+- [domain-resource-models.ts](../../packages/domain/src/domain-resource-models.ts)
+- [domain-resource-hashes.ts](../../packages/domain/src/domain-resource-hashes.ts)
 
 ## 当前样例与测试入口
 
@@ -35,7 +37,7 @@ Use Case 覆盖四类配置 CRUD、Rubric 引用查询、Prompt 变量预览、E
 
 ## 核心流程
 
-保存时校验 Header、URL、Options、EnvSecretRef、Prompt 消息和模板变量，生成 Config 或 Prompt Hash，再在短事务中提交当前记录。验证外部服务在事务外进行，成功验证不替代保存校验。
+保存时校验 Header、URL、Options、EnvSecretRef、Prompt 消息和模板变量，生成 Config 或 Prompt Hash，再在短事务中提交当前记录。读取时严格校验 JSON 精确键集合、判别联合、枚举和语义 Hash。验证外部服务在事务外进行，成功验证不替代保存校验。
 
 ## 状态、事务与幂等
 
@@ -49,7 +51,7 @@ Rubric Prompt 平台引用统一为 `prompt://<key>`。只在当前 Fixture 导�
 
 ## 错误收敛
 
-敏感 Literal、未知 Provider Option、非法变量、重复 Prompt Key 和引用冲突不写入。OpenAI-compatible 远程地址必须 HTTPS 与 Bearer，本地回环才允许无认证。外部验证错误返回稳定分类，不记录 Secret 或第三方完整堆栈。
+敏感 Literal、大小写重复或非法 Token Header、未知 Provider Option、非法变量、重复名称/Prompt Key 和引用冲突不写入。并发唯一字段冲突返回稳定字段事实，不泄露 SQLite 错误。OpenAI-compatible 远程地址必须 HTTPS 与 Bearer，本地回环才允许无认证。外部验证错误返回稳定分类，不记录 Secret 或第三方完整堆栈。
 
 ## 观测与验收
 

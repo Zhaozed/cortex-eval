@@ -12,7 +12,7 @@ Feature 依赖 Domain 对账规则、Run Repository、Case Analysis Repository �
 
 ## 实现状态
 
-目标 Feature 尚未落地。
+P2 仅落地 Execution ID 与 Result Set Hash 的事务幂等登记原语，以及版本化快照和 Artifact Manifest 的最小持久化。工作包解析、明细校验、统计重算、Case/Eval/Analysis 完整导入仍属于 P7–P9，当前不暴露导入入口。
 
 ## 目标代码落点
 
@@ -20,7 +20,8 @@ Feature 依赖 Domain 对账规则、Run Repository、Case Analysis Repository �
 
 ## 当前代码事实入口
 
-尚无当前结果导入实现。
+- [import-execution-identity.ts](../../packages/application/src/features/execution-imports/import-execution-identity.ts)：P2 身份幂等原语。
+- [sqlite-application-repositories.ts](../../packages/storage-sqlite/src/sqlite-application-repositories.ts)：Execution 唯一约束的存储实现。
 
 ## 当前样例与测试入口
 

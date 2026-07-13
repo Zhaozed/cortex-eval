@@ -364,6 +364,12 @@ SQLite 是当前唯一业务数据库。选择原因：
 - Busy Timeout。
 - 受控同步模式。
 
+当前实现固定使用 Kysely `0.29.3`、better-sqlite3 `12.11.1` 和对应类型 `7.6.13`。只使用 Kysely 托管事务；事务回调可以等待数据库 Promise，但只获得事务绑定 Repository，不获得网络、文件或外部验证 Port。不得混用 better-sqlite3 托管事务或手工 `BEGIN/COMMIT`。
+
+事务管理器只对 `SQLITE_BUSY` 与 `SQLITE_BUSY_SNAPSHOT` 进行最多四次完整短事务重启；每次都创建新的 Kysely 托管事务。耗尽后返回稳定 `STORAGE_TRANSACTION_CONFLICT`，其他异常不重试。该机制只处理数据库锁竞争，不代表 REST、Evaluator、Analyzer 或 Promptfoo 的外部调用重试。
+
+Storage 只接受装配层传入的绝对项目根，不读取或猜测 `process.cwd()`。数据库固定解析为 `<projectRoot>/.cortex-eval/db/cortex-eval.sqlite3`；状态目录收敛为 `0700`，数据库及 WAL/SHM 文件收敛为 `0600`。每个独立连接都验证 Foreign Keys、WAL、5 秒 Busy Timeout 和 `synchronous=FULL`。
+
 应用只允许 local-server 写平台数据库。CLI 平台命令通过 HTTP API，避免多个进程绕过应用级协议。
 
 ### 5.3 Promptfoo
@@ -406,6 +412,8 @@ P0 Doctor 冻结发布环境前置：Python 使用 `PROMPTFOO_PYTHON` 或 `pytho
 
 Name 唯一。Case Count 和 Suite Hash 必须能从当前 Cases 重算。
 
+Revision 是当前聚合并发 Token。任何 Case 写入与 Suite 显示字段更新都执行条件递增；Suite Hash 只包含按 Ordinal 排序的 Case Key、Ordinal 和 Definition Hash，不包含 ID、名称、描述与时间。
+
 ### 7.2 test_case
 
 保存测试集中的当前 Case。
@@ -420,13 +428,14 @@ Name 唯一。Case Count 和 Suite Hash 必须能从当前 Cases 重算。
 - Definition JSON。
 - Rubric Prompt Keys JSON。
 - Definition Hash。
+- Revision。
 - Created At、Updated At。
 
 `(suite_id, case_key)` 和 `(suite_id, ordinal)` 唯一。
 
-Definition JSON 保存完整稳定 Case Definition。筛选列只用于查询优化，必须由 CaseDefinitionWriter 从 Definition 统一重算，不能由 API 单独写入。
+Definition JSON 保存完整稳定 Case Definition。版本根、`vars`、`metadata` 和 Assertion 对象使用闭合键集合；未知字段即使具有同步更新的 Hash 也视为脏持久化事实。筛选列只用于查询优化，必须由 CaseDefinitionWriter 从 Definition 统一重算，不能由 API 单独写入。
 
-千级筛选先用 Suite、Case Key、Business Module、Scenario Tag 等普通复合索引缩小范围。Assertion Type 和 Metric 使用 SQLite JSON1 `json_each` 对规范化数组做精确成员查询，不使用字符串包含匹配，也不引入 FTS。相关组合查询必须有千级数据性能测试；不满足时再根据真实查询增加派生索引结构。
+千级筛选先用 Suite、Business Module、Scenario Tag 等普通复合索引缩小范围。Case Key 与 Description 使用大小写无关的字面子串查询；Assertion Type 和 Metric 使用 SQLite JSON1 `json_each` 对规范化数组做精确成员查询，不使用字符串包含匹配，也不引入 FTS。相关组合查询必须有千级数据性能测试；不满足时再根据真实查询增加派生索引结构。
 
 ### 7.3 endpoint_config
 
@@ -434,7 +443,9 @@ Definition JSON 保存完整稳定 Case Definition。筛选列只用于查询优
 
 核心字段：ID、Name、URL Template、Method、Headers JSON、Body Selector、Timeout、Concurrency、Config Hash 和时间字段。
 
-Header 值是 `LiteralHeaderValue | EnvSecretRef` 判别联合。只有固定安全列表中的 `Content-Type`、`Accept` 和 `User-Agent` 允许 Literal；其他 Header，包括任意自定义 Header，必须使用 EnvSecretRef。URL 禁止 User Info，名称包含 Key、Token、Secret、Credential、Password 或 Auth 的 Query 参数禁止 Literal。
+Revision 独立于 Config Hash。Config Hash 包含全部运行语义，但不包含 ID、Name、Revision 和时间。
+
+Header 值是 `LiteralHeaderValue | EnvSecretRef` 判别联合。Header 名必须满足 HTTP Token 语法，按大小写无关语义拒绝重复，并以小写名称进入 Config Hash。只有固定安全列表中的 `Content-Type`、`Accept` 和 `User-Agent` 允许 Literal；其他 Header，包括任意自定义 Header，必须使用 EnvSecretRef。URL 禁止 User Info，名称包含 Key、Token、Secret、Credential、Password 或 Auth 的 Query 参数禁止 Literal。
 
 Method 固定为 `POST`。URL 模板只允许读取 `vars` 下任意层级标量叶子并按单个 URL 组件编码，不能替换协议、Host 或端口。Body Selector 使用 RFC 6901 JSON Pointer，选中值必须为 JSON 对象。
 
@@ -446,9 +457,11 @@ Method 固定为 `POST`。URL 模板只允许读取 `vars` 下任意层级标量
 
 核心字段：ID、Name、Provider Type、Model、Options JSON、Secret Refs JSON、Config Hash 和时间字段。
 
+Revision 独立于 Config Hash。Config Hash 包含 Provider、Model、统一 Options、Secret 引用名称与结构输出能力，不包含 ID、Name、执行角色、Revision 和时间。
+
 表中不保存固定角色。同一配置可以被不同运行分别选择为 Evaluator 或 Analyzer。
 
-Options JSON 使用 Provider 白名单 Schema。任意层级出现 `apiKey`、`token`、`secret`、`password`、`credential`、`authorization` 或同义字段时拒绝保存，Secret 只能通过独立 EnvSecretRef 字段提供。
+Options JSON 使用 Provider 白名单 Schema，并在读取时拒绝未知字段、非法枚举与认证联合不匹配的 Secret 形状。任意层级出现 `apiKey`、`token`、`secret`、`password`、`credential`、`authorization` 或同义字段时拒绝保存，Secret 只能通过独立 EnvSecretRef 字段提供。四类配置的持久化行都必须重新计算语义 Hash 并与存储值一致。
 
 Provider Type 只允许 `GOOGLE_GEMINI` 和 `OPENAI_COMPATIBLE`。两者统一公开 `model`、`thinkingLevel`、`temperature`、`topP`、`maxOutputTokens` 和 `timeoutMs`。OpenAI-compatible 只实现 Chat Completions；远程 Base URL 必须使用 HTTPS 与 Bearer EnvSecretRef，本地回环可显式选择无认证。Analyzer 结构输出能力显式为 `JSON_SCHEMA | JSON_OBJECT`。
 
@@ -458,6 +471,8 @@ Provider Type 只允许 `GOOGLE_GEMINI` 和 `OPENAI_COMPATIBLE`。两者统一�
 
 核心字段：ID、Prompt Key、Name、Messages JSON、Prompt Hash 和时间字段。
 
+Revision 独立于 Prompt Hash。Prompt Hash 包含 Prompt Kind、Key 和有序 Messages，不包含显示 Name、Revision 和时间。
+
 Prompt Key 唯一。当前 Case 引用通过 `test_case.rubric_prompt_keys_json` 维护逻辑关联。
 
 ### 7.6 case_analysis_prompt
@@ -465,6 +480,8 @@ Prompt Key 唯一。当前 Case 引用通过 `test_case.rubric_prompt_keys_json`
 保存当前 Case 分析 Prompt。
 
 核心字段：ID、Prompt Key、Name、Messages Template JSON、Prompt Hash 和时间字段。
+
+Revision 与 Prompt Hash 的包含、排除规则和 Rubric Prompt 相同。
 
 模板中实际变量由保存时扫描派生，不重复保存 `variables_json`。允许变量集合由版本化 Contract 定义。
 
@@ -486,6 +503,8 @@ Prompt Key 唯一。当前 Case 引用通过 `test_case.rubric_prompt_keys_json`
 - Error Code、Error Message 和阶段时间。
 
 离线导入使用 Execution ID 唯一约束实现幂等。来源资源删除后 ID 可以为空，历史快照保持有效。
+
+`source_run_id` 与 Case/Eval 的 `reused_from_run_id` 对历史 Run 使用 `ON DELETE RESTRICT`；Suite、Endpoint、Evaluator 当前来源 ID 使用 `ON DELETE SET NULL`。当前不提供历史 Run 删除用例，Provenance 不因当前资源删除而丢失。
 
 ### 7.8 case_result
 
@@ -541,6 +560,8 @@ REST 阶段完成但 Eval 未开始时不创建 Eval Result。完整报告要求
 `(run_id, case_key)` 唯一，并以同一组字段联合外键引用 `eval_result`。Analysis Revision 从 1 开始，每次重新分析或并发可见写入递增。
 
 `analysis_input_hash` 对完整规范化 Analysis Input 计算。输入包含实际渲染前的全部结构化变量、Final Case Result Hash、Run Context、Diff Contract Version 和 Analysis Input Contract Version，再组合 Analysis Prompt Hash、Analyzer Config Hash 与 Analysis Output Contract Version。
+
+初始 Migration 恰好创建以上十张业务表，并允许 Kysely 自有 `kysely_migration` 与 `kysely_migration_lock` 元数据表；它们不计入业务表数量。
 
 ## 8. 运行状态和阶段
 

@@ -12,7 +12,7 @@ Feature 依赖 Domain Case 规则、Configuration 查询 Port、Test Suite Repos
 
 ## 实现状态
 
-目标 Feature 尚未落地。当前转换脚本能生成 Promptfoo Case，但不提供目标聚合、事务和资源 API。
+P2 已落地 Suite CRUD、Case 创建/编辑/复制/删除/全量替换、建议应用共用 Writer、Ordinal 导出、Cursor/组合过滤、Rubric 引用校验、派生字段、Hash 和独立 Revision。Case Key 与描述使用大小写无关的字面子串搜索。P3 才映射为资源 API。
 
 ## 目标代码落点
 
@@ -21,6 +21,8 @@ Feature 依赖 Domain Case 规则、Configuration 查询 Port、Test Suite Repos
 ## 当前代码事实入口
 
 - [convert_loona_to_promptfoo.py](../../data_scripts/convert_loona_to_promptfoo.py)
+- [case-definition-writer.ts](../../packages/application/src/features/test-suites/case-definition-writer.ts)
+- [test-suite-service.ts](../../packages/application/src/features/test-suites/test-suite-service.ts)
 
 ## 当前样例与测试入口
 
@@ -30,13 +32,13 @@ Feature 依赖 Domain Case 规则、Configuration 查询 Port、Test Suite Repos
 
 ## 对外接口
 
-Use Case 覆盖 Suite CRUD、Case CRUD、复制、导入、导出、Cursor 查询、组合过滤和引用影响查询。返回 Domain/Application 类型，由 Entrypoint 映射为 DTO。
+Use Case 覆盖 Suite CRUD、按 Suite-local Case Key 精确读取的 Case CRUD、复制、导入、导出、Cursor 查询、组合过滤和引用影响查询。返回 Domain/Application 类型，由 Entrypoint 映射为 DTO。
 
 ## 核心流程
 
 Case Definition Writer 校验禁止字段和 Definition，解析 Rubric Keys，校验引用，派生筛选字段与 Definition Hash，写入 Case，重算 Suite Count 与 Suite Hash，并在提交前对账。
 
-全量导入先校验全部 Cases，再在一个短事务中替换。任一错误整笔回滚。
+全量导入先校验全部 Cases，再在一个短事务中替换。任一错误整笔回滚，错误携带输入顺序、Case Key 和底层字段/引用事实。Case 删除在同一事务中重排后续 Ordinal，并把新 Ordinal 与对应 Case Revision、Suite Count、Hash 和 Revision 一并持久化；任一重排失败整体回滚。
 
 ## 状态、事务与幂等
 
@@ -53,4 +55,3 @@ Case Definition Writer 校验禁止字段和 Definition，解析 Rubric Keys，�
 ## 相关测试
 
 目标测试覆盖五类写入口、导入原子性、身份与 Ordinal、引用、筛选派生、Hash、删除、Cursor 和组合过滤。
-
