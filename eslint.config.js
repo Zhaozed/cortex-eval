@@ -5,7 +5,8 @@ export default tseslint.config(
   {
     ignores: [
       "coverage/**",
-      "dist/**",
+      "**/dist/**",
+      "apps/web/public/**",
       "eslint.config.js",
       "node_modules/**",
       "test_suite/current/eval_result/**",

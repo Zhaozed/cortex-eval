@@ -63,8 +63,8 @@ describe("Secret 扫描", () => {
 
   it("拟提交的真实 REST 与 Eval Fixture 不含凭据值", async () => {
     const files = [
-      "test_suite/current/run_result/loona_promptfoo_tests.json",
-      "test_suite/current/eval_result/result.json"
+      "test_suite/current/run_result/test_example.json",
+      "test_suite/current/eval_result/test_example.json"
     ];
     const findings = [];
     for (const file of files) {

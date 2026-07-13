@@ -6,6 +6,8 @@ export default defineConfig({
       exclude: ["**/*.test.ts", "**/test-support/**"],
       include: [
         "apps/local-server/src/**/*.ts",
+        "apps/web/src/**/*.ts",
+        "apps/web/src/**/*.tsx",
         "packages/application/src/**/*.ts",
         "packages/contracts/src/**/*.ts",
         "packages/domain/src/**/*.ts",
@@ -31,9 +33,11 @@ export default defineConfig({
     },
     include: [
       "apps/*/test/**/*.test.ts",
+      "apps/*/test/**/*.test.tsx",
       "packages/*/test/**/*.test.ts",
       "tooling/test/**/*.test.ts"
     ],
+    setupFiles: ["apps/web/test/setup.ts"],
     testTimeout: 30_000
   }
 });

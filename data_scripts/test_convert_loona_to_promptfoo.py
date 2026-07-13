@@ -26,7 +26,7 @@ class ConvertLoonaToPromptfooTest(unittest.TestCase):
             "mismatched_tool_args",
             "invalid_expected_list",
             "unsupported_expected_field",
-            "metric_reply_text",
+            "metric_planner_reply_text",
             "metric_router_reply_text",
             "metric_router_intent",
             "metric_router_tools",
@@ -109,7 +109,7 @@ class ConvertLoonaToPromptfooTest(unittest.TestCase):
         }
 
         assertions = self.assertions_by_metric(self.build_row("Planner"))
-        assertion = assertions[self.messages["metric_reply_text"]]
+        assertion = assertions[self.messages["metric_planner_reply_text"]]
 
         self.assertEqual(assertion["type"], "is-json")
         self.assertEqual(assertion["weight"], 0)

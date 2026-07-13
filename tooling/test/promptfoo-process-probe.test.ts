@@ -29,7 +29,7 @@ describe("Promptfoo 真实进程探针", () => {
 
   it("真实 REST Fixture 在隔离副本中使用预计算输出并生成可对齐组件", async () => {
     const fixture = JSON.parse(
-      await readFile("test_suite/current/run_result/loona_promptfoo_tests.json", "utf8")
+      await readFile("test_suite/current/run_result/test_example.json", "utf8")
     ) as { assert: { type: string }[] }[];
     const expectedTypes = fixture.flatMap((item) => item.assert.map((assertion) => assertion.type));
     const probe = await runRealFixtureProcessProbe(process.cwd());

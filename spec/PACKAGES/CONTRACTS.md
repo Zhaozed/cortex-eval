@@ -33,7 +33,7 @@ Contracts 只冻结协议，不代表对应 API、CLI、Web 或文件运行时�
 - [loona_promptfoo_tests.json](../../test_suite/current/cases/loona_promptfoo_tests.json)
 - [provider.json](../../test_suite/current/provider.json)
 - [llm_config.json](../../test_suite/current/llm_config.json)
-- `test_suite/current/eval_result/result.json`：当前未跟踪第三方结果 Fixture。
+- `test_suite/current/eval_result/test_example.json`：当前已提交第三方结果 Fixture。
 - [contracts tests](../../packages/contracts/test)：Schema 正反例、137 条能力映射、真实 Fixture、版本、Secret、Snapshot、Manifest 和状态形状。
 
 ## 对外接口

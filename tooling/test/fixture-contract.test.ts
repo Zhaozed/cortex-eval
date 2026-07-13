@@ -11,10 +11,10 @@ import {
 describe("真实 Fixture 契约", () => {
   it("当前 REST 与 Promptfoo 结果通过基线结构校验", async () => {
     const rest = JSON.parse(
-      await readFile(resolve("test_suite/current/run_result/loona_promptfoo_tests.json"), "utf8")
+      await readFile(resolve("test_suite/current/run_result/test_example.json"), "utf8")
     ) as unknown;
     const evaluation = JSON.parse(
-      await readFile(resolve("test_suite/current/eval_result/result.json"), "utf8")
+      await readFile(resolve("test_suite/current/eval_result/test_example.json"), "utf8")
     ) as unknown;
 
     expect(validateRestResultFixture(rest).caseCount).toBeGreaterThan(0);

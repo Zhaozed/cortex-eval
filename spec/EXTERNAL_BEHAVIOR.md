@@ -2,7 +2,7 @@
 
 ## 当前实现边界
 
-P3 当前可通过 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并执行 Case 全量导入导出、配置验证与 Prompt 预览/引用查询。提交的 OpenAPI 只包含这些能力。P4 Web、Run、Evaluation、Report、Analysis、Work Package 和目标 CLI 行为仍是后续验收目标，不存在占位入口。
+P4 当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并执行 Case 全量导入导出、配置验证与 Prompt 预览/引用查询。提交的 OpenAPI 与 Web 导航只包含这些能力。Run、Evaluation、Report、Analysis、Work Package 和目标 CLI 行为仍是后续验收目标，不存在占位入口。
 
 ## 使用方式
 
@@ -20,6 +20,7 @@ Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式选择满足
 - 全量 Case 替换必须整体校验、整体提交，不允许部分成功。
 - 被当前 Case 引用的 Rubric Prompt 不允许删除或修改 Prompt Key。
 - Secret 只展示环境变量引用名称，不返回展开值。
+- Web Dashboard 只展示六类当前资源数量。Case 筛选、Cursor 和历史页状态可由 URL 刷新恢复；跨 Test Suite 详情导航不复用上一 Suite 的页面状态。写冲突保留 Draft 并展示最新 Snapshot，不自动覆盖；冲突刷新确认远端 Case 已删除时保留只读 Draft 或删除意图，不再重取详情，也不提供无效重试，只有显式采用删除事实后才关闭。写入或冲突待决时，关闭、Esc、应用导航、浏览器历史和页面卸载均不能隐式丢弃 Draft。浏览器缺少 `Navigation.currentEntry.index` 时只显示能力错误，不挂载资源页面或写入口。
 
 ## 运行行为
 
@@ -72,7 +73,7 @@ JSON Report 是导入事实，Markdown 只由规范化 JSON 派生，不能反�
 - 外部 JSON、URL 模板和 Selector 在进入核心逻辑前校验。可信内联 Assertion 不做代码检测或沙箱承诺。
 - 工作包可能包含敏感业务数据，目录和普通文件仅当前用户可访问。
 - 当前不支持认证、租户、多人协作、资源历史、Attempt 历史、自动断点续跑、外部 Assertion 文件、Provider 插件或额外脚本依赖。
-- 当前只支持并验证 macOS ARM64；Web 使用简体中文桌面布局并满足 WCAG 2.2 AA。
+- 当前只支持并验证 macOS ARM64；Web 使用简体中文桌面布局并满足 WCAG 2.2 AA，目标浏览器必须提供同源 Navigation Entry 绝对索引。
 
 ## 验收边界
 
@@ -88,7 +89,9 @@ UI 和 CLI 对同一规范化输入生成相同统计。错误返回稳定 Error
 - 当前测试集样例：[test_suite/current/cases/loona_promptfoo_tests.json](../test_suite/current/cases/loona_promptfoo_tests.json)
 - 当前 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
 - 当前 P3 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
-- 目标 Web 和工作包 CLI 入口尚未落地。
+- 当前 P4 Web：[apps/web/src](../apps/web/src)
+- 当前 P4 生产 E2E：[apps/web/e2e](../apps/web/e2e)
+- 工作包 CLI 入口尚未落地。
 - [ENTRYPOINTS/LOCAL_SERVER.md](ENTRYPOINTS/LOCAL_SERVER.md)
 - [ENTRYPOINTS/CLI.md](ENTRYPOINTS/CLI.md)
 - [WEB/OVERVIEW.md](WEB/OVERVIEW.md)

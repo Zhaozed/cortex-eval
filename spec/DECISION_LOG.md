@@ -12,7 +12,8 @@
 - P2 Application 入口：[packages/application/src](../packages/application/src)
 - P2 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
 - P3 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
-- Web、CLI、Work Package 文件运行时与 Reporting 入口尚未落地。
+- P4 Web 入口：[apps/web/src](../apps/web/src)
+- CLI、Work Package 文件运行时与 Reporting 入口尚未落地。
 
 ## 单文件 SQLite
 
@@ -35,6 +36,38 @@ Storage 使用 Kysely 与 better-sqlite3，只实现 SQLite Schema、Migration �
 ### 排障影响
 
 从 SQLite 状态、Migration 和 Repository 日志进入。
+
+### 状态
+
+生效。
+
+## P4 资源 Web、冲突 Draft 与严格同源静态边界
+
+### 决策
+
+资源 Web 只按闭环 Feature 注册路由、导航和 Dashboard 贡献。Case 结构化/完整 JSON 编辑使用同一 Contracts-valid Draft；资源 Revision 冲突保存本地 Draft，并读取最新 Snapshot 供用户显式重试或替换。写入或冲突待决状态上报应用壳层，由同一离开门禁覆盖编辑容器关闭、Esc、应用导航、浏览器历史和页面卸载。`Navigation.currentEntry.index` 是资源 Web 启动硬能力，缺失时停止挂载全部资源 Feature。Test Suite 详情以 Suite ID 作为组件状态生命周期边界。生产静态资源与 API 同源，脚本 CSP 不允许 `'unsafe-eval'`；Zod JIT 由主模块之前的同源配置关闭。
+
+### 原因
+
+占位导航会把未来能力伪装成当前事实。两个独立 Case 编辑状态会在切换时丢失完整 Assertion。自动覆盖冲突会破坏用户输入。History API 本身不提供未知 State 的遍历方向，缺少绝对索引时猜测恢复会丢失 Draft；因此采用能力检测失败即停止的边界。跨 Suite 复用局部状态会泄漏筛选、Cursor 和编辑器事实。放宽 CSP 只为容纳库的可选 JIT 会扩大本地页面攻击面。
+
+### 代码影响
+
+P4 注册 Dashboard、Test Suite/Case 和四类配置页面；Feature 页面动态加载，并按配置 `kind`、Test Suite ID 重建路由级状态。Case 默认每页 50 条，筛选和 Cursor 历史写入 URL。API Client 严格校验成功与错误响应并传递取消 Signal，Case 创建和更新输入直接使用 Contracts Schema 推导类型。409 统一呈现 Draft/Snapshot 决策；Suite 与配置的保存、删除以及 Case 编辑重试均重新进入原流程，连续冲突每次刷新 Snapshot 与 Revision。Case 编辑的服务端 Snapshot 与可见 Draft 分离，冲突决策前不重挂结构化或完整 JSON 编辑器。若 Case 编辑或条件删除刷新得到稳定 `CASE_NOT_FOUND`，显式联合状态记录 `REMOTE_CASE_DELETED`，不伪造可重试 Revision；编辑流程先禁用详情 Query，再清理精确缓存和刷新聚合，删除流程保留原 Dialog，两者都只允许用户采用删除事实后解除门禁。Case 创建、复制、删除和导入共用带同步单飞锁的恢复流程；配置探测、预览与保存采用同一单飞约束。页面把写入和冲突状态显式汇总给应用壳层；应用壳层为自身 History 条目写入单调位置，拒绝受控导航，并用 `history.go` 恢复被拒绝的前进后退位置，同时注册 `beforeunload` 门禁。第三方或旧版条目没有应用位置时，门禁以 `Navigation.currentEntry.index` 判定遍历方向并恢复原同源位置，避免未知 State 从前进进入时被再次前推。根组件先校验该索引；无效时只显示外部化错误文案，不创建资源 Query 消费者。已提交导航由应用壳层原子解除门禁并写入新位置，页面不能直接覆盖根门禁。Test Suite 删除影响预检单飞、卸载时 Abort，并与页面其他写入口双向互斥，避免一个完成流程误解除另一个 Draft。Case 删除精确移除目标详情，全量导入移除全部 Case 详情，Test Suite 删除移除聚合及全部子 Query，再刷新存活消费者。新建配置默认值直接对应 REQ；Analysis 允许变量从 Contracts 闭合枚举读取。模态操作错误留在当前容器，探测、模板变量和完整 JSON 服务端字段错误聚焦当前编辑器。Rubric 删除引用查询绑定 AbortSignal 和请求代次，迟到结果不能污染新目标。Local Server 只为 P4 路径提供 SPA 回退，未来路径保持 404。fast-json-stringify 编译前移除其不支持的响应 `propertyNames`，但 Route Runtime Schema 与 OpenAPI 保持严格原事实。pnpm Workspace 精确覆盖安装链中的漏洞版本 `ini` 为兼容补丁版 1.3.8，不改变业务依赖或运行时协议。
+
+Case 编辑 Session 由本次成功且身份匹配的详情读取创建，同时冻结 Definition、Case Revision 和 Suite Revision；刷新失败不能用旧 Query data 建立 Session。API Client 在 Schema 通过后使用请求上下文验证器校验所有请求已固定的 Suite、Case、Definition Case ID、配置 ID 与 Kind；错配响应统一为 `CLIENT_RESPONSE_INVALID`，不进入 Query 缓存、不覆盖 Draft、不产生成功状态。Session 建立后不跟随后台缓存变化。远端删除保持原 Session 和编辑器实例，普通冲突显式采用 Snapshot 才创建新 Session。Web 服务端错误码从 `ApiErrorResponseV1Schema` 推导，客户端码闭合列举，不接受任意字符串。Case 非编辑恢复 Hook 统一清洗显式重试的终态错误并回传最近 Revision Facts，owner 清除旧冲突、保留输入并显示错误；Case 编辑重试以单调事件 ID 复用原编辑器的错误映射，避免重复聚焦和未处理 Promise rejection。
+
+Test Suite 详情页把组合过滤、表格动作和 Cursor 历史拆入独立列表面板；详情页测试按列表/编辑、Case 写操作、Suite 生命周期拆分并共享事实夹具。架构门禁扫描 `apps`、`packages` 与 `tooling` 下的 TypeScript/TSX 源码和测试，单文件最多 1,000 个物理行，防止职责再次聚合为巨型文件。
+
+Suite 元数据编辑不再从实时 Query 读取普通保存 Revision，而是把打开或显式采用 Snapshot 时的 Revision 与表单一起冻结。Suite 删除确认使用显式 `{ suiteSnapshot, impact }` 联合事实：预检前冻结 Suite，Impact 成功后才发布；409 刷新先 Suite 后 Impact，二者成功后才同步缓存和替换确认事实。恢复 Controller 与 mounted 门禁共同阻止卸载后的迟到 Suite 继续触发 Impact 或同步 Query。该顺序利用条件删除保证并发安全，不扩展 P3 Impact DTO 或 OpenAPI。
+
+### 测试影响
+
+组件测试覆盖 DTO 映射、请求/响应身份、Session Revision、删除确认事实原子性、默认值、允许变量、字段错误、删除/导入缓存移除、URL 恢复、连续冲突、可见 Draft、删除冲突、写操作单飞、引用乱序、冲突两种决策和失败不误关闭。Playwright 在真实 SQLite/API 与生产构建上覆盖资源 CRUD、导入导出、组合过滤、分页刷新、双编辑器、四类配置、键盘、axe、CSP、Reduced Motion 和目标尺寸。Web 源码纳入原全仓覆盖率阈值，源码尺寸边界由真实仓库扫描回归固定。
+
+### 排障影响
+
+页面缺失先核对 Feature 注册、Local Server SPA 路径和生产 `dist`。保存冲突先核对 Draft、最新 Snapshot 与 Revision，不通过自动重试或覆盖解决。CSP 错误先检查同源静态配置加载顺序，不加入 `'unsafe-eval'`。
 
 ### 状态
 

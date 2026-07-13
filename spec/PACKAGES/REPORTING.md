@@ -24,7 +24,7 @@ Reporting 只依赖 Domain 结果类型和 JSON Schema Diff 所需的纯计算�
 
 ## 当前样例与测试入口
 
-- `test_suite/current/eval_result/result.json`：当前未跟踪 Promptfoo 原始结果 Fixture。
+- `test_suite/current/eval_result/test_example.json`：当前已提交 Promptfoo 原始结果 Fixture。
 - [loona_promptfoo_tests.json](../../test_suite/current/cases/loona_promptfoo_tests.json)
 
 ## 对外接口

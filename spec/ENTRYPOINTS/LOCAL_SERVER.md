@@ -14,7 +14,7 @@ Local Server 依赖 Contracts、Application 和具体 Infrastructure 实现。Ro
 
 ## 实现状态
 
-P3 已落地 Fastify Local Server、真实 SQLite 装配、资源 Route、严格请求/响应 Schema、OpenAPI、静态能力中性入口、安全边界、中文业务日志和内部 Event Hub。当前不注册 Run、Execution、Report、Analysis、Work Package 或 SSE URL。
+P3–P4 已落地 Fastify Local Server、真实 SQLite 装配、资源 Route、严格请求/响应 Schema、OpenAPI、生产 Web 静态入口、安全边界、中文业务日志和内部 Event Hub。当前不注册 Run、Execution、Report、Analysis、Work Package 或 SSE URL。
 
 ## 当前代码事实入口
 
@@ -25,6 +25,7 @@ P3 已落地 Fastify Local Server、真实 SQLite 装配、资源 Route、严格
 - [configuration-probe-adapters.ts](../../apps/local-server/src/configuration-probe-adapters.ts)：Endpoint 与 LLM 可用性验证。
 - [local-logger.ts](../../apps/local-server/src/local-logger.ts)：安全字段、中文单行日志、轮转与 stderr 降级。
 - [openapi.json](../../apps/local-server/openapi.json)：由真实当前 Route 和 Schema 生成的提交事实。
+- [local-server-cli.ts](../../apps/local-server/src/local-server-cli.ts)：默认装配生产 `apps/web/dist` 静态根。
 
 ## 当前样例与测试入口
 
@@ -50,8 +51,8 @@ Route 不持有业务事务。Application 决定事务边界和幂等语义。Ca
 
 ## 观测与验收
 
-默认监听 `127.0.0.1:4310` 并同源提供静态壳与 API。默认数据目录是项目根 `.cortex-eval/`。写请求 Body 使用 Route 级上限；Case JSON 文件上限 200 MiB。默认 composition root 把请求和 staging 安全事件接入 owner-only 日志，单文件 10 MiB、保留 10 个轮转文件；写失败输出外化 stderr 提示且不改变业务结果。Runtime 关闭在 SQLite 前等待日志队列 flush。内部 Snapshot/Event Hub 有序、限流、可取消，但 P3 不公开 SSE。
+默认监听 `127.0.0.1:4310` 并同源提供生产 Web 与 API。P4 只为已闭环资源页面注册 SPA 回退，未来页面路径仍返回 404。静态响应使用不含 `'unsafe-eval'` 的脚本 CSP；响应序列化编译时只移除 fast-json-stringify 不支持的 `propertyNames`，Route Runtime Schema 和 OpenAPI 保持原严格事实。默认数据目录是项目根 `.cortex-eval/`。写请求 Body 使用 Route 级上限；Case JSON 文件上限 200 MiB。默认 composition root 把请求和 staging 安全事件接入 owner-only 日志，单文件 10 MiB、保留 10 个轮转文件；写失败输出外化 stderr 提示且不改变业务结果。Runtime 关闭在 SQLite 前等待日志队列 flush。内部 Snapshot/Event Hub 有序、限流、可取消，但当前不公开 SSE。
 
 ## 相关测试
 
-当前测试覆盖生命周期、真实 SQLite 装配、Host、Origin、Request ID、分页/过滤、错误映射、脱敏、取消、OpenAPI 精确路径与所有操作 403、未注册未来 Route、`200 MiB-1/200 MiB/200 MiB+1`（含合法数组后的超限尾随空白）、固定 192 MiB RSS 增量门禁、导出响应前冲突和正常/取消临时资源清理。Run 启动恢复测试随 P5 落地。
+当前测试覆盖生命周期、真实 SQLite 装配、Host、Origin、Request ID、分页/过滤、错误映射、脱敏、取消、OpenAPI 精确路径与所有操作 403、生产静态资源与 P4 SPA 路径、CSP、未注册未来 Route、`200 MiB-1/200 MiB/200 MiB+1`（含合法数组后的超限尾随空白）、固定 192 MiB RSS 增量门禁、导出响应前冲突和正常/取消临时资源清理。Run 启动恢复测试随 P5 落地。

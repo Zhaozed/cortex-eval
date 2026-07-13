@@ -4,11 +4,11 @@
 
 本文档定义 Cortex Eval 本地版的产品目标、使用方式、业务对象、用户流程、UI 与 CLI 能力、报告口径、异常行为和验收标准。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。截至 P3，纯 Contracts/Domain、SQLite、资源 Application 用例和 Local Server 资源 API 已落地；OpenAPI 只注册资源管理闭环。Web、Run、Execution Import、Report、Analysis 和目标 CLI 仍未注册。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。截至 P4，纯 Contracts/Domain、SQLite、资源 Application 用例、Local Server 资源 API 和简体中文资源管理 Web 已落地；OpenAPI 与 Web 只注册资源管理闭环。Run、Execution Import、Report、Analysis 和目标 CLI 仍未注册。
 
 技术选型、项目架构、模块边界、数据字段、工作包协议、事务、并发和测试设计以 `TECH.md` 为准。本文档不包含具体实现代码。
 
-当前版本只支持并验证 macOS ARM64。运行数据默认位于项目根目录 `.cortex-eval/`，本地服务默认通过 `127.0.0.1:4310` 同源提供 Web 和 `/api/v1`。Linux、Windows、x64、Docker、安装器和桌面应用封装不在当前验收范围。
+当前版本只支持并验证 macOS ARM64。运行数据默认位于项目根目录 `.cortex-eval/`，本地服务默认通过 `127.0.0.1:4310` 同源提供 Web 和 `/api/v1`。资源管理 Web 要求浏览器提供 `Navigation.currentEntry.index`；缺少该安全导航能力时只展示明确错误，不挂载资源页面或写入口。Linux、Windows、x64、Docker、安装器和桌面应用封装不在当前验收范围。
 
 ## 2. 产品结论
 
@@ -181,7 +181,7 @@ Case Analysis Prompt 单独管理，不与 LLM Rubric Prompt 混表。
 
 ### 5.8 REST 结果
 
-`test_suite/current/run_result/loona_promptfoo_tests.json` 是 REST 结果样例。
+`test_suite/current/run_result/test_example.json` 是当前已提交的 REST 结果样例。
 
 HTTP 2xx 响应必须解析为 JSON 对象，并满足以下业务结构之一。
 
@@ -203,7 +203,7 @@ HTTP 非 2xx、网络错误、超时、JSON 解析失败或结构校验失败才
 
 ### 5.9 Promptfoo 结果
 
-`test_suite/current/eval_result/result.json` 是 Promptfoo 完整结果样例。
+`test_suite/current/eval_result/test_example.json` 是当前已提交的 Promptfoo 完整结果样例。
 
 系统从原始结果中提取并校验稳定事实：
 
@@ -262,7 +262,7 @@ HTTP 非 2xx、网络错误、超时、JSON 解析失败或结构校验失败才
 
 ## 7. UI 需求
 
-Web 使用简体中文，面向宽度不低于 1024px 的桌面技术用户，正式验收 1440×900 和 1280×800。视觉采用浅色本地实验室仪表台风格，并满足 WCAG 2.2 AA、键盘操作、可见焦点、表单错误关联和 Reduced Motion。小屏只提供可读提示，不实现完整移动流程。
+Web 使用简体中文，面向宽度不低于 1024px 的桌面技术用户，正式验收 1440×900 和 1280×800。视觉采用浅色本地实验室仪表台风格，并满足 WCAG 2.2 AA、键盘操作、可见焦点、表单错误关联和 Reduced Motion。小屏只提供可读提示，不实现完整移动流程。为可靠保护写入 Draft，浏览器必须提供同源 History Entry 的绝对索引；能力缺失时 Web 以只读错误页停止，不暴露资源操作。
 
 ### 7.1 总览
 
@@ -290,6 +290,16 @@ Web 使用简体中文，面向宽度不低于 1024px 的桌面技术用户，�
 - 删除和批量替换不能改变历史运行快照。
 
 Case 列表使用不透明版本化 Cursor，默认每页 50 条、最大 200 条，默认按 Ordinal 和内部 ID 稳定排序。字段之间组合过滤使用 AND，同一字段多值使用 OR；Case ID 和描述使用转义后的大小写不敏感字面子串，其他筛选使用精确成员匹配。
+
+每次打开 Case 编辑器必须等待本次、身份匹配的详情读取成功，并把该 Definition、Case Revision 和当时的 Suite Revision 冻结为同一编辑会话；后台缓存变化不能把旧 Definition 与新 Revision 混合。若本次刷新失败，即使存在旧缓存也不得开放编辑或保存。
+
+Web API Client 必须在 Schema 校验后继续校验请求已固定的响应身份。Test Suite 读取和更新的 `id` 必须等于请求 Suite ID；Case 列表每项必须属于请求 Suite，Case 读取及创建、更新、复制响应必须同时匹配请求 Suite、目标 Case Key 与 Definition 内的 Case ID，导入响应必须返回同一 Suite；配置列表和创建必须匹配请求 Kind，配置读取和更新还必须匹配请求 ID。首次读取、普通写入或 409 后刷新若返回契约有效但身份错配的响应，必须按客户端响应无效处理，不得建立编辑 Session、关闭 Draft、同步错误 Snapshot、显示成功或污染目标 Query 缓存。
+
+Test Suite 元数据 Sheet 必须把打开时的表单值与 Suite Revision 冻结为同一编辑 Session；后台 Query 刷新不能让旧 Draft 借用新 Revision。只有显式采用冲突 Snapshot 后，当前 Session 才改用该 Snapshot Revision。Test Suite 删除必须在影响预检开始前冻结 Suite Snapshot，并在影响成功后把该 Snapshot 与 Impact 原子发布为同一确认事实；确认删除只使用该 Revision。409 后先读取最新 Suite，再读取 Impact，两者都成功后才原子替换确认事实；预检失败、取消、卸载或任一刷新失败不得拼接新旧事实或暴露重试。
+
+Case 编辑或删除在 409 后刷新发现目标已被远端删除时，Web 必须把“远端已删除”建模为独立事实，不伪造可重试的 Case Revision。编辑器保持同一实例、原编辑模式与本地文本，继续只读展示并保护 Draft，停止该 Case 的详情重取；删除确认继续保留本地删除意图。两者都只能由用户显式采用远端删除事实后关闭并解除离开门禁。
+
+Case 创建、复制、删除或导入在用户显式使用最新 Revision 重试后若遇到非 Revision 终态失败，必须清除旧冲突决策，在原 Sheet/Dialog 内显示清洗后的错误，保留 Draft、目标或文件并恢复控件；删除后续确认必须使用最近刷新得到的 Suite/Case Revision。Case 编辑冲突重试的失败必须作为一次性错误事件交回同一编辑器，复用普通保存的字段映射和聚焦规则，不得重挂编辑器或产生未处理 Promise rejection。
 
 ### 7.4 配置和 Prompt 页面
 

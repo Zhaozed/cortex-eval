@@ -22,6 +22,8 @@ artifacts/
 .promptfoo-cache/
 .work/
 coverage/
+test-results/
+playwright-report/
 .cortex-eval/
 
 # ===== IDE =====

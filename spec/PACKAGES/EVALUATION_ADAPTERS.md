@@ -30,8 +30,8 @@ Package 实现 Application 的 Rest Executor、Promptfoo Process 和 Analysis Mo
 - [run_promptfoo_rest.test.ts](../../data_scripts/run_promptfoo_rest.test.ts)
 - [provider.json](../../test_suite/current/provider.json)
 - [pf_config.yaml](../../test_suite/current/pf_config.yaml)
-- `test_suite/current/run_result/loona_promptfoo_tests.json`：当前未跟踪 REST 结果 Fixture。
-- `test_suite/current/eval_result/result.json`：当前未跟踪 Promptfoo 结果 Fixture。
+- `test_suite/current/run_result/test_example.json`：当前已提交 REST 结果 Fixture。
+- `test_suite/current/eval_result/test_example.json`：当前已提交 Promptfoo 结果 Fixture。
 
 ## 对外接口
 

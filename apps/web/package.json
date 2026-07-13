@@ -1,0 +1,48 @@
+{
+  "name": "@cortex-eval/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@cortex-eval/contracts": "workspace:*",
+    "@hookform/resolvers": "5.4.0",
+    "@radix-ui/react-alert-dialog": "1.1.19",
+    "@radix-ui/react-dialog": "1.1.19",
+    "@radix-ui/react-label": "2.1.11",
+    "@radix-ui/react-progress": "1.1.12",
+    "@radix-ui/react-select": "2.3.3",
+    "@radix-ui/react-slot": "1.3.0",
+    "@radix-ui/react-tabs": "1.1.17",
+    "@radix-ui/react-toast": "1.2.19",
+    "@radix-ui/react-tooltip": "1.2.12",
+    "@tanstack/react-query": "5.101.2",
+    "@tanstack/react-table": "8.21.3",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "1.24.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "react-hook-form": "7.81.0",
+    "tailwind-merge": "3.6.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@playwright/test": "1.61.1",
+    "@tailwindcss/vite": "4.3.2",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "jsdom": "29.1.1",
+    "tailwindcss": "4.3.2",
+    "vite": "8.1.4"
+  }
+}

@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { CreateTestSuiteRequestV1Schema } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
+import {
+  ConfigurationResourceV1Schema,
+  CreateTestSuiteRequestV1Schema
+} from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 
-import { projectOpenApiSchema, projectRuntimeSchema } from "../src/contract-schema-projections.ts";
+import {
+  projectOpenApiSchema,
+  projectRuntimeResponseSchema,
+  projectRuntimeSchema
+} from "../src/contract-schema-projections.ts";
 
 describe("Zod 同源 Schema 投影", () => {
   it("从同一 Zod 源分别生成 Draft 7 Runtime 与 OpenAPI 3.0 严格对象", () => {
@@ -21,5 +28,13 @@ describe("Zod 同源 Schema 投影", () => {
     });
     expect(runtime).not.toHaveProperty("$schema");
     expect(openapi).not.toHaveProperty("$schema");
+  });
+
+  it("仅从响应序列化 Schema 移除 fast-json-stringify 不支持的 propertyNames", () => {
+    const request = projectRuntimeSchema(ConfigurationResourceV1Schema);
+    const response = projectRuntimeResponseSchema(ConfigurationResourceV1Schema);
+
+    expect(JSON.stringify(request)).toContain('"propertyNames"');
+    expect(JSON.stringify(response)).not.toContain('"propertyNames"');
   });
 });

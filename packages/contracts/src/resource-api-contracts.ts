@@ -312,18 +312,19 @@ export const RubricPromptPreviewV1Schema = z.strictObject({
   messages: z.array(PromptMessageV1Schema)
 });
 
+/** Variables allowed in one Case Analysis Prompt. */
+export const AnalysisPromptVariableV1Schema = z.enum([
+  "case_definition",
+  "provider_output",
+  "failed_assertions",
+  "expected_actual_diffs",
+  "llm_rubric_results",
+  "run_context"
+]);
+
 /** Unsaved Analysis Prompt variable preview. */
 export const AnalysisPromptPreviewV1Schema = z.strictObject({
-  variables: z.array(
-    z.enum([
-      "case_definition",
-      "provider_output",
-      "failed_assertions",
-      "expected_actual_diffs",
-      "llm_rubric_results",
-      "run_context"
-    ])
-  )
+  variables: z.array(AnalysisPromptVariableV1Schema)
 });
 
 /** Successful bounded full Case import response. */

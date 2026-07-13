@@ -31,7 +31,7 @@ P2 已落地 Suite CRUD、Case 创建/编辑/复制/删除/全量替换、建议
 
 - [test_convert_loona_to_promptfoo.py](../../data_scripts/test_convert_loona_to_promptfoo.py)
 - [loona_promptfoo_tests.json](../../test_suite/current/cases/loona_promptfoo_tests.json)
-- [loona_test_cases_export.jsonl](../../test_suite/current/raw/loona_test_cases_export.jsonl)
+- [batch1.jsonl](../../test_suite/current/raw/batch1.jsonl)
 
 ## 对外接口
 

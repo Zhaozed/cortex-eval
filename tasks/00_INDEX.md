@@ -19,7 +19,7 @@
 
 - `pnpm verify`：格式、Lint、架构边界、Strict TypeScript、单元/集成、Promptfoo 契约、Playwright、性能、构建、OpenAPI 与 spec 一致性。
 - `pnpm verify:release`：在 `pnpm verify` 基础上执行一次真实 Gemini `llm-rubric` 和一次真实 Analyzer 结构化输出。
-- 核心 Packages 行/函数覆盖率不低于 90%，分支不低于 85%；全仓行/函数不低于 85%，分支不低于 80%。
+- 全仓语句、函数和行覆盖率不低于 90%，分支不低于 85%；Web 源码与核心 Packages 使用同一门禁，不单独排除业务页面。
 - Promptfoo 固定为 `0.121.18`；Node 固定为 24 LTS；运行目标仅 macOS ARM64。
 - 最终性能门禁使用固定 1,000 Case 数据集与已确认测量协议。
 
@@ -29,7 +29,7 @@
 - [x] [P1：Contracts 与 Domain](P1_CONTRACTS_AND_DOMAIN.md) — `COMPLETED`
 - [x] [P2：SQLite 与 Application 基础](P2_STORAGE_AND_APPLICATION.md) — `COMPLETED`
 - [x] [P3：Local API 与资源管理](P3_LOCAL_API_AND_RESOURCES.md) — `COMPLETED`
-- [ ] [P4：Web 资源管理界面](P4_WEB_RESOURCE_UI.md) — `PENDING`
+- [x] [P4：Web 资源管理界面](P4_WEB_RESOURCE_UI.md) — `COMPLETED`
 - [ ] [P5：Run 与 REST 闭环](P5_RUN_AND_REST.md) — `PENDING`
 - [ ] [P6：Promptfoo Evaluation 闭环](P6_PROMPTFOO_EVALUATION.md) — `PENDING`
 - [ ] [P7：Work Package、CLI、重跑与导入基础](P7_WORK_PACKAGE_AND_CLI.md) — `PENDING`

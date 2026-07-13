@@ -6,7 +6,7 @@
 
 产品行为和验收口径以 `REQ.md` 为准。本文档不包含具体实现代码。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。截至 P3，Contracts、Domain、十表 SQLite、资源 Application 用例和 Local Server 资源 API 已落地；Work Package、Evaluator Bridge 和 Canonical Export 仍只有纯协议。Web、Run、Evaluation、Report、Analysis 和目标 CLI 入口按后续阶段推进。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。截至 P4，Contracts、Domain、十表 SQLite、资源 Application 用例、Local Server 资源 API 和资源管理 Web 已落地；Work Package、Evaluator Bridge 和 Canonical Export 仍只有纯协议。Run、Evaluation、Report、Analysis 和目标 CLI 入口按后续阶段推进。
 
 ## 2. 总体结论
 
@@ -36,8 +36,8 @@ API、Web 和 CLI 不承载业务规则。所有业务入口调用 Application U
 ## 3. 真实数据入口
 
 - `test_suite/current/cases/loona_promptfoo_tests.json`：Promptfoo 测试集。
-- `test_suite/current/run_result/loona_promptfoo_tests.json`：带 `providerOutput` 的 REST 结果。
-- `test_suite/current/eval_result/result.json`：Promptfoo 完整结果。
+- `test_suite/current/run_result/test_example.json`：带 `providerOutput` 的当前已提交 REST 结果。
+- `test_suite/current/eval_result/test_example.json`：当前已提交 Promptfoo 完整结果。
 - `test_suite/current/llm_config.json`：LLM Evaluator 配置。
 - `test_suite/current/provider.json`：REST Endpoint 配置。
 - `test_suite/current/rubric_prompt/*.json`：LLM Rubric Prompts。
@@ -921,6 +921,20 @@ TanStack Query 管理服务端缓存和失效；TanStack Table 管理表格状�
 
 Web 使用简体中文、浅色本地实验室仪表台视觉和桌面优先布局，只正式验收 1440×900 与 1280×800，并满足 WCAG 2.2 AA。Feature 只在对应后端闭环完成时注册导航和 Dashboard 卡片。
 
+P4 当前只注册 Dashboard 资源数量、Test Suite/Case 管理、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 配置页面。Case 结构化编辑与完整 JSON 共享同一已校验 Draft，Assertion 保留完整闭合 JSON；默认每页 50 条，筛选和 Cursor 历史写入 URL。资源写入或删除发生 409 时先读取最新服务端 Snapshot，保留本地意图，并由用户显式选择最新 Revision 重试或采用 Snapshot；Case 编辑 Snapshot 与可见 Draft 分离，冲突待决时不重挂编辑器。若刷新得到稳定 `CASE_NOT_FOUND`，则进入显式 `REMOTE_CASE_DELETED` 状态，不构造 Case Revision：编辑流程先禁用详情 Query，再移除精确详情缓存并刷新 Suite/列表，持续只读展示本地 Draft；删除流程保留确认 Dialog。两者都没有重试动作，只能显式采用远端删除事实后关闭并解除离开门禁。该规则覆盖 Suite 元数据与删除、Case 编辑/创建/复制/删除/导入和四类配置的保存与删除，连续冲突每次重新读取事实，采用 Snapshot 后下一次写入使用其 Revision。Suite 创建/元数据、Case 非编辑写操作、Case 编辑和配置探测、预览、保存使用同步单飞锁，请求在途或冲突待决时冻结对应编辑面并阻止关闭编辑容器。页面级离开门禁同时拦截关闭按钮、Esc、侧栏、应用内返回、浏览器前进后退和页面卸载；应用 History 条目保存单调位置，受阻的已知条目遍历用 `history.go` 回到原位置，不追加条目或截断前进栈；从前进或后退进入第三方或旧版未知 State 时，以 `Navigation.currentEntry.index` 的同源绝对索引恢复原位置。只有写入结束、用户显式完成 Draft/Snapshot 决策，或互斥写入已经成功提交后，应用壳层才恢复或执行导航。配置重试在途仍保留冲突决策，操作层同时拒绝重复决策。Test Suite 删除影响预检本身单飞并占用页面写槽，期间禁用其他 Suite/Case 写入口；其他写入待决时反向禁用删除入口。Suite Snapshot 同步详情与所有已加载 Suite 列表；Case Snapshot 在显式采用前只同步 Case 列表，采用后再替换可见详情；缺少具体 Case Snapshot 时使 Case 列表失效重取。配置保存和删除冲突都同步详情与已加载的同类列表 Query，关闭重开或放弃删除不回退旧 Snapshot。Case 删除移除精确详情缓存，全量导入移除该 Suite 全部 Case 详情缓存；Test Suite 删除移除其详情和全部 Case Query，配置删除移除精确详情 Query，再刷新存活的 Dashboard 与列表。导入关闭、成功或放弃时同步清空原生文件输入，允许再次选择同一文件；导入和删除请求在途或冲突待决时取消按钮禁用。新建 Endpoint 默认 60 秒，新建 LLM 默认 `JSON_OBJECT`；Case Analysis Prompt 从 Contracts 闭合枚举展示六个允许变量。API Client 对成功与错误响应执行 Contracts 校验，取消收敛为稳定客户端错误；Case 和配置本地 Contracts 路径先映射到真实结构化字段、动态 Header、Provider 分支或 Prompt 消息控件，所有 Select 暴露焦点引用，`RUBRIC_PROMPT_IN_USE` 保留 Prompt Key 并映射到 `promptKey` 字段。探测、模板变量和其他字段失败在当前 Sheet/Dialog 内关联并聚焦最近的表单、结构化或完整 JSON 编辑器，请求锁释放后再恢复焦点；Suite 创建/编辑和批量导入错误同样保留字段路径、顺序与 Case ID。Rubric 引用读取在完成前不伪装为空集合，失败时提供显式重试；删除目标切换通过 Abort 与请求代次门禁拒绝迟到结果。
+
+Case 编辑使用显式 Session 同时冻结初始 Definition、Case Revision 与 Suite Revision。每次打开必须等待该 Case 本次详情 Query 成功且身份匹配；刷新失败时即使 Query 保留旧 data，也只展示读取错误。API Client 在 Zod 校验后通过请求上下文验证器继续约束请求已固定的身份：Suite 读取/更新匹配 ID；Case 列表、读取、创建、更新、复制和导入匹配 Suite、目标 Case Key 与 Definition Case ID；配置列表、读取、创建和更新匹配 Kind 及已固定的 ID。首次读取、普通写入和冲突刷新都拒绝契约有效但身份错配的响应，错误事实不能进入 Query 缓存、覆盖 Draft 或触发成功状态。Session 建立后不跟随后台 Query 改写，普通保存只使用 Session Revision；普通冲突显式采用服务端 Snapshot 时才创建新 Session。`REMOTE_CASE_DELETED` 保留原 Session 和同一编辑器实例，因此结构化/完整 JSON 模式、本地文本与 DOM 状态都不被重置。
+
+非编辑 Case 恢复 Hook 是重试终态错误的唯一清洗边界，并以 `ApiClientError` 和最近 Revision Facts 回调原 owner；重试遇到非 Revision 失败时先清除旧冲突，再由创建 Sheet、复制/删除/导入 Dialog 保留输入并显示错误，删除 owner 同步最近 Case Revision。Case 编辑恢复失败使用单调 `eventId` 的一次性事件交给原 `CaseEditor`；组件按已消费 ID 去重，并与普通保存共用字段路径映射和焦点逻辑，父层显式捕获 Promise，不允许未处理拒绝。
+
+Suite 元数据编辑 Session 把打开或显式采用 Snapshot 时的表单事实与 Suite Revision 一起冻结；普通保存不读取实时 Query Revision。Suite 删除确认由冻结的 Suite Snapshot 与随后成功读取的 Impact 组成；普通确认只用该 Snapshot Revision。删除 409 刷新按 Suite、Impact 顺序执行，只有两者都成功后才同步 Query 并原子替换确认事实；恢复 Controller 由组件托管，卸载同时 Abort 并关闭发布门禁，即使边界实现忽略 Abort 返回迟到结果，也不得继续读取 Impact 或同步 Query。预检或 Impact 刷新失败、Abort 和卸载都不发布临时 Snapshot，不允许新 Suite 与旧 Impact 组合成重试事实。
+
+Web Client 的服务端错误码联合直接从闭合 `ApiErrorResponseV1Schema` 推导，客户端传输、协议和互斥错误码单独显式列举；禁止以任意 `string` 绕过冲突恢复分支的类型检查。
+
+`Navigation.currentEntry.index` 是资源 Web 启动硬能力；缺少或无效时只渲染能力错误，不创建 Query 消费者、不挂载 Feature 或写入口。相邻 Test Suite 详情以 Suite ID 作为路由状态生命周期边界，切换时卸载上一 Suite 的筛选、Cursor、编辑器、冲突和请求状态。Case 创建与更新输入直接使用 Contracts Schema 推导类型，不在 Web API 契约层退化为 `unknown`。
+
+生产页面按 Feature 动态加载，静态资源由 Local Server 同源提供。脚本 CSP 只允许 `'self'`；Zod 的 JIT 在应用模块加载前通过同源静态配置关闭，不使用 `'unsafe-eval'`。宽度小于 1024px 只显示可读提示。Run、Report 和 Analysis 页面在对应闭环前不注册路由、导航或 Dashboard 内容。
+
 ### 15.3 CLI
 
 平台命令通过本地 API 导出工作包和导入结果。
@@ -994,6 +1008,7 @@ CLI 用户文案从消息资源加载。`--json` 使用 NDJSON，stdout 只输�
 - Web 不依赖 Domain/Storage。
 - Route 和 CLI 不包含业务规则。
 - 生产源码不引用 Test Support。
+- `apps`、`packages` 与 `tooling` 中 TypeScript/TSX 源码和测试单文件最多 1,000 个物理行，超限先按职责拆分。
 
 ### 19.3 SQLite Repository
 

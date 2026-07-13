@@ -420,7 +420,7 @@ function readResultRows(
 
 // Run only an isolated copy of the committed real fixture; never mutate source evidence.
 export async function runRealFixtureProcessProbe(root: string): Promise<RealFixtureProcessProbe> {
-  const sourcePath = resolve(root, "test_suite/current/run_result/loona_promptfoo_tests.json");
+  const sourcePath = resolve(root, "test_suite/current/run_result/test_example.json");
   const source = JSON.parse(await readFile(sourcePath, "utf8")) as unknown;
   if (!Array.isArray(source) || source.length === 0) {
     throw new Error("PROMPTFOO_REAL_FIXTURE");

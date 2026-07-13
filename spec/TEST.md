@@ -26,7 +26,7 @@ Vitest、V8 覆盖率和架构测试已在 P0 落地。P2 已把 Application 与
 
 ## 架构边界测试
 
-冻结唯一依赖图：阻止 Domain 导入外层；阻止 Reporting 导入 Contracts/Application/Infrastructure；阻止 Application 导入 Contracts/Infrastructure；阻止 Contracts 导入 Domain/Reporting/Application；阻止 Web 导入 Domain 与 Storage；阻止 Route 和 CLI 承载业务规则；阻止生产源码引用 Test Support。
+冻结唯一依赖图：阻止 Domain 导入外层；阻止 Reporting 导入 Contracts/Application/Infrastructure；阻止 Application 导入 Contracts/Infrastructure；阻止 Contracts 导入 Domain/Reporting/Application；阻止 Web 导入 Domain 与 Storage；阻止 Route 和 CLI 承载业务规则；阻止生产源码引用 Test Support。相同架构入口扫描 `apps`、`packages` 与 `tooling` 的 TypeScript/TSX 源码和测试，单文件超过 1,000 个物理行即失败；应按职责拆分，不通过排除文件绕过。
 
 ## SQLite 测试
 
@@ -81,6 +81,10 @@ P3 API 当前额外覆盖严格成功响应 DTO、六项 Analysis Prompt 变量�
 入口测试证明协议转换与 Application 契约，不复制 Domain 单元测试组合。
 
 能力必须按阶段注册。OpenAPI、CLI Help、Web 导航和 Dashboard 不得暴露尚未闭环的 Run、Eval、Report 或 Analysis 能力。
+
+P4 把 `apps/web/src` 纳入全仓 V8 覆盖率。组件测试覆盖 API Client、请求/响应身份、编辑 Session Revision、删除确认事实原子性与冲突恢复卸载、路由、表单映射、字段错误、冲突、URL 恢复、Query 失效和资源交互；Playwright 使用真实 SQLite/Application/Local Server 和生产 Vite 产物，覆盖 1440×900、1280×800 Reduced Motion、900px 小屏提示、键盘、焦点、axe 与 CSP。`pnpm verify` 必须运行该 E2E 矩阵。
+
+P4 验收时 `pnpm verify` 通过 87 个 Vitest 文件、435 项测试和 5 项生产 E2E；最近一次全仓 V8 覆盖率门禁为语句 90.97%、分支 85.84%、函数 92.79%、行 93.60%。
 
 ## 性能测试
 

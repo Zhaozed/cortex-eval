@@ -24,7 +24,7 @@
 
 ## 当前样例与测试入口
 
-- `test_suite/current/eval_result/result.json`：当前未跟踪 Promptfoo 结果 Fixture。
+- `test_suite/current/eval_result/test_example.json`：当前已提交 Promptfoo 结果 Fixture。
 - [pf_config.yaml](../../test_suite/current/pf_config.yaml)
 
 ## 对外接口

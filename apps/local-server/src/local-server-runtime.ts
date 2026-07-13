@@ -42,6 +42,8 @@ export interface LocalServerRuntimeOptions {
   readonly businessLogger?: ResilientBusinessLogger | undefined;
   /** Apply the strict bundled development Seed when explicitly enabled. */
   readonly developmentSeed?: boolean | undefined;
+  /** Optional built Web root used by the production runtime and E2E. */
+  readonly staticRoot?: string | undefined;
 }
 
 /** Fully composed Local Server lifecycle. */
@@ -146,7 +148,8 @@ export async function createLocalServerRuntime(
     const server = buildLocalServer({
       requestIdGenerator: idGenerator,
       resourceHandlers,
-      businessLogger
+      businessLogger,
+      ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot })
     });
     return new LocalServerRuntime(server, storage, businessLogger);
   } catch (error) {

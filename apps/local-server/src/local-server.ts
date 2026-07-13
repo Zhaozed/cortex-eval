@@ -35,6 +35,7 @@ import {
   type ApiErrorResponseV1
 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import swagger from "@fastify/swagger";
+import fastJsonStringifyCompiler from "@fastify/fast-json-stringify-compiler";
 import multipart from "@fastify/multipart";
 import staticPlugin from "@fastify/static";
 import type { Readable } from "node:stream";
@@ -43,7 +44,10 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import type { ResilientBusinessLogger } from "./local-logger.ts";
 import type { z } from "zod";
 import type { FastifySchema } from "fastify";
-import { projectRuntimeSchema } from "./contract-schema-projections.ts";
+import {
+  projectRuntimeSchema,
+  sanitizeRuntimeSerializerSchema
+} from "./contract-schema-projections.ts";
 
 /** Validated data passed from one Fastify Route to its boundary handler. */
 export interface LocalApiHandlerInput {
@@ -433,6 +437,7 @@ async function registerResourceRoutes(
     prefix: "/",
     wildcard: false
   });
+  registerClosedWebRoutes(server);
 
   registerHandlerRoute(
     server,
@@ -644,6 +649,23 @@ async function registerResourceRoutes(
   });
 }
 
+// Serve the same SPA entry only for Web capabilities closed by P4.
+function registerClosedWebRoutes(server: FastifyInstance): void {
+  const routes = [
+    "/test-suites",
+    "/test-suites/:suiteId",
+    "/endpoint-configs",
+    "/llm-configs",
+    "/rubric-prompts",
+    "/analysis-prompts"
+  ] as const;
+  for (const url of routes) {
+    server.get(url, { schema: { hide: true } }, (_request, reply) => {
+      return reply.type("text/html; charset=utf-8").sendFile("index.html");
+    });
+  }
+}
+
 // Register the one bounded multipart import capability after its handler is closed.
 function registerMultipartImportRoute(
   server: FastifyInstance,
@@ -843,7 +865,21 @@ export function buildLocalServer(options: LocalServerOptions): FastifyInstance {
     logger: false,
     genReqId: () => options.requestIdGenerator.nextId(),
     requestIdHeader: false,
-    bodyLimit: 200 * 1024 * 1024 + 64 * 1024
+    bodyLimit: 200 * 1024 * 1024 + 64 * 1024,
+    schemaController: {
+      compilersFactory: {
+        buildSerializer: (
+          externalSchemas,
+          serializerOptions
+        ): ReturnType<ReturnType<typeof fastJsonStringifyCompiler>> => {
+          const compile = fastJsonStringifyCompiler()(externalSchemas, serializerOptions);
+          return (route) => {
+            const schema = sanitizeRuntimeSerializerSchema(route.schema);
+            return compile({ ...route, schema });
+          };
+        }
+      }
+    }
   });
   const requestControllers = new Set<AbortController>();
   const requestStartedAt = new WeakMap<FastifyRequest["raw"], number>();
@@ -855,7 +891,7 @@ export function buildLocalServer(options: LocalServerOptions): FastifyInstance {
     reply.header("referrer-policy", "no-referrer");
     reply.header(
       "content-security-policy",
-      "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
     );
     const host = trustedHost(request, allowedHosts);
     if (host === null) {

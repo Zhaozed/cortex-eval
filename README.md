@@ -1,6 +1,6 @@
 # Cortex Eval
 
-Cortex Eval 正在按 `tasks/00_INDEX.md` 的 P0–P10 顺序实现。本仓库当前已完成 P0 工程基线；Contracts、Domain、SQLite、Local API、Web、Run、Evaluation、Work Package、Reporting、Analysis 和 Canonical Export 尚未对外注册。
+Cortex Eval 正在按 `tasks/00_INDEX.md` 的 P0–P10 顺序实现。本仓库当前已完成 P0–P4：Contracts、Domain、十表 SQLite、资源 Application、Local API 和资源管理 Web 已落地。Run、Evaluation、Work Package、Reporting、Analysis、Canonical Export 和目标 CLI 尚未注册。
 
 ## 当前可用能力
 
@@ -10,6 +10,9 @@ Cortex Eval 正在按 `tasks/00_INDEX.md` 的 P0–P10 顺序实现。本仓库�
 - 校验 137 条完全展开的 Promptfoo Assertion 能力契约没有遗漏固定版本内置类型、`not-*`、动态 Redteam 类型和 `assert-set`。
 - 运行 Runtime Doctor、真实 Promptfoo 预计算输出探针以及 Python/Ruby 内联 Assertion Smoke。
 - 生成确定 Seed 的 1,000 Case 性能数据并运行统一 Benchmark Harness。
+- 通过同源 Web/API 管理 Test Suite、Case、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt。
+- 使用服务端分页、组合过滤、Case 双编辑器、原子导入导出、配置探测、Prompt 预览与引用影响。
+- 在 1440×900、1280×800 Reduced Motion 和小于 1024px 提示场景运行生产 Playwright E2E。
 
 ## 环境
 
@@ -20,6 +23,14 @@ brew install node@24
 pnpm install
 pnpm verify
 ```
+
+启动资源管理 Web 与本地 API：
+
+```bash
+pnpm server:start
+```
+
+浏览器访问 `http://127.0.0.1:4310/`。当前导航只显示已闭环资源能力。
 
 运行数据统一写入项目根 `.cortex-eval/`，该目录不会进入版本控制。
 
