@@ -12,8 +12,36 @@ class ConvertLoonaToPromptfooTest(unittest.TestCase):
     """Verify task-specific promptfoo assertions and metrics."""
 
     def setUp(self) -> None:
-        """Load the same externalized metric labels used by the converter."""
+        """Load the same message labels used by the converter."""
         self.messages = load_messages()
+
+    def test_load_messages_returns_complete_independent_copies(self) -> None:
+        """Expose all required messages without sharing mutable state."""
+        expected_keys = {
+            "invalid_jsonl",
+            "invalid_record",
+            "invalid_request_body_json",
+            "unsupported_type",
+            "missing_required_field",
+            "mismatched_tool_args",
+            "invalid_expected_list",
+            "unsupported_expected_field",
+            "metric_reply_text",
+            "metric_router_reply_text",
+            "metric_router_intent",
+            "metric_router_tools",
+            "metric_router_domain",
+            "metric_planner_tools",
+            "metric_present_mode",
+            "summary",
+        }
+
+        first = load_messages()
+        second = load_messages()
+        first.pop("summary")
+
+        self.assertEqual(set(second), expected_keys)
+        self.assertIn("summary", load_messages())
 
     def build_row(self, case_type: str, **overrides: Any) -> dict[str, Any]:
         """Build one minimal valid source row."""
@@ -41,8 +69,31 @@ class ConvertLoonaToPromptfooTest(unittest.TestCase):
             if "metric" in assertion
         }
 
-    def test_every_case_has_zero_weight_non_empty_reply_text_assertion(self) -> None:
-        """Require parsed_output.reply_text without affecting the case score."""
+    def test_router_has_zero_weight_non_empty_text_assertion(self) -> None:
+        """Require Router parsed_output.text without affecting the case score."""
+        expected_schema = {
+            "type": "object",
+            "required": ["parsed_output"],
+            "properties": {
+                "parsed_output": {
+                    "type": "object",
+                    "required": ["text"],
+                    "properties": {
+                        "text": {"type": "string", "minLength": 1},
+                    },
+                },
+            },
+        }
+
+        assertions = self.assertions_by_metric(self.build_row("Router"))
+        assertion = assertions[self.messages["metric_router_reply_text"]]
+
+        self.assertEqual(assertion["type"], "is-json")
+        self.assertEqual(assertion["weight"], 0)
+        self.assertEqual(assertion["value"], expected_schema)
+
+    def test_planner_has_zero_weight_non_empty_reply_text_assertion(self) -> None:
+        """Require Planner parsed_output.reply_text without affecting the score."""
         expected_schema = {
             "type": "object",
             "required": ["parsed_output"],
@@ -57,13 +108,12 @@ class ConvertLoonaToPromptfooTest(unittest.TestCase):
             },
         }
 
-        for case_type in ("Router", "Planner"):
-            with self.subTest(case_type=case_type):
-                assertions = self.assertions_by_metric(self.build_row(case_type))
-                assertion = assertions[self.messages["metric_reply_text"]]
-                self.assertEqual(assertion["type"], "is-json")
-                self.assertEqual(assertion["weight"], 0)
-                self.assertEqual(assertion["value"], expected_schema)
+        assertions = self.assertions_by_metric(self.build_row("Planner"))
+        assertion = assertions[self.messages["metric_reply_text"]]
+
+        self.assertEqual(assertion["type"], "is-json")
+        self.assertEqual(assertion["weight"], 0)
+        self.assertEqual(assertion["value"], expected_schema)
 
     def test_router_only_generates_configured_tool_and_intent_assertions(self) -> None:
         """Do not synthesize Router tool or intent assertions without expectations."""
@@ -91,7 +141,7 @@ class ConvertLoonaToPromptfooTest(unittest.TestCase):
 
         fixed_metrics = {
             self.messages["metric_router_domain"],
-            self.messages["metric_reply_text"],
+            self.messages["metric_router_reply_text"],
         }
         for overrides, conditional_metrics in cases:
             with self.subTest(overrides=overrides):

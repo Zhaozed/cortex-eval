@@ -10,18 +10,39 @@ from pathlib import Path
 from typing import Any
 
 VAR_FIELDS = ("request_body", "type")
-METADATA_FIELDS = ("case_id", "req_id", "task_id", "business_module", "scenario_tag")
+METADATA_FIELDS = ("case_id", "req_id", "task_id",  "scenario_tag")
 EMPTY_VALUES = (None, "", [])
-MESSAGE_FILE = Path(__file__).with_name("loona_promptfoo_messages.json")
+# User-facing messages and assertion metric labels used by this standalone script.
+MESSAGES: dict[str, str] = {
+    "invalid_jsonl": "第 {line_no} 行不是合法 JSON，已跳过：{error}",
+    "invalid_record": "第 {line_no} 行不是 JSON object，已跳过",
+    "invalid_request_body_json": (
+        "case_id={case_id} 的 request_body 不是合法 JSON 字符串，已跳过：{error}"
+    ),
+    "unsupported_type": "case_id={case_id} 的 type={case_type} 不支持，已跳过",
+    "missing_required_field": "case_id={case_id} 缺少必需字段 {field}，已跳过",
+    "mismatched_tool_args": (
+        "case_id={case_id} 的 expected_tool_name 数量为 {tool_count}，"
+        "expected_tool_args_json 数量为 {args_count}，无法成对校验，已跳过"
+    ),
+    "invalid_expected_list": "case_id={case_id} 的 {field} 不是 list，已跳过",
+    "unsupported_expected_field": (
+        "case_id={case_id} 的 {field} 当前不支持自动转换，已跳过"
+    ),
+    "metric_router_reply_text": "router_有回复文本",
+    "metric_router_intent": "router_分类",
+    "metric_router_tools": "router_工具",
+    "metric_router_domain": "router_domain",
+    "metric_planner_tools": "planner_工具",
+    "metric_present_mode": "planner_无输出模式",
+    "metric_planner_reply_text": "planner_有回复文本",
+    "summary": "转换完成：读取 {read_count} 条，输出 {write_count} 条，跳过 {skip_count} 条",
+}
 
 
-def load_messages(path: Path = MESSAGE_FILE) -> dict[str, str]:
-    """Load user-facing message templates."""
-    with path.open("r", encoding="utf-8") as message_file:
-        messages = json.load(message_file)
-    if not isinstance(messages, dict):
-        raise ValueError(f"{path} must contain a JSON object")
-    return {str(key): str(value) for key, value in messages.items()}
+def load_messages() -> dict[str, str]:
+    """Return an independent copy of the built-in message templates."""
+    return MESSAGES.copy()
 
 
 def format_message(messages: dict[str, str], key: str, **values: Any) -> str:
@@ -146,17 +167,17 @@ def build_parsed_output_const_schema(field: str, value: Any) -> dict[str, Any]:
     }
 
 
-def build_reply_text_schema() -> dict[str, Any]:
-    """Build JSON Schema requiring a non-empty parsed_output.reply_text."""
+def build_non_empty_parsed_output_string_schema(field: str) -> dict[str, Any]:
+    """Build JSON Schema requiring one non-empty parsed_output string field."""
     return {
         "type": "object",
         "required": ["parsed_output"],
         "properties": {
             "parsed_output": {
                 "type": "object",
-                "required": ["reply_text"],
+                "required": [field],
                 "properties": {
-                    "reply_text": {"type": "string", "minLength": 1},
+                    field: {"type": "string", "minLength": 1},
                 },
             },
         },
@@ -303,22 +324,18 @@ def build_test_case(row: dict[str, Any], messages: dict[str, str]) -> dict[str, 
             )
         )
     append_task_contract_assertion(case_type, assertions, messages)
-    assertions.append(
-        build_schema_assertion(
-            build_reply_text_schema(),
-            messages,
-            "metric_reply_text",
-            weight=0,
-        )
-    )
+    append_response_text_assertion(case_type, assertions, messages)
 
     request_body = parse_request_body(row.get("request_body"), messages, case_id)
-
+    meta={field: row.get(field) for field in METADATA_FIELDS}
+    if "business_module" in row:
+        meta["tool_category"] = row["business_module"].lower()
+    meta['conversation_type']='simple'
     return {
         "description": str(row.get("case_name") or case_id),
         "threshold": 1,
         "vars": {"request_body": request_body, "task": row.get("type").lower()},
-        "metadata": {field: row.get(field) for field in METADATA_FIELDS},
+        "metadata": meta,
         "assert": assertions,
     }
 
@@ -346,6 +363,28 @@ def append_task_contract_assertion(
                 "metric_present_mode",
             )
         )
+
+
+def append_response_text_assertion(
+        case_type: str,
+        assertions: list[dict[str, Any]],
+        messages: dict[str, str],
+) -> None:
+    """Append the task-specific non-empty response text assertion."""
+    field = "text" if case_type == "router" else "reply_text"
+    metric_key = (
+        "metric_router_reply_text"
+        if case_type == "router"
+        else "metric_planner_reply_text"
+    )
+    assertions.append(
+        build_schema_assertion(
+            build_non_empty_parsed_output_string_schema(field),
+            messages,
+            metric_key,
+            weight=0,
+        )
+    )
 
 
 def append_router_assertions(
