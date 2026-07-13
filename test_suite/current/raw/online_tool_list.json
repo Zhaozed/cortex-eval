@@ -1,0 +1,1831 @@
+{
+  "tools": [
+    {
+      "category": "weather",
+      "description": "Retrieves current weather for the given location.",
+      "name": "get_weather",
+      "parameters": {
+        "properties": {
+          "alerts": {
+            "description": "Whether to include weather alerts. default false",
+            "type": "boolean"
+          },
+          "aqi": {
+            "description": "Whether to include air quality index. default false",
+            "type": "boolean"
+          },
+          "date": {
+            "description": "Start date for the weather forecast. format: YYYY-MM-DD. If omitted, defaults to today.",
+            "type": "string"
+          },
+          "days": {
+            "description": "Number of days to forecast. default 1. If date is provided, forecast starts from that date; otherwise starts from today.",
+            "type": "integer"
+          },
+          "language": {
+            "description": "Language code for the weather description text. Supported values: zh-Hans (Simplified Chinese), en, ja, fr, de, es, it. Defaults to en when omitted or unsupported.",
+            "type": "string"
+          },
+          "location": {
+            "description": "City and country e.g. Bogotá, Colombia",
+            "type": "string"
+          }
+        },
+        "required": [
+          "location",
+          "language"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "calendar",
+      "description": "Retrieves a specific calendar event by ID.",
+      "name": "get_event",
+      "parameters": {
+        "properties": {
+          "calendar_id": {
+            "description": "ID of the calendar to delete events from, default is 'primary'",
+            "type": "string"
+          },
+          "event_id": {
+            "description": "ID of the event to retrieve",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID to authenticate with Google Calendar",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "event_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "calendar",
+      "description": "Retrieves calendar events for a specific date range.",
+      "name": "list_events",
+      "parameters": {
+        "properties": {
+          "calendar_id": {
+            "description": "ID of the calendar to delete events from, default is 'primary'",
+            "type": "string"
+          },
+          "end": {
+            "description": "End date in RFC3339 format, e.g. 2026-03-10T18:00:00+08:00",
+            "type": "string"
+          },
+          "max_results": {
+            "description": "Maximum number of events to return (default: all)",
+            "type": "integer"
+          },
+          "query": {
+            "description": "Free-text search query for filtering events by title or description",
+            "type": "string"
+          },
+          "start": {
+            "description": "Start date in RFC3339 format, e.g. 2026-03-10T08:00:00+08:00",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID to authenticate with Google Calendar",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "start",
+          "end"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "calendar",
+      "description": "Creates a new calendar event.",
+      "name": "create_event",
+      "parameters": {
+        "properties": {
+          "attendees": {
+            "description": "List of attendees",
+            "items": {
+              "properties": {
+                "display_name": {
+                  "description": "Attendee display name",
+                  "type": "string"
+                },
+                "email": {
+                  "description": "Attendee email address",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "email"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "calendar_id": {
+            "description": "ID of the calendar to delete events from, default is 'primary'",
+            "type": "string"
+          },
+          "description": {
+            "description": "Event description (optional)",
+            "type": "string"
+          },
+          "end": {
+            "description": "Event end time in RFC3339 format, e.g. 2026-03-10T11:00:00+08:00",
+            "type": "string"
+          },
+          "location": {
+            "description": "Event location (optional)",
+            "type": "string"
+          },
+          "recurrence": {
+            "description": "Recurrence rules in RRULE format",
+            "items": {
+              "description": "RRULE string, e.g. RRULE:FREQ=WEEKLY;BYDAY=MO",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "reminders": {
+            "description": "Reminder settings",
+            "properties": {
+              "overrides": {
+                "description": "Custom reminder overrides",
+                "items": {
+                  "properties": {
+                    "method": {
+                      "description": "Reminder method",
+                      "enum": [
+                        "email",
+                        "popup"
+                      ],
+                      "type": "string"
+                    },
+                    "minutes": {
+                      "description": "Minutes before event to trigger reminder",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "method",
+                    "minutes"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "use_default": {
+                "description": "Whether to use calendar default reminders",
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "start": {
+            "description": "Event start time in RFC3339 format, e.g. 2026-03-10T10:00:00+08:00",
+            "type": "string"
+          },
+          "summary": {
+            "description": "Event summary(title)",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID to authenticate with Google Calendar",
+            "type": "string"
+          },
+          "visibility": {
+            "description": "Event visibility",
+            "enum": [
+              "default",
+              "public",
+              "private",
+              "confidential"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "summary",
+          "start",
+          "end"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "calendar",
+      "description": "Updates an existing calendar event. Only provided fields are changed.",
+      "name": "update_event",
+      "parameters": {
+        "properties": {
+          "attendees": {
+            "description": "Set the list of attendees of event",
+            "items": {
+              "properties": {
+                "display_name": {
+                  "description": "Attendee display name",
+                  "type": "string"
+                },
+                "email": {
+                  "description": "Attendee email address",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "email"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "calendar_id": {
+            "description": "ID of the calendar to delete events from, default is 'primary'",
+            "type": "string"
+          },
+          "description": {
+            "description": "Event description (optional)",
+            "type": "string"
+          },
+          "end": {
+            "description": "Event end time in RFC3339 format, e.g. 2026-03-10T11:00:00+08:00",
+            "type": "string"
+          },
+          "event_id": {
+            "description": "ID of the event to update",
+            "type": "string"
+          },
+          "location": {
+            "description": "Event location (optional)",
+            "type": "string"
+          },
+          "recurrence": {
+            "description": "Recurrence rules in RRULE format",
+            "items": {
+              "description": "RRULE string, e.g. RRULE:FREQ=WEEKLY;BYDAY=MO",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "reminders": {
+            "description": "Reminder settings",
+            "properties": {
+              "overrides": {
+                "description": "Custom reminder overrides",
+                "items": {
+                  "properties": {
+                    "method": {
+                      "description": "Reminder method",
+                      "enum": [
+                        "email",
+                        "popup"
+                      ],
+                      "type": "string"
+                    },
+                    "minutes": {
+                      "description": "Minutes before event to trigger reminder",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "method",
+                    "minutes"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "use_default": {
+                "description": "Whether to use calendar default reminders",
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "start": {
+            "description": "Event start time in RFC3339 format, e.g. 2026-03-10T10:00:00+08:00",
+            "type": "string"
+          },
+          "summary": {
+            "description": "Event summary(title)",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID to authenticate with Google Calendar",
+            "type": "string"
+          },
+          "visibility": {
+            "description": "Event visibility",
+            "enum": [
+              "default",
+              "public",
+              "private",
+              "confidential"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "event_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "calendar",
+      "description": "Deletes calendar events.",
+      "name": "delete_events",
+      "parameters": {
+        "properties": {
+          "calendar_id": {
+            "description": "ID of the calendar to delete events from, default is 'primary'",
+            "type": "string"
+          },
+          "event_ids": {
+            "description": "IDs of the events to delete",
+            "items": {
+              "description": "Event ID",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "user_id": {
+            "description": "User ID to authenticate with Google Calendar",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "event_ids"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "contact",
+      "description": "Lists all contacts from the user's Google Contacts.",
+      "name": "list_contacts",
+      "parameters": {
+        "properties": {
+          "user_id": {
+            "description": "User ID to authenticate with Google Contacts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "contact",
+      "description": "Gets a contact by resource name.",
+      "name": "get_contact",
+      "parameters": {
+        "properties": {
+          "resource_name": {
+            "description": "The resource name of the contact, e.g. people/c12345",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID to authenticate with Google Contacts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "resource_name"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "contact",
+      "description": "Creates a new contact.",
+      "name": "create_contact",
+      "parameters": {
+        "properties": {
+          "email": {
+            "description": "Contact email address (optional)",
+            "type": "string"
+          },
+          "name": {
+            "description": "Contact display name",
+            "type": "string"
+          },
+          "phone": {
+            "description": "Contact phone number (optional)",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID to authenticate with Google Contacts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "name"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "contact",
+      "description": "Updates an existing contact. Only provided fields are changed; omit a field to leave it unchanged, pass empty string to clear it.",
+      "name": "update_contact",
+      "parameters": {
+        "properties": {
+          "email": {
+            "description": "New email address (omit to keep current, pass empty string to clear)",
+            "type": "string"
+          },
+          "name": {
+            "description": "New display name (omit to keep current, pass empty string to clear)",
+            "type": "string"
+          },
+          "phone": {
+            "description": "New phone number (omit to keep current, pass empty string to clear)",
+            "type": "string"
+          },
+          "resource_name": {
+            "description": "The resource name of the contact to update, e.g. people/c12345",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID to authenticate with Google Contacts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "resource_name"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "contact",
+      "description": "Deletes one or more contacts by resource names.",
+      "name": "delete_contact",
+      "parameters": {
+        "properties": {
+          "resource_names": {
+            "description": "Resource names of the contacts to delete, e.g. [\"people/c12345\", \"people/c67890\"]",
+            "items": {
+              "description": "Contact resource name, e.g. people/c12345",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "user_id": {
+            "description": "User ID to authenticate with Google Contacts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "resource_names"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "contact",
+      "description": "Searches contacts by keyword (name, email, phone, etc.).",
+      "name": "search_contacts",
+      "parameters": {
+        "properties": {
+          "query": {
+            "description": "Search keyword",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID to authenticate with Google Contacts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "query"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "mail",
+      "description": "Retrieves emails from the inbox. Uses Gmail query syntax in query (e.g. label:INBOX, from:xxx, newer_than:7d).",
+      "name": "get_mail_list",
+      "parameters": {
+        "properties": {
+          "max_results": {
+            "description": "Maximum number of emails to retrieve",
+            "type": "integer"
+          },
+          "query": {
+            "description": "Gmail filter query (e.g. in:anywhere|archive|important|starred|sent|unread|read, after:1388552400, before:1391230800, after:2014/01/01, before:2014/02/01, newer_than:7d, older_than:1m, subject:report) , invalid query: after:2026/03/31 12:00(hour is not supported), label:SENT(should use in:sent)",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID (numeric) whose mailbox to read",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "mail",
+      "description": "Retrieves a single email by its message ID.",
+      "name": "get_mail_by_id",
+      "parameters": {
+        "properties": {
+          "message_id": {
+            "description": "Email message ID to retrieve",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID (numeric)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "message_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "mail",
+      "description": "Sends an email to the specified recipients.",
+      "name": "send_mail",
+      "parameters": {
+        "properties": {
+          "bcc": {
+            "description": "Blind carbon copy email addresses, comma separated",
+            "type": "string"
+          },
+          "body": {
+            "description": "Email body content (plain text or HTML per content_type)",
+            "type": "string"
+          },
+          "cc": {
+            "description": "Carbon copy email addresses, comma separated",
+            "type": "string"
+          },
+          "content_type": {
+            "description": "Body content type: text/plain or text/html, default text/plain",
+            "type": "string"
+          },
+          "subject": {
+            "description": "Email subject",
+            "type": "string"
+          },
+          "thread_id": {
+            "description": "Thread ID to reply to",
+            "type": "string"
+          },
+          "to": {
+            "description": "Recipient email addresses, comma separated",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID (numeric) sending the email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "to",
+          "subject",
+          "body"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "map",
+      "description": "Searches for hotels near a specified location (place name, address, or landmark).",
+      "name": "get_hotel",
+      "parameters": {
+        "properties": {
+          "language": {
+            "description": "Language code, must be in BCP-47 format",
+            "type": "string"
+          },
+          "location": {
+            "description": "Place name, address, or landmark to search around (e.g. 'Tiananmen Square, Beijing'). Will be resolved to coordinates via Geocoding.",
+            "type": "string"
+          },
+          "max_results": {
+            "description": "Maximum number of results to return",
+            "type": "integer"
+          },
+          "radius": {
+            "description": "Search radius in meters",
+            "type": "float64"
+          }
+        },
+        "required": [
+          "location",
+          "radius",
+          "language",
+          "max_results"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "map",
+      "description": "Searches for restaurants near a specified location (place name, address, or landmark).",
+      "name": "get_restaurant",
+      "parameters": {
+        "properties": {
+          "language": {
+            "description": "Language code, must be in BCP-47 format",
+            "type": "string"
+          },
+          "location": {
+            "description": "Place name, address, or landmark to search around (e.g. 'Tiananmen Square, Beijing'). Will be resolved to coordinates via Geocoding.",
+            "type": "string"
+          },
+          "max_results": {
+            "description": "Maximum number of results to return",
+            "type": "integer"
+          },
+          "radius": {
+            "description": "Search radius in meters",
+            "type": "float64"
+          }
+        },
+        "required": [
+          "location",
+          "radius",
+          "language",
+          "max_results"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "search",
+      "description": "Unified web search entry point with normalized results, suitable for LLM function calling.",
+      "name": "web_search",
+      "parameters": {
+        "properties": {
+          "country": {
+            "enum": [
+              "us",
+              "cn",
+              "gb",
+              "fr",
+              "de",
+              "jp",
+              "kr",
+              "ca",
+              "au",
+              "in",
+              "br",
+              "mx",
+              "es",
+              "it",
+              "ru",
+              "tw",
+              "hk",
+              "sg",
+              "my",
+              "th"
+            ],
+            "type": "string"
+          },
+          "language": {
+            "enum": [
+              "en",
+              "zh-cn",
+              "zh-tw",
+              "fr",
+              "de",
+              "ja",
+              "ko",
+              "es",
+              "pt",
+              "ar",
+              "ru",
+              "it",
+              "nl",
+              "pl",
+              "tr",
+              "vi",
+              "th",
+              "id",
+              "ms",
+              "hi"
+            ],
+            "type": "string"
+          },
+          "location": {
+            "description": "Geographic location for localised search results (e.g. \"New York, NY\")",
+            "type": "string"
+          },
+          "num": {
+            "description": "Number of results to return (1-100, default: 10)",
+            "type": "number"
+          },
+          "page": {
+            "description": "Page number (starting from 1)",
+            "type": "number"
+          },
+          "query": {
+            "description": "Search query string",
+            "type": "string"
+          },
+          "time_range": {
+            "description": "Time range filter (e.g. \"d\" = past day, \"w\" = past week, \"m\" = past month, \"y\" = past year)",
+            "enum": [
+              "d",
+              "w",
+              "m",
+              "y"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "web",
+              "images",
+              "videos",
+              "news"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "slack",
+      "description": "Send a message to a Slack channel, group, or DM. Or send thread replies and direct messages by user ID. Either channel_id or to_user_id must be provided.",
+      "name": "slack_send_message",
+      "parameters": {
+        "properties": {
+          "blocks": {
+            "description": "Optional: Block Kit blocks as JSON array string",
+            "type": "string"
+          },
+          "channel_id": {
+            "description": "Target conversation ID (channel / group / DM). Required if to_user_id is not provided",
+            "type": "string"
+          },
+          "channel_name": {
+            "description": "Optional: target channel name (for error messages only, not used for sending)",
+            "type": "string"
+          },
+          "reply_broadcast": {
+            "description": "Optional: also post thread reply to the channel (default false)",
+            "type": "boolean"
+          },
+          "text": {
+            "description": "Message text (Slack mrkdwn format)",
+            "type": "string"
+          },
+          "thread_ts": {
+            "description": "Optional: parent message ts to reply in a thread. Requires channel_id to be set",
+            "type": "string"
+          },
+          "to_user_id": {
+            "description": "Slack user ID to open a DM with. Required if channel_id is not provided",
+            "type": "string"
+          },
+          "to_user_name": {
+            "description": "Optional: target user name (for error messages only, not used for sending)",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID (numeric) who sends the message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "text"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "slack",
+      "description": "Send the same message to multiple Slack targets in one call. At least one of channel_ids or to_user_ids must be provided. Total targets (channel_ids + to_user_ids) max 5.",
+      "name": "slack_batch_send_message",
+      "parameters": {
+        "properties": {
+          "blocks": {
+            "description": "Optional: Block Kit blocks as JSON array string",
+            "type": "string"
+          },
+          "channel_ids": {
+            "description": "Comma-separated conversation IDs (channels / groups / DMs). Required if to_user_ids is not provided",
+            "type": "string"
+          },
+          "channel_names": {
+            "description": "Optional: target channel names (for error messages only, not used for sending)",
+            "type": "string"
+          },
+          "text": {
+            "description": "Message text (Slack mrkdwn format)",
+            "type": "string"
+          },
+          "to_user_ids": {
+            "description": "Comma-separated Slack user IDs to open DMs with. Required if channel_ids is not provided",
+            "type": "string"
+          },
+          "to_user_names": {
+            "description": "Optional: target user names (for error messages only, not used for sending)",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID (numeric) who sends the message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "text"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "slack",
+      "description": "List messages from a Slack conversation (channel / group / DM). Returns messages in reverse chronological order.",
+      "name": "slack_list_messages",
+      "parameters": {
+        "properties": {
+          "channel_id": {
+            "description": "Conversation ID",
+            "type": "string"
+          },
+          "cursor": {
+            "description": "Pagination cursor for next page. Format: an opaque string returned in the response_metadata.next_cursor field, e.g. 'dXNlcjpVMDYxTkZUVDI='",
+            "type": "string"
+          },
+          "include_all_metadata": {
+            "description": "Optional: include all metadata for each message (default false)",
+            "type": "boolean"
+          },
+          "latest": {
+            "description": "Optional: only messages before this time. Datetime string format, e.g. '2024-01-15', '2024-01-15 09:30:00', '2024-01-15 09:30'",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum number of messages to return (default 20, max 1000)",
+            "type": "integer"
+          },
+          "oldest": {
+            "description": "Optional: only messages after this time. Datetime string format, e.g. '2024-01-15', '2024-01-15 09:30:00', '2024-01-15 09:30'",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID (numeric)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "channel_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "slack",
+      "description": "Get all replies in a Slack message thread.",
+      "name": "slack_get_thread_replies",
+      "parameters": {
+        "properties": {
+          "channel_id": {
+            "description": "Conversation ID",
+            "type": "string"
+          },
+          "cursor": {
+            "description": "Pagination cursor for next page. Format: an opaque string returned in the response_metadata.next_cursor field, e.g. 'dXNlcjpVMDYxTkZUVDI='",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum number of replies to return (default 20)",
+            "type": "integer"
+          },
+          "thread_ts": {
+            "description": "Parent message timestamp (ts) of the thread. A 16-digit Unix timestamp with 6 decimal places, e.g. '1716649200.123456'",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID (numeric)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "channel_id",
+          "thread_ts"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "slack",
+      "description": "Search Slack messages by keyword. Supports filtering by channel and sender.",
+      "name": "slack_search_messages",
+      "parameters": {
+        "properties": {
+          "after": {
+            "description": "Optional: only messages after this time. Use a datetime string",
+            "type": "string"
+          },
+          "before": {
+            "description": "Optional: only messages before this time. Use a datetime string",
+            "type": "string"
+          },
+          "channel_id": {
+            "description": "Optional: limit search to this channel",
+            "type": "string"
+          },
+          "from_user_id": {
+            "description": "Optional: limit search to messages from this Slack user ID",
+            "type": "string"
+          },
+          "has_file": {
+            "description": "Optional: only return messages with file attachments",
+            "type": "boolean"
+          },
+          "has_link": {
+            "description": "Optional: only return messages with links",
+            "type": "boolean"
+          },
+          "has_reaction": {
+            "description": "Optional: only return messages with reactions",
+            "type": "boolean"
+          },
+          "limit": {
+            "description": "Maximum number of results (default 20)",
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page number (default 1)",
+            "type": "integer"
+          },
+          "pinned_only": {
+            "description": "Optional: only return pinned messages",
+            "type": "boolean"
+          },
+          "query": {
+            "description": "Search query keyword",
+            "type": "string"
+          },
+          "sort": {
+            "description": "Optional: sort by 'score' or 'timestamp' (default score)",
+            "type": "string"
+          },
+          "sort_dir": {
+            "description": "Optional: sort direction 'asc' or 'desc'",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID (numeric)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "query"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "slack",
+      "description": "List all Slack conversations (channels, groups, DMs) the user is a member of. Returns channel id for each conversation.",
+      "name": "slack_list_conversations",
+      "parameters": {
+        "properties": {
+          "cursor": {
+            "description": "Pagination cursor",
+            "type": "string"
+          },
+          "exclude_archived": {
+            "description": "Optional: exclude archived conversations (default false)",
+            "type": "boolean"
+          },
+          "limit": {
+            "description": "Maximum number of conversations (default 100)",
+            "type": "integer"
+          },
+          "types": {
+            "description": "Optional: comma-separated conversation types (public_channel, private_channel, mpim for group DMs, im for 1-on-1 DMs)",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID (numeric)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "slack",
+      "description": "Get detailed information about a Slack conversation (channel, group, or DM).",
+      "name": "slack_get_conversation_info",
+      "parameters": {
+        "properties": {
+          "channel_id": {
+            "description": "Conversation ID",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID (numeric)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "channel_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "slack",
+      "description": "List members of a Slack conversation.",
+      "name": "slack_list_conversation_members",
+      "parameters": {
+        "properties": {
+          "channel_id": {
+            "description": "Conversation ID",
+            "type": "string"
+          },
+          "cursor": {
+            "description": "Pagination cursor",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum number of members (default 100)",
+            "type": "integer"
+          },
+          "user_id": {
+            "description": "User ID (numeric)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "channel_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "slack",
+      "description": "Get a Slack user's profile information. If target_user_id is not provided, returns the authorized user's own profile.",
+      "name": "slack_get_user_profile",
+      "parameters": {
+        "properties": {
+          "target_user_id": {
+            "description": "Optional: Slack user ID to look up. Defaults to the authorized user if omitted.",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID (numeric)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "slack",
+      "description": "List all users in the Slack workspace.",
+      "name": "slack_list_users",
+      "parameters": {
+        "properties": {
+          "cursor": {
+            "description": "Optional: pagination cursor for next page",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Optional: maximum number of users to return per page",
+            "type": "integer"
+          },
+          "user_id": {
+            "description": "User ID (numeric)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_docs",
+      "description": "Create a new Google Document with a given title.",
+      "name": "create_google_doc",
+      "parameters": {
+        "properties": {
+          "title": {
+            "description": "Title of the new document",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "title"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_docs",
+      "description": "Get content of a Google Document by document ID.",
+      "name": "get_google_doc",
+      "parameters": {
+        "properties": {
+          "document_id": {
+            "description": "The ID of the document to retrieve",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "document_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_docs",
+      "description": "Apply a batch of updates to a Google Document (insert text, delete content, replace text).",
+      "name": "batch_update_google_doc",
+      "parameters": {
+        "properties": {
+          "document_id": {
+            "description": "The ID of the document to update",
+            "type": "string"
+          },
+          "requests_json": {
+            "description": "JSON array of update requests (Google Docs API BatchUpdateDocumentRequest format)",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "document_id",
+          "requests_json"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_slides",
+      "description": "Create a new Google Slides presentation with a given title.",
+      "name": "create_google_presentation",
+      "parameters": {
+        "properties": {
+          "title": {
+            "description": "Title of the new presentation",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "title"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_slides",
+      "description": "Get metadata and slide list of a Google Slides presentation.",
+      "name": "get_google_presentation",
+      "parameters": {
+        "properties": {
+          "presentation_id": {
+            "description": "The ID of the presentation to retrieve",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "presentation_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_slides",
+      "description": "Get a specific page (slide) and its elements from a Google Slides presentation.",
+      "name": "get_presentation_page",
+      "parameters": {
+        "properties": {
+          "page_object_id": {
+            "description": "The object ID of the page to retrieve",
+            "type": "string"
+          },
+          "presentation_id": {
+            "description": "The ID of the presentation",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "presentation_id",
+          "page_object_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_slides",
+      "description": "Apply a batch of updates to a Google Slides presentation (create slides, insert text, add images, etc).",
+      "name": "batch_update_google_presentation",
+      "parameters": {
+        "properties": {
+          "presentation_id": {
+            "description": "The ID of the presentation to update",
+            "type": "string"
+          },
+          "requests_json": {
+            "description": "JSON array of update requests (Google Slides API format)",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "presentation_id",
+          "requests_json"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_drive",
+      "description": "List files and folders in the user's Google Drive. Supports Drive query syntax for filtering (e.g. \"name contains 'report' and mimeType='application/pdf'\").",
+      "name": "list_drive_files",
+      "parameters": {
+        "properties": {
+          "order_by": {
+            "description": "Sort order, e.g. 'modifiedTime desc', optional",
+            "type": "string"
+          },
+          "page_size": {
+            "description": "Max number of files to return (default 100, max 1000)",
+            "type": "integer"
+          },
+          "page_token": {
+            "description": "Page token for pagination, optional",
+            "type": "string"
+          },
+          "query": {
+            "description": "Drive query syntax for filtering, optional",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_drive",
+      "description": "Get metadata of a Google Drive file or folder by its ID.",
+      "name": "get_drive_file",
+      "parameters": {
+        "properties": {
+          "file_id": {
+            "description": "The ID of the file or folder",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "file_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_drive",
+      "description": "Export a Google native file (Docs/Sheets/Slides) to a BINARY format such as application/pdf, .docx, .xlsx, .pptx, application/zip or application/epub+zip. Returns base64-encoded content, size limit 10MB. For reading text content (markdown/csv/plain), use read_drive_file instead.",
+      "name": "export_drive_file",
+      "parameters": {
+        "properties": {
+          "file_id": {
+            "description": "The ID of the Google native file (Docs/Sheets/Slides)",
+            "type": "string"
+          },
+          "mime_type": {
+            "description": "Target binary MIME type, e.g. application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "file_id",
+          "mime_type"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_drive",
+      "description": "Read the text content of a Google Drive file. For Google native files: Docs → markdown, Sheets → CSV (first sheet only), Slides → plain text. For blob files (.md/.txt/.json/.csv/...): downloaded as-is via alt=media. Returns UTF-8 text; binary files or files larger than 5MB are rejected.",
+      "name": "read_drive_file",
+      "parameters": {
+        "properties": {
+          "file_id": {
+            "description": "The ID of the Google Drive file to read",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "file_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_drive",
+      "description": "Copy a file in Google Drive. Optionally specify a new name and target parent folders.",
+      "name": "copy_drive_file",
+      "parameters": {
+        "properties": {
+          "file_id": {
+            "description": "Source file ID",
+            "type": "string"
+          },
+          "new_name": {
+            "description": "New file name, optional",
+            "type": "string"
+          },
+          "parents": {
+            "description": "Comma-separated target parent folder IDs, optional",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "file_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_drive",
+      "description": "Delete a file in Google Drive. By default moves it to trash; set permanently=true to delete it permanently.",
+      "name": "delete_drive_file",
+      "parameters": {
+        "properties": {
+          "file_id": {
+            "description": "The ID of the file to delete",
+            "type": "string"
+          },
+          "permanently": {
+            "description": "true to delete permanently, false (default) to move to trash",
+            "type": "boolean"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "file_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "google_drive",
+      "description": "Create a new folder in Google Drive. Optionally place it under specified parent folders (defaults to root).",
+      "name": "create_drive_folder",
+      "parameters": {
+        "properties": {
+          "name": {
+            "description": "Folder name",
+            "type": "string"
+          },
+          "parents": {
+            "description": "Comma-separated parent folder IDs, optional",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "name"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "notion",
+      "description": "Search pages and databases the user has access to in Notion by keyword. Returns title, url and last updated time for each result.",
+      "name": "search_notion",
+      "parameters": {
+        "properties": {
+          "cursor": {
+            "description": "Pagination cursor from previous response",
+            "type": "string"
+          },
+          "filter_type": {
+            "description": "Only search a specific object type: 'page' or 'database'",
+            "type": "string"
+          },
+          "keyword": {
+            "description": "Search keyword",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Max results to return (default 10, max 100)",
+            "type": "integer"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "keyword"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "notion",
+      "description": "List all pages and databases the Notion integration has been granted access to, sorted by last edited time (newest first). Use this when the user asks what Notion content is authorized/available, or wants a browsable overview without a specific keyword.",
+      "name": "list_notion_accessible_items",
+      "parameters": {
+        "properties": {
+          "cursor": {
+            "description": "Pagination cursor from previous response",
+            "type": "string"
+          },
+          "filter_type": {
+            "description": "Only list a specific object type: 'page' or 'database' (optional)",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Max results to return (default 20, max 100)",
+            "type": "integer"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "notion",
+      "description": "Get the full content of a Notion page as Markdown by page ID or URL. Long content is truncated with truncated=true.",
+      "name": "get_notion_page",
+      "parameters": {
+        "properties": {
+          "max_length": {
+            "description": "Max body length in characters (0 = server default)",
+            "type": "integer"
+          },
+          "page_id": {
+            "description": "Notion page ID (either page_id or page_url is required)",
+            "type": "string"
+          },
+          "page_url": {
+            "description": "Notion page URL (either page_id or page_url is required)",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "notion",
+      "description": "Query items in a Notion database. The response includes the database schema (property names, types, options); filters MUST use real property names from the schema — call without filter first if unsure.",
+      "name": "query_notion_database",
+      "parameters": {
+        "properties": {
+          "cursor": {
+            "description": "Pagination cursor from previous response",
+            "type": "string"
+          },
+          "database_id": {
+            "description": "Notion database ID",
+            "type": "string"
+          },
+          "filter_json": {
+            "description": "Optional filter as JSON, supports and/or nesting. Example: {\"and\":[{\"property\":{\"property\":\"Status\",\"operator\":\"does_not_equal\",\"value\":\"Done\"}},{\"property\":{\"property\":\"Due\",\"operator\":\"on_or_after\",\"value\":\"2026-07-01\"}}]}. Operators: equals, does_not_equal, contains, does_not_contain, greater_than, less_than, on_or_before, on_or_after, before, after, is_empty, is_not_empty",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Max items to return (default 20, max 100)",
+            "type": "integer"
+          },
+          "sorts_json": {
+            "description": "Optional sorts as JSON array. Example: [{\"property\":\"Due\",\"direction\":\"ascending\"}]",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "database_id"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "notion",
+      "description": "Create a new Notion page under a parent page with Markdown content. Notion API does not allow creating pages at workspace root, so parent_page_id is required (use search_notion to find one).",
+      "name": "create_notion_page",
+      "parameters": {
+        "properties": {
+          "content_markdown": {
+            "description": "Page body in Markdown (optional)",
+            "type": "string"
+          },
+          "cover": {
+            "description": "Cover image URL (optional)",
+            "type": "string"
+          },
+          "icon": {
+            "description": "Page icon: an emoji or an image URL (optional)",
+            "type": "string"
+          },
+          "parent_page_id": {
+            "description": "Parent page ID or URL",
+            "type": "string"
+          },
+          "title": {
+            "description": "Page title",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "parent_page_id",
+          "title"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "notion",
+      "description": "Create a new item (row) in a Notion database. Property names and types MUST match the database schema — call query_notion_database first to get the real schema.",
+      "name": "create_notion_database_item",
+      "parameters": {
+        "properties": {
+          "content_markdown": {
+            "description": "Item page body in Markdown (optional)",
+            "type": "string"
+          },
+          "database_id": {
+            "description": "Notion database ID",
+            "type": "string"
+          },
+          "properties_json": {
+            "description": "Item properties as JSON array matching the database schema. Example: [{\"name\":\"Task\",\"type\":\"title\",\"values\":[\"Write weekly report\"]},{\"name\":\"Status\",\"type\":\"status\",\"values\":[\"In progress\"]},{\"name\":\"Due\",\"type\":\"date\",\"values\":[\"2026-07-04\"]}]",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "database_id",
+          "properties_json"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "notion",
+      "description": "Publish an AI-generated document (artifact) as a new Notion page, keeping title, body and source metadata. Returns the page URL. parent_page_id is required (use search_notion to find one).",
+      "name": "publish_artifact_to_notion",
+      "parameters": {
+        "properties": {
+          "content_markdown": {
+            "description": "Document body in Markdown",
+            "type": "string"
+          },
+          "generated_at": {
+            "description": "Generation time in ISO8601 (optional)",
+            "type": "string"
+          },
+          "parent_page_id": {
+            "description": "Parent page ID or URL",
+            "type": "string"
+          },
+          "source": {
+            "description": "Source description, e.g. the conversation/task that generated it (optional)",
+            "type": "string"
+          },
+          "source_url": {
+            "description": "Source link (optional)",
+            "type": "string"
+          },
+          "title": {
+            "description": "Document title",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "parent_page_id",
+          "title",
+          "content_markdown"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "notion",
+      "description": "Append Markdown content to the end of an existing Notion page without modifying its current content.",
+      "name": "append_to_notion_page",
+      "parameters": {
+        "properties": {
+          "content_markdown": {
+            "description": "Content to append, in Markdown",
+            "type": "string"
+          },
+          "page_id": {
+            "description": "Notion page ID or URL",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "page_id",
+          "content_markdown"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "notion",
+      "description": "Create a draft for overwriting a Notion page's body. Pass the COMPLETE new Markdown body in new_markdown; returns a diff against the current page and a draft_id. Show the diff/summary to the user for confirmation, then call apply_notion_page_draft. Use append_to_notion_page instead when only adding content.",
+      "name": "update_notion_page_draft",
+      "parameters": {
+        "properties": {
+          "new_markdown": {
+            "description": "The complete new page body in Markdown (will replace the current body when applied)",
+            "type": "string"
+          },
+          "page_id": {
+            "description": "Notion page ID or URL",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "page_id",
+          "new_markdown"
+        ]
+      },
+      "ver": 1
+    },
+    {
+      "category": "notion",
+      "description": "Apply a draft created by update_notion_page_draft to actually overwrite the page body. Call this only after the user has confirmed the changes. Drafts expire after 30 minutes.",
+      "name": "apply_notion_page_draft",
+      "parameters": {
+        "properties": {
+          "draft_id": {
+            "description": "Draft ID returned by update_notion_page_draft",
+            "type": "string"
+          },
+          "page_id": {
+            "description": "Notion page ID or URL",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID for authentication",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "page_id",
+          "draft_id"
+        ]
+      },
+      "ver": 1
+    }
+  ]
+}

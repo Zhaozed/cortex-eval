@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  IncrementalSuiteHasher,
   hashEndpointConfig,
   hashLlmConfig,
   hashPrompt,
@@ -20,6 +21,24 @@ describe("Domain 资源身份哈希", () => {
     const hash = hashSuite({ contractVersion: "cortex.suite.v1", cases });
     expect(hash).toBe(
       hashSuite({ contractVersion: "cortex.suite.v1", cases: [...cases].reverse() })
+    );
+  });
+
+  it("增量 Suite Hasher 与完整 RFC8785 Hash 字节级一致且强制 Ordinal 顺序", () => {
+    const cases = [
+      { caseKey: "复杂-case", ordinal: 0, definitionHash: HASH_A },
+      { caseKey: "case-b", ordinal: 1, definitionHash: HASH_B }
+    ];
+    const hasher = new IncrementalSuiteHasher();
+    for (const item of cases) hasher.append(item);
+    expect(hasher.digest()).toBe(hashSuite({ contractVersion: "cortex.suite.v1", cases }));
+    const secondCase = cases[1];
+    if (secondCase === undefined) throw new Error("SECOND_CASE_EXPECTED");
+    expect(() => hasher.append(secondCase)).toThrow("SUITE_HASH_FINALIZED");
+
+    const outOfOrder = new IncrementalSuiteHasher();
+    expect(() => outOfOrder.append({ ...secondCase, ordinal: 1 })).toThrow(
+      "SUITE_HASH_ORDINAL_INVALID"
     );
   });
 

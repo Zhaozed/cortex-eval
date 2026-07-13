@@ -4,7 +4,7 @@
 
 `spec/` 是 Cortex Eval 目标系统的稳定事实入口，服务人类工程师和 AI coding agent。产品行为以 [REQ.md](../REQ.md) 为来源，技术架构以 [TECH.md](../TECH.md) 为来源，文档组织规则以 [SPEC_DOC.md](../SPEC_DOC.md) 为来源。
 
-当前仓库已完成 P0，并已落地 P1 的纯 Contracts 与 Domain。`REQ.md` 和 `TECH.md` 仍描述完整目标，不代表后续 Application、Storage、Adapter 或入口已经实现。当前状态、现有入口与目标落点由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
+当前仓库已完成 P0–P3：纯 Contracts 与 Domain、十表 SQLite、资源 Application 用例和 Local Server 资源 API 已落地。`REQ.md` 和 `TECH.md` 仍描述完整目标，不代表 Web、Run、Evaluation、Report、Analysis、Work Package 文件运行时或目标 CLI 已实现。当前状态、现有入口与目标落点由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
 
 Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入口。每个阶段必须同步更新本索引和直接相关 spec，未落地能力不得提前改写为代码事实。
 
@@ -106,6 +106,11 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 - [packages/contracts/test](../packages/contracts/test)：P1 Contracts 正反例、真实 Fixture 和能力映射测试。
 - [packages/domain/src](../packages/domain/src)：P1 纯业务类型、状态机、统计、Proposal 和哈希输入。
 - [packages/domain/test](../packages/domain/test)：P1 Domain 单元、边界、竞争和回归测试。
+- [packages/application/src](../packages/application/src)：P2–P3 资源 Use Case、流式 Case 导入导出与 Port。
+- [packages/storage-sqlite/src](../packages/storage-sqlite/src)：P2–P3 十表 SQLite、Repository、事务与外部 Case staging。
+- [apps/local-server/src](../apps/local-server/src)：P3 Fastify、资源 Route、协议 Mapper、安全入口、日志与装配。
+- [apps/local-server/openapi.json](../apps/local-server/openapi.json)：由真实 P3 Route 与 Schema 确定生成的 OpenAPI。
+- [apps/local-server/test](../apps/local-server/test)：P3 HTTP、OpenAPI、安全、流式边界、生命周期与真实 SQLite 集成测试。
 - [data_scripts/run_promptfoo_rest_types.ts](../data_scripts/run_promptfoo_rest_types.ts)：当前 REST 运行器公开类型。
 - [data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)：当前 REST 请求、并发、续跑和原子输出实现。
 - [data_scripts/run_promptfoo_rest_cli.ts](../data_scripts/run_promptfoo_rest_cli.ts)：当前 REST 运行器 CLI 入口。

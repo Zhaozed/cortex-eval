@@ -1,5 +1,5 @@
-import { chmod, mkdir, stat } from "node:fs/promises";
-import { isAbsolute, join } from "node:path";
+import { chmod, lstat, mkdir, realpath, stat } from "node:fs/promises";
+import { isAbsolute, join, relative } from "node:path";
 
 import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
@@ -7,6 +7,11 @@ import { Migrator } from "kysely/migration";
 
 import { CortexMigrationProvider } from "./sqlite-initial-migration.ts";
 import { SqliteTransactionManager } from "./sqlite-application-repositories.ts";
+import {
+  SqliteCaseImportStagingFactory,
+  type SqliteCaseImportStagingFactoryOptions
+} from "./sqlite-case-import-staging.ts";
+import type { WorkspaceSecurityEvent } from "./case-import-workspace.ts";
 import type { SqliteDatabaseSchema } from "./sqlite-schema.ts";
 
 /** Exact current business table allowlist. */
@@ -63,17 +68,20 @@ export class SqliteStorage {
   public readonly databasePath: string;
   readonly #database: Kysely<SqliteDatabaseSchema>;
   readonly #nativeDatabase: Database.Database;
+  readonly #projectRoot: string;
   #closed = false;
 
   /** Constructed only after connection policy and migrations succeed. */
   public constructor(
     databasePath: string,
     database: Kysely<SqliteDatabaseSchema>,
-    nativeDatabase: Database.Database
+    nativeDatabase: Database.Database,
+    projectRoot: string
   ) {
     this.databasePath = databasePath;
     this.#database = database;
     this.#nativeDatabase = nativeDatabase;
+    this.#projectRoot = projectRoot;
   }
 
   /** Read controlled connection facts without exposing the native handle. */
@@ -91,6 +99,17 @@ export class SqliteStorage {
     return new SqliteTransactionManager(this.#database);
   }
 
+  /** Create isolated external Case import staging sessions for this storage. */
+  public createCaseImportStagingFactory(
+    onSecurityEvent?: (event: WorkspaceSecurityEvent) => void | Promise<void>,
+    options: Pick<SqliteCaseImportStagingFactoryOptions, "initializeWriter"> = {}
+  ): SqliteCaseImportStagingFactory {
+    return new SqliteCaseImportStagingFactory(this.#database, this.#projectRoot, {
+      ...options,
+      onSecurityEvent
+    });
+  }
+
   /** Close the Kysely driver and native database exactly once. */
   public async close(): Promise<void> {
     if (this.#closed) return;
@@ -103,6 +122,53 @@ export class SqliteStorage {
 export function resolveDefaultDatabasePath(projectRoot: string): string {
   if (!isAbsolute(projectRoot)) throw new SqliteInitializationError("SQLITE_PROJECT_ROOT_INVALID");
   return join(projectRoot, ".cortex-eval", "db", "cortex-eval.sqlite3");
+}
+
+// Confirm one canonical child stays strictly below its canonical containment root.
+function isContained(root: string, child: string): boolean {
+  const path = relative(root, child);
+  return path !== "" && !path.startsWith("..") && !isAbsolute(path);
+}
+
+// Return only a filesystem error code without trusting other thrown fields.
+function filesystemErrorCode(error: unknown): unknown {
+  return error !== null && typeof error === "object" && "code" in error ? error.code : undefined;
+}
+
+// Create or validate one real directory before any permission mutation can follow a symlink.
+async function ensureContainedDirectory(
+  canonicalContainmentRoot: string,
+  directoryPath: string
+): Promise<string> {
+  const before = await lstat(directoryPath).catch(() => null);
+  if (before === null) {
+    await mkdir(directoryPath, { mode: 0o700 }).catch((error: unknown): void => {
+      if (filesystemErrorCode(error) !== "EEXIST") throw error;
+    });
+  }
+  const facts = await lstat(directoryPath).catch(() => null);
+  const canonicalPath = await realpath(directoryPath).catch(() => null);
+  if (
+    facts === null ||
+    !facts.isDirectory() ||
+    facts.isSymbolicLink() ||
+    canonicalPath === null ||
+    !isContained(canonicalContainmentRoot, canonicalPath)
+  ) {
+    throw new SqliteInitializationError("SQLITE_INITIALIZATION_FAILED");
+  }
+  await chmod(canonicalPath, 0o700);
+  const currentFacts = await lstat(directoryPath).catch(() => null);
+  const currentPath = await realpath(directoryPath).catch(() => null);
+  if (
+    currentFacts === null ||
+    !currentFacts.isDirectory() ||
+    currentFacts.isSymbolicLink() ||
+    currentPath !== canonicalPath
+  ) {
+    throw new SqliteInitializationError("SQLITE_INITIALIZATION_FAILED");
+  }
+  return canonicalPath;
 }
 
 // Read one scalar numeric PRAGMA from the already-configured native connection.
@@ -121,8 +187,12 @@ function readPragmaString(database: Database.Database, name: string): string {
 
 // Restrict an existing file when present without treating absence as a failure.
 async function restrictExistingFile(path: string): Promise<void> {
-  const file = await stat(path).catch(() => null);
-  if (file !== null) await chmod(path, 0o600);
+  const file = await lstat(path).catch(() => null);
+  if (file === null) return;
+  if (!file.isFile() || file.isSymbolicLink()) {
+    throw new SqliteInitializationError("SQLITE_INITIALIZATION_FAILED");
+  }
+  await chmod(path, 0o600);
 }
 
 // Apply connection-local policy before Kysely can execute any query.
@@ -143,10 +213,19 @@ export async function initializeSqliteStorage(
   let nativeDatabase: Database.Database | null = null;
   let database: Kysely<SqliteDatabaseSchema> | null = null;
   try {
-    await mkdir(stateDirectory, { recursive: true, mode: 0o700 });
-    await chmod(stateDirectory, 0o700);
-    await mkdir(databaseDirectory, { recursive: true, mode: 0o700 });
-    await chmod(databaseDirectory, 0o700);
+    const canonicalProjectRoot = await realpath(options.projectRoot);
+    const projectFacts = await stat(canonicalProjectRoot);
+    if (!projectFacts.isDirectory()) {
+      throw new SqliteInitializationError("SQLITE_INITIALIZATION_FAILED");
+    }
+    const canonicalStateDirectory = await ensureContainedDirectory(
+      canonicalProjectRoot,
+      stateDirectory
+    );
+    await ensureContainedDirectory(canonicalStateDirectory, databaseDirectory);
+    await restrictExistingFile(databasePath);
+    await restrictExistingFile(`${databasePath}-wal`);
+    await restrictExistingFile(`${databasePath}-shm`);
     nativeDatabase = new Database(databasePath);
     await chmod(databasePath, 0o600);
     configureConnection(nativeDatabase);
@@ -161,7 +240,7 @@ export async function initializeSqliteStorage(
     }
     await restrictExistingFile(`${databasePath}-wal`);
     await restrictExistingFile(`${databasePath}-shm`);
-    return new SqliteStorage(databasePath, database, nativeDatabase);
+    return new SqliteStorage(databasePath, database, nativeDatabase, options.projectRoot);
   } catch (error) {
     if (database !== null) await database.destroy().catch(() => undefined);
     else if (nativeDatabase !== null) nativeDatabase.close();

@@ -14,7 +14,7 @@ Package 使用 Kysely 构建显式 SQL，使用 better-sqlite3 访问当前唯�
 
 ## 实现状态
 
-P2 已落地十张业务表、Kysely Migration、连接策略、Repository、托管事务、严格行映射、Revision 条件更新、JSON1 查询、Execution 幂等原语和删除/Provenance 约束。Case 与四类 Configuration 读取会核对闭合键集合、派生字段和语义 Hash，不接受形状合法但事实不一致的脏行。
+P2 已落地十张业务表、Kysely Migration、连接策略、Repository、托管事务、严格行映射、Revision 条件更新、JSON1 查询、Execution 幂等原语和删除/Provenance 约束。P3 补充资源分页 Repository、外部 Case staging 和 owner-aware 临时目录清理。Case 与四类 Configuration 读取会核对闭合键集合、派生字段和语义 Hash，不接受形状合法但事实不一致的脏行。
 
 ## 目标代码落点
 
@@ -26,10 +26,14 @@ P2 已落地十张业务表、Kysely Migration、连接策略、Repository、托
 - [sqlite-database.ts](../../packages/storage-sqlite/src/sqlite-database.ts)：绝对项目根、权限、PRAGMA、Migration 和连接生命周期。
 - [sqlite-application-repositories.ts](../../packages/storage-sqlite/src/sqlite-application-repositories.ts)：Application Port 实现。
 - [sqlite-row-mappers.ts](../../packages/storage-sqlite/src/sqlite-row-mappers.ts)：脏持久化边界清洗。
+- [sqlite-case-import-staging.ts](../../packages/storage-sqlite/src/sqlite-case-import-staging.ts)：外部 staging、同连接最终事务、DETACH 与清理。
+- [case-import-workspace.ts](../../packages/storage-sqlite/src/case-import-workspace.ts)：owner 身份、存活确认、隔离与受控删除。
 
 ## 当前样例与测试入口
 
 [storage-sqlite tests](../../packages/storage-sqlite/test) 覆盖 Migration、跨字段约束、四类配置、Case Writer、权限、双连接/双进程竞争、Execution 幂等和千级性能。
+
+P3 staging 测试额外覆盖只读附加、无 journal sidecar、并发旧 Revision 仅一方提交、DETACH、状态根/db/数据库/工作区/临时根符号链接拒绝、owner 伪造、PID 复用、未过 TTL 的 owner 初始化窗口、清理竞争，以及 owner/SQLite writer 初始化失败后的句柄关闭和目录回收。
 
 ## 对外接口
 
@@ -57,6 +61,8 @@ Web、API 和 CLI 不直接查询数据库；所有读取通过 Application Repo
 
 部分唯一索引保证全库最多一条 `RUNNING`。条件更新同时校验 Status、Stage、Lock Revision 或 Analysis Revision。
 
+Case 全量导入的 staging SQLite 位于受控外部工作目录，不计入十张业务表。Writer 阶段文件为 `0600` 且关闭 journal；最终提交前收敛为 `0400`，通过主库 Kysely 租用连接 `ATTACH`，在一个 `BEGIN IMMEDIATE` 短事务中校验并 `INSERT ... SELECT`，随后验证 `DETACH`。主库正常业务事务仍使用 Kysely 托管事务；这一手工事务只限 ATTACH 生命周期内的 staging 最终提交。
+
 ## 错误收敛
 
 唯一、外键、Check、Busy 和条件更新失败映射为稳定存储或业务冲突，不泄露 SQL 和本地路径。唯一字段竞争返回领域冲突；SQLite Busy 只允许最多四次完整短事务重启，耗尽返回 `STORAGE_TRANSACTION_CONFLICT`。事务失败整体回滚，不做 catch-log-reraise。
@@ -64,6 +70,8 @@ Web、API 和 CLI 不直接查询数据库；所有读取通过 Application Repo
 ## 观测与验收
 
 每个连接启用 Foreign Keys、WAL、5 秒 Busy Timeout 和 `synchronous=FULL`。装配层必须传入绝对项目根；Storage 不读取 `cwd`，默认数据库位于 `<projectRoot>/.cortex-eval/db/cortex-eval.sqlite3`。目录权限收敛为 `0700`，数据库与 WAL/SHM 收敛为 `0600`。千级 Case 导入低于 10 秒，查询预热 5 次后测量 30 次并执行 p95 250 毫秒、p99 500 毫秒失败门禁。
+
+SQLite 初始化先 canonicalize 显式项目根，再逐级以 `lstat + realpath` 验证 `.cortex-eval` 和 `db` 为真实目录且保持 containment；现有数据库、WAL、SHM 是符号链接或非普通文件时拒绝。只有预检通过后才 chmod 或打开数据库。staging owner 严格保存 PID、进程启动时间和 nonce。临时根必须同时满足 lexical 与 canonical 项目 containment；根或直接父级是符号链接时在 chmod、readdir、rename、rm 前拒绝。启动清理超过 TTL 的目录前，以无 Shell 的 `/bin/ps` 校验 PID 启动身份并再次读取 nonce；无 owner 目录未过 TTL 时保留，避免与并发 owner 初始化竞争，过 TTL 后才作为非法 owner 隔离。其他非法 owner 与工作区符号链接先隔离，路径必须通过 realpath containment。导入和导出使用闭合的独立工作区前缀，共用相同 owner/containment 规则。owner 文件、权限、realpath、SQLite 打开、PRAGMA 或建表任一步初始化失败时，关闭已打开 writer，并在重新验证 containment/owner 后回收部分工作区。删除失败发出闭合 `TEMP_CLEANUP_FAILED`，由默认 Local Server 日志接收。better-sqlite3 当前连接未启用 SQLite URI 文件名解析，因此不能依赖 `mode=ro&immutable=1` 的 ATTACH URI；P3 使用 canonical realpath 与 OS `0400` 强制只读，并以真实 `SQLITE_READONLY` 测试证明。
 
 ## 相关测试
 

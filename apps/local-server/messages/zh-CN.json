@@ -1,0 +1,9 @@
+{
+  "REQUEST_COMPLETED": "请求处理完成",
+  "TEMP_OWNER_INVALID": "临时资源 owner 无效",
+  "TEMP_SYMLINK_QUARANTINED": "临时资源符号链接已隔离",
+  "TEMP_OWNER_CHANGED": "临时资源 owner 已变化",
+  "TEMP_CONTAINMENT_REJECTED": "临时资源路径边界校验失败",
+  "TEMP_CLEANUP_FAILED": "临时资源清理失败",
+  "LOG_WRITE_FALLBACK": "日志写入失败，已降级到标准错误"
+}

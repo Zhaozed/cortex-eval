@@ -2,7 +2,7 @@
 
 ## 状态与依赖
 
-- 状态：`PENDING`
+- 状态：`COMPLETED`
 - 依赖：P2
 
 ## 目标
@@ -37,6 +37,15 @@
 - 资源管理可以只通过 HTTP API 完成。
 - API 不泄露 Secret、堆栈、SQL 或第三方原始错误。
 - Run、Report、Analysis 能力尚未在入口层暴露。
+
+## 完成证据
+
+- `pnpm verify` 在 macOS ARM64、Node 24 下通过：65 个 Vitest 文件、252 个测试，Python 回归 5/5、TypeScript 回归 5/5，以及 Runtime Doctor、格式、Lint、架构、Strict TypeScript、OpenAPI 漂移、文档、Secret 和构建门禁全部通过。
+- 全仓覆盖率为语句 90.05%、分支 85.45%、函数 90.27%、行 92.56%，未调整阈值。
+- 真实 SQLite 与 HTTP 测试证明资源 CRUD、Cursor/过滤、导入导出、配置 Probe、Prompt 预览/引用、Host/Origin、稳定错误、默认日志和未注册未来 Route。
+- Case 导入覆盖 `200 MiB-1`、恰好 `200 MiB`、合法数组后尾随空白达到 `200 MiB+1`、取消和异常清理；超限不提交 Case 或 Revision。导出在 200 前完成 Revision 校验，使用 owner-only 临时文件并覆盖正常、失败与取消清理。
+- 真实回环 HTTP 证明 OpenAI-compatible `NONE` 不发送 Authorization；双 Provider 四档 Thinking、结构输出、配置超时与能力拒绝均由测试证明。
+- 状态根、db、主库、WAL/SHM、临时根和工作区的 symlink/containment、owner 初始化窗口、PID 复用及失败回收均有真实文件系统测试；独立最终变更复审未发现 P0/P1/P2/P3。
 
 ## 阻塞条件
 

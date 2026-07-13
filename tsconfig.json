@@ -16,5 +16,11 @@
     "target": "ES2024",
     "types": ["node", "vitest/globals"]
   },
-  "include": ["data_scripts/**/*.ts", "packages/**/*.ts", "tooling/**/*.ts", "vitest.config.ts"]
+  "include": [
+    "apps/**/*.ts",
+    "data_scripts/**/*.ts",
+    "packages/**/*.ts",
+    "tooling/**/*.ts",
+    "vitest.config.ts"
+  ]
 }

@@ -33,8 +33,8 @@ function service(): ConfigurationService {
       }
     },
     clock: { now: (): string => "2026-01-01T00:00:00.000Z" },
-    endpointValidator: { validate: (): Promise<void> => Promise.resolve() },
-    llmValidator: { validate: (): Promise<void> => Promise.resolve() }
+    endpointValidator: { validate: () => Promise.resolve({ ok: true }) },
+    llmValidator: { validate: () => Promise.resolve({ ok: true }) }
   });
 }
 

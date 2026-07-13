@@ -11,7 +11,8 @@
 - P1 Domain 入口：[packages/domain/src](../packages/domain/src)
 - P2 Application 入口：[packages/application/src](../packages/application/src)
 - P2 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
-- `apps`、Work Package 文件运行时与 Reporting 入口尚未落地。
+- P3 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
+- Web、CLI、Work Package 文件运行时与 Reporting 入口尚未落地。
 
 ## 单文件 SQLite
 
@@ -337,11 +338,11 @@ Evaluator 和 Analyzer 只支持 `GOOGLE_GEMINI` 与 `OPENAI_COMPATIBLE`。OpenA
 
 ### 代码影响
 
-Adapter 使用官方 Gemini 与 OpenAI SDK。远程 OpenAI-compatible 必须 HTTPS 与 Bearer EnvSecretRef；本地回环可无认证。所有层关闭自动重试。
+Adapter 使用官方 Gemini 与 OpenAI SDK。OpenAI-compatible Thinking 映射到 Chat Completions `reasoning_effort: none | low | medium | high`；Provider 以 400/422 拒绝统一能力参数时返回 `CAPABILITY_UNSUPPORTED`。远程 OpenAI-compatible 必须 HTTPS 与 Bearer EnvSecretRef；本地回环可无认证，无认证通过 SDK 的显式空 Header 覆盖保证不发送 `Authorization`，不得发送伪 Bearer。所有层关闭自动重试。
 
 ### 测试影响
 
-协议 Stub 验证统一映射、结构输出、能力错误、Secret 脱敏和单次调用；发布门禁执行两条单次真实 Gemini 测试。
+协议 Stub 验证统一映射、结构输出、能力错误、Secret 脱敏和单次调用；真实回环 HTTP 验证无认证 Header，发布门禁执行两条单次真实 Gemini 测试。
 
 ### 排障影响
 
@@ -634,6 +635,86 @@ Kysely 的事务与 SQLite 查询接口本身返回 Promise；拒绝 Promise 会
 ### 排障影响
 
 历史删除冲突先检查重跑与复用链；当前资源删除后的运行事实从冻结快照读取。
+
+### 状态
+
+生效。
+
+## P3 资源能力注册与严格 OpenAPI
+
+### 决策
+
+Local Server 只按已闭环阶段注册能力。P3 仅公开 Test Suite、Suite-local Case、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 的资源闭环；Run、Execution、Report、Analysis、Work Package 和 SSE URL 不注册。请求与成功响应使用同一组严格 Zod DTO 投影为 Fastify Runtime Schema 和提交的 OpenAPI。
+
+### 原因
+
+通用对象响应或按名称猜测分页会让 OpenAPI 暴露未定义字段和伪能力。阶段注册、闭合错误联合和精确响应 Schema 可以让入口事实与 Application 能力一致，并阻止未来能力提前泄漏。
+
+### 代码影响
+
+真实 Route 生成 `apps/local-server/openapi.json`，漂移检查按仓库 Prettier 配置产生确定字节。资源列表使用显式 allowlist 才接受 Cursor；Prompt 引用查询不伪装成分页列表。OpenAPI 声明 Probe 502 与 Case 导入 404/409/413/422/499 等实际状态，所有状态使用闭合错误 Schema。配置更新显式物化资源字段，禁止把 `expectedRevision` 等命令字段泄漏进响应或持久化事实。SQLite Busy 重试耗尽在 HTTP 边界保留 `STORAGE_TRANSACTION_CONFLICT`，不降级成 `INTERNAL_ERROR`。
+
+### 测试影响
+
+测试校验 OpenAPI 路径精确集合、严格成功响应、Cursor 参数范围、未来 Route 404、运行时与提交文件字节一致，以及真实 SQLite 下全部资源族的 CRUD 和冲突。
+
+### 排障影响
+
+先比较真实 Route、Zod DTO、生成的 OpenAPI 和 Application 返回类型；不通过放宽响应对象或隐藏漂移解决。
+
+### 状态
+
+生效。
+
+## P3 外部 Case staging 与只读 ATTACH
+
+### 决策
+
+最大 200 MiB 的 Case 全量导入不在主库业务表或内存中暂存。边界逐项解析，Application 逐项准备并写入受控外部 SQLite staging，同时增量计算 Suite Hash；全部项目通过后，在主库同一 Kysely 租用连接内执行一个 `BEGIN IMMEDIATE` 最终事务，通过 `ATTACH`、校验和 `INSERT ... SELECT` 整体替换，再验证 `DETACH`。这一手工事务只限 staging 最终提交，其他主库业务事务继续使用 Kysely 托管事务。
+
+### 原因
+
+完整数组会让内存随文件增长；把未完整校验的数据写入主业务表会暴露部分事实。SQLite 跨库原子提交需要 ATTACH 与主库事务共享同一连接，且 ATTACH/DETACH 生命周期不能跨 Kysely 托管事务边界。
+
+### 代码影响
+
+staging Writer 使用 `journal_mode=OFF`，写入时权限 `0600`，关闭后收敛为 `0400`。better-sqlite3 `12.11.1` 当前连接未启用 SQLite URI 文件名解析，`mode=ro&immutable=1` 会被当作普通文件名，不能作为只读保证；实现改用 canonical realpath、路径 containment 和 OS `0400`，并在真实写探针中要求 `SQLITE_READONLY`。
+
+SQLite 初始化在任何 state/db mkdir、chmod 或数据库打开前，从显式项目根逐级验证 `.cortex-eval`、`db` 和现有数据库/WAL/SHM 的 `lstat + realpath` containment，符号链接或非普通文件直接拒绝。临时目录 owner 严格包含 PID、进程启动时间和 nonce。临时根必须是显式项目 containment root 的 lexical/canonical 子路径，根或父级符号链接在 chmod 和扫描前拒绝。启动清理只处理超过 TTL 且确认进程死亡或 PID 启动身份变化的目录；无 owner 目录未过 TTL 时保留，避免与并发初始化竞争，过 TTL 才隔离。删除前再次读取 nonce。其他非法 owner 与工作区符号链接隔离，所有 realpath 必须留在受控根内。owner 或 SQLite writer 初始化失败时关闭已打开句柄，并对部分工作区重新执行 containment/owner 清理。删除失败先记录 `TEMP_CLEANUP_FAILED`，Application 不允许它覆盖已经提交的成功结果；默认 Runtime 关闭会等待安全日志 flush。
+
+### 测试影响
+
+测试覆盖 `200 MiB-1`、恰好 200 MiB、`200 MiB+1`、固定 192 MiB RSS 增量、逐项背压、重复/引用/Revision 冲突、取消、只读写拒绝、无 sidecar、并发仅一方提交、DETACH、状态根/工作区/临时根符号链接、owner 伪造、PID 复用、owner 初始化窗口、清理竞争和初始化故障回收。
+
+### 排障影响
+
+先检查 owner 身份、文件权限、canonical path、ATTACH 列表、主库 Revision 和 staging 清理结果。不得改回完整数组、主库临时业务表或依赖无效的 SQLite URI 参数。
+
+### 状态
+
+生效。
+
+## P3 大文件 HTTP 原子响应边界
+
+### 决策
+
+Case 导入把 multipart 截断事实纳入被 Application 消费的定义流完成条件，确认未超限后才能进入最终主库事务。Case 导出先把固定 Suite Revision 的 JSON 流写入 owner-only `0600` 临时文件，完整读取和一致性校验通过后才打开 200；Revision 冲突在响应前返回 409。导出正文按背压读取，正常结束、准备失败和响应取消均按 owner 身份清理，不保留完整 Case 数组。
+
+### 原因
+
+若 Route 在业务事务提交后才检查 `file.truncated`，合法数组后的超限尾随空白会造成“返回 413 但事实已写入”。若导出在异步生成器开始读取前先发送 200，后续 Revision 冲突只能表现为连接断流，无法再返回闭合 409。提交条件必须在写事务前闭合，错误状态必须在 HTTP 响应打开前确定。
+
+### 代码影响
+
+导入边界在定义流开始和结束时检查截断状态；导出使用独立 `case-export-` 工作区、0600 文件和带背压的清理感知流。Analysis Prompt 预览 Schema 同步 Domain 的六个合法变量；所有 Route 的 OpenAPI 都声明 Host/Origin 403；LLM Probe 组合请求 Signal 与配置 `timeoutMs`，Gemini 和 OpenAI-compatible 使用同一超时分类。
+
+### 测试影响
+
+测试覆盖合法数组先结束的 `200 MiB+1` 输入不提交、响应前导出 Revision 冲突、导出文件权限与正常/失败/取消清理、六变量响应契约、所有操作 403，以及 Gemini 不返回时按配置超时。
+
+### 排障影响
+
+导入 413 先核对 Suite Revision 与 Case 事实是否保持不变。导出断流先检查临时文件写入、Revision 校验与 owner 清理；不得改回响应后错误映射或完整数组缓冲。
 
 ### 状态
 

@@ -20,21 +20,47 @@ import type {
   ConfigurationDeleteResult,
   ConfigurationError,
   ConfigurationMutationResult,
+  ConfigurationQuery,
+  ConfigurationQueryResult,
   ConfigurationResource,
-  ConfigurationResourceKind
+  ConfigurationResourceKind,
+  RubricPromptReferenceResult
 } from "./configuration-models.ts";
 
 /** External Endpoint availability check. */
 export interface EndpointValidator {
   /** Validate one already-clean Endpoint outside a database transaction. */
-  validate(definition: EndpointConfigDefinition): Promise<void>;
+  validate(
+    definition: EndpointConfigDefinition,
+    signal: AbortSignal
+  ): Promise<ConfigurationProbeAdapterResult>;
 }
 
 /** External LLM availability check. */
 export interface LlmValidator {
   /** Validate one already-clean LLM outside a database transaction. */
-  validate(definition: LlmConfigDefinition): Promise<void>;
+  validate(
+    definition: LlmConfigDefinition,
+    signal: AbortSignal
+  ): Promise<ConfigurationProbeAdapterResult>;
 }
+
+/** Stable external probe failure without third-party error text. */
+export interface ConfigurationProbeFailure {
+  /** Stable failure code. */
+  readonly code: "CONFIGURATION_PROBE_FAILED";
+  /** Safe probe failure category. */
+  readonly reason: "UNAVAILABLE" | "TIMEOUT" | "CANCELLED" | "CAPABILITY_UNSUPPORTED";
+}
+
+/** Adapter-level probe result. */
+export type ConfigurationProbeAdapterResult =
+  { readonly ok: true } | { readonly ok: false; readonly error: ConfigurationProbeFailure };
+
+/** Application-level probe result including local definition validation. */
+export type ConfigurationProbeResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly error: ConfigurationError | ConfigurationProbeFailure };
 
 /** Configuration use-case dependencies. */
 export interface ConfigurationServiceDependencies {
@@ -135,7 +161,37 @@ function resource(
   createdAt: string,
   updatedAt: string
 ): ConfigurationResource {
-  return { ...command, id, semanticHash: hash, revision, createdAt, updatedAt };
+  const persistence = { id, semanticHash: hash, revision, createdAt, updatedAt };
+  if (command.kind === "ENDPOINT") {
+    return {
+      ...persistence,
+      kind: command.kind,
+      name: command.name,
+      definition: command.definition
+    };
+  }
+  if (command.kind === "LLM") {
+    return {
+      ...persistence,
+      kind: command.kind,
+      name: command.name,
+      definition: command.definition
+    };
+  }
+  if (command.kind === "LLM_RUBRIC_PROMPT") {
+    return {
+      ...persistence,
+      kind: command.kind,
+      name: command.name,
+      definition: command.definition
+    };
+  }
+  return {
+    ...persistence,
+    kind: command.kind,
+    name: command.name,
+    definition: command.definition
+  };
 }
 
 // Return a stable conflict using the latest current Revision.
@@ -164,6 +220,32 @@ export class ConfigurationService {
     return this.#dependencies.transactionManager.execute(async (transaction) =>
       transaction.configurations.listResources(kind)
     );
+  }
+
+  /** Query one stable small Configuration page. */
+  public query(query: ConfigurationQuery): Promise<ConfigurationQueryResult> {
+    if (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 200) {
+      return Promise.resolve({
+        ok: false,
+        error: { code: "CONFIGURATION_QUERY_INVALID", path: "limit" }
+      });
+    }
+    if (query.afterCursor?.name.length === 0) {
+      return Promise.resolve({
+        ok: false,
+        error: { code: "CONFIGURATION_QUERY_INVALID", path: "afterCursor.name" }
+      });
+    }
+    if (query.afterCursor?.id.length === 0) {
+      return Promise.resolve({
+        ok: false,
+        error: { code: "CONFIGURATION_QUERY_INVALID", path: "afterCursor.id" }
+      });
+    }
+    return this.#dependencies.transactionManager.execute(async (transaction) => ({
+      ok: true,
+      page: await transaction.configurations.queryResources(query)
+    }));
   }
 
   /** Create one current Configuration resource. */
@@ -293,17 +375,65 @@ export class ConfigurationService {
     return validation.ok ? collectAnalysisPromptVariables(value) : [];
   }
 
+  /** Validate and preview stable Analysis Prompt variables without saving. */
+  public previewAnalysisPrompt(
+    value: AnalysisPromptDefinition
+  ):
+    | { readonly ok: true; readonly variables: readonly string[] }
+    | { readonly ok: false; readonly error: ConfigurationError } {
+    const validation = validateAnalysisPrompt(value);
+    return validation.ok
+      ? { ok: true, variables: collectAnalysisPromptVariables(value) }
+      : { ok: false, error: validation.error };
+  }
+
+  /** Validate and preview one Rubric Prompt without saving. */
+  public previewRubricPrompt(value: PromptDefinition):
+    | {
+        readonly ok: true;
+        readonly promptKey: string;
+        readonly messages: PromptDefinition["messages"];
+      }
+    | { readonly ok: false; readonly error: ConfigurationError } {
+    const validation = validatePrompt(value);
+    return validation.ok
+      ? { ok: true, promptKey: value.promptKey, messages: value.messages }
+      : { ok: false, error: validation.error };
+  }
+
+  /** List current Case references for one current Rubric Prompt resource. */
+  public listRubricPromptReferences(id: string): Promise<RubricPromptReferenceResult> {
+    return this.#dependencies.transactionManager.execute(async (transaction) => {
+      const resource = await transaction.configurations.getResource("LLM_RUBRIC_PROMPT", id);
+      if (resource?.kind !== "LLM_RUBRIC_PROMPT") {
+        return { ok: false, error: { code: "CONFIGURATION_NOT_FOUND" } };
+      }
+      return {
+        ok: true,
+        items: await transaction.configurations.listRubricPromptReferences(
+          resource.definition.promptKey
+        )
+      };
+    });
+  }
+
   /** Validate Endpoint availability outside any transaction. */
-  public async validateEndpoint(value: EndpointConfigDefinition): Promise<void> {
+  public async validateEndpoint(
+    value: EndpointConfigDefinition,
+    signal: AbortSignal
+  ): Promise<ConfigurationProbeResult> {
     const validation = validateEndpointConfig(value);
-    if (!validation.ok) throw new Error(validation.error.code);
-    await this.#dependencies.endpointValidator.validate(value);
+    if (!validation.ok) return { ok: false, error: validation.error };
+    return this.#dependencies.endpointValidator.validate(value, signal);
   }
 
   /** Validate LLM availability outside any transaction. */
-  public async validateLlm(value: LlmConfigDefinition): Promise<void> {
+  public async validateLlm(
+    value: LlmConfigDefinition,
+    signal: AbortSignal
+  ): Promise<ConfigurationProbeResult> {
     const validation = validateLlmConfig(value);
-    if (!validation.ok) throw new Error(validation.error.code);
-    await this.#dependencies.llmValidator.validate(value);
+    if (!validation.ok) return { ok: false, error: validation.error };
+    return this.#dependencies.llmValidator.validate(value, signal);
   }
 }

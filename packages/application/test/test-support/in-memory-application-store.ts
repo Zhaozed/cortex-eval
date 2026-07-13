@@ -11,12 +11,17 @@ import type {
   CaseQuery,
   CaseQueryPage,
   StoredTestCase,
-  TestSuite
+  TestSuite,
+  TestSuiteQuery,
+  TestSuiteQueryPage
 } from "../../src/features/test-suites/test-suite-models.ts";
 import { hashSuite } from "@cortex-eval/domain/src/domain-resource-hashes.ts";
 import type {
+  ConfigurationQuery,
+  ConfigurationQueryPage,
   ConfigurationResource,
-  ConfigurationResourceKind
+  ConfigurationResourceKind,
+  RubricPromptReference
 } from "../../src/features/configurations/configuration-models.ts";
 import type { ConfigurationServiceDependencies } from "../../src/features/configurations/configuration-service.ts";
 import type {
@@ -85,6 +90,34 @@ class InMemoryTestSuiteRepository implements TestSuiteRepository {
     );
   }
 
+  /** Query one small Suite page in name/ID order. */
+  public querySuites(query: TestSuiteQuery): Promise<TestSuiteQueryPage> {
+    const matches = this.#state.suites
+      .filter(
+        (item) =>
+          query.afterCursor === undefined ||
+          item.name > query.afterCursor.name ||
+          (item.name === query.afterCursor.name && item.id > query.afterCursor.id)
+      )
+      .sort(
+        (left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
+      );
+    const items = matches.slice(0, query.limit).map((item) => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      caseCount: item.caseCount,
+      revision: item.revision,
+      updatedAt: item.updatedAt
+    }));
+    const last = items.at(-1);
+    return Promise.resolve({
+      items,
+      nextCursor:
+        matches.length > query.limit && last !== undefined ? { name: last.name, id: last.id } : null
+    });
+  }
+
   /** Read one current Case. */
   public getCase(suiteId: string, caseKey: string): Promise<StoredTestCase | null> {
     return Promise.resolve(
@@ -105,30 +138,54 @@ class InMemoryTestSuiteRepository implements TestSuiteRepository {
   public queryCases(query: CaseQuery): Promise<CaseQueryPage> {
     const matches = this.#state.cases
       .filter((item) => item.suiteId === query.suiteId)
-      .filter((item) => query.afterOrdinal === undefined || item.ordinal > query.afterOrdinal)
+      .filter(
+        (item) =>
+          query.afterCursor === undefined ||
+          item.ordinal > query.afterCursor.ordinal ||
+          (item.ordinal === query.afterCursor.ordinal && item.id > query.afterCursor.id)
+      )
       .filter(
         (item) =>
           query.caseKeyContains === undefined ||
           item.caseKey.toLowerCase().includes(query.caseKeyContains.toLowerCase())
       )
       .filter(
-        (item) => query.businessModule === undefined || item.businessModule === query.businessModule
+        (item) =>
+          query.businessModules === undefined ||
+          query.businessModules.length === 0 ||
+          query.businessModules.includes(item.businessModule)
       )
       .filter(
         (item) =>
           query.descriptionContains === undefined ||
           item.description.toLowerCase().includes(query.descriptionContains.toLowerCase())
       )
-      .filter((item) => query.scenarioTag === undefined || item.scenarioTag === query.scenarioTag)
       .filter(
         (item) =>
-          query.assertionType === undefined || item.assertionTypes.includes(query.assertionType)
+          query.scenarioTags === undefined ||
+          query.scenarioTags.length === 0 ||
+          query.scenarioTags.includes(item.scenarioTag)
       )
-      .filter((item) => query.metric === undefined || item.metrics.includes(query.metric))
-      .sort((left, right) => left.ordinal - right.ordinal);
+      .filter(
+        (item) =>
+          query.assertionTypes === undefined ||
+          query.assertionTypes.length === 0 ||
+          query.assertionTypes.some((value) => item.assertionTypes.includes(value))
+      )
+      .filter(
+        (item) =>
+          query.metrics === undefined ||
+          query.metrics.length === 0 ||
+          query.metrics.some((value) => item.metrics.includes(value))
+      )
+      .sort((left, right) => left.ordinal - right.ordinal || left.id.localeCompare(right.id));
     const items = matches.slice(0, query.limit);
-    const nextAfterOrdinal = matches.length > query.limit ? (items.at(-1)?.ordinal ?? null) : null;
-    return Promise.resolve({ items, nextAfterOrdinal });
+    const last = items.at(-1);
+    const nextCursor =
+      matches.length > query.limit && last !== undefined
+        ? { ordinal: last.ordinal, id: last.id }
+        : null;
+    return Promise.resolve({ items, nextCursor });
   }
 
   /** Insert one current Case. */
@@ -264,6 +321,34 @@ class InMemoryConfigurationRepository implements ConfigurationRepository {
     );
   }
 
+  /** Query one small Configuration page in name/ID order. */
+  public queryResources(query: ConfigurationQuery): Promise<ConfigurationQueryPage> {
+    const matches = this.#state.configurationResources
+      .filter((item) => item.kind === query.kind)
+      .filter(
+        (item) =>
+          query.afterCursor === undefined ||
+          item.name > query.afterCursor.name ||
+          (item.name === query.afterCursor.name && item.id > query.afterCursor.id)
+      )
+      .sort(
+        (left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
+      );
+    const items = matches.slice(0, query.limit).map((item) => ({
+      kind: item.kind,
+      id: item.id,
+      name: item.name,
+      revision: item.revision,
+      updatedAt: item.updatedAt
+    }));
+    const last = items.at(-1);
+    return Promise.resolve({
+      items,
+      nextCursor:
+        matches.length > query.limit && last !== undefined ? { name: last.name, id: last.id } : null
+    });
+  }
+
   /** Insert one current Configuration resource. */
   public insertResource(
     value: ConfigurationResource
@@ -319,6 +404,19 @@ class InMemoryConfigurationRepository implements ConfigurationRepository {
   /** Check current Rubric references. */
   public isRubricPromptReferenced(promptKey: string): Promise<boolean> {
     return Promise.resolve(this.#state.rubricReferences.includes(promptKey));
+  }
+
+  /** List current Case references to one Rubric Prompt key. */
+  public listRubricPromptReferences(promptKey: string): Promise<readonly RubricPromptReference[]> {
+    return Promise.resolve(
+      this.#state.cases
+        .filter((item) => item.rubricPromptKeys.includes(promptKey))
+        .map((item) => ({ suiteId: item.suiteId, caseKey: item.caseKey }))
+        .sort(
+          (left, right) =>
+            left.suiteId.localeCompare(right.suiteId) || left.caseKey.localeCompare(right.caseKey)
+        )
+    );
   }
 }
 
@@ -397,8 +495,8 @@ export class InMemoryApplicationStore implements TransactionManager, Clock, IdGe
       transactionManager: this,
       clock: this,
       idGenerator: this,
-      endpointValidator: { validate: (): Promise<void> => Promise.resolve() },
-      llmValidator: { validate: (): Promise<void> => Promise.resolve() }
+      endpointValidator: { validate: () => Promise.resolve({ ok: true }) },
+      llmValidator: { validate: () => Promise.resolve({ ok: true }) }
     };
   }
 
@@ -445,7 +543,8 @@ export class InMemoryApplicationStore implements TransactionManager, Clock, IdGe
 
   /** Return one deterministic internal identity. */
   public nextId(): string {
-    const id = `case-internal-${this.#nextId}`;
+    const suffix = this.#nextId.toString(16).padStart(12, "0");
+    const id = `018f0c8e-9f79-7000-8000-${suffix}`;
     this.#nextId += 1;
     return id;
   }

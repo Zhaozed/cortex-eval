@@ -10,7 +10,9 @@ Domain 返回结构化错误，不返回用户文案。Contracts 定义稳定 Er
 
 外部 JSON、Case、Assertion 结构、Prompt 引用、URL 模板、Header、Body Selector 和 LLM Options 在边界进入核心逻辑前校验。失败时不写入任何资源事实，不执行外部调用，并返回稳定 Error Code 与字段路径。可信内联 Assertion、Transform 和 Context Transform 不做代码安全检测。
 
-全量测试集导入任一 Case 失败时整笔回滚。Rubric 引用不存在、Prompt Key 冲突或禁止字段出现时不做部分提交。
+全量测试集导入任一 Case 失败或 multipart 文件超限时整笔回滚。大小判定属于提交前定义流完成条件；即使合法 JSON 数组已结束、超限部分只有尾随空白，也不写 Case 或递增 Suite Revision。Rubric 引用不存在、Prompt Key 冲突或禁止字段出现时不做部分提交。
+
+P3 Local Server 使用闭合 API Error 联合。请求错误携带服务端 Request ID 和必要字段路径；导入项错误额外携带输入顺序、Case Key 与闭合原因码。未知异常收敛为 `INTERNAL_ERROR`，不返回 SQL、路径、正文或堆栈。配置 Probe 只返回 `UNAVAILABLE`、`TIMEOUT`、`CANCELLED` 或 `CAPABILITY_UNSUPPORTED`，不转发 SDK 原始错误。
 
 ## REST 错误
 
@@ -60,6 +62,8 @@ Raw Artifact 缺失或损坏时保留数据库规范化事实，API、CLI 和 UI
 
 Adapter 在资源回收路径中终止子进程、释放 Abort 资源并清理受控临时目录。清理失败记录中文业务事件和安全路径标识，不记录敏感正文。
 
+P3 Case 导入的外部 staging 在初始化、完成、校验失败、冲突或取消后按 owner nonce 清理；初始化中已打开的 SQLite writer 先关闭，部分 owner 工作区重新校验 containment 后删除。Case 导出在打开 200 前写完并校验 owner-only 文件；Revision 冲突返回 409，不暴露部分响应，正常完成、准备失败和响应取消均清理工作区。状态根、db、数据库文件、临时根或父级符号链接直接返回内部安全错误，不 mkdir、chmod、打开、扫描或修改项目外目录。清理失败记录 `TEMP_CLEANUP_FAILED` 安全事件，但不得把已经确定的成功或业务错误改写为 500。启动清理只删除超过 TTL 且已确认进程死亡或 PID 启动身份不匹配的目录；无 owner 目录在 TTL 内视为可能初始化中，其他非法 owner、工作区符号链接和身份竞争先隔离或跳过，不跟随外部路径。
+
 部分 REST Error 降级为成功 Case 继续评估；全部 REST Error 降级为完整 Not Evaluated 报告。模型分析失败不影响已经完成的 Run 和 Report。
 
 ## 排障入口
@@ -72,4 +76,5 @@ Adapter 在资源回收路径中终止子进程、释放 Abort 资源并清理�
 - 当前脚本错误行为测试：[data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)
 - 当前稳定 Error Code：[packages/contracts/src/error-contracts.ts](../packages/contracts/src/error-contracts.ts)
 - 当前中文消息资源：[packages/contracts/messages/zh-CN.json](../packages/contracts/messages/zh-CN.json)
-- Application 与 Adapter 错误收敛入口尚未落地。
+- 当前资源 Application 错误入口：[packages/application/src](../packages/application/src)
+- 当前 Local Server 错误映射与 Adapter：[apps/local-server/src](../apps/local-server/src)

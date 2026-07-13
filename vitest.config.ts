@@ -5,6 +5,7 @@ export default defineConfig({
     coverage: {
       exclude: ["**/*.test.ts", "**/test-support/**"],
       include: [
+        "apps/local-server/src/**/*.ts",
         "packages/application/src/**/*.ts",
         "packages/contracts/src/**/*.ts",
         "packages/domain/src/**/*.ts",
@@ -28,7 +29,11 @@ export default defineConfig({
         statements: 90
       }
     },
-    include: ["packages/*/test/**/*.test.ts", "tooling/test/**/*.test.ts"],
+    include: [
+      "apps/*/test/**/*.test.ts",
+      "packages/*/test/**/*.test.ts",
+      "tooling/test/**/*.test.ts"
+    ],
     testTimeout: 30_000
   }
 });

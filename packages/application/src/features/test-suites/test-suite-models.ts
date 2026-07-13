@@ -21,6 +21,57 @@ export interface TestSuite {
   readonly updatedAt: string;
 }
 
+/** Small current Test Suite list projection. */
+export interface TestSuiteSummary {
+  /** Internal identity. */
+  readonly id: string;
+  /** Unique display name. */
+  readonly name: string;
+  /** Display description. */
+  readonly description: string;
+  /** Current Case count. */
+  readonly caseCount: number;
+  /** Optimistic-concurrency token. */
+  readonly revision: number;
+  /** Last update time. */
+  readonly updatedAt: string;
+}
+
+/** Stable Test Suite list position. */
+export interface TestSuitePageCursor {
+  /** Last display name. */
+  readonly name: string;
+  /** Last internal ID tie-breaker. */
+  readonly id: string;
+}
+
+/** Current Test Suite list query. */
+export interface TestSuiteQuery {
+  /** Maximum page size. */
+  readonly limit: number;
+  /** Return Suites strictly after this stable sort tuple. */
+  readonly afterCursor?: TestSuitePageCursor | undefined;
+}
+
+/** Stable current Test Suite page. */
+export interface TestSuiteQueryPage {
+  /** Small ordered Suite projections. */
+  readonly items: readonly TestSuiteSummary[];
+  /** Next stable cursor when another page exists. */
+  readonly nextCursor: TestSuitePageCursor | null;
+}
+
+/** Validated Test Suite list result. */
+export type TestSuiteQueryResult =
+  | { readonly ok: true; readonly page: TestSuiteQueryPage }
+  | {
+      readonly ok: false;
+      readonly error: {
+        readonly code: "TEST_SUITE_QUERY_INVALID";
+        readonly path: "limit" | "afterCursor.name" | "afterCursor.id";
+      };
+    };
+
 /** Current stored Case with all derived facts. */
 export interface StoredTestCase {
   /** Internal identity. */
@@ -111,30 +162,38 @@ export type DeleteCaseResult =
 export interface CaseQuery {
   /** Owning Suite. */
   readonly suiteId: string;
-  /** Return items strictly after this Ordinal. */
-  readonly afterOrdinal?: number | undefined;
+  /** Return items strictly after this stable sort tuple. */
+  readonly afterCursor?: CasePageCursor | undefined;
   /** Maximum page size. */
   readonly limit: number;
   /** Case-insensitive literal stable Case-key substring. */
   readonly caseKeyContains?: string | undefined;
-  /** Exact business module. */
-  readonly businessModule?: string | undefined;
+  /** Exact business modules combined with OR. */
+  readonly businessModules?: readonly string[] | undefined;
   /** Literal description substring. */
   readonly descriptionContains?: string | undefined;
-  /** Exact scenario tag. */
-  readonly scenarioTag?: string | undefined;
-  /** Exact recursive Assertion type member. */
-  readonly assertionType?: string | undefined;
-  /** Exact recursive Metric member. */
-  readonly metric?: string | undefined;
+  /** Exact scenario tags combined with OR. */
+  readonly scenarioTags?: readonly string[] | undefined;
+  /** Exact recursive Assertion type members combined with OR. */
+  readonly assertionTypes?: readonly string[] | undefined;
+  /** Exact recursive Metric members combined with OR. */
+  readonly metrics?: readonly string[] | undefined;
+}
+
+/** Stable Case page position ordered by Ordinal and internal ID. */
+export interface CasePageCursor {
+  /** Last Case Ordinal. */
+  readonly ordinal: number;
+  /** Last internal ID tie-breaker. */
+  readonly id: string;
 }
 
 /** Stable current Case page. */
 export interface CaseQueryPage {
   /** Ordered current Case facts. */
   readonly items: readonly StoredTestCase[];
-  /** Next cursor Ordinal when another page exists. */
-  readonly nextAfterOrdinal: number | null;
+  /** Next stable cursor when another page exists. */
+  readonly nextCursor: CasePageCursor | null;
 }
 
 /** Validated Case query result returned by Application. */
@@ -142,8 +201,10 @@ export type CaseQueryResult =
   | { readonly ok: true; readonly page: CaseQueryPage }
   | {
       readonly ok: false;
-      readonly error: {
-        readonly code: "CASE_QUERY_INVALID";
-        readonly path: "limit" | "afterOrdinal";
-      };
+      readonly error:
+        | {
+            readonly code: "CASE_QUERY_INVALID";
+            readonly path: "limit" | "afterCursor.ordinal" | "afterCursor.id";
+          }
+        | { readonly code: "SUITE_NOT_FOUND" };
     };

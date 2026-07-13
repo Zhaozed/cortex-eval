@@ -14,42 +14,44 @@ Local Server 依赖 Contracts、Application 和具体 Infrastructure 实现。Ro
 
 ## 实现状态
 
-目标模块尚未落地。
-
-## 目标代码落点
-
-`apps/local-server`
+P3 已落地 Fastify Local Server、真实 SQLite 装配、资源 Route、严格请求/响应 Schema、OpenAPI、静态能力中性入口、安全边界、中文业务日志和内部 Event Hub。当前不注册 Run、Execution、Report、Analysis、Work Package 或 SSE URL。
 
 ## 当前代码事实入口
 
-尚无当前 HTTP Server、Route 或依赖装配代码入口。
+- [local-server.ts](../../apps/local-server/src/local-server.ts)：Route 注册、Host/Origin、请求生命周期和严格 Schema。
+- [application-resource-handlers.ts](../../apps/local-server/src/application-resource-handlers.ts)：DTO/Application Mapper 与稳定错误映射。
+- [case-export-staging.ts](../../apps/local-server/src/case-export-staging.ts)：响应前一致性校验、0600 导出文件和取消清理。
+- [local-server-runtime.ts](../../apps/local-server/src/local-server-runtime.ts)：SQLite、Application、Adapter 和生命周期装配。
+- [configuration-probe-adapters.ts](../../apps/local-server/src/configuration-probe-adapters.ts)：Endpoint 与 LLM 可用性验证。
+- [local-logger.ts](../../apps/local-server/src/local-logger.ts)：安全字段、中文单行日志、轮转与 stderr 降级。
+- [openapi.json](../../apps/local-server/openapi.json)：由真实当前 Route 和 Schema 生成的提交事实。
 
 ## 当前样例与测试入口
 
-当前仓库没有 Local Server 测试。现有 REST 脚本是独立工具，不是 Local Server 实现。
+[local-server tests](../../apps/local-server/test) 覆盖真实 SQLite 资源闭环、安全入口、OpenAPI、流式导入边界、配置探针、日志、内部 Event Hub、生命周期和能力隔离。现有 REST 脚本仍是独立回归工具，不代表 P5 REST Run 实现。
 
 ## 对外接口
 
-目标资源位于 `/api/v1`，包括 Test Suites、Test Cases、Endpoint Configs、LLM Configs、Rubric Prompts、Analysis Prompts、Runs、Run Cases、Analysis、Work Package Export、Execution Import 和 Canonical Data Export。Route 按完成阶段注册，未闭环能力不出现在 OpenAPI。
+当前 `/api/v1` 只包含 Test Suites、Suite-local Cases、Endpoint Configs、LLM Configs、Rubric Prompts 和 Analysis Prompts。能力覆盖资源 CRUD、Suite 影响查询、Case 搜索/组合过滤/Cursor 分页、全量导入导出、配置验证、Prompt 预览与引用查询。Route 按完成阶段注册，未闭环能力不出现在 OpenAPI。
 
 列表使用 Cursor 分页，大 JSON 只在详情返回。写请求返回稳定 Error Code 和必要字段路径。
 
 ## 核心流程
 
-启动时初始化配置、SQLite、Repository、Adapter 和 Application，用受控依赖完成 Route 装配。请求进入后先完成 Host、Origin 与 Schema 校验，再调用 Application。关闭时停止接收新请求并回收外部资源。
+启动时先对项目状态根、db 目录和既有 SQLite/WAL/SHM 做无副作用 symlink/canonical containment 预检，通过后才 mkdir、chmod 或打开数据库；随后验证临时根并清理可确认失活的导入/导出 staging，装配 Repository、Adapter 和 Application，再注册已闭环 Route。临时根或父级为符号链接时在 chmod/扫描前拒绝；未过 TTL 的无 owner 目录不作为损坏条目隔离。请求先校验原始 Host；非安全方法再校验同源 Origin。服务端生成 UUIDv7 Request ID，严格 Schema 清洗脏数据后才调用 Application。Host/Origin 的 403 是所有操作的公开响应事实。关闭时 Abort 在途请求，再关闭 HTTP 与 SQLite。
 
 ## 状态、事务与幂等
 
-Route 不持有业务事务。Application 决定事务边界和幂等语义。启动恢复把遗留 `RUNNING` 收敛为 `INTERRUPTED`，不自动续跑。
+Route 不持有业务事务。Application 决定事务边界和幂等语义。Case 导入只保留单项内存，逐项写外部 staging；multipart 截断检查属于定义流完成条件，只有确认未超限后才最终原子替换主库。导出先冻结 Suite Revision，再逐 Case 短事务读取并写 owner-only 临时文件；Revision 变化在打开 200 前返回 409，完整文件再按背压发送。Run 启动恢复从 P5 落地。
 
 ## 错误收敛
 
-协议错误映射为稳定 HTTP 状态、Error Code、可读消息和字段路径。未知内部错误不暴露 Secret、第三方堆栈或敏感正文。
+协议错误映射为闭合 HTTP 状态、Error Code、外化中文消息和必要字段事实。批量导入错误包含输入顺序、Case Key、闭合原因码和可用字段路径。未知内部错误只返回 `INTERNAL_ERROR` 与 Request ID，不暴露 Secret、SQL、路径、第三方正文或堆栈。
 
 ## 观测与验收
 
-默认监听 `127.0.0.1:4310` 并同源提供 Web 与 API，校验 Host 和 Origin。默认数据目录是项目根 `.cortex-eval/`。日志以单行中文可读文本记录请求关联 ID、业务事件、耗时和 Error Code。验收要求 Route 无业务规则、响应无展开 Secret、页面刷新可以恢复服务端事实。
+默认监听 `127.0.0.1:4310` 并同源提供静态壳与 API。默认数据目录是项目根 `.cortex-eval/`。写请求 Body 使用 Route 级上限；Case JSON 文件上限 200 MiB。默认 composition root 把请求和 staging 安全事件接入 owner-only 日志，单文件 10 MiB、保留 10 个轮转文件；写失败输出外化 stderr 提示且不改变业务结果。Runtime 关闭在 SQLite 前等待日志队列 flush。内部 Snapshot/Event Hub 有序、限流、可取消，但 P3 不公开 SSE。
 
 ## 相关测试
 
-目标测试覆盖生命周期、装配、Host、Origin、分页、错误映射、脱敏、取消和启动恢复。
+当前测试覆盖生命周期、真实 SQLite 装配、Host、Origin、Request ID、分页/过滤、错误映射、脱敏、取消、OpenAPI 精确路径与所有操作 403、未注册未来 Route、`200 MiB-1/200 MiB/200 MiB+1`（含合法数组后的超限尾随空白）、固定 192 MiB RSS 增量门禁、导出响应前冲突和正常/取消临时资源清理。Run 启动恢复测试随 P5 落地。

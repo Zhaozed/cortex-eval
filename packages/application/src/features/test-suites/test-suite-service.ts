@@ -1,7 +1,12 @@
 import { hashSuite } from "@cortex-eval/domain/src/domain-resource-hashes.ts";
 
 import type { Clock, IdGenerator, TransactionManager } from "../../application-ports.ts";
-import type { StoredTestCase, TestSuite } from "./test-suite-models.ts";
+import type {
+  StoredTestCase,
+  TestSuite,
+  TestSuiteQuery,
+  TestSuiteQueryResult
+} from "./test-suite-models.ts";
 import type { CaseDefinition } from "@cortex-eval/domain/src/domain-evaluation.ts";
 import type { CaseQuery, CaseQueryResult } from "./test-suite-models.ts";
 
@@ -34,6 +39,14 @@ export type TestSuiteMutationResult =
 /** Exact Suite deletion result. */
 export type TestSuiteDeleteResult =
   { readonly ok: true } | { readonly ok: false; readonly error: TestSuiteResourceError };
+
+/** Current Suite deletion-impact result. */
+export type TestSuiteImpactResult =
+  | {
+      readonly ok: true;
+      readonly impact: { readonly caseCount: number; readonly activeRunReference: boolean };
+    }
+  | { readonly ok: false; readonly error: { readonly code: "SUITE_NOT_FOUND" } };
 
 /** Create empty Suite command. */
 export interface CreateTestSuiteCommand {
@@ -80,11 +93,55 @@ export class TestSuiteService {
     );
   }
 
+  /** Read the current deletion impact without mutating Suite facts. */
+  public impact(suiteId: string): Promise<TestSuiteImpactResult> {
+    return this.#dependencies.transactionManager.execute(async (transaction) => {
+      const suite = await transaction.testSuites.getSuite(suiteId);
+      if (suite === null) return { ok: false, error: { code: "SUITE_NOT_FOUND" } };
+      return {
+        ok: true,
+        impact: {
+          caseCount: suite.caseCount,
+          activeRunReference: await transaction.runs.hasActiveResourceReference(
+            "TEST_SUITE",
+            suiteId
+          )
+        }
+      };
+    });
+  }
+
   /** List all current Suites in stable display order. */
   public list(): Promise<readonly TestSuite[]> {
     return this.#dependencies.transactionManager.execute(async (transaction) =>
       transaction.testSuites.listSuites()
     );
+  }
+
+  /** Query one stable small Test Suite page. */
+  public query(query: TestSuiteQuery): Promise<TestSuiteQueryResult> {
+    if (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 200) {
+      return Promise.resolve({
+        ok: false,
+        error: { code: "TEST_SUITE_QUERY_INVALID", path: "limit" }
+      });
+    }
+    if (query.afterCursor?.name.length === 0) {
+      return Promise.resolve({
+        ok: false,
+        error: { code: "TEST_SUITE_QUERY_INVALID", path: "afterCursor.name" }
+      });
+    }
+    if (query.afterCursor?.id.length === 0) {
+      return Promise.resolve({
+        ok: false,
+        error: { code: "TEST_SUITE_QUERY_INVALID", path: "afterCursor.id" }
+      });
+    }
+    return this.#dependencies.transactionManager.execute(async (transaction) => ({
+      ok: true,
+      page: await transaction.testSuites.querySuites(query)
+    }));
   }
 
   /** Read one current Case by its exact Suite-local stable key. */
@@ -171,18 +228,25 @@ export class TestSuiteService {
       return Promise.resolve({ ok: false, error: { code: "CASE_QUERY_INVALID", path: "limit" } });
     }
     if (
-      query.afterOrdinal !== undefined &&
-      (!Number.isInteger(query.afterOrdinal) || query.afterOrdinal < 0)
+      query.afterCursor !== undefined &&
+      (!Number.isInteger(query.afterCursor.ordinal) || query.afterCursor.ordinal < 0)
     ) {
       return Promise.resolve({
         ok: false,
-        error: { code: "CASE_QUERY_INVALID", path: "afterOrdinal" }
+        error: { code: "CASE_QUERY_INVALID", path: "afterCursor.ordinal" }
       });
     }
-    return this.#dependencies.transactionManager.execute(async (transaction) => ({
-      ok: true,
-      page: await transaction.testSuites.queryCases(query)
-    }));
+    if (query.afterCursor?.id.length === 0) {
+      return Promise.resolve({
+        ok: false,
+        error: { code: "CASE_QUERY_INVALID", path: "afterCursor.id" }
+      });
+    }
+    return this.#dependencies.transactionManager.execute(async (transaction) => {
+      const suite = await transaction.testSuites.getSuite(query.suiteId);
+      if (suite === null) return { ok: false, error: { code: "SUITE_NOT_FOUND" } };
+      return { ok: true, page: await transaction.testSuites.queryCases(query) };
+    });
   }
 
   /** Export complete current Case Definitions in frozen Ordinal order. */

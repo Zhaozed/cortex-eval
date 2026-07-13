@@ -14,7 +14,7 @@ Feature 内部用例、局部事务、状态变化和错误归对应 Feature 文
 
 ## 实现状态
 
-P2 已落地 Application 基础 Package、资源 Port、Kysely 托管事务边界、Test Suite/Case/Configuration 用例和离线 Execution 身份幂等原语。Run 阶段编排、完整结果导入、Case Analysis、外部 Adapter 与入口仍按后续阶段落地。
+P2 已落地 Application 基础 Package、资源 Port、Kysely 托管事务边界、Test Suite/Case/Configuration 用例和离线 Execution 身份幂等原语。P3 补充受控 staging Port、流式 Case 导入、Revision 一致导出和外部配置验证 Adapter 契约。Run 阶段编排、完整 Execution Result 导入和 Case Analysis 仍按后续阶段落地。
 
 ## 目标代码落点
 
@@ -27,6 +27,8 @@ P2 已落地 Application 基础 Package、资源 Port、Kysely 托管事务边�
 - [application-ports.ts](../../packages/application/src/application-ports.ts)：事务绑定 Repository、Clock 和 ID Port。
 - [case-definition-writer.ts](../../packages/application/src/features/test-suites/case-definition-writer.ts)：统一 Case 写入。
 - [configuration-service.ts](../../packages/application/src/features/configurations/configuration-service.ts)：四类配置资源用例。
+- [streaming-case-import-service.ts](../../packages/application/src/features/test-suites/streaming-case-import-service.ts)：逐项 staging 与最终原子提交。
+- [case-export-service.ts](../../packages/application/src/features/test-suites/case-export-service.ts)：Revision 一致、背压感知导出。
 - [import-execution-identity.ts](../../packages/application/src/features/execution-imports/import-execution-identity.ts)：P2 限定的 Execution 身份幂等原语。
 
 ## 当前样例与测试入口

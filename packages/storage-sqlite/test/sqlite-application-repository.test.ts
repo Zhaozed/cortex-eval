@@ -198,8 +198,12 @@ describe("SQLite Application Repository", () => {
     openStorages.push(storage);
     const service = new ConfigurationService({
       ...dependencies(storage, "endpoint-new"),
-      endpointValidator: { validate: (): Promise<void> => Promise.resolve() },
-      llmValidator: { validate: (): Promise<void> => Promise.resolve() }
+      endpointValidator: {
+        validate: (): Promise<{ readonly ok: true }> => Promise.resolve({ ok: true })
+      },
+      llmValidator: {
+        validate: (): Promise<{ readonly ok: true }> => Promise.resolve({ ok: true })
+      }
     });
     const endpointDefinition = {
       urlTemplate: "https://example.test/{{vars.task}}",

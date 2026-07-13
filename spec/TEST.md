@@ -12,8 +12,9 @@
 - [packages/domain/test](../packages/domain/test)：P1 纯 Case/Result、状态、Revision、统计、Proposal 和专用哈希输入。
 - [packages/application/test](../packages/application/test)：P2 资源用例、统一 Case Writer、Revision、引用、Cursor、导出和事务外验证。
 - [packages/storage-sqlite/test](../packages/storage-sqlite/test)：P2 十表、严格行映射与 Hash 对账、约束、权限、双连接/双进程竞争、Execution 幂等和千级性能。
+- [apps/local-server/test](../apps/local-server/test)：P3 资源 API、真实 SQLite 装配、安全入口、OpenAPI、配置 Probe、日志、Event Hub 和流式导入边界。
 
-Vitest、V8 覆盖率和架构测试已在 P0 落地。P2 已把 Application 与 Storage SQLite 纳入覆盖率范围。当前工具链核心行/函数覆盖率门禁为 90%，分支为 85%；各核心 Package 沿用该门禁，全仓最终门禁仍以本 Goal 全局要求为准。
+Vitest、V8 覆盖率和架构测试已在 P0 落地。P2 已把 Application 与 Storage SQLite 纳入覆盖率范围，P3 纳入 Local Server。当前全仓门禁为语句/行 90%、函数 90%、分支 85%；最终门禁仍以本 Goal 全局要求为准。
 
 - [tooling/test](../tooling/test)：Runtime Doctor、Fixture、Secret、文档、架构、能力矩阵、官方 SDK 契约、Promptfoo 真实进程和 Benchmark 测试。
 - [vitest.config.ts](../vitest.config.ts)：当前覆盖率范围与阈值。
@@ -74,6 +75,8 @@ Markdown 断言关注结构和事实，不对无关排版做脆弱快照。
 ## API、CLI 与 Web 测试
 
 API 覆盖 Cursor 分页、字段路径、稳定错误、Host、Origin 和脱敏。CLI 覆盖分阶段、Pipeline、机器输出、导出和导入。Web 覆盖资源管理、搜索过滤、分页、运行刷新恢复、取消、报告和分析修改闭环。
+
+P3 API 当前额外覆盖严格成功响应 DTO、六项 Analysis Prompt 变量、OpenAPI 精确 allowlist/漂移与所有 Route 403、真实 SQLite CRUD、Revision/唯一冲突、无未来 Route、服务关闭 Abort、Case 导入固定 200 MiB 边界与合法数组尾随空白超限不提交、低于 192 MiB RSS 增量、导出响应前冲突及临时文件正常/失败/取消清理。Endpoint/LLM Probe 以 Stub SDK 验证无凭据、无 Redirect、无自动重试、配置超时、双 Provider Thinking/结构输出映射和安全失败分类；真实回环 HTTP 验证 `NONE` 不发送 Authorization。Storage/Runtime 额外覆盖状态根 symlink 启动前不污染外部目录、临时根 symlink 不改动外部条目、未过 TTL 的 owner 初始化窗口，以及 owner/writer 故障注入后的句柄和工作区回收。
 
 入口测试证明协议转换与 Application 契约，不复制 Domain 单元测试组合。
 

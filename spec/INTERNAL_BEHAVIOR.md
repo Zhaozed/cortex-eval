@@ -10,6 +10,8 @@
 
 Test Suite 聚合包含当前 Suite 和 Cases。所有 Case 写入口共用同一写入流程，统一校验 Definition、Prompt 引用、筛选字段和哈希。
 
+全量 Case 导入只把单项保留在内存，逐项写外部 staging 并增量计算 Suite Hash；最终主库事务重新校验 Suite Revision 与 Rubric 引用后整体替换。导出冻结 Revision，并以 `(ordinal,id)` 顺序逐项读取，避免混合版本和完整数组常驻内存。
+
 Run 聚合包含 Run Log、Case Results 和 Eval Results。阶段开始、进度和最终提交使用独立条件事务，外部执行不跨事务。
 
 Case Analysis 是独立事实。应用建议时按 Analysis、Suite、Case、Rubric Prompt 的稳定顺序锁定和校验，再调用 Case 写入流程。
@@ -77,7 +79,9 @@ Secret 统一使用 EnvSecretRef，只在外部调用前从环境展开。数据
 - 当前 Contracts Snapshot 与 Execution 入口：[PACKAGES/CONTRACTS.md](PACKAGES/CONTRACTS.md)
 - 当前 REST 并发与原子写入入口：[data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)
 - 当前 REST 竞争与错误测试：[data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)
-- Application、SQLite 和 Work Package 文件运行时入口尚未落地。
+- 当前 Application 资源入口：[packages/application/src](../packages/application/src)
+- 当前 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
+- Work Package 文件运行时入口尚未落地。
 - [PACKAGES/DOMAIN.md](PACKAGES/DOMAIN.md)
 - [APPLICATION/OVERVIEW.md](APPLICATION/OVERVIEW.md)
 - [PACKAGES/STORAGE_SQLITE.md](PACKAGES/STORAGE_SQLITE.md)

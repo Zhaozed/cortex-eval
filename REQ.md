@@ -4,7 +4,7 @@
 
 本文档定义 Cortex Eval 本地版的产品目标、使用方式、业务对象、用户流程、UI 与 CLI 能力、报告口径、异常行为和验收标准。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P1 已冻结本文件涉及的纯 Contracts/Domain 协议，但未注册 API、OpenAPI、CLI 或 Web 能力。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。截至 P3，纯 Contracts/Domain、SQLite、资源 Application 用例和 Local Server 资源 API 已落地；OpenAPI 只注册资源管理闭环。Web、Run、Execution Import、Report、Analysis 和目标 CLI 仍未注册。
 
 技术选型、项目架构、模块边界、数据字段、工作包协议、事务、并发和测试设计以 `TECH.md` 为准。本文档不包含具体实现代码。
 
@@ -145,7 +145,7 @@ LLM 配置统一支持 `GOOGLE_GEMINI` 和 `OPENAI_COMPATIBLE`。OpenAI-compatib
 
 两类 Provider 使用相同推理接口和参数：`model`、`thinkingLevel`、`temperature`、`topP`、`maxOutputTokens` 和 `timeoutMs`。`thinkingLevel` 固定为 `OFF | LOW | MEDIUM | HIGH`，由 Adapter 映射到 Provider 协议；不支持时返回能力错误，不静默忽略。实现优先使用 Gemini 和 OpenAI 官方 SDK，不重复实现通用 Client。
 
-Gemini 使用环境变量 Secret 引用。OpenAI-compatible 使用 Base URL、`BEARER_ENV | NONE` 认证和环境变量 Secret 引用；远程地址必须使用 HTTPS 和 Bearer，`NONE` 只允许回环地址。Base URL 禁止 User Info、Query、Fragment 和任意自定义 Header。
+Gemini 使用环境变量 Secret 引用。OpenAI-compatible 使用 Base URL、`BEARER_ENV | NONE` 认证和环境变量 Secret 引用；远程地址必须使用 HTTPS 和 Bearer，`NONE` 只允许回环地址且请求不得携带 `Authorization`。Base URL 禁止 User Info、Query、Fragment 和任意自定义 Header。
 
 Analyzer 结构输出能力显式配置为 `JSON_SCHEMA` 或 `JSON_OBJECT`，默认 `JSON_OBJECT`。执行不自动降级、不自动重试；所有响应最终通过统一结构契约。
 
@@ -275,6 +275,7 @@ Web 使用简体中文，面向宽度不低于 1024px 的桌面技术用户，�
 
 - 列表展示名称、描述、Case 数、更新时间和最近运行状态。
 - 支持创建空测试集、从 JSON 导入和导出当前定义。
+- Case JSON 导入上限为 200 MiB；大小判定必须在主库最终提交前完成，包含“合法数组后仅有尾随空白”的超限输入，拒绝时不得产生 Case 或 Revision 变化。导出必须保持同一 Suite Revision，完整校验成功后才打开成功响应，并使用受控临时文件保持有界内存。
 - 删除前展示影响范围并二次确认。
 - 正在运行使用的测试集禁止删除。
 
@@ -644,7 +645,7 @@ Proposal 使用判别联合明确动作和目标：
 - 工作包目录默认仅当前用户可访问，文件默认仅当前用户可读写。
 - 工作包虽然不含 API Key，但可能包含 Case、请求、Provider Output 和模型分析等敏感业务数据。
 - 外部 JSON 在进入核心逻辑前必须完成结构校验。可信内联 Assertion 由 Promptfoo 执行，不做代码安全检测或沙箱承诺。
-- 临时目录和文件使用受控名称，禁止路径逃逸和符号链接逃逸。
+- 平台状态根、数据库目录、临时目录和文件使用受控名称；任何 mkdir、chmod、数据库打开或清理前必须拒绝路径逃逸和符号链接逃逸，不得修改项目根外内容。
 - Promptfoo 使用固定参数启动，不通过 Shell 拼接用户输入。
 - 日志不记录完整 Vars、Provider Output、Prompt、Secret 或第三方堆栈。
 - 日志以单行中文可读文本记录安全字段，单文件 10 MiB 轮转并保留最近 10 个文件；日志写入失败只做脱敏 stderr 降级，不改变业务事实。

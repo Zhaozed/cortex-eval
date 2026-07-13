@@ -28,7 +28,7 @@
 - [x] [P0：事实源、工具链与契约探针](P0_BASELINE_AND_CONTRACTS.md) — `COMPLETED`
 - [x] [P1：Contracts 与 Domain](P1_CONTRACTS_AND_DOMAIN.md) — `COMPLETED`
 - [x] [P2：SQLite 与 Application 基础](P2_STORAGE_AND_APPLICATION.md) — `COMPLETED`
-- [ ] [P3：Local API 与资源管理](P3_LOCAL_API_AND_RESOURCES.md) — `PENDING`
+- [x] [P3：Local API 与资源管理](P3_LOCAL_API_AND_RESOURCES.md) — `COMPLETED`
 - [ ] [P4：Web 资源管理界面](P4_WEB_RESOURCE_UI.md) — `PENDING`
 - [ ] [P5：Run 与 REST 闭环](P5_RUN_AND_REST.md) — `PENDING`
 - [ ] [P6：Promptfoo Evaluation 闭环](P6_PROMPTFOO_EVALUATION.md) — `PENDING`

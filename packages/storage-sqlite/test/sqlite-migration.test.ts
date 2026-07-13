@@ -1,4 +1,13 @@
-import { chmod, mkdtemp, mkdir, stat } from "node:fs/promises";
+import {
+  chmod,
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  stat,
+  symlink,
+  writeFile
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -18,6 +27,49 @@ afterEach(async () => {
 });
 
 describe("SQLite 初始化与 Migration", () => {
+  it("db 目录符号链接在任何外部目录修改前拒绝", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-symlink-"));
+    const external = await mkdtemp(join(tmpdir(), "cortex-storage-external-"));
+    const stateDirectory = join(projectRoot, ".cortex-eval");
+    await mkdir(stateDirectory, { mode: 0o700 });
+    await symlink(external, join(stateDirectory, "db"), "dir");
+
+    await expect(initializeSqliteStorage({ projectRoot })).rejects.toMatchObject({
+      code: "SQLITE_INITIALIZATION_FAILED"
+    });
+    expect(await readdir(external)).toEqual([]);
+  });
+
+  it("主库文件符号链接不会改动项目外文件", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-symlink-"));
+    const external = await mkdtemp(join(tmpdir(), "cortex-storage-external-"));
+    const databasePath = resolveDefaultDatabasePath(projectRoot);
+    await mkdir(dirname(databasePath), { recursive: true, mode: 0o700 });
+    const sentinel = join(external, "sentinel");
+    await writeFile(sentinel, "keep", "utf8");
+    await symlink(sentinel, databasePath, "file");
+
+    await expect(initializeSqliteStorage({ projectRoot })).rejects.toMatchObject({
+      code: "SQLITE_INITIALIZATION_FAILED"
+    });
+    expect(await readFile(sentinel, "utf8")).toBe("keep");
+  });
+
+  it("WAL 符号链接在打开主库前拒绝且不改动项目外文件", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-symlink-"));
+    const external = await mkdtemp(join(tmpdir(), "cortex-storage-external-"));
+    const databasePath = resolveDefaultDatabasePath(projectRoot);
+    await mkdir(dirname(databasePath), { recursive: true, mode: 0o700 });
+    const sentinel = join(external, "sentinel");
+    await writeFile(sentinel, "keep", "utf8");
+    await symlink(sentinel, `${databasePath}-wal`, "file");
+
+    await expect(initializeSqliteStorage({ projectRoot })).rejects.toMatchObject({
+      code: "SQLITE_INITIALIZATION_FAILED"
+    });
+    expect(await readFile(sentinel, "utf8")).toBe("keep");
+  });
+
   it("创建恰好十张业务表并显式保留 Kysely Migration 元数据表", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-"));
     const storage = await initializeSqliteStorage({ projectRoot });

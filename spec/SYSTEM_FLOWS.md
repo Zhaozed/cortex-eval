@@ -6,7 +6,7 @@
 
 ## 资源写入
 
-P2 已实现内部资源写入与读取用例，但尚未注册 HTTP、CLI 或 Web 能力。所有当前资源更新使用独立 Revision；Case 创建、编辑、复制、删除、全量替换与建议接受入口共用 CaseDefinitionWriter。
+P3 已把当前资源用例注册为严格 HTTP API；目标 CLI 与 Web 仍未落地。所有当前资源更新使用独立 Revision；Case 创建、编辑、复制、删除、全量替换与未来建议接受入口共用 CaseDefinitionWriter。
 
 1. Entrypoint 校验外部协议并映射为 Application 输入。
 2. Application 调用统一 Case Definition Writer 或配置用例。
@@ -14,7 +14,7 @@ P2 已实现内部资源写入与读取用例，但尚未注册 HTTP、CLI 或 W
 4. 系统派生筛选字段和规范化哈希。
 5. Repository 在短事务中写入当前资源并完成对账。
 
-导入测试集采用整体校验和整体提交。当前资源只保存当前值，不建立版本历史。删除或替换当前资源不改变历史运行快照。
+导入测试集按流逐项校验并写入受控外部 staging，全部通过后在一个最终主库短事务中整体提交。导出先冻结 Suite Revision，再按背压逐 Case 短事务读取；Revision 改变即中止。当前资源只保存当前值，不建立版本历史。删除或替换当前资源不改变历史运行快照。
 
 ## 创建运行与冻结输入
 
@@ -93,6 +93,8 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 - 目标流程来源：[REQ.md](../REQ.md) 与 [TECH.md](../TECH.md)
 - 当前 REST 流程实现：[data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)
 - 当前 REST 流程测试：[data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)
+- 当前 P3 资源 API：[apps/local-server/src](../apps/local-server/src)
+- 当前 P3 API 测试：[apps/local-server/test](../apps/local-server/test)
 - 目标 Run、Importer、Reporting 和 Work Package 代码入口尚未落地。
 - [APPLICATION/RUNS.md](APPLICATION/RUNS.md)
 - [APPLICATION/EXECUTION_IMPORTS.md](APPLICATION/EXECUTION_IMPORTS.md)

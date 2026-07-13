@@ -10,11 +10,16 @@ import type {
   CaseQuery,
   CaseQueryPage,
   StoredTestCase,
-  TestSuite
+  TestSuite,
+  TestSuiteQuery,
+  TestSuiteQueryPage
 } from "@cortex-eval/application/src/features/test-suites/test-suite-models.ts";
 import type {
+  ConfigurationQuery,
+  ConfigurationQueryPage,
   ConfigurationResource,
-  ConfigurationResourceKind
+  ConfigurationResourceKind,
+  RubricPromptReference
 } from "@cortex-eval/application/src/features/configurations/configuration-models.ts";
 import type {
   ExistingImportedExecution,
@@ -108,6 +113,41 @@ export class SqliteTestSuiteRepository implements TestSuiteRepository {
     return rows.map(mapSuite);
   }
 
+  /** Query one small Suite page without loading Cases. */
+  public async querySuites(query: TestSuiteQuery): Promise<TestSuiteQueryPage> {
+    let builder = this.#database
+      .selectFrom("test_suite")
+      .select(["id", "name", "description", "case_count", "revision", "updated_at"]);
+    if (query.afterCursor !== undefined) {
+      const cursor = query.afterCursor;
+      builder = builder.where((expression) =>
+        expression.or([
+          expression("name", ">", cursor.name),
+          expression.and([expression("name", "=", cursor.name), expression("id", ">", cursor.id)])
+        ])
+      );
+    }
+    const rows = await builder
+      .orderBy("name")
+      .orderBy("id")
+      .limit(query.limit + 1)
+      .execute();
+    const hasNext = rows.length > query.limit;
+    const items = rows.slice(0, query.limit).map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      caseCount: row.case_count,
+      revision: row.revision,
+      updatedAt: row.updated_at
+    }));
+    const last = items.at(-1);
+    return {
+      items,
+      nextCursor: hasNext && last !== undefined ? { name: last.name, id: last.id } : null
+    };
+  }
+
   /** Read and strictly map one current Case. */
   public async getCase(suiteId: string, caseKey: string): Promise<StoredTestCase | null> {
     const row = await this.#database
@@ -136,45 +176,57 @@ export class SqliteTestSuiteRepository implements TestSuiteRepository {
       .selectFrom("test_case")
       .selectAll()
       .where("suite_id", "=", query.suiteId);
-    if (query.afterOrdinal !== undefined)
-      builder = builder.where("ordinal", ">", query.afterOrdinal);
+    if (query.afterCursor !== undefined) {
+      const cursor = query.afterCursor;
+      builder = builder.where((expression) =>
+        expression.or([
+          expression("ordinal", ">", cursor.ordinal),
+          expression.and([
+            expression("ordinal", "=", cursor.ordinal),
+            expression("id", ">", cursor.id)
+          ])
+        ])
+      );
+    }
     if (query.caseKeyContains !== undefined) {
       builder = builder.where(
         sql<boolean>`instr(lower(test_case.case_key), lower(${query.caseKeyContains})) > 0`
       );
     }
-    if (query.businessModule !== undefined) {
-      builder = builder.where("business_module", "=", query.businessModule);
+    if (query.businessModules !== undefined && query.businessModules.length > 0) {
+      builder = builder.where("business_module", "in", [...query.businessModules]);
     }
     if (query.descriptionContains !== undefined) {
       builder = builder.where(
         sql<boolean>`instr(lower(test_case.description), lower(${query.descriptionContains})) > 0`
       );
     }
-    if (query.scenarioTag !== undefined) {
-      builder = builder.where("scenario_tag", "=", query.scenarioTag);
+    if (query.scenarioTags !== undefined && query.scenarioTags.length > 0) {
+      builder = builder.where("scenario_tag", "in", [...query.scenarioTags]);
     }
-    if (query.assertionType !== undefined) {
+    if (query.assertionTypes !== undefined && query.assertionTypes.length > 0) {
       builder = builder.where(sql<boolean>`EXISTS (
         SELECT 1 FROM json_each(test_case.assertion_types_json)
-        WHERE json_each.value = ${query.assertionType}
+        WHERE json_each.value IN (${sql.join(query.assertionTypes)})
       )`);
     }
-    if (query.metric !== undefined) {
+    if (query.metrics !== undefined && query.metrics.length > 0) {
       builder = builder.where(sql<boolean>`EXISTS (
         SELECT 1 FROM json_each(test_case.metrics_json)
-        WHERE json_each.value = ${query.metric}
+        WHERE json_each.value IN (${sql.join(query.metrics)})
       )`);
     }
     const rows = await builder
       .orderBy("ordinal")
+      .orderBy("id")
       .limit(query.limit + 1)
       .execute();
     const hasNext = rows.length > query.limit;
     const items = rows.slice(0, query.limit).map(mapStoredTestCase);
+    const last = items.at(-1);
     return {
       items,
-      nextAfterOrdinal: hasNext ? (items.at(-1)?.ordinal ?? null) : null
+      nextCursor: hasNext && last !== undefined ? { ordinal: last.ordinal, id: last.id } : null
     };
   }
 
@@ -464,6 +516,46 @@ export class SqliteConfigurationRepository implements ConfigurationRepository {
     return rows.map(mapAnalysisPromptResource);
   }
 
+  /** Query one small Configuration page without reading definition JSON. */
+  public async queryResources(query: ConfigurationQuery): Promise<ConfigurationQueryPage> {
+    const table =
+      query.kind === "ENDPOINT"
+        ? "endpoint_config"
+        : query.kind === "LLM"
+          ? "llm_config"
+          : query.kind === "LLM_RUBRIC_PROMPT"
+            ? "llm_rubric_prompt"
+            : "case_analysis_prompt";
+    let builder = this.#database.selectFrom(table).select(["id", "name", "revision", "updated_at"]);
+    if (query.afterCursor !== undefined) {
+      const cursor = query.afterCursor;
+      builder = builder.where((expression) =>
+        expression.or([
+          expression("name", ">", cursor.name),
+          expression.and([expression("name", "=", cursor.name), expression("id", ">", cursor.id)])
+        ])
+      );
+    }
+    const rows = await builder
+      .orderBy("name")
+      .orderBy("id")
+      .limit(query.limit + 1)
+      .execute();
+    const hasNext = rows.length > query.limit;
+    const items = rows.slice(0, query.limit).map((row) => ({
+      kind: query.kind,
+      id: row.id,
+      name: row.name,
+      revision: row.revision,
+      updatedAt: row.updated_at
+    }));
+    const last = items.at(-1);
+    return {
+      items,
+      nextCursor: hasNext && last !== undefined ? { name: last.name, id: last.id } : null
+    };
+  }
+
   /** Insert one prepared resource and map race-safe unique conflicts. */
   public async insertResource(
     value: ConfigurationResource
@@ -721,6 +813,19 @@ export class SqliteConfigurationRepository implements ConfigurationRepository {
       LIMIT 1
     `.execute(this.#database);
     return result.rows.length > 0;
+  }
+
+  /** List current Case references to one Rubric Prompt key. */
+  public async listRubricPromptReferences(
+    promptKey: string
+  ): Promise<readonly RubricPromptReference[]> {
+    const result = await sql<{ readonly suite_id: string; readonly case_key: string }>`
+      SELECT test_case.suite_id, test_case.case_key
+      FROM test_case, json_each(test_case.rubric_prompt_keys_json)
+      WHERE json_each.value = ${promptKey}
+      ORDER BY test_case.suite_id, test_case.case_key
+    `.execute(this.#database);
+    return result.rows.map((row) => ({ suiteId: row.suite_id, caseKey: row.case_key }));
   }
 }
 

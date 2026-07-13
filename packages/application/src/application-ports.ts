@@ -1,12 +1,17 @@
 import type {
   StoredTestCase,
   TestSuite,
+  TestSuiteQuery,
+  TestSuiteQueryPage,
   CaseQuery,
   CaseQueryPage
 } from "./features/test-suites/test-suite-models.ts";
 import type {
+  ConfigurationQuery,
+  ConfigurationQueryPage,
   ConfigurationResource,
-  ConfigurationResourceKind
+  ConfigurationResourceKind,
+  RubricPromptReference
 } from "./features/configurations/configuration-models.ts";
 import type {
   ExistingImportedExecution,
@@ -21,6 +26,8 @@ export interface TestSuiteRepository {
   getSuite(suiteId: string): Promise<TestSuite | null>;
   /** List all current Suites in stable display order. */
   listSuites(): Promise<readonly TestSuite[]>;
+  /** Query one small current Suite page without loading Case definitions. */
+  querySuites(query: TestSuiteQuery): Promise<TestSuiteQueryPage>;
   /** Read one current Case by stable key. */
   getCase(suiteId: string, caseKey: string): Promise<StoredTestCase | null>;
   /** Read all current Cases in Ordinal order. */
@@ -81,6 +88,8 @@ export interface ConfigurationRepository {
   getResource(kind: ConfigurationResourceKind, id: string): Promise<ConfigurationResource | null>;
   /** List one current Configuration resource family. */
   listResources(kind: ConfigurationResourceKind): Promise<readonly ConfigurationResource[]>;
+  /** Query one small current Configuration page without loading definitions. */
+  queryResources(query: ConfigurationQuery): Promise<ConfigurationQueryPage>;
   /** Insert one prepared current Configuration resource. */
   insertResource(
     value: ConfigurationResource
@@ -98,6 +107,8 @@ export interface ConfigurationRepository {
   ): Promise<boolean>;
   /** Check whether a current Case references one Rubric Prompt key. */
   isRubricPromptReferenced(promptKey: string): Promise<boolean>;
+  /** List current Case references to one Rubric Prompt key. */
+  listRubricPromptReferences(promptKey: string): Promise<readonly RubricPromptReference[]>;
 }
 
 /** Repository set exposed to a managed short transaction callback. */
@@ -126,4 +137,34 @@ export interface Clock {
 export interface IdGenerator {
   /** Return one new internal identity. */
   nextId(): string;
+}
+
+/** Transaction-bound access to one external Case import staging database. */
+export interface StagedCaseRepository {
+  /** Return the first Case whose Rubric Prompt key is absent from current resources. */
+  findFirstMissingRubricPrompt(): Promise<{
+    readonly index: number;
+    readonly caseKey: string;
+    readonly promptKey: string;
+  } | null>;
+  /** Atomically replace one Suite's current Cases from staging. */
+  replaceCases(suiteId: string): Promise<void>;
+}
+
+/** One bounded external staging workspace. */
+export interface CaseImportStagingSession {
+  /** Persist one already-prepared Case or reject a duplicate Suite-local key. */
+  stage(value: StoredTestCase): Promise<"STAGED" | "CASE_ID_DUPLICATE">;
+  /** Lease one main connection, attach staging read-only and execute one transaction. */
+  withStagedTransaction<T>(
+    work: (transaction: ApplicationTransaction, stagedCases: StagedCaseRepository) => Promise<T>
+  ): Promise<T>;
+  /** Close handles and remove only this owned workspace. */
+  cleanup(): Promise<void>;
+}
+
+/** Factory for isolated Case import staging sessions. */
+export interface CaseImportStagingFactory {
+  /** Create one owner-identified staging workspace. */
+  open(): Promise<CaseImportStagingSession>;
 }

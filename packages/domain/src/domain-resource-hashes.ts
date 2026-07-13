@@ -1,4 +1,10 @@
-import { sha256CanonicalJson, type DomainJsonObject } from "./domain-canonical-hash.ts";
+import { createHash, type Hash } from "node:crypto";
+
+import {
+  canonicalJson,
+  sha256CanonicalJson,
+  type DomainJsonObject
+} from "./domain-canonical-hash.ts";
 import type {
   EndpointConfigDefinition,
   LlmConfigDefinition,
@@ -21,6 +27,43 @@ export interface SuiteHashInput {
   readonly contractVersion: "cortex.suite.v1";
   /** Complete current Case identity set. */
   readonly cases: readonly SuiteCaseHashFact[];
+}
+
+/** Bounded-memory Suite hasher equivalent to the complete RFC 8785 projection. */
+export class IncrementalSuiteHasher {
+  readonly #hash: Hash;
+  #count = 0;
+  #finalized = false;
+
+  /** Start one empty Suite v1 canonical stream. */
+  public constructor() {
+    this.#hash = createHash("sha256");
+    this.#hash.update('{"cases":[', "utf8");
+  }
+
+  /** Append the next exact Ordinal Case identity. */
+  public append(value: SuiteCaseHashFact): void {
+    if (this.#finalized) throw new Error("SUITE_HASH_FINALIZED");
+    if (value.ordinal !== this.#count) throw new Error("SUITE_HASH_ORDINAL_INVALID");
+    if (this.#count > 0) this.#hash.update(",", "utf8");
+    this.#hash.update(
+      canonicalJson({
+        caseKey: value.caseKey,
+        definitionHash: value.definitionHash,
+        ordinal: value.ordinal
+      }),
+      "utf8"
+    );
+    this.#count += 1;
+  }
+
+  /** Finalize once and return the lowercase SHA-256 digest. */
+  public digest(): string {
+    if (this.#finalized) throw new Error("SUITE_HASH_FINALIZED");
+    this.#finalized = true;
+    this.#hash.update('],"contractVersion":"cortex.suite.v1"}', "utf8");
+    return this.#hash.digest("hex");
+  }
 }
 
 /** Endpoint semantic identity input. */

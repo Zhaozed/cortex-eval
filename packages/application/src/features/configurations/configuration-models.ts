@@ -9,6 +9,19 @@ import type {
 export type ConfigurationResourceKind =
   "ENDPOINT" | "LLM" | "LLM_RUBRIC_PROMPT" | "CASE_ANALYSIS_PROMPT";
 
+/** Current Case reference to one Rubric Prompt key. */
+export interface RubricPromptReference {
+  /** Referencing Test Suite identity. */
+  readonly suiteId: string;
+  /** Referencing Suite-local Case key. */
+  readonly caseKey: string;
+}
+
+/** Exact Rubric Prompt reference query result. */
+export type RubricPromptReferenceResult =
+  | { readonly ok: true; readonly items: readonly RubricPromptReference[] }
+  | { readonly ok: false; readonly error: { readonly code: "CONFIGURATION_NOT_FOUND" } };
+
 /** Fields shared by all current Configuration resources. */
 interface ConfigurationResourceBase {
   /** Internal identity. */
@@ -63,6 +76,57 @@ export type ConfigurationResource =
   | LlmConfigurationResource
   | RubricPromptResource
   | AnalysisPromptResource;
+
+/** Small current Configuration list projection. */
+export interface ConfigurationResourceSummary {
+  /** Resource family discriminator. */
+  readonly kind: ConfigurationResourceKind;
+  /** Internal identity. */
+  readonly id: string;
+  /** Display name. */
+  readonly name: string;
+  /** Optimistic-concurrency token. */
+  readonly revision: number;
+  /** Last update time. */
+  readonly updatedAt: string;
+}
+
+/** Stable current Configuration list position. */
+export interface ConfigurationPageCursor {
+  /** Last display name. */
+  readonly name: string;
+  /** Last internal ID tie-breaker. */
+  readonly id: string;
+}
+
+/** Current Configuration list query. */
+export interface ConfigurationQuery {
+  /** Resource family. */
+  readonly kind: ConfigurationResourceKind;
+  /** Maximum page size. */
+  readonly limit: number;
+  /** Return resources strictly after this stable sort tuple. */
+  readonly afterCursor?: ConfigurationPageCursor | undefined;
+}
+
+/** Stable current Configuration page. */
+export interface ConfigurationQueryPage {
+  /** Small ordered list projections. */
+  readonly items: readonly ConfigurationResourceSummary[];
+  /** Next stable cursor when another page exists. */
+  readonly nextCursor: ConfigurationPageCursor | null;
+}
+
+/** Validated Configuration list result. */
+export type ConfigurationQueryResult =
+  | { readonly ok: true; readonly page: ConfigurationQueryPage }
+  | {
+      readonly ok: false;
+      readonly error: {
+        readonly code: "CONFIGURATION_QUERY_INVALID";
+        readonly path: "limit" | "afterCursor.name" | "afterCursor.id";
+      };
+    };
 
 /** Stable Configuration use-case error. */
 export type ConfigurationError =

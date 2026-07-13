@@ -6,7 +6,7 @@
 
 产品行为和验收口径以 `REQ.md` 为准。本文档不包含具体实现代码。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P1 已落地 Contracts、Domain、Work Package v1、Evaluator Bridge 和 Canonical Export v1 的纯协议事实；持久化、运行时 Adapter 与入口能力仍按后续阶段推进。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。截至 P3，Contracts、Domain、十表 SQLite、资源 Application 用例和 Local Server 资源 API 已落地；Work Package、Evaluator Bridge 和 Canonical Export 仍只有纯协议。Web、Run、Evaluation、Report、Analysis 和目标 CLI 入口按后续阶段推进。
 
 ## 2. 总体结论
 
@@ -463,7 +463,7 @@ Revision 独立于 Config Hash。Config Hash 包含 Provider、Model、统一 Op
 
 Options JSON 使用 Provider 白名单 Schema，并在读取时拒绝未知字段、非法枚举与认证联合不匹配的 Secret 形状。任意层级出现 `apiKey`、`token`、`secret`、`password`、`credential`、`authorization` 或同义字段时拒绝保存，Secret 只能通过独立 EnvSecretRef 字段提供。四类配置的持久化行都必须重新计算语义 Hash 并与存储值一致。
 
-Provider Type 只允许 `GOOGLE_GEMINI` 和 `OPENAI_COMPATIBLE`。两者统一公开 `model`、`thinkingLevel`、`temperature`、`topP`、`maxOutputTokens` 和 `timeoutMs`。OpenAI-compatible 只实现 Chat Completions；远程 Base URL 必须使用 HTTPS 与 Bearer EnvSecretRef，本地回环可显式选择无认证。Analyzer 结构输出能力显式为 `JSON_SCHEMA | JSON_OBJECT`。
+Provider Type 只允许 `GOOGLE_GEMINI` 和 `OPENAI_COMPATIBLE`。两者统一公开 `model`、`thinkingLevel`、`temperature`、`topP`、`maxOutputTokens` 和 `timeoutMs`。OpenAI-compatible 只实现 Chat Completions，把 `OFF | LOW | MEDIUM | HIGH` 映射为 `reasoning_effort: none | low | medium | high`；Provider 以 400/422 拒绝统一能力参数时返回 `CAPABILITY_UNSUPPORTED`，不得静默忽略。远程 Base URL 必须使用 HTTPS 与 Bearer EnvSecretRef；本地回环可显式选择无认证，此时 SDK 请求必须显式移除 `Authorization`。Analyzer 结构输出能力显式为 `JSON_SCHEMA | JSON_OBJECT`。
 
 ### 7.5 llm_rubric_prompt
 
@@ -906,6 +906,8 @@ Analysis Status 为 `PENDING | RUNNING | SUCCEEDED | ERROR`。Decision 为 `NO_P
 列表使用不透明版本化 Cursor 分页，默认 50、最大 200。稳定排序必须包含内部 ID Tie-breaker；Case 默认使用 Ordinal。字段间过滤为 AND，同字段多值为 OR，文本搜索使用转义后的大小写不敏感字面子串，其他筛选使用精确成员。大 JSON 只在详情返回。写请求返回稳定 Error Code 和字段路径。
 
 API 固定前缀为 `/api/v1`，同源默认地址为 `127.0.0.1:4310`。Fastify Schema 生成并提交 OpenAPI JSON。能力采用阶段注册：未闭环的 Run、Eval、Report 或 Analysis Route 不存在于 OpenAPI。
+
+P3 当前只注册 Test Suite、Case、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 的资源 CRUD、Case 导入导出、配置验证与 Prompt 预览/引用查询。请求与成功响应均由严格 Zod DTO 投影为 Runtime/OpenAPI Schema；Host/Origin 拒绝可能发生在所有 Route，因此所有操作均声明闭合 403 响应。Case 导入逐项流式校验并写入独立 SQLite staging 文件，multipart 截断事实作为定义流结束条件参与最终提交，随后才在主库同一连接的短事务中整体替换；staging 不是业务表，失败、取消和完成后均按 owner 身份清理。Case 导出先把固定 Suite Revision 的 JSON 流写入 owner-only `0600` 临时文件，完整一致性校验成功后才打开 200 响应；正常完成、取消和准备失败均按 owner 身份清理，内存只保留单 Case 或流缓冲块。SQLite 在创建状态/db 目录或打开数据库前验证 `.cortex-eval`、`db` 与现有数据库/WAL/SHM 不是符号链接并保持 canonical 项目 containment；临时根执行相同约束。无 owner 的新目录未过 TTL 时视为可能仍在初始化，不隔离。
 
 运行 API 支持创建、启动当前阶段、一键运行、查询进度、取消、生成报告和发起分析。
 

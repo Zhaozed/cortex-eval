@@ -31,6 +31,31 @@ const gemini: LlmConfigDefinition = {
 };
 
 describe("ConfigurationService", () => {
+  it("配置列表返回稳定名称/ID Cursor 摘要，不携带完整定义", async () => {
+    const store = new InMemoryApplicationStore();
+    const service = new ConfigurationService(store.configurationDependencies());
+    for (const name of ["Beta", "Alpha", "Gamma"]) {
+      const result = await service.create({
+        kind: "ENDPOINT",
+        name,
+        definition: endpoint
+      });
+      expect(result.ok).toBe(true);
+    }
+
+    const page = await service.query({ kind: "ENDPOINT", limit: 2 });
+    expect(page).toMatchObject({
+      ok: true,
+      page: {
+        items: [{ name: "Alpha" }, { name: "Beta" }],
+        nextCursor: { name: "Beta" }
+      }
+    });
+    if (page.ok) {
+      expect(page.page.items.every((item) => !("definition" in item))).toBe(true);
+      expect(typeof page.page.nextCursor?.id).toBe("string");
+    }
+  });
   it("创建和更新 Endpoint 时使用独立 Revision，显示名称变化也能检测旧 Token", async () => {
     const store = new InMemoryApplicationStore();
     const service = new ConfigurationService(store.configurationDependencies());
@@ -141,15 +166,15 @@ describe("ConfigurationService", () => {
     const service = new ConfigurationService({
       ...store.configurationDependencies(),
       endpointValidator: {
-        validate: (): Promise<void> => {
+        validate: (): Promise<{ readonly ok: true }> => {
           calls.push("endpoint");
-          return Promise.resolve();
+          return Promise.resolve({ ok: true as const });
         }
       },
       llmValidator: {
-        validate: (): Promise<void> => {
+        validate: (): Promise<{ readonly ok: true }> => {
           calls.push("llm");
-          return Promise.resolve();
+          return Promise.resolve({ ok: true as const });
         }
       }
     });
@@ -163,8 +188,9 @@ describe("ConfigurationService", () => {
       "run_context"
     ]);
     const transactionCount = store.transactionCount;
-    await service.validateEndpoint(endpoint);
-    await service.validateLlm(gemini);
+    const signal = new AbortController().signal;
+    expect(await service.validateEndpoint(endpoint, signal)).toEqual({ ok: true });
+    expect(await service.validateLlm(gemini, signal)).toEqual({ ok: true });
     expect(calls).toEqual(["endpoint", "llm"]);
     expect(store.transactionCount).toBe(transactionCount);
   });
@@ -279,9 +305,50 @@ describe("ConfigurationService", () => {
       messages: [{ role: "USER", content: "{{unknown}}" }]
     };
     expect(service.previewAnalysisPromptVariables(invalidPrompt)).toEqual([]);
-    await expect(service.validateEndpoint({ ...endpoint, timeoutMs: 1 })).rejects.toThrow(
-      "ENDPOINT_CONFIG_INVALID"
+    expect(
+      await service.validateEndpoint({ ...endpoint, timeoutMs: 1 }, new AbortController().signal)
+    ).toEqual({
+      ok: false,
+      error: { code: "ENDPOINT_CONFIG_INVALID", path: "timeoutMs" }
+    });
+    expect(await service.validateLlm({ ...gemini, topP: 2 }, new AbortController().signal)).toEqual(
+      {
+        ok: false,
+        error: { code: "LLM_CONFIG_INVALID", path: "topP" }
+      }
     );
-    await expect(service.validateLlm({ ...gemini, topP: 2 })).rejects.toThrow("LLM_CONFIG_INVALID");
+  });
+
+  it("外部配置验证使用显式结果和 AbortSignal，不把 Adapter 异常契约化", async () => {
+    const store = new InMemoryApplicationStore();
+    const dependencies = store.configurationDependencies();
+    const signal = new AbortController().signal;
+    const service = new ConfigurationService({
+      ...dependencies,
+      endpointValidator: {
+        validate: (
+          value,
+          receivedSignal
+        ): Promise<{
+          readonly ok: false;
+          readonly error: {
+            readonly code: "CONFIGURATION_PROBE_FAILED";
+            readonly reason: "UNAVAILABLE";
+          };
+        }> => {
+          expect(value).toEqual(endpoint);
+          expect(receivedSignal).toBe(signal);
+          return Promise.resolve({
+            ok: false,
+            error: { code: "CONFIGURATION_PROBE_FAILED", reason: "UNAVAILABLE" }
+          });
+        }
+      }
+    });
+
+    expect(await service.validateEndpoint(endpoint, signal)).toEqual({
+      ok: false,
+      error: { code: "CONFIGURATION_PROBE_FAILED", reason: "UNAVAILABLE" }
+    });
   });
 });

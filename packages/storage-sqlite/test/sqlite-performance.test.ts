@@ -79,10 +79,10 @@ describe("SQLite 千级 Case 性能门禁", () => {
         const page = await storage.createTransactionManager().execute(async (transaction) =>
           transaction.testSuites.queryCases({
             suiteId: "suite-1",
-            businessModule: "chat",
-            scenarioTag: "smoke",
-            assertionType: "contains",
-            metric: "quality",
+            businessModules: ["chat"],
+            scenarioTags: ["smoke"],
+            assertionTypes: ["contains"],
+            metrics: ["quality"],
             limit: 50
           })
         );

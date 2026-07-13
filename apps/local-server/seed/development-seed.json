@@ -1,0 +1,106 @@
+{
+  "contractVersion": "cortex.development-seed.v1",
+  "suite": {
+    "name": "开发示例测试集",
+    "description": "仅用于本地开发的最小资源闭环",
+    "cases": [
+      {
+        "contractVersion": "cortex.case-definition.v1",
+        "description": "最小连通性示例",
+        "threshold": 1,
+        "vars": {
+          "task": "probe",
+          "request_body": {
+            "text": "hello"
+          }
+        },
+        "metadata": {
+          "case_id": "DEV-001",
+          "req_id": "DEV-REQ-001",
+          "task_id": "DEV-TASK-001",
+          "business_module": "development",
+          "scenario_tag": "smoke"
+        },
+        "assert": [
+          {
+            "type": "llm-rubric",
+            "metric": "quality",
+            "weight": 1,
+            "rubricPrompt": "prompt://development-quality"
+          }
+        ]
+      }
+    ]
+  },
+  "endpointConfigs": [
+    {
+      "name": "开发示例 Endpoint",
+      "definition": {
+        "contractVersion": "cortex.endpoint-config.v1",
+        "urlTemplate": "http://localhost:8082/run_llm_task/{{vars.task}}",
+        "method": "POST",
+        "headers": {
+          "Content-Type": {
+            "kind": "LITERAL",
+            "value": "application/json"
+          }
+        },
+        "bodySelector": "/request_body",
+        "timeoutMs": 60000,
+        "defaultConcurrency": 4
+      }
+    }
+  ],
+  "llmConfigs": [
+    {
+      "name": "开发示例 Gemini",
+      "definition": {
+        "contractVersion": "cortex.llm-config.v1",
+        "providerType": "GOOGLE_GEMINI",
+        "model": "gemini-2.5-flash",
+        "thinkingLevel": "LOW",
+        "temperature": 0,
+        "topP": 1,
+        "maxOutputTokens": 1024,
+        "timeoutMs": 60000,
+        "structuredOutput": "JSON_SCHEMA",
+        "apiKey": {
+          "kind": "ENV_SECRET",
+          "envKey": "GEMINI_API_KEY"
+        }
+      }
+    }
+  ],
+  "rubricPrompts": [
+    {
+      "name": "开发示例质量 Rubric",
+      "definition": {
+        "contractVersion": "cortex.prompt.v1",
+        "kind": "LLM_RUBRIC",
+        "promptKey": "development-quality",
+        "messages": [
+          {
+            "role": "SYSTEM",
+            "content": "判断输出是否满足示例要求。"
+          }
+        ]
+      }
+    }
+  ],
+  "analysisPrompts": [
+    {
+      "name": "开发示例分析 Prompt",
+      "definition": {
+        "contractVersion": "cortex.prompt.v1",
+        "kind": "CASE_ANALYSIS",
+        "promptKey": "development-analysis",
+        "messages": [
+          {
+            "role": "USER",
+            "content": "分析 {{case_definition}} 与 {{run_context}}。"
+          }
+        ]
+      }
+    }
+  ]
+}

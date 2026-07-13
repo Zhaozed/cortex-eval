@@ -1,13 +1,4 @@
-import {
-  caseDefinitionJson,
-  deriveCaseSearchProjection
-} from "@cortex-eval/domain/src/domain-case-projection.ts";
-import {
-  validateCaseDefinition,
-  type CaseDefinition
-} from "@cortex-eval/domain/src/domain-evaluation.ts";
-import { hashCaseDefinition } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
-import { collectRubricPromptKeys } from "@cortex-eval/domain/src/domain-resource-models.ts";
+import type { CaseDefinition } from "@cortex-eval/domain/src/domain-evaluation.ts";
 import { hashSuite } from "@cortex-eval/domain/src/domain-resource-hashes.ts";
 
 import type { Clock, IdGenerator, TransactionManager } from "../../application-ports.ts";
@@ -19,6 +10,11 @@ import type {
   StoredTestCase,
   TestSuite
 } from "./test-suite-models.ts";
+import {
+  materializeStoredCase as storedCase,
+  prepareCaseDefinition as prepareCase,
+  type PreparedCaseDefinition as PreparedCase
+} from "./case-definition-preparer.ts";
 
 /** Dependencies used outside and inside Case write transactions. */
 export interface CaseDefinitionWriterDependencies {
@@ -76,23 +72,6 @@ export interface DeleteCaseCommand {
   readonly expectedCaseRevision: number;
 }
 
-interface PreparedCase {
-  /** New internal identity. */
-  readonly id: string;
-  /** Complete clean definition. */
-  readonly definition: CaseDefinition;
-  /** Stable persisted projection. */
-  readonly definitionJson: ReturnType<typeof caseDefinitionJson>;
-  /** Referenced Prompt keys. */
-  readonly rubricPromptKeys: readonly string[];
-  /** Semantic definition hash. */
-  readonly definitionHash: string;
-  /** Derived filter facts. */
-  readonly projection: ReturnType<typeof deriveCaseSearchProjection>;
-  /** Shared write timestamp. */
-  readonly timestamp: string;
-}
-
 // Return the first duplicate stable Case identity and its rejected order.
 function duplicateCase(
   definitions: readonly CaseDefinition[]
@@ -103,52 +82,6 @@ function duplicateCase(
     keys.add(definition.caseKey);
   }
   return null;
-}
-
-// Prepare pure derived facts before any transaction is opened.
-function prepareCase(
-  definition: CaseDefinition,
-  id: string,
-  timestamp: string
-): PreparedCase | CaseWriteError {
-  const validation = validateCaseDefinition(definition);
-  if (!validation.ok) return validation.error;
-  const definitionJson = caseDefinitionJson(definition);
-  return {
-    id,
-    definition,
-    definitionJson,
-    rubricPromptKeys: collectRubricPromptKeys(definition),
-    definitionHash: hashCaseDefinition({
-      contractVersion: "cortex.case-definition.v1",
-      caseKey: definition.caseKey,
-      definition: definitionJson
-    }),
-    projection: deriveCaseSearchProjection(definition),
-    timestamp
-  };
-}
-
-// Materialize one prepared Case at its transaction-assigned ordinal.
-function storedCase(value: PreparedCase, suiteId: string, ordinal: number): StoredTestCase {
-  return {
-    id: value.id,
-    suiteId,
-    caseKey: value.definition.caseKey,
-    ordinal,
-    description: value.definition.description,
-    businessModule: value.definition.metadata.businessModule,
-    scenarioTag: value.definition.metadata.scenarioTag,
-    assertionTypes: value.projection.assertionTypes,
-    metrics: value.projection.metrics,
-    definition: value.definition,
-    definitionJson: value.definitionJson,
-    rubricPromptKeys: value.rubricPromptKeys,
-    definitionHash: value.definitionHash,
-    revision: 0,
-    createdAt: value.timestamp,
-    updatedAt: value.timestamp
-  };
 }
 
 // Return a stable Revision conflict from the current aggregate fact.

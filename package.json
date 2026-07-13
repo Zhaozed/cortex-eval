@@ -17,6 +17,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
+    "openapi:generate": "tsx tooling/src/local-openapi-cli.ts",
+    "openapi:check": "tsx tooling/src/local-openapi-cli.ts --check",
+    "server:start": "tsx apps/local-server/src/local-server-cli.ts",
     "benchmark:p0": "tsx tooling/src/p0-benchmark-cli.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
@@ -25,7 +28,7 @@
     "test:p0": "vitest run tooling/test",
     "typecheck": "tsc -b --pretty false",
     "verify": "PATH=/opt/homebrew/opt/node@24/bin:$PATH pnpm run verify:node24",
-    "verify:node24": "pnpm run check:runtime && pnpm run format:check && pnpm run lint && pnpm run check:architecture && pnpm run typecheck && pnpm run test:coverage && pnpm run test:legacy:python && pnpm run test:legacy:typescript && pnpm run check:docs && pnpm run check:secrets:fixtures && pnpm run build",
+    "verify:node24": "pnpm run check:runtime && pnpm run format:check && pnpm run lint && pnpm run check:architecture && pnpm run typecheck && pnpm run openapi:check && pnpm run test:coverage && pnpm run test:legacy:python && pnpm run test:legacy:typescript && pnpm run check:docs && pnpm run check:secrets:fixtures && pnpm run build",
     "verify:release": "PATH=/opt/homebrew/opt/node@24/bin:$PATH pnpm run verify:release:node24",
     "verify:release:node24": "pnpm run verify:node24 && tsx tooling/src/release-gate.ts"
   },

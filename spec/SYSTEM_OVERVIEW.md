@@ -10,9 +10,9 @@ Cortex Eval 是面向本地单用户的测试集管理、REST 结果获取、Pro
 
 ## 实现状态
 
-当前仓库已完成 P0 工程基线，并已落地 P1 的纯 Contracts 与 Domain。Node 24/pnpm Workspace、严格 TypeScript、格式/Lint/架构/文档/覆盖率门禁、Runtime Doctor、真实 Fixture 契约与 Secret 扫描、Promptfoo 固定版本进程探针、137 条完全展开的 Assertion 能力契约和确定性 Benchmark Harness 已生效。Contracts 已冻结 Work Package v1、Execution v1、全部阶段 Artifact、Result Import、Evaluator Bridge、Snapshot、执行限制和 Canonical Export v1；Domain 已实现纯 Case/Result 规则、Run/Analysis Revision 状态机、统计、Analysis Proposal 和版本化哈希输入。
+当前仓库已完成 P0–P3。Node 24/pnpm Workspace、严格 TypeScript、格式/Lint/架构/文档/覆盖率门禁、Runtime Doctor、真实 Fixture 契约与 Secret 扫描、Promptfoo 固定版本进程探针、137 条完全展开的 Assertion 能力契约和确定性 Benchmark Harness 已生效。Contracts 与 Domain 已冻结并实现纯协议和业务规则；十表 SQLite、资源 Repository、Test Suite/Case/Configuration Application 用例、流式 Case 导入导出和 Local Server 资源 API 已落地。
 
-测试数据转换脚本与 REST 运行脚本继续作为回归基线。Web、本地 HTTP API、SQLite 业务存储、Application、Reporting 和 Work Package 文件运行时尚未落地，任何 API、OpenAPI、CLI 或 Web 能力都未因 P1 提前注册。
+P3 OpenAPI 只包含 Test Suite、Case、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 的当前资源闭环。静态入口仍是能力中性的壳，不是 P4 Web。Run、Evaluation、Report、Analysis、Work Package 文件运行时、Execution Import、Canonical Export 执行和目标 CLI 均未注册；测试数据转换脚本与 REST 运行脚本继续作为回归基线。
 
 本文档描述 [REQ.md](../REQ.md) 和 [TECH.md](../TECH.md) 已确认的目标系统。未落地路径统一称为目标代码落点，不视为当前代码事实。
 
@@ -34,13 +34,13 @@ Infrastructure 实现 SQLite、文件、REST、Promptfoo、分析模型、Clock 
 
 ## 代码模块
 
-- `apps/local-server`：本地 HTTP Server、Route、Mapper、依赖装配和生命周期。
+- `apps/local-server`：P3 已落地的本地 HTTP Server、资源 Route、Mapper、安全入口、日志、OpenAPI、依赖装配和生命周期。
 - `apps/web`：React Web UI，按测试集、配置、运行、报告和分析组织 Feature。
 - `apps/cli`：平台 API 命令和离线工作包命令。
 - `packages/domain`：纯业务类型和规则，P1 已落地。
-- `packages/application`：Use Case、Port 和业务 Feature 编排。
+- `packages/application`：P2–P3 已落地资源 Use Case、Port、流式导入导出和业务 Feature 编排基础。
 - `packages/contracts`：DTO、Schema、Contract Version 和 Error Code，P1 已落地。
-- `packages/storage-sqlite`：SQLite Schema、Migration、Repository 和事务。
+- `packages/storage-sqlite`：P2–P3 已落地 SQLite Schema、Migration、Repository、事务和外部 Case staging。
 - `packages/evaluation-adapters`：REST、Promptfoo 和分析模型 Adapter。
 - `packages/reporting`：纯报告聚合、Diff 和 Markdown Renderer。
 - `packages/work-package`：Manifest、Execution、路径安全、文件锁和 Artifact Store。
@@ -62,7 +62,7 @@ Infrastructure 实现 SQLite、文件、REST、Promptfoo、分析模型、Clock 
 
 Evaluator 与 Analyzer 只支持统一接口下的 Gemini 和 OpenAI-compatible Chat Completions。系统支持精确 Promptfoo 版本能力矩阵中的全部 Assertion；内联可执行 Assertion 默认可信，不检测、不警告、不沙箱，但不支持外部代码文件、额外依赖或 Provider 插件。
 
-目标系统数据库方案仅支持 SQLite，当前数据库代码尚未落地。未来 PostgreSQL 迁移依赖版本化导出契约，并需要重新设计租户、授权、调度和 Secret 管理，不承诺仅替换数据库 Adapter。
+目标系统数据库方案仅支持 SQLite，当前资源与运行约束的十表数据库基础已落地。未来 PostgreSQL 迁移依赖版本化导出契约，并需要重新设计租户、授权、调度和 Secret 管理，不承诺仅替换数据库 Adapter。
 
 ## 事实入口
 
@@ -79,3 +79,8 @@ Evaluator 与 Analyzer 只支持统一接口下的 Gemini 和 OpenAI-compatible 
 - P1 Contracts 入口：[packages/contracts/src](../packages/contracts/src)
 - P1 Domain 入口：[packages/domain/src](../packages/domain/src)
 - P1 测试入口：[packages/contracts/test](../packages/contracts/test) 与 [packages/domain/test](../packages/domain/test)
+- P2–P3 Application 入口：[packages/application/src](../packages/application/src)
+- P2–P3 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
+- P3 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
+- P3 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
+- P3 测试入口：[apps/local-server/test](../apps/local-server/test)

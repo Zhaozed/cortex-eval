@@ -1,5 +1,9 @@
 # 外部行为
 
+## 当前实现边界
+
+P3 当前可通过 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并执行 Case 全量导入导出、配置验证与 Prompt 预览/引用查询。提交的 OpenAPI 只包含这些能力。P4 Web、Run、Evaluation、Report、Analysis、Work Package 和目标 CLI 行为仍是后续验收目标，不存在占位入口。
+
 ## 使用方式
 
 本地平台允许用户通过 Web 管理资源、执行 REST、评估和报告阶段，并对失败结果发起分析。平台 CLI 通过本地 HTTP API 导出工作包和导入结果。
@@ -82,7 +86,9 @@ UI 和 CLI 对同一规范化输入生成相同统计。错误返回稳定 Error
 - 当前 REST CLI 入口：[data_scripts/run_promptfoo_rest_cli.ts](../data_scripts/run_promptfoo_rest_cli.ts)
 - 当前 REST 用户说明：[data_scripts/run_promptfoo_rest.md](../data_scripts/run_promptfoo_rest.md)
 - 当前测试集样例：[test_suite/current/cases/loona_promptfoo_tests.json](../test_suite/current/cases/loona_promptfoo_tests.json)
-- 目标 Web、本地 API 和工作包 CLI 入口尚未落地。
+- 当前 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
+- 当前 P3 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
+- 目标 Web 和工作包 CLI 入口尚未落地。
 - [ENTRYPOINTS/LOCAL_SERVER.md](ENTRYPOINTS/LOCAL_SERVER.md)
 - [ENTRYPOINTS/CLI.md](ENTRYPOINTS/CLI.md)
 - [WEB/OVERVIEW.md](WEB/OVERVIEW.md)
