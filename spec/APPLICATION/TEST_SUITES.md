@@ -12,7 +12,7 @@ Feature 依赖 Domain Case 规则、Configuration 查询 Port、Test Suite Repos
 
 ## 实现状态
 
-P2 已落地 Suite CRUD、Case 创建/编辑/复制/删除/全量替换、建议应用共用 Writer、Cursor/组合过滤、Rubric 引用校验、派生字段、Hash 和独立 Revision。P3 补充 Revision 一致的流式导出、受控 staging 全量导入、增量 Suite Hash，并映射为严格资源 API。Case Key 与描述使用大小写无关的字面子串搜索。
+P2 已落地 Suite CRUD、Case 创建/编辑/复制/删除/全量替换、建议应用共用 Writer、Cursor/组合过滤、Rubric 引用校验、派生字段、Hash 和独立 Revision。P3 补充 Revision 一致的流式导出、受控 staging 全量导入、增量 Suite Hash，并映射为严格资源 API。P5 在 Suite 列表小投影中增加严格可空的最新平台 Run 引用。Case Key 与描述使用大小写无关的字面子串搜索。
 
 ## 目标代码落点
 
@@ -35,7 +35,7 @@ P2 已落地 Suite CRUD、Case 创建/编辑/复制/删除/全量替换、建议
 
 ## 对外接口
 
-Use Case 覆盖 Suite CRUD、按 Suite-local Case Key 精确读取的 Case CRUD、复制、导入、导出、Cursor 查询、组合过滤和引用影响查询。返回 Domain/Application 类型，由 Entrypoint 映射为 DTO。
+Use Case 覆盖 Suite CRUD、按 Suite-local Case Key 精确读取的 Case CRUD、复制、导入、导出、Cursor 查询、组合过滤和引用影响查询。Suite 列表只内聚最新 `sourceType=PLATFORM` Run 的 ID、状态、阶段和更新时间，不加载 Run 快照或离线导入。返回 Domain/Application 类型，由 Entrypoint 映射为 DTO。
 
 ## 核心流程
 

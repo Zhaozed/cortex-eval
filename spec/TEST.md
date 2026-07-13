@@ -10,9 +10,10 @@
 - [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：原始数据到 Promptfoo Case 的转换规则。
 - [packages/contracts/test](../packages/contracts/test)：P1 Schema、版本、Secret、Work Package、Bridge、Snapshot、Artifact、Canonical Export、137 条能力映射和真实 Fixture。
 - [packages/domain/test](../packages/domain/test)：P1 纯 Case/Result、状态、Revision、统计、Proposal 和专用哈希输入。
-- [packages/application/test](../packages/application/test)：P2 资源用例、统一 Case Writer、Revision、引用、Cursor、导出和事务外验证。
-- [packages/storage-sqlite/test](../packages/storage-sqlite/test)：P2 十表、严格行映射与 Hash 对账、约束、权限、双连接/双进程竞争、Execution 幂等和千级性能。
-- [apps/local-server/test](../apps/local-server/test)：P3 资源 API、真实 SQLite 装配、安全入口、OpenAPI、配置 Probe、日志、Event Hub 和流式导入边界。
+- [packages/application/test](../packages/application/test)：P2–P5 资源用例、统一 Case Writer、Revision、引用、Cursor、导出、Run 冻结/REST/取消和事务外验证。
+- [packages/storage-sqlite/test](../packages/storage-sqlite/test)：P2–P5 十表、严格行映射与 Hash 对账、约束、权限、资源/Run 双连接和双进程竞争、Execution 幂等和千级性能。
+- [packages/evaluation-adapters/test](../packages/evaluation-adapters/test)：P5 REST 模板、Selector、大小、HTTP、超时、并发和取消。
+- [apps/local-server/test](../apps/local-server/test)：P3–P5 资源与 Run API、真实 SQLite 装配、安全入口、OpenAPI、配置 Probe、日志、SSE、Artifact 和流式导入边界。
 
 Vitest、V8 覆盖率和架构测试已在 P0 落地。P2 已把 Application 与 Storage SQLite 纳入覆盖率范围，P3 纳入 Local Server。当前全仓门禁为语句/行 90%、函数 90%、分支 85%；最终门禁仍以本 Goal 全局要求为准。
 
@@ -30,7 +31,7 @@ Vitest、V8 覆盖率和架构测试已在 P0 落地。P2 已把 Application 与
 
 ## SQLite 测试
 
-当前覆盖十表 Migration、外键、唯一约束、索引、删除策略、Case Definition Writer 原子性、真实 SQLite 首/中/末 Case 删除与重排失败回滚、闭合 JSON 键集合、大小写无关字面搜索、唯一运行双进程竞争、Suite/唯一字段/Execution 双连接竞争和 Execution ID 幂等导入。阶段条件提交、取消竞争和恢复随 P5 Run 编排落地。
+当前覆盖十表 Migration、外键、唯一约束、索引、删除策略、Case Definition Writer 原子性、真实 SQLite 首/中/末 Case 删除与重排失败回滚、闭合 JSON 键集合、大小写无关字面搜索、唯一运行双进程竞争、Suite/唯一字段/Execution 双连接竞争、Execution ID 幂等导入，以及平台 Run 阶段条件提交、跨进程取消/提交竞争和恢复。
 
 每个数据库测试使用独立临时数据库。并发正确性必须使用独立连接或独立进程验证，不能仅用进程内 Mock 代替。
 
@@ -84,7 +85,7 @@ P3 API 当前额外覆盖严格成功响应 DTO、六项 Analysis Prompt 变量�
 
 P4 把 `apps/web/src` 纳入全仓 V8 覆盖率。组件测试覆盖 API Client、请求/响应身份、编辑 Session Revision、删除确认事实原子性与冲突恢复卸载、路由、表单映射、字段错误、冲突、URL 恢复、Query 失效和资源交互；Playwright 使用真实 SQLite/Application/Local Server 和生产 Vite 产物，覆盖 1440×900、1280×800 Reduced Motion、900px 小屏提示、键盘、焦点、axe 与 CSP。`pnpm verify` 必须运行该 E2E 矩阵。
 
-P4 验收时 `pnpm verify` 通过 87 个 Vitest 文件、435 项测试和 5 项生产 E2E；最近一次全仓 V8 覆盖率门禁为语句 90.97%、分支 85.84%、函数 92.79%、行 93.60%。
+P5 确定性阶段回归通过 100 个 Vitest 文件、541 项测试；完整 `pnpm verify` 的 V8 覆盖率为 Statements 90.33%、Branches 85.06%、Functions 91.81%、Lines 93.14%。回归覆盖有界 Run 投影、逐 Case 写入不读取完整快照、Artifact 单遍流式写入与等价 Hash、Worker 持久化失败后的 Owner 收口、Shutdown/阶段提交竞态、取消轮询拒绝、闭合业务日志、SSE 成功/错误媒体类型与 Hijack 后读取/异步写错误收口、Web 预检 Abort/A→B→A 迟到响应拒绝、同选择重新预检失败门禁及创建响应身份。生产 Playwright E2E 通过 7 项测试，并通过真实 SQLite、Application、Local Server 与生产 Vite 产物覆盖 REST Run 创建、启动、刷新恢复、Case 明细、Dashboard 和 Suite 聚合；完整 `pnpm verify` 已通过。
 
 ## 性能测试
 

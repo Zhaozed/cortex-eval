@@ -4,7 +4,7 @@
 
 本文档定义 Cortex Eval 本地版的产品目标、使用方式、业务对象、用户流程、UI 与 CLI 能力、报告口径、异常行为和验收标准。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。截至 P4，纯 Contracts/Domain、SQLite、资源 Application 用例、Local Server 资源 API 和简体中文资源管理 Web 已落地；OpenAPI 与 Web 只注册资源管理闭环。Run、Execution Import、Report、Analysis 和目标 CLI 仍未注册。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。截至 P5，纯 Contracts/Domain、SQLite、资源 Application 用例、Local Server、资源管理 Web，以及平台 Run 创建与 REST 执行闭环已落地。OpenAPI 与 Web 已注册 Run 预检、创建、查询、REST 启动、取消、进度和逐 Case REST 结果；Evaluation、Report、Analysis、Retry/Force、Execution Import、Work Package 文件运行时和目标 CLI 仍未注册。
 
 技术选型、项目架构、模块边界、数据字段、工作包协议、事务、并发和测试设计以 `TECH.md` 为准。本文档不包含具体实现代码。
 

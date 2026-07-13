@@ -1,6 +1,8 @@
-/** P4 routes registered only after their resource flows are closed. */
+/** P5 routes registered only after their resource or REST Run flows are closed. */
 export type WebRoute =
   | { readonly kind: "DASHBOARD" }
+  | { readonly kind: "RUN_LIST" }
+  | { readonly kind: "RUN_DETAIL"; readonly runId: string }
   | { readonly kind: "TEST_SUITE_LIST" }
   | { readonly kind: "TEST_SUITE_DETAIL"; readonly suiteId: string }
   | { readonly kind: "ENDPOINT_CONFIG_LIST" }
@@ -46,6 +48,12 @@ function decodePathComponent(value: string): string | null {
 export function resolveWebRoute(pathname: string): WebRoute | null {
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (normalized === "/") return { kind: "DASHBOARD" };
+  if (normalized === "/runs") return { kind: "RUN_LIST" };
+  const runMatch = /^\/runs\/([^/]+)$/.exec(normalized);
+  if (runMatch?.[1] !== undefined) {
+    const runId = decodePathComponent(runMatch[1]);
+    return runId === null ? null : { kind: "RUN_DETAIL", runId };
+  }
   if (normalized === "/test-suites") return { kind: "TEST_SUITE_LIST" };
   const suiteMatch = /^\/test-suites\/([^/]+)$/.exec(normalized);
   if (suiteMatch?.[1] !== undefined) {

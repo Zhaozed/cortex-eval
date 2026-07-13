@@ -185,10 +185,18 @@ function caseDefinition(source: DomainJsonObject): CaseDefinition {
   return definition;
 }
 
+/** Strictly parse one persisted Case Definition JSON at the storage boundary. */
+export function mapPersistedCaseDefinition(serialized: string): {
+  readonly definition: CaseDefinition;
+  readonly definitionJson: DomainJsonObject;
+} {
+  const definitionJson = jsonObject(serialized);
+  return { definition: caseDefinition(definitionJson), definitionJson };
+}
+
 /** Map and validate one persisted Case row. */
 export function mapStoredTestCase(row: Selectable<TestCaseTable>): StoredTestCase {
-  const definitionJson = jsonObject(row.definition_json);
-  const definition = caseDefinition(definitionJson);
+  const { definition, definitionJson } = mapPersistedCaseDefinition(row.definition_json);
   const projection = deriveCaseSearchProjection(definition);
   const assertionTypes = stringArray(row.assertion_types_json);
   const metrics = stringArray(row.metrics_json);

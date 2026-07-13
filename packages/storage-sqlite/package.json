@@ -7,7 +7,8 @@
     "@cortex-eval/application": "workspace:*",
     "@cortex-eval/domain": "workspace:*",
     "better-sqlite3": "12.11.1",
-    "kysely": "0.29.3"
+    "kysely": "0.29.3",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.13"

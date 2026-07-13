@@ -5,13 +5,27 @@ import { describe, expect, it } from "vitest";
 import { generateLocalOpenApiJson } from "../src/local-openapi.ts";
 
 describe("Local API OpenAPI drift", () => {
-  it("提交的 OpenAPI JSON 与真实 P3 Route/Schema 字节级一致", async () => {
+  it("提交的 OpenAPI JSON 与真实 P5 Route/Schema 字节级一致", async () => {
     const generated = await generateLocalOpenApiJson();
     const committed = await readFile(
       new URL("../../apps/local-server/openapi.json", import.meta.url),
       "utf8"
     );
     expect(committed).toBe(generated);
-    expect(generated).not.toMatch(/\/runs|execution|report|event-stream/i);
+    for (const path of [
+      "/api/v1/runs",
+      "/api/v1/runs/preflight",
+      "/api/v1/runs/{runId}",
+      "/api/v1/runs/{runId}/cases",
+      "/api/v1/runs/{runId}/cases/{caseKey}",
+      "/api/v1/runs/{runId}/start",
+      "/api/v1/runs/{runId}/cancel",
+      "/api/v1/runs/{runId}/events"
+    ]) {
+      expect(generated).toContain(`"${path}"`);
+    }
+    expect(generated).not.toMatch(
+      /"\/api\/v1\/(?:executions|reports|analysis)|\/(?:evaluation|report|analysis|retry-failed|force)"/
+    );
   });
 });

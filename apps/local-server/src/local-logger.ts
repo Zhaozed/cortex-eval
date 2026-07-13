@@ -9,7 +9,12 @@ export type BusinessEventName =
   | "TEMP_SYMLINK_QUARANTINED"
   | "TEMP_OWNER_CHANGED"
   | "TEMP_CONTAINMENT_REJECTED"
-  | "TEMP_CLEANUP_FAILED";
+  | "TEMP_CLEANUP_FAILED"
+  | "RUN_INPUT_FROZEN"
+  | "RUN_REST_STARTED"
+  | "RUN_REST_COMPLETED"
+  | "RUN_CANCEL_REQUESTED"
+  | "RUN_CANCELLED";
 
 /** Closed safe log event; no arbitrary body, Prompt, Vars or Provider Output fields. */
 export interface BusinessLogEvent {

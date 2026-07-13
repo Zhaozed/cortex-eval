@@ -9,6 +9,7 @@ import type {
 import type {
   CaseQuery,
   CaseQueryPage,
+  LatestPlatformRunReference,
   StoredTestCase,
   TestSuite,
   TestSuiteQuery,
@@ -34,7 +35,7 @@ import {
   mapLlmResource,
   mapRubricPromptResource
 } from "./sqlite-configuration-mappers.ts";
-import { mapStoredTestCase } from "./sqlite-row-mappers.ts";
+import { mapStoredTestCase, SqliteRowInvalidError } from "./sqlite-row-mappers.ts";
 import type { SqliteDatabaseSchema } from "./sqlite-schema.ts";
 
 // Map one strongly typed Suite row to the Application entity.
@@ -57,6 +58,58 @@ function mapSuite(row: {
     revision: row.revision,
     createdAt: row.created_at,
     updatedAt: row.updated_at
+  };
+}
+
+interface LatestPlatformRunRow {
+  /** Latest platform Run identity. */
+  readonly latest_platform_run_id: string | null;
+  /** Latest platform Run status. */
+  readonly latest_platform_run_status: string | null;
+  /** Latest platform Run stage. */
+  readonly latest_platform_run_stage: string | null;
+  /** Latest platform Run update time. */
+  readonly latest_platform_run_updated_at: string | null;
+}
+
+// Narrow one dirty persisted scalar to the closed Run status contract.
+function isRunStatus(value: string): value is LatestPlatformRunReference["status"] {
+  return (
+    value === "READY" ||
+    value === "RUNNING" ||
+    value === "COMPLETED" ||
+    value === "COMPLETED_WITH_ERRORS" ||
+    value === "FAILED" ||
+    value === "CANCELLED" ||
+    value === "INTERRUPTED"
+  );
+}
+
+// Narrow one dirty persisted scalar to the closed Run stage contract.
+function isRunStage(value: string): value is LatestPlatformRunReference["stage"] {
+  return value === "REST" || value === "EVALUATION" || value === "REPORT" || value === "DONE";
+}
+
+// Map the all-null or fully populated correlated latest-Run projection.
+function mapLatestPlatformRun(row: LatestPlatformRunRow): LatestPlatformRunReference | null {
+  const id = row.latest_platform_run_id;
+  const status = row.latest_platform_run_status;
+  const stage = row.latest_platform_run_stage;
+  const updatedAt = row.latest_platform_run_updated_at;
+  const values = [id, status, stage, updatedAt];
+  if (values.every((value) => value === null)) return null;
+  if (id === null || status === null || stage === null || updatedAt === null) {
+    throw new SqliteRowInvalidError();
+  }
+  if (!isRunStatus(status) || !isRunStage(stage)) {
+    throw new SqliteRowInvalidError();
+  }
+  return {
+    id,
+    sourceType: "PLATFORM",
+    status,
+    stage,
+    updatedAt
   };
 }
 
@@ -115,9 +168,34 @@ export class SqliteTestSuiteRepository implements TestSuiteRepository {
 
   /** Query one small Suite page without loading Cases. */
   public async querySuites(query: TestSuiteQuery): Promise<TestSuiteQueryPage> {
-    let builder = this.#database
-      .selectFrom("test_suite")
-      .select(["id", "name", "description", "case_count", "revision", "updated_at"]);
+    let builder = this.#database.selectFrom("test_suite").select([
+      "id",
+      "name",
+      "description",
+      "case_count",
+      "revision",
+      "updated_at",
+      sql<string | null>`(
+          SELECT id FROM run_log
+          WHERE source_type = 'PLATFORM' AND suite_id = test_suite.id
+          ORDER BY created_at DESC, id DESC LIMIT 1
+        )`.as("latest_platform_run_id"),
+      sql<string | null>`(
+          SELECT status FROM run_log
+          WHERE source_type = 'PLATFORM' AND suite_id = test_suite.id
+          ORDER BY created_at DESC, id DESC LIMIT 1
+        )`.as("latest_platform_run_status"),
+      sql<string | null>`(
+          SELECT stage FROM run_log
+          WHERE source_type = 'PLATFORM' AND suite_id = test_suite.id
+          ORDER BY created_at DESC, id DESC LIMIT 1
+        )`.as("latest_platform_run_stage"),
+      sql<string | null>`(
+          SELECT updated_at FROM run_log
+          WHERE source_type = 'PLATFORM' AND suite_id = test_suite.id
+          ORDER BY created_at DESC, id DESC LIMIT 1
+        )`.as("latest_platform_run_updated_at")
+    ]);
     if (query.afterCursor !== undefined) {
       const cursor = query.afterCursor;
       builder = builder.where((expression) =>
@@ -139,7 +217,8 @@ export class SqliteTestSuiteRepository implements TestSuiteRepository {
       description: row.description,
       caseCount: row.case_count,
       revision: row.revision,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
+      latestPlatformRun: mapLatestPlatformRun(row)
     }));
     const last = items.at(-1);
     return {
@@ -411,7 +490,11 @@ export class SqliteRunReferenceRepository implements RunReferenceRepository {
         ${canonicalJson(value.evaluatorSnapshot)}, ${canonicalJson([...value.rubricPromptsSnapshot])},
         ${value.runContextHash}, '0.121.18', ${canonicalJson(value.contractVersions)},
         ${canonicalJson(value.runExecutionLimits)}, 'STAGED', ${status}, 'DONE', 0,
-        NULL, ${value.resultSetHash}, ${canonicalJson([...value.artifactManifest])},
+        NULL, ${value.resultSetHash}, ${canonicalJson({
+          contractVersion: value.artifactManifest.contractVersion,
+          owner: { ...value.artifactManifest.owner },
+          artifacts: value.artifactManifest.artifacts.map((artifact) => ({ ...artifact }))
+        })},
         ${value.createdAt}, ${value.createdAt}, ${value.createdAt}
       )
     `.execute(this.#database);

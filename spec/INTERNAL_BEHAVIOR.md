@@ -12,7 +12,7 @@ Test Suite 聚合包含当前 Suite 和 Cases。所有 Case 写入口共用同�
 
 全量 Case 导入只把单项保留在内存，逐项写外部 staging 并增量计算 Suite Hash；最终主库事务重新校验 Suite Revision 与 Rubric 引用后整体替换。导出冻结 Revision，并以 `(ordinal,id)` 顺序逐项读取，避免混合版本和完整数组常驻内存。
 
-Run 聚合包含 Run Log、Case Results 和 Eval Results。阶段开始、进度和最终提交使用独立条件事务，外部执行不跨事务。
+Run 聚合包含 Run Log、Case Results 和 Eval Results。P5 已实现 Run 冻结、REST 阶段开始、逐 Case进度、Artifact 和最终提交；每一步使用独立条件事务，外部执行不跨事务。
 
 Case Analysis 是独立事实。应用建议时按 Analysis、Suite、Case、Rubric Prompt 的稳定顺序锁定和校验，再调用 Case 写入流程。
 
@@ -46,6 +46,7 @@ Case 业务身份使用测试集内唯一的 `metadata.case_id`，内部 ID 与�
 - SQLite 锁竞争只在 Storage 边界重启完整短事务，最多四次；耗尽返回稳定存储冲突。任何外部副作用都不进入该重启范围。
 - `READY` 阶段不占用全局运行互斥。
 - 取消与阶段提交竞争时只有一个条件更新成功。
+- 跨进程取消由持久 Request 和 25–50 毫秒轮询传播；进程内 Abort 只负责降低本地延迟。
 - 同一工作包使用跨进程文件锁；不同工作包允许并行。
 - 已完成 Execution 和阶段 Artifact 不可覆盖。
 - Case Ordinal、Case Key、Assertion Index 和 Definition Hash 用于跨阶段对齐。
@@ -55,6 +56,8 @@ Case 业务身份使用测试集内唯一的 `metadata.case_id`，内部 ID 与�
 运行冻结当前资源的脱敏快照。冻结后资源修改或删除不影响历史运行。来源资源删除后，历史 Run 可以清空来源 ID，但快照保持完整。
 
 Artifact 预期 Kind、相对路径、Hash、大小和 Contract Version 保存在 Run Artifact Manifest。文件存在性按需校验；Raw 文件缺失或损坏不改变已经落库的规范化结果和报告事实。
+
+Run 与离线 Execution 使用同一 `cortex.artifact-manifest.v1` 对象，Owner 联合显式区分 `RUN` 和 `EXECUTION`。P5 REST Artifact 位于 Run ID 专属相对路径；只有数据库提交后的 Manifest 才是引用事实，启动清理只删除不在任何持久平台 Run Manifest 中的受控文件。
 
 当前资源不保存版本历史。重新分析覆盖同一 Run/Case 当前分析，Revision 只用于并发控制和当前记录演进，不表示可查询历史。
 
@@ -77,8 +80,9 @@ Secret 统一使用 EnvSecretRef，只在外部调用前从环境展开。数据
 - 目标内部约束来源：[TECH.md](../TECH.md)
 - 当前 Domain 状态入口：[PACKAGES/DOMAIN.md](PACKAGES/DOMAIN.md)
 - 当前 Contracts Snapshot 与 Execution 入口：[PACKAGES/CONTRACTS.md](PACKAGES/CONTRACTS.md)
-- 当前 REST 并发与原子写入入口：[data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)
-- 当前 REST 竞争与错误测试：[data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)
+- 当前 Run 编排入口：[packages/application/src/features/runs](../packages/application/src/features/runs)
+- 当前 REST Adapter：[packages/evaluation-adapters/src](../packages/evaluation-adapters/src)
+- 当前 Run 竞争与恢复测试：[packages/storage-sqlite/test/sqlite-platform-run-repository.test.ts](../packages/storage-sqlite/test/sqlite-platform-run-repository.test.ts)
 - 当前 Application 资源入口：[packages/application/src](../packages/application/src)
 - 当前 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
 - Work Package 文件运行时入口尚未落地。

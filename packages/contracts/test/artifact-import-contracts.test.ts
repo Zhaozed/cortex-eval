@@ -4,6 +4,7 @@ import {
   AnalysisResultsArtifactV1Schema,
   ArtifactManifestV1Schema,
   NormalizedEvalArtifactV1Schema,
+  PlatformRestResultsArtifactV1Schema,
   RawPromptfooEvidenceArtifactV1Schema,
   ReportArtifactV1Schema,
   RestResultsArtifactV1Schema
@@ -70,6 +71,38 @@ describe("阶段 Artifact v1", () => {
       RestResultsArtifactV1Schema.safeParse({
         ...success,
         cases: [{ ...success.cases[0], status: "ERROR", providerOutput: null }]
+      }).success
+    ).toBe(false);
+  });
+
+  it("平台 REST Artifact 使用 Run 身份且不伪造离线 Execution", () => {
+    const value = {
+      contractVersion: "cortex.platform-rest-results.v1",
+      runId: ID,
+      runContextHash: HASH,
+      completedAt: TIME,
+      cases: [
+        {
+          caseKey: "case-1",
+          ordinal: 0,
+          caseDefinitionHash: HASH,
+          status: "SUCCEEDED",
+          httpStatus: 200,
+          providerOutput: { ok: false, err_msg: "业务失败" },
+          durationMs: 12,
+          completedAt: TIME,
+          resultHash: HASH,
+          provenance: null
+        }
+      ],
+      resultSetHash: HASH
+    };
+    expect(PlatformRestResultsArtifactV1Schema.parse(value).runId).toBe(ID);
+    expect(
+      PlatformRestResultsArtifactV1Schema.safeParse({
+        ...value,
+        packageId: ID,
+        executionId: ID
       }).success
     ).toBe(false);
   });

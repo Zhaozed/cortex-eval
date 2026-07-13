@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { ImportExecutionIdentity } from "@cortex-eval/application/src/features/execution-imports/import-execution-identity.ts";
+import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 
 import { initializeSqliteStorage } from "../src/sqlite-database.ts";
@@ -37,15 +38,19 @@ describe("SQLite Execution 导入身份", () => {
       runContextHash: HASH_A,
       contractVersions: { run: "v1" },
       runExecutionLimits: { restConcurrency: 4, evalConcurrency: 2 },
-      artifactManifest: [
-        {
-          kind: "REPORT_JSON",
-          path: "executions/execution-1/report.json",
-          hash: HASH_A,
-          size: 10,
-          contractVersion: "cortex.report.v1"
-        }
-      ]
+      artifactManifest: {
+        contractVersion: "cortex.artifact-manifest.v1",
+        owner: { kind: "EXECUTION", id: "execution-1" },
+        artifacts: [
+          {
+            kind: "REPORT_JSON",
+            path: "executions/execution-1/report.json",
+            expectedSha256: HASH_A,
+            expectedSizeBytes: 10,
+            contractVersion: "cortex.report.v1"
+          }
+        ]
+      }
     } as const;
 
     const inserted = await useCase.execute(command);
@@ -58,6 +63,20 @@ describe("SQLite Execution 导入身份", () => {
       ok: false,
       error: { code: "EXECUTION_RESULT_CONFLICT", executionId: "execution-1" }
     });
+    const database = new Database(storage.databasePath, { readonly: true });
+    const manifestRow: unknown = database
+      .prepare("SELECT artifact_manifest_json FROM run_log WHERE execution_id = ?")
+      .get("execution-1");
+    database.close();
+    if (manifestRow === null || typeof manifestRow !== "object") {
+      throw new Error("测试未读到 Artifact Manifest");
+    }
+    if (!("artifact_manifest_json" in manifestRow)) {
+      throw new Error("测试未读到 Artifact Manifest 字段");
+    }
+    const manifestJson: unknown = manifestRow.artifact_manifest_json;
+    if (typeof manifestJson !== "string") throw new Error("Artifact Manifest 不是 JSON 文本");
+    expect(JSON.parse(manifestJson) as unknown).toEqual(command.artifactManifest);
     expect(id).toBe(3);
     await storage.close();
   });
@@ -86,7 +105,11 @@ describe("SQLite Execution 导入身份", () => {
       runContextHash: HASH_A,
       contractVersions: {},
       runExecutionLimits: {},
-      artifactManifest: []
+      artifactManifest: {
+        contractVersion: "cortex.artifact-manifest.v1",
+        owner: { kind: "EXECUTION", id: "execution-race" },
+        artifacts: []
+      }
     } as const;
 
     const results = await Promise.all([

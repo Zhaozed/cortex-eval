@@ -1,4 +1,13 @@
-import { Beaker, Bot, Braces, FlaskConical, Gauge, Network, type LucideIcon } from "lucide-react";
+import {
+  Activity,
+  Beaker,
+  Bot,
+  Braces,
+  FlaskConical,
+  Gauge,
+  Network,
+  type LucideIcon
+} from "lucide-react";
 import type { MouseEvent, ReactElement, ReactNode } from "react";
 
 import { CURRENT_FEATURES } from "../features/feature-registry.ts";
@@ -18,6 +27,7 @@ export interface AppShellProps {
 
 const ICONS: Readonly<Record<string, LucideIcon>> = {
   dashboard: Gauge,
+  runs: Activity,
   "test-suites": FlaskConical,
   "endpoint-configs": Network,
   "llm-configs": Bot,
@@ -30,7 +40,7 @@ function navigationLabel(key: string): string {
   return message(key as MessageKey);
 }
 
-/** Desktop-first P4 shell with capability-derived navigation. */
+/** Desktop-first shell with capability-derived navigation. */
 export function AppShell({ activePath, onNavigate, children }: AppShellProps): ReactElement {
   const navigate = (event: MouseEvent<HTMLAnchorElement>, path: string): void => {
     if (

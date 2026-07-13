@@ -35,10 +35,21 @@ describe("P3 资源 API 契约", () => {
       description: "current suite",
       caseCount: 3,
       revision: 2,
-      updatedAt: "2026-07-13T00:00:00.000Z"
+      updatedAt: "2026-07-13T00:00:00.000Z",
+      latestPlatformRun: {
+        id: requestId,
+        sourceType: "PLATFORM",
+        status: "RUNNING",
+        stage: "REST",
+        updatedAt: "2026-07-13T00:01:00.000Z"
+      }
     };
 
     expect(TestSuiteSummaryV1Schema.parse(summary)).toEqual(summary);
+    expect(TestSuiteSummaryV1Schema.parse({ ...summary, latestPlatformRun: null })).toEqual({
+      ...summary,
+      latestPlatformRun: null
+    });
     expect(
       TestSuiteSummaryV1Schema.safeParse({ ...summary, cases: [{ secret: "large" }] }).success
     ).toBe(false);

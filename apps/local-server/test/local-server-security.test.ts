@@ -67,7 +67,7 @@ describe("P3 Local Server 安全入口", () => {
     expect(crossOrigin.json()).toMatchObject({ error: { code: "ORIGIN_NOT_ALLOWED" } });
   });
 
-  it("OpenAPI 只暴露 P3 已闭环资源，不出现 Run、Execution、Report 或 SSE", async () => {
+  it("未注入 P5 Run 处理器时 OpenAPI 不注册 Run、Execution、Report 或 SSE 路径", async () => {
     const response = await server().inject({
       method: "GET",
       url: "/api/v1/openapi.json",
@@ -77,7 +77,9 @@ describe("P3 Local Server 安全入口", () => {
     const document = parseJsonObject(response);
     const paths = jsonObjectProperty(document, "paths");
     expect(Object.keys(paths)).toContain("/api/v1/test-suites");
-    expect(JSON.stringify(document)).not.toMatch(/\/runs|execution|report|event-stream/i);
+    expect(Object.keys(paths)).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/\/runs|execution|report|event-stream/i)])
+    );
 
     const future = await server().inject({
       method: "GET",

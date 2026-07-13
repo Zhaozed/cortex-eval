@@ -752,3 +752,87 @@ Case 导入把 multipart 截断事实纳入被 Application 消费的定义流完
 ### 状态
 
 生效。
+
+## P5 平台 Run 只闭合 REST 并以持久事实推进
+
+### 决策
+
+P5 平台 Run 创建在一个短事务中冻结 Suite、Cases、Endpoint、Evaluator、被引用 Rubric Prompts 和 `RunExecutionLimitsV1`，写入 `READY/REST`。当前 Start 只允许抢占 REST；REST 逐 Case结果以独立短事务落库，完整对账和不可变 Artifact 成功后再把 Run 提交为 `READY/EVALUATION`。P5 不注册 Evaluation、Report、Analysis、Pipeline 自动推进或 Retry/Force 动作。
+
+取消先持久化 `cancel_requested_at` 和新 Revision，再通知本地 Abort；其他进程通过 25–50 毫秒持久状态轮询观察取消。Runtime Shutdown 收敛为 `INTERRUPTED/DONE`，不冒充用户取消。Run 与离线 Execution 的 Artifact 预期事实统一使用完整 `cortex.artifact-manifest.v1` 对象和显式 Owner 联合，不再保存无身份数组。
+
+### 原因
+
+外部 POST 副作用不能包在数据库事务或自动重试中。只有数据库事实、文件事实和 Revision 都闭合后才能推进 Stage。取消请求必须跨进程可见；进程内 Abort 只能作为低延迟优化。未实现的 Stage 若提前注册，会把不可执行状态暴露给 API 和 Web。
+
+### 代码影响
+
+Application 通过专用 Run Transaction Manager、Rest Executor 和 Run Artifact Store Port 编排。SQLite 部分唯一索引保证全库最多一条 `RUNNING`；阶段抢占、取消、逐 Case计数、完成、失败和恢复均使用条件写。REST Artifact 先写 Run ID 专属路径；数据库提交失败时删除未提交文件，启动时只删除未被任何持久平台 Run Manifest 引用的受控文件。
+
+### 测试影响
+
+测试覆盖冻结与 Hash、默认和显式限制、双进程唯一运行、跨进程取消/提交竞争、停止派发、Runtime Shutdown、启动恢复、Artifact 写失败和孤儿清理、真实 HTTP、Provider Output、精确大小/超时/并发边界，以及 REST 后停在 `READY/EVALUATION`。
+
+### 排障影响
+
+先检查 Run Status、Stage、Lock Revision、取消时间、逐 Case计数和 Manifest，再检查受控 Artifact 与 REST Adapter 分类。不得通过重试 POST、跨事务持有网络调用或跳过对账推进 Stage。
+
+### 状态
+
+生效。
+
+## P5 Run 动作小响应、有限期 SSE 与最近平台 Run 聚合
+
+### 决策
+
+Start 和 Cancel 返回小型 `RunProgress`，完整冻结摘要由 Run Detail 单独读取。SSE 在发送 200 前验证 Run，先发送当前 Snapshot，再按 250 毫秒从 SQLite 查询 Revision 变化；单连接最多 5 秒并声明 1 秒重连，因此跨进程变化最坏可见时间约 6 秒。Web 同时保留查询刷新，断流或协议错误只重新读取服务端事实。
+
+Dashboard 和 Test Suite 列表的最近运行只聚合 `source_type='PLATFORM'`，按 `created_at DESC, id DESC` 确定顺序。SQLite 使用专用部分倒序索引；离线导入不冒充最近平台 Run。
+
+### 原因
+
+动作响应若返回完整快照会放大序列化、缓存和泄露面。内存 Event Hub 无法观察其他进程写入；无限 SSE 会长期占用本地连接。最近运行按 `updated_at` 排序会因进度写改变“创建顺序”，混入离线导入会错误表达平台执行状态。
+
+### 代码影响
+
+Run HTTP Client 对每个响应和 SSE Envelope 执行 Contracts 与请求 Run ID 双重校验。Web 只在 `READY/REST` 显示 Start、只在 `RUNNING` 显示 Cancel；`READY/EVALUATION` 不出现未来 Stage 动作。测试集列表查询使用专用索引并返回严格可空最新平台 Run 投影。
+
+### 测试影响
+
+测试覆盖 Start/Cancel 小响应、SSE 不存在 Run 的普通 JSON 404、Snapshot/Event 身份、有限期流重查、Run SPA 路由、Dashboard、Test Suite 最新平台 Run、离线导入排除和未来能力隔离。
+
+### 排障影响
+
+进度延迟先检查 SSE 生命周期、重连和 Run Revision，再检查 SQLite 查询。不得把浏览器缓存或内存事件当成跨进程事实源，也不得扩大动作响应替代详情查询。
+
+### 状态
+
+生效。
+
+## P5 Run 有界读取、流式 Artifact 与 Owner 终态收敛
+
+### 决策
+
+Application 显式区分完整冻结执行输入、`PlatformRunDetail` 和 `PlatformRunProgress`。完整输入只在 REST 阶段成功抢占时读取；详情不返回冻结 Case 数组或 Rubric Prompt 正文，动作、SSE、取消轮询和阶段推进只读取进度投影。SQLite 逐 Case 写入按 Run ID 与 Ordinal 直接校验目标冻结 Case Key/Hash，不重复反序列化完整 Suite。
+
+REST Artifact Port 接受带预期总数的 `AsyncIterable`，按稳定 Cursor 单遍写入 Canonical JSON；Writer 在同一遍增量计算 Result Set Hash、文件 Hash 与大小，并逐 Case 执行 Contracts 清洗。REST Executor 的任一逐 Case 持久化回调失败会记录首个错误、内部 Abort、停止领取并等待所有 Worker 退出，再向后台 Owner 拒绝。后台 Owner 在注册时立即捕获取消轮询拒绝并 Abort Executor；Runtime Shutdown 在 Artifact 写入后、阶段提交后和后台任务最终化时重查中断门禁，把仍未 `DONE` 的本地 Run 收敛为 `INTERRUPTED/DONE`。
+
+### 原因
+
+完整冻结 Suite 和完整结果集合都随 Case 数增长。若每个结果写入、每次轮询或 SSE 都加载完整 Run，会形成二次增长的解析与分配；若 Artifact 先聚合数组，会额外放大峰值内存。后台 Promise 若晚绑定错误处理会泄漏拒绝；Shutdown 与文件/数据库提交竞争时，单次前置检查不足以保证关闭语义。
+
+### 代码影响
+
+新增有界 Detail/Progress DTO 与对应 Repository 查询，Artifact 输入改为单次消费流并返回计算后的 Result Set Hash。SSE OpenAPI 分别声明 200 `text/event-stream` 和开流前 400/403/404/500 `application/json`；Hijack 后的轮询、Schema 或写流异常统一结束响应并释放 Controller。Local Runtime 接入创建冻结、REST 开始/完成、取消请求/完成五类闭合业务事件。Web 预检由组件生命周期持有 AbortController，并以单调请求代次加选择键拒绝迟到响应；重新预检先失效旧事实，本代失败保持创建门禁。创建响应校验所有由请求固定的身份和显式限制。
+
+### 测试影响
+
+测试证明逐 Case 写入不调用完整 Run 读取、详情/进度投影不包含大字段、流式 Artifact 与批量 Canonical Hash 等价、结果持久化失败后等待忽略 Abort 的 Worker 收口、轮询拒绝无未处理 Promise、Shutdown 不能晚到 `READY/EVALUATION`、SSE 成功/错误媒体类型和 Hijack 后拒绝收口，以及 Web 预检 Abort、A→B→A 迟到拒绝、同选择重新预检失败门禁和创建响应身份。
+
+### 排障影响
+
+进度或写入变慢时先检查是否误用完整 `getPlatformRun`；Artifact 内存异常先检查 Cursor 与 `AsyncIterable` 是否被聚合。关闭卡住或终态错误时检查 Owner 中断门禁、轮询错误和最终 settlement，不通过放宽 Shutdown 语义规避。
+
+### 状态
+
+生效。

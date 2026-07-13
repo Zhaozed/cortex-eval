@@ -127,6 +127,30 @@ describe("Case 与 Provider 边界契约", () => {
     ).toBe(false);
   });
 
+  it.each([
+    ["timeoutMs", 99, false],
+    ["timeoutMs", 100, true],
+    ["timeoutMs", 600_000, true],
+    ["timeoutMs", 600_001, false],
+    ["defaultConcurrency", 0, false],
+    ["defaultConcurrency", 1, true],
+    ["defaultConcurrency", 64, true],
+    ["defaultConcurrency", 65, false]
+  ] as const)("Endpoint %s=%i 的边界结果为 %s", (field, value, expected) => {
+    const endpoint = {
+      contractVersion: "cortex.endpoint-config.v1",
+      urlTemplate: "https://example.com/tasks/{{vars.task}}",
+      method: "POST",
+      headers: {},
+      bodySelector: "/request_body",
+      timeoutMs: 100,
+      defaultConcurrency: 1,
+      [field]: value
+    };
+
+    expect(EndpointConfigV1Schema.safeParse(endpoint).success).toBe(expected);
+  });
+
   it("统一 LLM 配置拒绝秘密字段和不安全远程 NONE 认证", () => {
     const gemini = {
       contractVersion: "cortex.llm-config.v1",

@@ -1,7 +1,10 @@
 import type { DomainJsonObject } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 
 import type { Clock, IdGenerator, TransactionManager } from "../../application-ports.ts";
-import type { ImportedExecutionRecord } from "./execution-import-models.ts";
+import type {
+  ImportedExecutionArtifactManifest,
+  ImportedExecutionRecord
+} from "./execution-import-models.ts";
 
 /** Minimal P2 Execution import registration command. */
 export interface ImportExecutionIdentityCommand {
@@ -28,7 +31,7 @@ export interface ImportExecutionIdentityCommand {
   /** Frozen Run execution limits. */
   readonly runExecutionLimits: DomainJsonObject;
   /** Versioned expected Artifact facts. */
-  readonly artifactManifest: readonly DomainJsonObject[];
+  readonly artifactManifest: ImportedExecutionArtifactManifest;
 }
 
 /** Exact minimal Execution identity registration result. */

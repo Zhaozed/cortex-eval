@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { LocalRunHandlers } from "../src/application-run-handlers.ts";
 import { buildLocalServer, type LocalResourceHandlers } from "../src/local-server.ts";
 import {
   jsonObjectProperty,
@@ -34,6 +35,17 @@ const handlers: LocalResourceHandlers = {
   listRubricPromptReferences: success,
   previewRubricPrompt: success,
   previewAnalysisPrompt: success
+};
+const runHandlers: LocalRunHandlers = {
+  preflightRun: success,
+  createRun: success,
+  listRuns: success,
+  getRun: success,
+  listRunCases: success,
+  getRunCase: success,
+  startRun: success,
+  cancelRun: success,
+  getRunProgress: success
 };
 
 describe("P3 OpenAPI contract", () => {
@@ -78,7 +90,9 @@ describe("P3 OpenAPI contract", () => {
         "/api/v1/test-suites/{suiteId}/import"
       ].sort()
     );
-    expect(JSON.stringify(document)).not.toMatch(/\/runs|execution|report|event-stream/i);
+    expect(Object.keys(paths)).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/\/runs|execution|report|event-stream/i)])
+    );
   });
 
   it("每个操作都有响应 Schema，严格写 DTO 拒绝未知键", async () => {
@@ -165,5 +179,40 @@ describe("P3 OpenAPI contract", () => {
     expect(Object.keys(jsonObjectProperty(importOperation, "responses"))).toEqual(
       expect.arrayContaining(["200", "400", "404", "409", "413", "422", "499", "500"])
     );
+  });
+
+  it("Run SSE 声明真实 text/event-stream，并包含统一 403 与初始 500", async () => {
+    const p5Server = buildLocalServer({
+      requestIdGenerator: { nextId: () => "018f0c8e-9f79-7abc-8def-0123456789ab" },
+      resourceHandlers: handlers,
+      runHandlers
+    });
+    await p5Server.ready();
+    try {
+      const response = await p5Server.inject({
+        method: "GET",
+        url: "/api/v1/openapi.json",
+        headers: { host: "127.0.0.1:4310" }
+      });
+      const paths = jsonObjectProperty(parseJsonObject(response), "paths");
+      const operation = jsonObjectProperty(
+        jsonObjectProperty(paths, "/api/v1/runs/{runId}/events"),
+        "get"
+      );
+      const responses = jsonObjectProperty(operation, "responses");
+      expect(Object.keys(responses)).toEqual(
+        expect.arrayContaining(["200", "400", "403", "404", "500"])
+      );
+      const content = jsonObjectProperty(jsonObjectProperty(responses, "200"), "content");
+      expect(content["text/event-stream"]).toBeDefined();
+      expect(content["application/json"]).toBeUndefined();
+      for (const status of ["400", "403", "404", "500"]) {
+        const errorContent = jsonObjectProperty(jsonObjectProperty(responses, status), "content");
+        expect(errorContent["application/json"]).toBeDefined();
+        expect(errorContent["text/event-stream"]).toBeUndefined();
+      }
+    } finally {
+      await p5Server.close();
+    }
   });
 });

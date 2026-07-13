@@ -108,7 +108,8 @@ class InMemoryTestSuiteRepository implements TestSuiteRepository {
       description: item.description,
       caseCount: item.caseCount,
       revision: item.revision,
-      updatedAt: item.updatedAt
+      updatedAt: item.updatedAt,
+      latestPlatformRun: null
     }));
     const last = items.at(-1);
     return Promise.resolve({

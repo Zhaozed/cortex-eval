@@ -93,6 +93,23 @@ describe("SQLite 初始化与 Migration", () => {
     ).toHaveLength(10);
   });
 
+  it("为测试集最近平台 Run 聚合安装专用倒序索引", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-"));
+    const storage = await initializeSqliteStorage({ projectRoot });
+    openStorages.push(storage);
+
+    const database = new Database(storage.databasePath, { readonly: true });
+    const row = database
+      .prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'run_log_suite_latest_platform'"
+      )
+      .get() as { readonly sql: string } | undefined;
+    database.close();
+
+    expect(row?.sql).toContain("run_log(suite_id, created_at DESC, id DESC)");
+    expect(row?.sql).toContain("WHERE source_type = 'PLATFORM'");
+  });
+
   it("每个独立连接均启用外键、WAL、Busy Timeout 和 FULL 同步", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-"));
     const first = await initializeSqliteStorage({ projectRoot });

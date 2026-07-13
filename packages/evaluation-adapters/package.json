@@ -1,0 +1,10 @@
+{
+  "name": "@cortex-eval/evaluation-adapters",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@cortex-eval/application": "workspace:*",
+    "@cortex-eval/contracts": "workspace:*"
+  }
+}

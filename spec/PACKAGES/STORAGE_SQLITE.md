@@ -14,7 +14,7 @@ Package 使用 Kysely 构建显式 SQL，使用 better-sqlite3 访问当前唯�
 
 ## 实现状态
 
-P2 已落地十张业务表、Kysely Migration、连接策略、Repository、托管事务、严格行映射、Revision 条件更新、JSON1 查询、Execution 幂等原语和删除/Provenance 约束。P3 补充资源分页 Repository、外部 Case staging 和 owner-aware 临时目录清理。Case 与四类 Configuration 读取会核对闭合键集合、派生字段和语义 Hash，不接受形状合法但事实不一致的脏行。
+P2 已落地十张业务表、Kysely Migration、连接策略、Repository、托管事务、严格行映射、Revision 条件更新、JSON1 查询、Execution 幂等原语和删除/Provenance 约束。P3 补充资源分页 Repository、外部 Case staging 和 owner-aware 临时目录清理。P5 补充平台 Run Repository、冻结行映射、逐 Case REST 结果、阶段 CAS、取消/恢复、Artifact Manifest、Run Cursor，以及测试集最新平台 Run 的专用部分倒序索引。Run Detail 与 Run Progress 使用独立有界 SQL 投影；逐 Case 结果写入只按 Ordinal 读取目标冻结 Case 身份，不加载整个 Suite JSON。Case、Configuration 和 Run 读取都在边界清洗脏行。
 
 ## 目标代码落点
 
@@ -25,13 +25,16 @@ P2 已落地十张业务表、Kysely Migration、连接策略、Repository、托
 - [sqlite-initial-migration.ts](../../packages/storage-sqlite/src/sqlite-initial-migration.ts)：十表、约束和索引。
 - [sqlite-database.ts](../../packages/storage-sqlite/src/sqlite-database.ts)：绝对项目根、权限、PRAGMA、Migration 和连接生命周期。
 - [sqlite-application-repositories.ts](../../packages/storage-sqlite/src/sqlite-application-repositories.ts)：Application Port 实现。
+- [sqlite-platform-run-repository.ts](../../packages/storage-sqlite/src/sqlite-platform-run-repository.ts)：平台 Run 短事务、阶段 CAS、结果与查询。
+- [sqlite-platform-run-mappers.ts](../../packages/storage-sqlite/src/sqlite-platform-run-mappers.ts)：冻结 Run 和 REST Result 脏行清洗。
+- [sqlite-platform-run-index-migration.ts](../../packages/storage-sqlite/src/sqlite-platform-run-index-migration.ts)：测试集最新平台 Run 查询索引。
 - [sqlite-row-mappers.ts](../../packages/storage-sqlite/src/sqlite-row-mappers.ts)：脏持久化边界清洗。
 - [sqlite-case-import-staging.ts](../../packages/storage-sqlite/src/sqlite-case-import-staging.ts)：外部 staging、同连接最终事务、DETACH 与清理。
 - [case-import-workspace.ts](../../packages/storage-sqlite/src/case-import-workspace.ts)：owner 身份、存活确认、隔离与受控删除。
 
 ## 当前样例与测试入口
 
-[storage-sqlite tests](../../packages/storage-sqlite/test) 覆盖 Migration、跨字段约束、四类配置、Case Writer、权限、双连接/双进程竞争、Execution 幂等和千级性能。
+[storage-sqlite tests](../../packages/storage-sqlite/test) 覆盖 Migration、跨字段约束、四类配置、Case Writer、权限、双连接/双进程竞争、Execution 幂等、平台 Run 抢占/取消/提交/恢复和千级性能。
 
 P3 staging 测试额外覆盖只读附加、无 journal sidecar、并发旧 Revision 仅一方提交、DETACH、状态根/db/数据库/工作区/临时根符号链接拒绝、owner 伪造、PID 复用、未过 TTL 的 owner 初始化窗口、清理竞争，以及 owner/SQLite writer 初始化失败后的句柄关闭和目录回收。
 
@@ -51,15 +54,15 @@ Repository、Transaction Manager 和查询对象实现 Application 定义的窄 
 
 ## 写入与读取路径
 
-资源由 Test Suites 和 Configurations Feature 写入。Runs 写入 Run、Case Result、Eval Result 和 Summary。Execution Imports 原子导入完整规范化结果。Case Analysis 写入当前分析和决策。
+资源由 Test Suites 和 Configurations Feature 写入。P5 Runs 写入冻结 Run、逐 Case REST Result、REST Result Set Hash 和 Artifact Manifest；Eval Result 与 Summary 在 P6/P8 接入。Execution Imports 原子导入完整规范化结果。Case Analysis 写入当前分析和决策。
 
-Web、API 和 CLI 不直接查询数据库；所有读取通过 Application Repository Port。
+Web、API 和 CLI 不直接查询数据库；所有读取通过 Application Repository Port。只有阶段抢占返回完整冻结执行输入；详情、动作、SSE、取消轮询和结果写入分别使用有界 Detail/Progress/目标 Case 投影，避免 Case 数增长导致重复全量 JSON 解析。
 
 ## 状态、事务与幂等
 
 资源写入、运行冻结、阶段提交和结果导入使用短事务。外部调用不持有数据库事务。Case Key、Ordinal、Execution ID、Run Status 和联合外键使用数据库约束保护。
 
-部分唯一索引保证全库最多一条 `RUNNING`。条件更新同时校验 Status、Stage、Lock Revision 或 Analysis Revision。
+部分唯一索引保证全库最多一条 `RUNNING`。条件更新同时校验 Status、Stage、Lock Revision 或 Analysis Revision。REST 结果以 `(run_id, case_key)` 幂等写入并核对冻结 Ordinal/Definition Hash；阶段提交要求真实结果数和计数完整。测试集列表的最新平台 Run 只查询 `source_type='PLATFORM'`，按 `created_at DESC, id DESC` 确定排序，不混入离线导入。
 
 Case 全量导入的 staging SQLite 位于受控外部工作目录，不计入十张业务表。Writer 阶段文件为 `0600` 且关闭 journal；最终提交前收敛为 `0400`，通过主库 Kysely 租用连接 `ATTACH`，在一个 `BEGIN IMMEDIATE` 短事务中校验并 `INSERT ... SELECT`，随后验证 `DETACH`。主库正常业务事务仍使用 Kysely 托管事务；这一手工事务只限 ATTACH 生命周期内的 staging 最终提交。
 
@@ -75,4 +78,4 @@ SQLite 初始化先 canonicalize 显式项目根，再逐级以 `lstat + realpat
 
 ## 相关测试
 
-当前测试覆盖十表 Migration、约束、索引、删除、严格行映射、Case Writer、真实 SQLite Case 首/中/末删除和重排失败回滚、双连接 Revision/唯一字段/Execution 竞争、双进程唯一运行、Execution 身份幂等和千级查询。阶段条件提交、取消竞争与恢复随 P5 Run 编排落地。
+当前测试覆盖十表 Migration、约束、索引、删除、严格行映射、Case Writer、真实 SQLite Case 首/中/末删除和重排失败回滚、双连接 Revision/唯一字段/Execution 竞争、双进程唯一运行、Execution 身份幂等、平台 Run 阶段条件提交、跨进程取消/提交竞争、启动恢复、Run 有界投影、结果写入不触发完整 Run 读取、分页/Case 查询/Manifest 和千级查询。

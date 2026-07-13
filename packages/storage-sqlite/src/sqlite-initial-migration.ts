@@ -1,6 +1,8 @@
 import { sql, type Kysely } from "kysely";
 import type { Migration, MigrationProvider } from "kysely/migration";
 
+import { PLATFORM_RUN_INDEX_MIGRATION } from "./sqlite-platform-run-index-migration.ts";
+
 const CREATE_STATEMENTS = [
   `CREATE TABLE test_suite (
     id TEXT PRIMARY KEY,
@@ -248,6 +250,9 @@ const INITIAL_MIGRATION: Migration = { up: migrateUp, down: migrateDown };
 export class CortexMigrationProvider implements MigrationProvider {
   /** Return all known migrations in stable name order. */
   public getMigrations(): Promise<Record<string, Migration>> {
-    return Promise.resolve({ "001_initial_schema": INITIAL_MIGRATION });
+    return Promise.resolve({
+      "001_initial_schema": INITIAL_MIGRATION,
+      "002_platform_run_indexes": PLATFORM_RUN_INDEX_MIGRATION
+    });
   }
 }

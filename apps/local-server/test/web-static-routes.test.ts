@@ -11,11 +11,11 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
-describe("P4 Web 静态路由与 CSP", () => {
-  it("只为已闭环 P4 页面返回同一个生产入口", async () => {
+describe("P5 Web 静态路由与 CSP", () => {
+  it("只为已闭环 P5 页面返回同一个生产入口", async () => {
     const root = await mkdtemp(join(tmpdir(), "cortex-web-static-"));
     roots.push(root);
-    await writeFile(join(root, "index.html"), "<!doctype html><title>P4 Web</title>", "utf8");
+    await writeFile(join(root, "index.html"), "<!doctype html><title>P5 Web</title>", "utf8");
     let request = 0;
     const server = buildLocalServer({
       staticRoot: root,
@@ -32,6 +32,8 @@ describe("P4 Web 静态路由与 CSP", () => {
       "/",
       "/test-suites",
       "/test-suites/018f0f4e-7b7a-7cc0-8000-000000000001",
+      "/runs",
+      "/runs/018f0f4e-7b7a-7cc0-8000-000000000002",
       "/endpoint-configs",
       "/llm-configs",
       "/rubric-prompts",
@@ -45,9 +47,9 @@ describe("P4 Web 静态路由与 CSP", () => {
       });
       expect(response.statusCode, url).toBe(200);
       expect(response.headers["content-type"]).toContain("text/html");
-      expect(response.body).toContain("P4 Web");
+      expect(response.body).toContain("P5 Web");
     }
-    for (const url of ["/runs", "/reports", "/analysis"]) {
+    for (const url of ["/reports", "/analysis"]) {
       const response = await server.inject({
         method: "GET",
         url,
@@ -62,7 +64,7 @@ describe("P4 Web 静态路由与 CSP", () => {
   it("只为 Radix 运行时样式放开 inline，脚本仍保持严格同源", async () => {
     const root = await mkdtemp(join(tmpdir(), "cortex-web-csp-"));
     roots.push(root);
-    await writeFile(join(root, "index.html"), "<!doctype html><title>P4 Web</title>", "utf8");
+    await writeFile(join(root, "index.html"), "<!doctype html><title>P5 Web</title>", "utf8");
     const server = buildLocalServer({
       staticRoot: root,
       requestIdGenerator: {

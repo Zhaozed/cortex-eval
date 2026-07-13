@@ -7,6 +7,9 @@ import {
   type EndpointValidator,
   type LlmValidator
 } from "@cortex-eval/application/src/features/configurations/configuration-service.ts";
+import { PlatformRunService } from "@cortex-eval/application/src/features/runs/platform-run-service.ts";
+import zhCnMessages from "@cortex-eval/contracts/messages/zh-CN.json" with { type: "json" };
+import { FetchRestExecutor } from "@cortex-eval/evaluation-adapters/src/fetch-rest-executor.ts";
 import {
   initializeSqliteStorage,
   type SqliteStorage
@@ -21,6 +24,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
 import { createApplicationResourceHandlers } from "./application-resource-handlers.ts";
+import { createApplicationRunHandlers } from "./application-run-handlers.ts";
 import { buildLocalServer } from "./local-server.ts";
 import { ResilientBusinessLogger, RotatingTextLogSink } from "./local-logger.ts";
 import {
@@ -29,6 +33,7 @@ import {
 } from "./configuration-probe-adapters.ts";
 import { applyDevelopmentSeed } from "./development-seed.ts";
 import { FileCaseExportBodyPreparer } from "./case-export-staging.ts";
+import { LocalRunArtifactStore } from "./run-artifact-store.ts";
 
 /** Local Server composition options. */
 export interface LocalServerRuntimeOptions {
@@ -54,18 +59,21 @@ export class LocalServerRuntime {
   public readonly databasePath: string;
   readonly #storage: SqliteStorage;
   readonly #businessLogger: ResilientBusinessLogger;
+  readonly #runs: PlatformRunService;
   #closed = false;
 
   /** Bind one Fastify instance and its owned storage. */
   public constructor(
     server: FastifyInstance,
     storage: SqliteStorage,
-    businessLogger: ResilientBusinessLogger
+    businessLogger: ResilientBusinessLogger,
+    runs: PlatformRunService
   ) {
     this.server = server;
     this.databasePath = storage.databasePath;
     this.#storage = storage;
     this.#businessLogger = businessLogger;
+    this.#runs = runs;
   }
 
   /** Listen on the fixed current loopback address and default port. */
@@ -78,6 +86,7 @@ export class LocalServerRuntime {
     if (this.#closed) return;
     this.#closed = true;
     await this.server.close();
+    await this.#runs.shutdown();
     await this.#businessLogger.flush();
     await this.#storage.close();
   }
@@ -95,6 +104,13 @@ function createDefaultBusinessLogger(projectRoot: string): ResilientBusinessLogg
       }
     }
   });
+}
+
+// Resolve one stable Run message without accepting arbitrary core copy.
+function runMessage(code: string): string {
+  const messages: Readonly<Record<string, unknown>> = zhCnMessages;
+  const value = messages[code];
+  return typeof value === "string" ? value : zhCnMessages.INTERNAL_ERROR;
 }
 
 /** Initialize storage, clean staging and assemble all P3 resource capabilities. */
@@ -137,6 +153,26 @@ export async function createLocalServerRuntime(
     if (options.developmentSeed === true) {
       await applyDevelopmentSeed({ testSuites, cases, configurations });
     }
+    const artifactStore = await LocalRunArtifactStore.create({ projectRoot: options.projectRoot });
+    const runs = new PlatformRunService({
+      transactionManager: storage.createRunTransactionManager(),
+      restExecutor: new FetchRestExecutor({
+        readSecret: (key): string | undefined => process.env[key]
+      }),
+      artifactStore,
+      clock,
+      idGenerator,
+      messageResolver: { message: runMessage },
+      eventSink: {
+        record: (event): Promise<void> =>
+          businessLogger.record({
+            event: event.event,
+            timestamp: event.timestamp,
+            resourceId: event.runId
+          })
+      }
+    });
+    await runs.initialize();
     const resourceHandlers = createApplicationResourceHandlers({
       testSuites,
       configurations,
@@ -148,10 +184,11 @@ export async function createLocalServerRuntime(
     const server = buildLocalServer({
       requestIdGenerator: idGenerator,
       resourceHandlers,
+      runHandlers: createApplicationRunHandlers(runs),
       businessLogger,
       ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot })
     });
-    return new LocalServerRuntime(server, storage, businessLogger);
+    return new LocalServerRuntime(server, storage, businessLogger, runs);
   } catch (error) {
     await storage.close();
     throw error;

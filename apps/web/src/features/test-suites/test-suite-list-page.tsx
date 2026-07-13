@@ -50,6 +50,7 @@ import {
   testSuitePageQuery,
   type ResourceApi
 } from "../../lib/resource-api.ts";
+import { runStatusLabel } from "../runs/run-ui.ts";
 
 /** Test Suite list page properties. */
 export interface TestSuiteListPageProps {
@@ -160,6 +161,27 @@ export function TestSuiteListPage({
         accessorKey: "caseCount",
         header: message("testSuites.caseCount"),
         cell: ({ row }): ReactElement => <Badge variant="outline">{row.original.caseCount}</Badge>
+      },
+      {
+        id: "latestPlatformRun",
+        header: message("testSuites.latestRun"),
+        cell: ({ row }): ReactElement => {
+          const run = row.original.latestPlatformRun;
+          if (run === null) return <Badge variant="secondary">{message("testSuites.noRun")}</Badge>;
+          return (
+            <Badge asChild variant="accent">
+              <a
+                href={`/runs/${encodeURIComponent(run.id)}`}
+                onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+                  event.preventDefault();
+                  onNavigate(`/runs/${encodeURIComponent(run.id)}`);
+                }}
+              >
+                {runStatusLabel(run.status)}
+              </a>
+            </Badge>
+          );
+        }
       },
       {
         accessorKey: "updatedAt",

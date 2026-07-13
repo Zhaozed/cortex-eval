@@ -10,9 +10,9 @@ Cortex Eval 是面向本地单用户的测试集管理、REST 结果获取、Pro
 
 ## 实现状态
 
-当前仓库已完成 P0–P4。Node 24/pnpm Workspace、严格 TypeScript、格式/Lint/架构/文档/覆盖率门禁、Runtime Doctor、真实 Fixture 契约与 Secret 扫描、Promptfoo 固定版本进程探针、137 条完全展开的 Assertion 能力契约和确定性 Benchmark Harness 已生效。Contracts 与 Domain 已冻结并实现纯协议和业务规则；十表 SQLite、资源 Repository、Test Suite/Case/Configuration Application 用例、流式 Case 导入导出、Local Server 资源 API 和资源管理 Web 已落地。
+当前仓库已完成 P0–P5。Node 24/pnpm Workspace、严格 TypeScript、格式/Lint/架构/文档/覆盖率门禁、Runtime Doctor、真实 Fixture 契约与 Secret 扫描、Promptfoo 固定版本进程探针、137 条完全展开的 Assertion 能力契约和确定性 Benchmark Harness 已生效。Contracts 与 Domain 已冻结并实现纯协议和业务规则；十表 SQLite、资源 Repository、Test Suite/Case/Configuration Application 用例、流式 Case 导入导出、Local Server、资源管理 Web，以及平台 Run 创建与 REST 执行闭环已落地。
 
-当前 OpenAPI 与 Web 只包含 Test Suite、Case、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 的资源闭环。Web 以生产 Vite 产物同源提供 Dashboard 资源数量、资源 CRUD、Case 导入导出、双编辑器、组合过滤、Cursor 分页、配置探测、Prompt 预览与引用影响。Run、Evaluation、Report、Analysis、Work Package 文件运行时、Execution Import、Canonical Export 执行和目标 CLI 均未注册；测试数据转换脚本与 REST 运行脚本继续作为回归基线。
+当前 OpenAPI 与 Web 包含 Test Suite、Case、Endpoint、LLM、LLM Rubric Prompt、Case Analysis Prompt 和平台 Run/REST 闭环。平台可预检并冻结资源创建 Run，通过真实 HTTP 执行 REST、保存逐 Case 结果与不可变 Artifact、查询进度、取消并恢复遗留运行；Dashboard 和 Test Suite 列表读取最近平台 Run。Evaluation、Report、Analysis、Retry/Force、Work Package 文件运行时、Execution Import、Canonical Export 执行和目标 CLI 均未注册；测试数据转换脚本与旧 REST 运行脚本继续作为回归基线。
 
 本文档描述 [REQ.md](../REQ.md) 和 [TECH.md](../TECH.md) 已确认的目标系统。未落地路径统一称为目标代码落点，不视为当前代码事实。
 
@@ -34,14 +34,14 @@ Infrastructure 实现 SQLite、文件、REST、Promptfoo、分析模型、Clock 
 
 ## 代码模块
 
-- `apps/local-server`：P3–P4 已落地的本地 HTTP Server、资源 Route、生产 Web 静态入口、Mapper、安全入口、日志、OpenAPI、依赖装配和生命周期。
-- `apps/web`：P4 已落地 Dashboard、测试集/Case 和四类配置管理；后续 Feature 按运行、报告和分析组织。
+- `apps/local-server`：P3–P5 已落地的本地 HTTP Server、资源与 Run Route、Run SSE、生产 Web 静态入口、Mapper、安全入口、日志、OpenAPI、依赖装配和生命周期。
+- `apps/web`：P5 已落地 Dashboard、测试集/Case、四类配置管理和平台 Run/REST；后续 Feature 按报告和分析组织。
 - `apps/cli`：平台 API 命令和离线工作包命令。
 - `packages/domain`：纯业务类型和规则，P1 已落地。
-- `packages/application`：P2–P3 已落地资源 Use Case、Port、流式导入导出和业务 Feature 编排基础。
+- `packages/application`：P2–P5 已落地资源 Use Case、Port、流式导入导出和平台 Run/REST 编排。
 - `packages/contracts`：DTO、Schema、Contract Version 和 Error Code，P1 已落地。
-- `packages/storage-sqlite`：P2–P3 已落地 SQLite Schema、Migration、Repository、事务和外部 Case staging。
-- `packages/evaluation-adapters`：REST、Promptfoo 和分析模型 Adapter。
+- `packages/storage-sqlite`：P2–P5 已落地 SQLite Schema、Migration、资源/Run Repository、事务和外部 Case staging。
+- `packages/evaluation-adapters`：P5 已落地 REST Adapter；Promptfoo 和分析模型 Adapter 随后续阶段实现。
 - `packages/reporting`：纯报告聚合、Diff 和 Markdown Renderer。
 - `packages/work-package`：Manifest、Execution、路径安全、文件锁和 Artifact Store。
 
@@ -79,11 +79,12 @@ Evaluator 与 Analyzer 只支持统一接口下的 Gemini 和 OpenAI-compatible 
 - P1 Contracts 入口：[packages/contracts/src](../packages/contracts/src)
 - P1 Domain 入口：[packages/domain/src](../packages/domain/src)
 - P1 测试入口：[packages/contracts/test](../packages/contracts/test) 与 [packages/domain/test](../packages/domain/test)
-- P2–P3 Application 入口：[packages/application/src](../packages/application/src)
-- P2–P3 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
-- P3 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
-- P3 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
-- P3 测试入口：[apps/local-server/test](../apps/local-server/test)
-- P4 Web 入口：[apps/web/src](../apps/web/src)
-- P4 组件与协议测试：[apps/web/test](../apps/web/test)
-- P4 生产 E2E：[apps/web/e2e](../apps/web/e2e)
+- P2–P5 Application 入口：[packages/application/src](../packages/application/src)
+- P2–P5 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
+- P5 REST Adapter 入口：[packages/evaluation-adapters/src](../packages/evaluation-adapters/src)
+- P3–P5 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
+- P5 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
+- P3–P5 测试入口：[apps/local-server/test](../apps/local-server/test)
+- P4–P5 Web 入口：[apps/web/src](../apps/web/src)
+- P4–P5 组件与协议测试：[apps/web/test](../apps/web/test)
+- P4–P5 生产 E2E：[apps/web/e2e](../apps/web/e2e)

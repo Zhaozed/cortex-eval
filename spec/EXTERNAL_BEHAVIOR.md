@@ -2,7 +2,7 @@
 
 ## 当前实现边界
 
-P4 当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并执行 Case 全量导入导出、配置验证与 Prompt 预览/引用查询。提交的 OpenAPI 与 Web 导航只包含这些能力。Run、Evaluation、Report、Analysis、Work Package 和目标 CLI 行为仍是后续验收目标，不存在占位入口。
+P5 当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST、查看逐 Case 结果与进度、取消和刷新恢复。提交的 OpenAPI 与 Web 导航只包含这些闭环能力。Evaluation、Report、Analysis、Retry/Force、Work Package 文件运行时和目标 CLI 仍是后续验收目标，不存在占位入口。
 
 ## 使用方式
 
@@ -20,16 +20,17 @@ Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式选择满足
 - 全量 Case 替换必须整体校验、整体提交，不允许部分成功。
 - 被当前 Case 引用的 Rubric Prompt 不允许删除或修改 Prompt Key。
 - Secret 只展示环境变量引用名称，不返回展开值。
-- Web Dashboard 只展示六类当前资源数量。Case 筛选、Cursor 和历史页状态可由 URL 刷新恢复；跨 Test Suite 详情导航不复用上一 Suite 的页面状态。写冲突保留 Draft 并展示最新 Snapshot，不自动覆盖；冲突刷新确认远端 Case 已删除时保留只读 Draft 或删除意图，不再重取详情，也不提供无效重试，只有显式采用删除事实后才关闭。写入或冲突待决时，关闭、Esc、应用导航、浏览器历史和页面卸载均不能隐式丢弃 Draft。浏览器缺少 `Navigation.currentEntry.index` 时只显示能力错误，不挂载资源页面或写入口。
+- Web Dashboard 展示六类当前资源数量和最近平台 Run；Test Suite 列表显示对应最新平台 Run 状态。Case 筛选、Cursor 和历史页状态可由 URL 刷新恢复；跨 Test Suite 详情导航不复用上一 Suite 的页面状态。写冲突保留 Draft 并展示最新 Snapshot，不自动覆盖；冲突刷新确认远端 Case 已删除时保留只读 Draft 或删除意图，不再重取详情，也不提供无效重试，只有显式采用删除事实后才关闭。写入或冲突待决时，关闭、Esc、应用导航、浏览器历史和页面卸载均不能隐式丢弃 Draft。浏览器缺少 `Navigation.currentEntry.index` 时只显示能力错误，不挂载资源或 Run 页面。
 
 ## 运行行为
 
-- 用户可以选择分阶段模式或一键模式，两种模式保存相同阶段事实。
-- REST 阶段完成后可以查看逐 Case 结果，再决定是否评估。
-- 部分 REST Error 不阻止成功 Case 评估；全部 REST Error 仍可生成完整 Not Evaluated 报告。
+- 用户可以创建 `STAGED` 或 `PIPELINE` Run；P5 两种模式当前都只执行已闭环 REST，自动推进在 P6/P8 接入。
+- REST 阶段执行中和完成后可以查看真实逐 Case 结果；完成后停在 `READY/EVALUATION`，当前没有 Eval 动作。
+- 部分或全部 REST Error 都保存为真实 Case 事实并完成 REST 阶段。
 - 页面刷新不影响后端执行和已完成事实。
 - 同一时刻只有一个平台运行阶段可以处于 `RUNNING`。
 - 取消停止新工作并安全回收当前外部进程，不伪造未完成结果。
+- 运行中页面使用有限期 SSE 和查询刷新；断流或页面刷新不改变服务端事实。
 
 ## REST 可见语义
 
@@ -84,13 +85,13 @@ UI 和 CLI 对同一规范化输入生成相同统计。错误返回稳定 Error
 ## 相关模块
 
 - 目标外部行为来源：[REQ.md](../REQ.md) 与 [TECH.md](../TECH.md)
-- 当前 REST CLI 入口：[data_scripts/run_promptfoo_rest_cli.ts](../data_scripts/run_promptfoo_rest_cli.ts)
-- 当前 REST 用户说明：[data_scripts/run_promptfoo_rest.md](../data_scripts/run_promptfoo_rest.md)
+- 当前 Run/REST API 入口：[apps/local-server/src](../apps/local-server/src)
+- 当前 REST Adapter：[packages/evaluation-adapters/src](../packages/evaluation-adapters/src)
 - 当前测试集样例：[test_suite/current/cases/loona_promptfoo_tests.json](../test_suite/current/cases/loona_promptfoo_tests.json)
 - 当前 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
-- 当前 P3 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
-- 当前 P4 Web：[apps/web/src](../apps/web/src)
-- 当前 P4 生产 E2E：[apps/web/e2e](../apps/web/e2e)
+- 当前 P5 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
+- 当前 P5 Web：[apps/web/src](../apps/web/src)
+- 当前 P4–P5 生产 E2E：[apps/web/e2e](../apps/web/e2e)
 - 工作包 CLI 入口尚未落地。
 - [ENTRYPOINTS/LOCAL_SERVER.md](ENTRYPOINTS/LOCAL_SERVER.md)
 - [ENTRYPOINTS/CLI.md](ENTRYPOINTS/CLI.md)

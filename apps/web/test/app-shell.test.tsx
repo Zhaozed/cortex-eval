@@ -6,8 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "../src/components/app-shell.tsx";
 
-describe("P4 应用外壳", () => {
-  it("只呈现已闭环资源导航和可读小屏提示", () => {
+describe("P5 应用外壳", () => {
+  it("呈现已闭环 Run 与资源导航和可读小屏提示", () => {
     render(
       <AppShell activePath="/" onNavigate={vi.fn()}>
         <h1>仪表盘内容</h1>
@@ -21,7 +21,7 @@ describe("P4 应用外壳", () => {
     expect(screen.getByRole("link", { name: "LLM 配置" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Rubric 提示词" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "分析提示词配置" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "运行" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "运行" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "报告" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "失败分析" })).not.toBeInTheDocument();
     expect(

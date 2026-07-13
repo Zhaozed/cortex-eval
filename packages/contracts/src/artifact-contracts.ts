@@ -146,15 +146,31 @@ const RestFailureV1Schema = z
     }
   });
 
+/** One validated REST Artifact Case projection shared by bounded streaming writers. */
+export const RestArtifactCaseV1Schema = z.discriminatedUnion("status", [
+  RestSuccessV1Schema,
+  RestFailureV1Schema
+]);
+
 /** Immutable REST stage results. */
 export const RestResultsArtifactV1Schema = z
   .strictObject({
     contractVersion: z.literal("cortex.rest-results.v1"),
     ...ArtifactIdentityV1Schema.shape,
     completedAt: UtcDateTimeSchema,
-    cases: z
-      .array(z.discriminatedUnion("status", [RestSuccessV1Schema, RestFailureV1Schema]))
-      .min(1),
+    cases: z.array(RestArtifactCaseV1Schema).min(1),
+    resultSetHash: Sha256Schema
+  })
+  .superRefine((artifact, context) => validateCaseSequence(artifact.cases, context));
+
+/** Immutable platform REST results bound to one Run rather than an offline Execution. */
+export const PlatformRestResultsArtifactV1Schema = z
+  .strictObject({
+    contractVersion: z.literal("cortex.platform-rest-results.v1"),
+    runId: UuidV7Schema,
+    runContextHash: Sha256Schema,
+    completedAt: UtcDateTimeSchema,
+    cases: z.array(RestArtifactCaseV1Schema).min(1),
     resultSetHash: Sha256Schema
   })
   .superRefine((artifact, context) => validateCaseSequence(artifact.cases, context));

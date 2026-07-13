@@ -3,6 +3,7 @@ import {
   type LocalApiHandlerResponse,
   type LocalResourceHandlers
 } from "../../apps/local-server/src/local-server.ts";
+import type { LocalRunHandlers } from "../../apps/local-server/src/application-run-handlers.ts";
 import { resolve } from "node:path";
 import { format, resolveConfig } from "prettier";
 
@@ -38,6 +39,18 @@ const CAPABILITY_HANDLERS: LocalResourceHandlers = {
   previewAnalysisPrompt: notExecutable
 };
 
+const RUN_CAPABILITY_HANDLERS: LocalRunHandlers = {
+  preflightRun: notExecutable,
+  createRun: notExecutable,
+  listRuns: notExecutable,
+  getRun: notExecutable,
+  listRunCases: notExecutable,
+  getRunCase: notExecutable,
+  startRun: notExecutable,
+  cancelRun: notExecutable,
+  getRunProgress: notExecutable
+};
+
 // Sort object keys recursively while retaining protocol array order.
 function stableObject(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stableObject);
@@ -49,11 +62,12 @@ function stableObject(value: unknown): unknown {
   );
 }
 
-/** Generate the exact stable P3 OpenAPI JSON from real Route registration. */
+/** Generate the exact stable P5 OpenAPI JSON from real Route registration. */
 export async function generateLocalOpenApiJson(): Promise<string> {
   const server = buildLocalServer({
     requestIdGenerator: { nextId: () => "018f0c8e-9f79-7abc-8def-0123456789ab" },
-    resourceHandlers: CAPABILITY_HANDLERS
+    resourceHandlers: CAPABILITY_HANDLERS,
+    runHandlers: RUN_CAPABILITY_HANDLERS
   });
   try {
     const response = await server.inject({

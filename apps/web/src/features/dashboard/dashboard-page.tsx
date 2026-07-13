@@ -1,14 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { Database, RefreshCw } from "lucide-react";
-import type { ReactElement } from "react";
+import type { MouseEvent, ReactElement } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert.tsx";
 import { Badge } from "../../components/ui/badge.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { Progress } from "../../components/ui/progress.tsx";
 import { countCursorResources, resourceDashboardContributions } from "../feature-registry.ts";
-import { message, type MessageKey } from "../../messages/messages.ts";
+import { formatMessage, message, type MessageKey } from "../../messages/messages.ts";
 import { resourceKeys, type ConfigurationKind, type ResourceApi } from "../../lib/resource-api.ts";
+import type { RunApi } from "../../lib/run-api.ts";
+import { displayRunDate, runStageLabel, runStatusLabel } from "../runs/run-ui.ts";
 
 /** Exact P4 resource counts displayed by Dashboard contributions. */
 interface DashboardCounts {
@@ -30,6 +32,10 @@ interface DashboardCounts {
 export interface DashboardPageProps {
   /** Boundary-validating resource API. */
   readonly api: ResourceApi;
+  /** Boundary-validating Run API. */
+  readonly runApi: RunApi;
+  /** Explicit History navigation callback. */
+  readonly onNavigate: (path: string) => void;
 }
 
 // Read all Test Suite pages and aggregate their Case summary counts.
@@ -82,11 +88,17 @@ async function loadDashboardCounts(
   };
 }
 
-/** Resource-only P4 Dashboard. */
-export function DashboardPage({ api }: DashboardPageProps): ReactElement {
+/** Resource counts and recent platform Run facts registered through P5. */
+export function DashboardPage({ api, runApi, onNavigate }: DashboardPageProps): ReactElement {
   const query = useQuery({
     queryKey: resourceKeys.dashboard(),
     queryFn: ({ signal }) => loadDashboardCounts(api, signal)
+  });
+  const runs = useQuery({
+    queryKey: ["dashboard", "recent-platform-runs"] as const,
+    queryFn: ({ signal }) => runApi.listRuns({ limit: 5, cursor: null }, signal),
+    refetchInterval: (current) =>
+      current.state.data?.items.some((run) => run.status === "RUNNING") === true ? 1_000 : false
   });
 
   if (query.isPending) {
@@ -147,6 +159,56 @@ export function DashboardPage({ api }: DashboardPageProps): ReactElement {
           </article>
         ))}
       </div>
+      <section className="dashboard-runs" aria-labelledby="dashboard-runs-heading">
+        <div className="section-heading compact">
+          <div>
+            <p className="eyebrow">{message("dashboard.runsEyebrow")}</p>
+            <h2 id="dashboard-runs-heading">{message("dashboard.recentRuns")}</h2>
+          </div>
+          <Badge variant="outline">{message("runs.platform")}</Badge>
+        </div>
+        {runs.isPending ? <Progress aria-label={message("dashboard.runsLoading")} /> : null}
+        {runs.isError ? (
+          <Alert variant="destructive">
+            <AlertTitle>{message("dashboard.runsError")}</AlertTitle>
+            <Button type="button" variant="outline" onClick={() => void runs.refetch()}>
+              <RefreshCw aria-hidden="true" />
+              {message("dashboard.retry")}
+            </Button>
+          </Alert>
+        ) : null}
+        {runs.data?.items.length === 0 ? (
+          <p className="empty-state">{message("dashboard.runsEmpty")}</p>
+        ) : null}
+        {runs.data === undefined || runs.data.items.length === 0 ? null : (
+          <div className="dashboard-run-grid">
+            {runs.data.items.map((run) => (
+              <a
+                key={run.id}
+                href={`/runs/${encodeURIComponent(run.id)}`}
+                className="dashboard-run-card"
+                onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+                  event.preventDefault();
+                  onNavigate(`/runs/${encodeURIComponent(run.id)}`);
+                }}
+              >
+                <div className="count-card-topline">
+                  <span>{runStageLabel(run.stage)}</span>
+                  <Badge variant="accent">{runStatusLabel(run.status)}</Badge>
+                </div>
+                <strong>{run.suiteName}</strong>
+                <span>
+                  {formatMessage("runs.progressCount", {
+                    completed: run.rest.completed,
+                    total: run.rest.total
+                  })}
+                </span>
+                <small>{displayRunDate(run.updatedAt)}</small>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
     </section>
   );
 }

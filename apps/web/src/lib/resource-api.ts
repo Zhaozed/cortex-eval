@@ -697,7 +697,8 @@ export function synchronizeTestSuiteSnapshot(
                 description: suite.description,
                 caseCount: suite.caseCount,
                 revision: suite.revision,
-                updatedAt: suite.updatedAt
+                updatedAt: suite.updatedAt,
+                latestPlatformRun: item.latestPlatformRun
               }
             : item
         )

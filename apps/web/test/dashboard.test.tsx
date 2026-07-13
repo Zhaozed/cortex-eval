@@ -7,6 +7,8 @@ import { describe, expect, it, vi } from "vitest";
 import { DashboardPage } from "../src/features/dashboard/dashboard-page.tsx";
 import { requestUrl } from "./request-fixture.ts";
 import { createResourceApi } from "../src/lib/resource-api.ts";
+import { createRunApi } from "../src/lib/run-api.ts";
+import { runDetail, runPage } from "./run-test-fixture.ts";
 
 interface SuiteSummaryFixture {
   /** Test Suite identity. */
@@ -21,6 +23,8 @@ interface SuiteSummaryFixture {
   readonly revision: number;
   /** Fixture update timestamp. */
   readonly updatedAt: string;
+  /** Latest platform Run is absent in this count fixture. */
+  readonly latestPlatformRun: null;
 }
 
 interface ConfigurationSummaryFixture {
@@ -42,7 +46,8 @@ const suite = (id: string, name: string, caseCount: number): SuiteSummaryFixture
   description: "",
   caseCount,
   revision: 0,
-  updatedAt: "2026-07-13T00:00:00.000Z"
+  updatedAt: "2026-07-13T00:00:00.000Z",
+  latestPlatformRun: null
 });
 
 const config = (kind: string, id: string, name: string): ConfigurationSummaryFixture => ({
@@ -69,6 +74,9 @@ describe("资源 Dashboard", () => {
     ];
     const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
       const url = requestUrl(input);
+      if (url === "/api/v1/runs?limit=5") {
+        return Promise.resolve(response(runPage(runDetail({ status: "RUNNING" }))));
+      }
       if (url === "/api/v1/test-suites?limit=200") {
         return Promise.resolve(
           response({
@@ -104,7 +112,11 @@ describe("资源 Dashboard", () => {
 
     render(
       <QueryClientProvider client={client}>
-        <DashboardPage api={createResourceApi(fetcher)} />
+        <DashboardPage
+          api={createResourceApi(fetcher)}
+          runApi={createRunApi(fetcher)}
+          onNavigate={vi.fn()}
+        />
       </QueryClientProvider>
     );
 
@@ -115,6 +127,9 @@ describe("资源 Dashboard", () => {
     expect(screen.getByTestId("count-llm-configs")).toHaveTextContent("1");
     expect(screen.getByTestId("count-rubric-prompts")).toHaveTextContent("3");
     expect(screen.getByTestId("count-analysis-prompts")).toHaveTextContent("4");
+    expect(screen.getByRole("heading", { name: "最近平台运行" })).toBeInTheDocument();
+    expect(screen.getByText("客服回归集")).toBeInTheDocument();
+    expect(screen.getByText("运行中")).toBeInTheDocument();
   });
 
   it("请求失败时显示可重试页面错误，不永久 Loading", async () => {
@@ -128,7 +143,11 @@ describe("资源 Dashboard", () => {
 
     render(
       <QueryClientProvider client={client}>
-        <DashboardPage api={createResourceApi(fetcher)} />
+        <DashboardPage
+          api={createResourceApi(fetcher)}
+          runApi={createRunApi(fetcher)}
+          onNavigate={vi.fn()}
+        />
       </QueryClientProvider>
     );
 

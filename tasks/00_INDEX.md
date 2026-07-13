@@ -30,7 +30,7 @@
 - [x] [P2：SQLite 与 Application 基础](P2_STORAGE_AND_APPLICATION.md) — `COMPLETED`
 - [x] [P3：Local API 与资源管理](P3_LOCAL_API_AND_RESOURCES.md) — `COMPLETED`
 - [x] [P4：Web 资源管理界面](P4_WEB_RESOURCE_UI.md) — `COMPLETED`
-- [ ] [P5：Run 与 REST 闭环](P5_RUN_AND_REST.md) — `PENDING`
+- [x] [P5：Run 与 REST 闭环](P5_RUN_AND_REST.md) — `COMPLETED`
 - [ ] [P6：Promptfoo Evaluation 闭环](P6_PROMPTFOO_EVALUATION.md) — `PENDING`
 - [ ] [P7：Work Package、CLI、重跑与导入基础](P7_WORK_PACKAGE_AND_CLI.md) — `PENDING`
 - [ ] [P8：Reporting 闭环](P8_REPORTING.md) — `PENDING`

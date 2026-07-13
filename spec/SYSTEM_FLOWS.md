@@ -6,7 +6,7 @@
 
 ## 资源写入
 
-P3 已把当前资源用例注册为严格 HTTP API；目标 CLI 与 Web 仍未落地。所有当前资源更新使用独立 Revision；Case 创建、编辑、复制、删除、全量替换与未来建议接受入口共用 CaseDefinitionWriter。
+P3–P4 已把当前资源用例注册为严格 HTTP API 和 Web；目标 CLI 仍未落地。所有当前资源更新使用独立 Revision；Case 创建、编辑、复制、删除、全量替换与未来建议接受入口共用 CaseDefinitionWriter。
 
 1. Entrypoint 校验外部协议并映射为 Application 输入。
 2. Application 调用统一 Case Definition Writer 或配置用例。
@@ -26,13 +26,20 @@ P3 已把当前资源用例注册为严格 HTTP API；目标 CLI 与 Web 仍未�
 
 冻结后只使用运行快照，不重新读取当前资源。Analyzer 和 Case Analysis Prompt 在发起分析时另行选择和冻结。
 
+P5 的 Web 创建页先读取 Preflight 事实，再提交可选执行限制；Run Detail 不返回完整冻结 Case 数组或 Prompt 正文。
+
 ## REST 阶段
 
 1. Application 条件抢占 `READY/REST`，写入 `RUNNING/REST`。
 2. REST Adapter 按冻结配置和并发限制派发 Case，请求期间不持有数据库事务。
 3. HTTP 2xx 且 Provider Output 结构合法写入 `SUCCEEDED`，包括业务 `ok=false`。
 4. 传输、状态码、解析和结构错误规范化为 REST Error；单个错误不停止其他 Case。
-5. 所有已派发请求收口并对账后，阶段提交真实 Case Results，转为 `READY/EVALUATION`。
+5. 每个已派发结果先以独立短事务幂等落库并推进计数。
+6. 若逐 Case 持久化回调失败，Adapter 停止领取、Abort 在途请求并等待全部 Worker 回到同一 Owner，随后阶段收敛为系统失败；不得让迟到 POST 或回调游离到 Owner 之外。
+7. 所有已派发请求收口后核对真实结果计数，再按稳定 Cursor 单遍流式读取；Artifact Writer 同步增量计算 Result Set Hash、文件 Hash 与大小，不把完整结果集合驻留内存。
+8. 数据库以最新 Revision 对账计数并提交 Manifest，转为 `READY/EVALUATION`；提交竞争失败删除未提交 Artifact。
+
+P5 到此停止，不自动启动 Evaluation。逐 Case API 只返回真实已完成结果。SSE 通过独立数据库查询发送当前 Snapshot 和 Revision 变化，页面刷新或流重连只重新读取事实。
 
 ## Evaluation 阶段
 
@@ -81,9 +88,10 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 
 ## 取消与恢复
 
-- 取消后停止派发新 REST Case，终止 Promptfoo 子进程，并让在途请求安全收口或超时。
+- P5 取消先持久化请求，再停止派发新 REST Case，并让在途请求被 Abort 或安全收口；跨进程轮询拒绝会立即 Abort 并由 Owner 收敛为受控失败，不产生未处理 Promise。Promptfoo 终止规则在 P6 生效。
 - 已真实完成的阶段事实保留；未执行 Case 不生成伪造结果。
 - 取消与阶段提交通过条件更新竞争，只允许先成功的一方生效。
+- Runtime Shutdown 在 Artifact 写入和阶段提交后重查中断门禁，最终把仍未 `DONE` 的本地 Owner 修正为 `INTERRUPTED/DONE`。
 - 进程启动时把遗留 `RUNNING` 收敛为 `INTERRUPTED/DONE`，不自动续跑或推测未知副作用。
 - 外部进程、临时文件和临时目录由 Adapter 在资源回收路径中清理。
 - REST、Evaluator 和 Analyzer 不自动重试。Promptfoo 取消先发送 `SIGTERM`，5 秒未退出再发送 `SIGKILL`。
@@ -91,11 +99,12 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 ## 相关事实入口
 
 - 目标流程来源：[REQ.md](../REQ.md) 与 [TECH.md](../TECH.md)
-- 当前 REST 流程实现：[data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)
-- 当前 REST 流程测试：[data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)
-- 当前 P3 资源 API：[apps/local-server/src](../apps/local-server/src)
-- 当前 P3 API 测试：[apps/local-server/test](../apps/local-server/test)
-- 目标 Run、Importer、Reporting 和 Work Package 代码入口尚未落地。
+- 当前 Run 编排：[packages/application/src/features/runs](../packages/application/src/features/runs)
+- 当前 REST Adapter：[packages/evaluation-adapters/src](../packages/evaluation-adapters/src)
+- 当前 Run Repository：[packages/storage-sqlite/src/sqlite-platform-run-repository.ts](../packages/storage-sqlite/src/sqlite-platform-run-repository.ts)
+- 当前 P3–P5 Local API：[apps/local-server/src](../apps/local-server/src)
+- 当前 P4–P5 Web：[apps/web/src](../apps/web/src)
+- Importer、Evaluation、Reporting 和 Work Package 文件运行时仍未落地。
 - [APPLICATION/RUNS.md](APPLICATION/RUNS.md)
 - [APPLICATION/EXECUTION_IMPORTS.md](APPLICATION/EXECUTION_IMPORTS.md)
 - [PACKAGES/EVALUATION_ADAPTERS.md](PACKAGES/EVALUATION_ADAPTERS.md)

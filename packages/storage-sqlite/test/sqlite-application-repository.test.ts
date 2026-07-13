@@ -96,6 +96,80 @@ function sequentialDependencies(
 }
 
 describe("SQLite Application Repository", () => {
+  it("套件列表只内聚按创建时间和 ID 排序的最新平台 Run", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-repository-"));
+    const storage = await initializeSqliteStorage({ projectRoot });
+    openStorages.push(storage);
+    seedCurrentResources(storage.databasePath);
+    const database = new Database(storage.databasePath);
+    const insert = database.prepare(
+      `INSERT INTO run_log (
+        id, source_type, source_package_id, execution_id, rerun_mode, suite_id,
+        suite_snapshot_json, endpoint_snapshot_json, evaluator_snapshot_json,
+        rubric_prompts_snapshot_json, run_context_hash, promptfoo_version,
+        contract_versions_json, run_execution_limits_json, run_mode, status, stage,
+        artifact_manifest_json, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'NONE', 'suite-1', '{}', '{}', '{}', '[]', ?,
+        '0.121.18', '{}', '{}', 'STAGED', ?, ?, '{}', ?, ?)`
+    );
+    insert.run(
+      "run-old",
+      "PLATFORM",
+      null,
+      null,
+      "a".repeat(64),
+      "COMPLETED",
+      "DONE",
+      "2026-01-02T00:00:00.000Z",
+      "2026-01-02T00:01:00.000Z"
+    );
+    insert.run(
+      "run-z-new",
+      "PLATFORM",
+      null,
+      null,
+      "b".repeat(64),
+      "RUNNING",
+      "REST",
+      "2026-01-03T00:00:00.000Z",
+      "2026-01-03T00:01:00.000Z"
+    );
+    insert.run(
+      "run-import-newest",
+      "OFFLINE_IMPORT",
+      "package-1",
+      "execution-1",
+      "c".repeat(64),
+      "COMPLETED",
+      "DONE",
+      "2026-01-04T00:00:00.000Z",
+      "2026-01-04T00:01:00.000Z"
+    );
+    database.close();
+
+    const page = await storage
+      .createTransactionManager()
+      .execute(async (transaction) => transaction.testSuites.querySuites({ limit: 20 }));
+
+    expect(page.items).toEqual([
+      {
+        id: "suite-1",
+        name: "Suite",
+        description: "Current",
+        caseCount: 0,
+        revision: 0,
+        updatedAt: NOW,
+        latestPlatformRun: {
+          id: "run-z-new",
+          sourceType: "PLATFORM",
+          status: "RUNNING",
+          stage: "REST",
+          updatedAt: "2026-01-03T00:01:00.000Z"
+        }
+      }
+    ]);
+  });
+
   it("在真实托管事务中原子保存 Case 和 Suite 聚合事实", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-repository-"));
     const storage = await initializeSqliteStorage({ projectRoot });

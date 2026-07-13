@@ -2,61 +2,59 @@
 
 ## 模块职责
 
-Evaluation Adapters 实现 REST、Promptfoo 和 Analysis Model 三类外部副作用，将外部协议转换为受控执行结果或结构化错误。
+Evaluation Adapters 实现 REST、Promptfoo 和 Analysis Model 三类外部副作用，将外部协议转换为受控执行结果或结构化错误。P5 当前只闭合 REST。
 
 模块不读取平台当前资源，不决定 Run 状态机，不写多个业务聚合，不把第三方对象直接作为平台事实。
 
 ## 边界与依赖
 
-Package 实现 Application 的 Rest Executor、Promptfoo Process 和 Analysis Model Client Port，依赖 Contracts 边界 Schema和外部运行库。输入必须是已校验的冻结上下文。
+Package 实现 Application Port，依赖 Contracts 边界 Schema 和外部运行库。输入必须是已校验的冻结上下文。
 
-三个适配边界当前保留在同一 Package 文档中。真实代码形成独立稳定子模块并需要独立维护时，再拆分文档和更新索引。
+三个适配边界保留在同一 Package 文档中。真实代码形成独立稳定子模块并需要独立维护时，再拆分文档和更新索引。
 
 ## 实现状态
 
-目标 Package 尚未落地。当前 REST 运行器实现了局部请求、并发、超时、续跑和原子文件输出，其 Provider Output 与错误契约比目标系统宽松。
+P5 已建立 `packages/evaluation-adapters` 并落地 Fetch REST Executor。当前实现覆盖受控 URL 模板、RFC 6901 Selector、EnvSecretRef、精确请求/响应上限、并发、超时、取消、手动 Redirect、严格 Provider Output 和闭合错误分类。Promptfoo Process 与 Analysis Model Client 尚未落地。
 
-## 目标代码落点
+## 代码落点
 
 `packages/evaluation-adapters`
 
 ## 当前代码事实入口
 
-- [run_promptfoo_rest.ts](../../data_scripts/run_promptfoo_rest.ts)
-- [run_promptfoo_rest_types.ts](../../data_scripts/run_promptfoo_rest_types.ts)
+- [rest-request-preparer.ts](../../packages/evaluation-adapters/src/rest-request-preparer.ts)：模板、Selector、Header、Secret 与 5 MiB 请求边界。
+- [fetch-rest-executor.ts](../../packages/evaluation-adapters/src/fetch-rest-executor.ts)：受控 Fetch、并发、取消、10 MiB 响应和结果映射。
 
 ## 当前样例与测试入口
 
-- [run_promptfoo_rest.test.ts](../../data_scripts/run_promptfoo_rest.test.ts)
-- [provider.json](../../test_suite/current/provider.json)
-- [pf_config.yaml](../../test_suite/current/pf_config.yaml)
-- `test_suite/current/run_result/test_example.json`：当前已提交 REST 结果 Fixture。
-- `test_suite/current/eval_result/test_example.json`：当前已提交 Promptfoo 结果 Fixture。
+- [rest-request-preparer.test.ts](../../packages/evaluation-adapters/test/rest-request-preparer.test.ts)：模板、Selector、Secret 和请求边界。
+- [rest-http-executor.test.ts](../../packages/evaluation-adapters/test/rest-http-executor.test.ts)：真实本地 HTTP、响应边界、取消与最大在途数。
+- [provider.json](../../test_suite/current/provider.json)：当前 Endpoint Fixture。
 
 ## 对外接口
 
-REST Executor 接收 Frozen Cases、Endpoint、Abort Signal 和执行限制。Promptfoo Process 接收受控生成输入、版本和环境。Analysis Model Client 接收已渲染消息、模型配置和输出 Schema。
+当前 REST Executor 接收 Frozen Cases、Endpoint、Abort Signal、冻结并发限制和逐 Case 结果回调。Promptfoo Process 与 Analysis Model Client 的 Port 已由目标架构定义，但当前无运行时能力。
 
 ## 核心流程
 
 REST Adapter 解析受控模板语法和 RFC 6901 Selector，展开 EnvSecretRef，限制并发并校验 Provider Output。URL 变量可以选择 `vars` 下任意层级标量叶子，不使用变量名白名单，但不能替换协议、Host 或端口。
 
-Promptfoo Adapter 物化 REST 成功 Cases 和 Rubric Prompts，使用固定 `0.121.18` 可执行文件与参数数组启动子进程。主 Provider 使用预计算输出；Provider-dependent Assertion 通过临时回环 Evaluator Bridge 调用冻结 Run Evaluator，再由 Importer 对齐和规范化。
+单个 Case 在网络前完成模板、Selector、Header、Secret 和 UTF-8 请求大小校验。Fetch 固定 `POST`、`redirect: manual` 和组合 Abort Signal；只有 HTTP 2xx 才读取有界响应并校验 Provider Output。合法 `ok=false` 是成功事实。
 
-Evaluator 与 Analysis Adapter 使用统一 Gemini/OpenAI-compatible 官方 SDK 接口。Analysis Adapter 渲染允许变量，注入 Analyzer Secret，调用模型并返回待 Contracts 校验的结构化输出。
+Promptfoo 的物化、固定 `0.121.18` 子进程和 Evaluator Bridge 属于 P6。Evaluator 与 Analysis Adapter 属于后续阶段。
 
 ## 状态、事务与幂等
 
-Adapter 不持有数据库事务。取消通过 Abort Signal 或子进程终止传播。Promptfoo 先 `SIGTERM`，5 秒后仍未退出则 `SIGKILL`。Adapter 不覆盖已完成 Artifact，REST、Evaluator、Analyzer、Bridge 和 Promptfoo Provider 均不自动重试。
+REST Adapter 不持有数据库事务。取消通过 Abort Signal 传播；Worker 在 Abort 后不再领取新 Case，已领取请求返回 `CANCELLED` 事实。任一逐 Case 结果回调失败时，Executor 记录首个失败、内部 Abort 其他 Worker、停止领取新 Case 并等待所有 Worker 退出；已经忽略 Abort 的边界也必须回到同一 Owner 后才拒绝。失败后的迟到结果不再调用持久化回调。REST 不自动重试。
 
 ## 错误收敛
 
-REST 错误使用固定分类。Promptfoo Assertion 失败与系统失败严格区分。模型网络、Provider 和输出错误结构化返回。所有临时目录、文件句柄、Abort 资源和子进程在回收路径处理。
+REST 错误闭合为 `TIMEOUT`、`NETWORK`、`HTTP_STATUS`、`RESPONSE_PARSE`、`PROVIDER_OUTPUT_INVALID`、`TEMPLATE_INPUT` 和 `CANCELLED`，不附加原始正文、Secret 或第三方异常。响应超限不暴露截断正文，也不写 Provider Output。
 
 ## 观测与验收
 
-日志记录安全请求身份、版本、退出码、耗时、文件 Hash 和 Error Code，不记录完整 Vars、Provider Output、Prompt、Secret 或第三方堆栈。子进程不启用 Shell。
+上层只记录安全请求身份、耗时和 Error Code，不记录完整 Vars、Provider Output、Prompt、Secret 或第三方堆栈。REST Executor 本身不记录脏输入。
 
 ## 相关测试
 
-目标测试覆盖 REST 全部错误与精确大小/超时边界、合法 `ok=false`、并发取消、Promptfoo 版本与退出码、全 Assertion 能力矩阵、可信内联语言、Bridge 身份与滥用防护、真实 Fixture Import、Analysis Schema、单次 SDK 调用、Secret 注入和资源回收。
+当前测试覆盖 REST HTTP、网络、状态码、解析、Provider Output、模板、Selector、Secret、合法 `ok=false`、`5 MiB-1/5 MiB/+1` 请求、`10 MiB-1/10 MiB/+1` 响应、100 毫秒超时、取消、并发上限、停止派发，以及结果持久化失败后等待忽略 Abort 的 Worker 收口。Promptfoo、Bridge、Importer 和 Analysis 测试随 P6–P9 补充。

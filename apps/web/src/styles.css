@@ -322,6 +322,184 @@ a {
   overflow: hidden;
 }
 
+.run-create-sheet {
+  width: min(640px, 94vw);
+  overflow-y: auto;
+}
+
+.run-field {
+  display: grid;
+  gap: 7px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.run-field select {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: white;
+  padding: 0 11px;
+  color: var(--ink);
+  outline: none;
+}
+
+.run-field select:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.run-preflight,
+.run-stage-panel {
+  display: grid;
+  gap: 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 20px;
+}
+
+.run-preflight p,
+.run-detail-id {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: 12px;
+}
+
+.run-fact-grid,
+.run-counter-grid,
+.run-frozen-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-left: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+}
+
+.run-fact-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.run-fact-grid article,
+.run-counter-grid article,
+.run-frozen-grid article {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.55);
+  padding: 16px;
+}
+
+.run-fact-grid strong,
+.run-counter-grid strong {
+  font-family: "DIN Condensed", "Avenir Next Condensed", sans-serif;
+  font-size: 26px;
+}
+
+.run-fact-grid span,
+.run-counter-grid span,
+.run-frozen-grid span,
+.run-frozen-grid small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.run-header-badges {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.run-panel-heading {
+  border-bottom: 1px solid var(--line);
+  padding: 20px;
+}
+
+.run-panel-heading h2 {
+  margin: 3px 0 0;
+  font-family: "Iowan Old Style", "Songti SC", serif;
+  font-size: 25px;
+}
+
+.run-panel-heading p {
+  margin: 0;
+}
+
+.run-pagination {
+  padding: 16px;
+}
+
+.run-id-link {
+  display: inline-block;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.run-case-detail {
+  display: grid;
+  gap: 20px;
+}
+
+.run-case-detail pre {
+  overflow: auto;
+  max-height: 320px;
+  margin: 8px 0 0;
+  border-left: 3px solid var(--accent);
+  background: var(--paper-deep);
+  padding: 14px;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.dashboard-runs {
+  display: grid;
+  gap: 18px;
+}
+
+.dashboard-run-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-left: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line-strong);
+}
+
+.dashboard-run-card {
+  display: grid;
+  min-height: 156px;
+  gap: 12px;
+  border-bottom: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.62);
+  padding: 16px;
+  text-decoration: none;
+}
+
+.dashboard-run-card:hover,
+.dashboard-run-card:focus-visible {
+  background: white;
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.dashboard-run-card > strong {
+  align-self: end;
+  font-size: 15px;
+}
+
+.dashboard-run-card > span,
+.dashboard-run-card > small {
+  color: var(--muted);
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: 11px;
+}
+
 .filter-panel,
 .nested-editor,
 .reference-panel,
@@ -482,6 +660,15 @@ a {
 
   .filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .run-counter-grid,
+  .run-frozen-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-run-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

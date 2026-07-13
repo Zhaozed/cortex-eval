@@ -12,9 +12,9 @@ Domain 位于依赖最内层，不依赖其他业务 Package。Application 调�
 
 ## 实现状态
 
-P1 已落地纯 Domain Package；P2 补充 Suite、Endpoint、LLM、两类 Prompt 的纯模型/校验、Case 派生投影，以及 Suite/Endpoint/LLM/Prompt/Rubric Prompt Set 版本化哈希。
+P1 已落地纯 Domain Package；P2 补充 Suite、Endpoint、LLM、两类 Prompt 的纯模型/校验、Case 派生投影，以及 Suite/Endpoint/LLM/Prompt/Rubric Prompt Set 版本化哈希。P5 补充 Run 取消请求状态约束、REST Result/Result Set 版本化哈希和冻结 Run Context 输入。
 
-Application 聚合协调、Repository、Adapter 和入口仍未落地。Domain 不执行副作用、不接收 `unknown`，也不依赖 Contracts 或 Zod。
+Domain 不执行副作用、不接收 `unknown`，也不依赖 Contracts 或 Zod。P5 的 Application、Repository、Adapter 和入口只消费这些纯规则，未反向进入 Domain。
 
 ## 代码事实入口
 
@@ -66,4 +66,4 @@ Domain 规则必须确定、可穷尽测试且不访问时钟、随机数或环�
 
 ## 相关测试
 
-当前测试覆盖 Case、Assertion、Provider Output、状态机、Metric、Rate、Canonical Hash、四种分析分类、Proposal 联合、Revision 竞争和非法状态。
+当前测试覆盖 Case、Assertion、Provider Output、Run/Analysis 状态机、取消请求、REST Result Hash、Metric、Rate、Canonical Hash、四种分析分类、Proposal 联合、Revision 竞争和非法状态。

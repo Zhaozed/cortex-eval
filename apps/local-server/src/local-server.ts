@@ -1,37 +1,7 @@
 import zhCnMessages from "@cortex-eval/contracts/messages/zh-CN.json" with { type: "json" };
 import {
   ApiErrorResponseV1Schema,
-  AnalysisPromptPreviewV1Schema,
-  CaseDetailV1Schema,
-  CaseExportV1Schema,
   CaseImportSuccessV1Schema,
-  CaseMutationV1Schema,
-  CasePageV1Schema,
-  ConfigurationPageV1Schema,
-  ConfigurationProbeSuccessV1Schema,
-  ConfigurationResourceV1Schema,
-  CopyCaseRequestV1Schema,
-  CreateAnalysisPromptRequestV1Schema,
-  CreateCaseRequestV1Schema,
-  CreateEndpointConfigRequestV1Schema,
-  CreateLlmConfigRequestV1Schema,
-  CreateRubricPromptRequestV1Schema,
-  CreateTestSuiteRequestV1Schema,
-  PreviewAnalysisPromptRequestV1Schema,
-  PreviewRubricPromptRequestV1Schema,
-  RubricPromptPreviewV1Schema,
-  RubricPromptReferencesV1Schema,
-  TestSuiteDetailV1Schema,
-  TestSuiteImpactV1Schema,
-  TestSuitePageV1Schema,
-  UpdateAnalysisPromptRequestV1Schema,
-  UpdateCaseRequestV1Schema,
-  UpdateEndpointConfigRequestV1Schema,
-  UpdateLlmConfigRequestV1Schema,
-  UpdateRubricPromptRequestV1Schema,
-  UpdateTestSuiteRequestV1Schema,
-  ValidateEndpointConfigRequestV1Schema,
-  ValidateLlmConfigRequestV1Schema,
   type ApiErrorResponseV1
 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import swagger from "@fastify/swagger";
@@ -42,8 +12,9 @@ import type { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import type { ResilientBusinessLogger } from "./local-logger.ts";
-import type { z } from "zod";
-import type { FastifySchema } from "fastify";
+import type { LocalRunHandlers } from "./application-run-handlers.ts";
+import { localOperationSchema } from "./local-operation-schemas.ts";
+import { registerRunRoutes } from "./run-api-routes.ts";
 import {
   projectRuntimeSchema,
   sanitizeRuntimeSerializerSchema
@@ -168,6 +139,8 @@ export interface LocalServerOptions {
   readonly requestIdGenerator: RequestIdGenerator;
   /** Closed P3 resource handler surface. */
   readonly resourceHandlers: LocalResourceHandlers;
+  /** Closed P5 Run handlers, absent until the full capability is composed. */
+  readonly runHandlers?: LocalRunHandlers | undefined;
   /** Exact loopback authorities accepted by Host validation. */
   readonly allowedHosts?: readonly string[] | undefined;
   /** Optional resilient request business logger. */
@@ -182,182 +155,6 @@ const DEFAULT_ALLOWED_HOSTS = ["127.0.0.1:4310", "localhost:4310", "[::1]:4310"]
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 /** Exact maximum multipart Case JSON file bytes. */
 export const MAX_CASE_IMPORT_BYTES = 200 * 1024 * 1024;
-
-const EmptyResponseSchema = { type: "null" } as const;
-const IdentifierParamsSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    suiteId: { type: "string", minLength: 1 },
-    caseKey: { type: "string", minLength: 1 },
-    configurationId: { type: "string", minLength: 1 }
-  }
-} as const;
-
-// Return the strict body contract for one closed operation.
-function operationBodySchema(operationId: string): Record<string, unknown> | undefined {
-  const schemas: Readonly<Record<string, z.ZodType>> = {
-    createTestSuite: CreateTestSuiteRequestV1Schema,
-    updateTestSuite: UpdateTestSuiteRequestV1Schema,
-    createCase: CreateCaseRequestV1Schema,
-    updateCase: UpdateCaseRequestV1Schema,
-    copyCase: CopyCaseRequestV1Schema,
-    createENDPOINT: CreateEndpointConfigRequestV1Schema,
-    updateENDPOINT: UpdateEndpointConfigRequestV1Schema,
-    createLLM: CreateLlmConfigRequestV1Schema,
-    updateLLM: UpdateLlmConfigRequestV1Schema,
-    createLLM_RUBRIC_PROMPT: CreateRubricPromptRequestV1Schema,
-    updateLLM_RUBRIC_PROMPT: UpdateRubricPromptRequestV1Schema,
-    createCASE_ANALYSIS_PROMPT: CreateAnalysisPromptRequestV1Schema,
-    updateCASE_ANALYSIS_PROMPT: UpdateAnalysisPromptRequestV1Schema,
-    validateEndpointConfig: ValidateEndpointConfigRequestV1Schema,
-    validateLlmConfig: ValidateLlmConfigRequestV1Schema,
-    previewRubricPrompt: PreviewRubricPromptRequestV1Schema,
-    previewAnalysisPrompt: PreviewAnalysisPromptRequestV1Schema
-  };
-  const schema = schemas[operationId];
-  return schema === undefined ? undefined : projectRuntimeSchema(schema);
-}
-
-// Return the exact success response contract for one closed operation.
-function operationResponseSchema(operationId: string): Record<string, unknown> {
-  const schemas: Readonly<Record<string, z.ZodType>> = {
-    listTestSuites: TestSuitePageV1Schema,
-    createTestSuite: TestSuiteDetailV1Schema,
-    getTestSuite: TestSuiteDetailV1Schema,
-    updateTestSuite: TestSuiteDetailV1Schema,
-    getTestSuiteImpact: TestSuiteImpactV1Schema,
-    listCases: CasePageV1Schema,
-    createCase: CaseMutationV1Schema,
-    getCase: CaseDetailV1Schema,
-    updateCase: CaseMutationV1Schema,
-    copyCase: CaseMutationV1Schema,
-    exportCases: CaseExportV1Schema,
-    listENDPOINT: ConfigurationPageV1Schema,
-    listLLM: ConfigurationPageV1Schema,
-    listLLM_RUBRIC_PROMPT: ConfigurationPageV1Schema,
-    listCASE_ANALYSIS_PROMPT: ConfigurationPageV1Schema,
-    createENDPOINT: ConfigurationResourceV1Schema,
-    createLLM: ConfigurationResourceV1Schema,
-    createLLM_RUBRIC_PROMPT: ConfigurationResourceV1Schema,
-    createCASE_ANALYSIS_PROMPT: ConfigurationResourceV1Schema,
-    getENDPOINT: ConfigurationResourceV1Schema,
-    getLLM: ConfigurationResourceV1Schema,
-    getLLM_RUBRIC_PROMPT: ConfigurationResourceV1Schema,
-    getCASE_ANALYSIS_PROMPT: ConfigurationResourceV1Schema,
-    updateENDPOINT: ConfigurationResourceV1Schema,
-    updateLLM: ConfigurationResourceV1Schema,
-    updateLLM_RUBRIC_PROMPT: ConfigurationResourceV1Schema,
-    updateCASE_ANALYSIS_PROMPT: ConfigurationResourceV1Schema,
-    validateEndpointConfig: ConfigurationProbeSuccessV1Schema,
-    validateLlmConfig: ConfigurationProbeSuccessV1Schema,
-    listRubricPromptReferences: RubricPromptReferencesV1Schema,
-    previewRubricPrompt: RubricPromptPreviewV1Schema,
-    previewAnalysisPrompt: AnalysisPromptPreviewV1Schema
-  };
-  const schema = schemas[operationId];
-  return schema === undefined ? EmptyResponseSchema : projectRuntimeSchema(schema);
-}
-
-// Return the transport query schema for paging or optimistic concurrency.
-function operationQuerySchema(operationId: string): Record<string, unknown> | undefined {
-  const pageableOperations = new Set([
-    "listTestSuites",
-    "listCases",
-    "listENDPOINT",
-    "listLLM",
-    "listLLM_RUBRIC_PROMPT",
-    "listCASE_ANALYSIS_PROMPT"
-  ]);
-  if (pageableOperations.has(operationId)) {
-    const properties: Record<string, unknown> = {
-      limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
-      cursor: { type: "string", minLength: 1 }
-    };
-    if (operationId === "listCases") {
-      const oneOrMany = {
-        anyOf: [{ type: "string" }, { type: "array", items: { type: "string" }, maxItems: 50 }]
-      };
-      Object.assign(properties, {
-        caseKey: { type: "string" },
-        description: { type: "string" },
-        businessModule: oneOrMany,
-        scenarioTag: oneOrMany,
-        assertionType: oneOrMany,
-        metric: oneOrMany
-      });
-    }
-    return { type: "object", additionalProperties: false, properties };
-  }
-  if (operationId === "deleteCase") {
-    return {
-      type: "object",
-      additionalProperties: false,
-      required: ["expectedSuiteRevision", "expectedCaseRevision"],
-      properties: {
-        expectedSuiteRevision: { type: "integer", minimum: 0 },
-        expectedCaseRevision: { type: "integer", minimum: 0 }
-      }
-    };
-  }
-  if (operationId.startsWith("delete")) {
-    return {
-      type: "object",
-      additionalProperties: false,
-      required: ["expectedRevision"],
-      properties: { expectedRevision: { type: "integer", minimum: 0 } }
-    };
-  }
-  return undefined;
-}
-
-// Compose one complete Fastify schema and stable error response set.
-function operationSchema(
-  operationId: string,
-  url: string,
-  method: "GET" | "POST" | "PUT" | "DELETE"
-): FastifySchema {
-  const body = operationBodySchema(operationId);
-  const querystring = operationQuerySchema(operationId);
-  const parameterNames = [...url.matchAll(/:([A-Za-z][A-Za-z0-9]*)/g)]
-    .map((match) => match[1])
-    .filter((value): value is string => value !== undefined);
-  const successStatus =
-    method === "POST" && (operationId.startsWith("create") || operationId === "copyCase")
-      ? 201
-      : method === "DELETE"
-        ? 204
-        : 200;
-  return {
-    operationId,
-    ...(body === undefined ? {} : { body }),
-    ...(querystring === undefined ? {} : { querystring }),
-    ...(parameterNames.length === 0
-      ? {}
-      : {
-          params: {
-            ...IdentifierParamsSchema,
-            required: parameterNames,
-            properties: Object.fromEntries(
-              parameterNames.map((name) => [name, { type: "string", minLength: 1 }])
-            )
-          }
-        }),
-    response: {
-      [successStatus]: operationResponseSchema(operationId),
-      400: projectRuntimeSchema(ApiErrorResponseV1Schema),
-      403: projectRuntimeSchema(ApiErrorResponseV1Schema),
-      404: projectRuntimeSchema(ApiErrorResponseV1Schema),
-      409: projectRuntimeSchema(ApiErrorResponseV1Schema),
-      413: projectRuntimeSchema(ApiErrorResponseV1Schema),
-      422: projectRuntimeSchema(ApiErrorResponseV1Schema),
-      ...(operationId === "validateEndpointConfig" || operationId === "validateLlmConfig"
-        ? { 502: projectRuntimeSchema(ApiErrorResponseV1Schema) }
-        : {}),
-      500: projectRuntimeSchema(ApiErrorResponseV1Schema)
-    }
-  };
-}
 
 // Read all raw header values so duplicate Host/Origin headers cannot be collapsed safely.
 function rawHeaderValues(request: FastifyRequest, headerName: string): readonly string[] {
@@ -572,6 +369,9 @@ async function registerResourceRoutes(
     "/api/v1/llm-rubric-prompts",
     2 * 1024 * 1024
   );
+
+  if (options.runHandlers !== undefined)
+    registerRunRoutes(server, controllers, options.runHandlers);
   registerConfigurationRoutes(
     server,
     controllers,
@@ -649,11 +449,13 @@ async function registerResourceRoutes(
   });
 }
 
-// Serve the same SPA entry only for Web capabilities closed by P4.
+// Serve the same SPA entry only for Web capabilities closed through P5.
 function registerClosedWebRoutes(server: FastifyInstance): void {
   const routes = [
     "/test-suites",
     "/test-suites/:suiteId",
+    "/runs",
+    "/runs/:runId",
     "/endpoint-configs",
     "/llm-configs",
     "/rubric-prompts",
@@ -815,7 +617,7 @@ function routeParams(value: unknown): Readonly<Record<string, string | undefined
 }
 
 // Register only one closed capability and keep its Fastify Route free of business rules.
-function registerHandlerRoute(
+export function registerHandlerRoute(
   server: FastifyInstance,
   controllers: Set<AbortController>,
   method: "GET" | "POST" | "PUT" | "DELETE",
@@ -829,7 +631,7 @@ function registerHandlerRoute(
     method,
     url,
     ...(bodyLimit === undefined ? {} : { bodyLimit }),
-    schema: operationSchema(operationId, url, method),
+    schema: localOperationSchema(operationId, url, method),
     handler: async (request, reply) => {
       const controller = new AbortController();
       const abort = (): void => controller.abort();

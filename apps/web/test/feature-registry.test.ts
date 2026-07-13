@@ -6,19 +6,20 @@ import {
   resourceDashboardContributions
 } from "../src/features/feature-registry.ts";
 
-describe("P4 Feature Contribution", () => {
-  it("只注册已闭环资源页面", () => {
+describe("P5 Feature Contribution", () => {
+  it("注册已闭环资源页面与平台 Run", () => {
     expect(CURRENT_FEATURES.map((feature) => feature.id)).toEqual([
       "dashboard",
+      "runs",
       "test-suites",
       "endpoint-configs",
       "llm-configs",
       "rubric-prompts",
       "analysis-prompts"
     ]);
-    expect(
-      CURRENT_FEATURES.some((feature) => ["runs", "reports", "analysis"].includes(feature.id))
-    ).toBe(false);
+    expect(CURRENT_FEATURES.some((feature) => ["reports", "analysis"].includes(feature.id))).toBe(
+      false
+    );
   });
 
   it("Dashboard 只注册六类资源数量", () => {

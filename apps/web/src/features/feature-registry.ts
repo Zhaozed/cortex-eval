@@ -16,9 +16,10 @@ export interface ResourceDashboardContribution {
   readonly labelKey: string;
 }
 
-/** Closed P4 navigation contributions in display order. */
+/** Closed P5 navigation contributions in display order. */
 export const CURRENT_FEATURES: readonly FeatureContribution[] = [
   { id: "dashboard", path: "/", labelKey: "navigation.dashboard" },
+  { id: "runs", path: "/runs", labelKey: "navigation.runs" },
   { id: "test-suites", path: "/test-suites", labelKey: "navigation.testSuites" },
   { id: "endpoint-configs", path: "/endpoint-configs", labelKey: "navigation.endpoints" },
   { id: "llm-configs", path: "/llm-configs", labelKey: "navigation.llms" },
@@ -30,7 +31,7 @@ export const CURRENT_FEATURES: readonly FeatureContribution[] = [
   }
 ];
 
-/** P4 Dashboard contributions; no Run, Report or Analysis facts are registered. */
+/** Resource-count Dashboard contributions retained alongside recent platform Runs. */
 export const resourceDashboardContributions: readonly ResourceDashboardContribution[] = [
   { id: "test-suites", labelKey: "resources.testSuites" },
   { id: "cases", labelKey: "resources.cases" },

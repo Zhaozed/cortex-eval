@@ -3,6 +3,7 @@ import { z } from "zod";
 import { UtcDateTimeSchema, UuidV7Schema } from "./contracts-primitives.ts";
 import { CaseDefinitionV1Schema } from "./case-contracts.ts";
 import { EndpointConfigV1Schema, LlmConfigV1Schema } from "./provider-contracts.ts";
+import { RunStageV1Schema, RunStatusV1Schema } from "./run-api-contracts.ts";
 
 /** Decoded stable current-resource cursor. */
 export interface ResourceCursorV1 {
@@ -63,7 +64,16 @@ export const TestSuiteSummaryV1Schema = z.strictObject({
   description: z.string(),
   caseCount: z.number().int().nonnegative(),
   revision: z.number().int().nonnegative(),
-  updatedAt: UtcDateTimeSchema
+  updatedAt: UtcDateTimeSchema,
+  latestPlatformRun: z
+    .strictObject({
+      id: UuidV7Schema,
+      sourceType: z.literal("PLATFORM"),
+      status: RunStatusV1Schema,
+      stage: RunStageV1Schema,
+      updatedAt: UtcDateTimeSchema
+    })
+    .nullable()
 });
 
 /** Test Suite list projection. */
@@ -430,6 +440,12 @@ const ConfigurationProbeErrorSchema = z.strictObject({
   reason: z.enum(["UNAVAILABLE", "TIMEOUT", "CANCELLED", "CAPABILITY_UNSUPPORTED"])
 });
 
+const RunStateConflictErrorSchema = z.strictObject({
+  code: z.literal("RUN_STATE_CONFLICT"),
+  ...ErrorBaseShape,
+  reason: z.enum(["STATE_OR_REVISION", "GLOBAL_RUNNING", "STAGE_UNAVAILABLE"])
+});
+
 const PlainErrorSchema = z.strictObject({
   code: z.enum([
     "CURSOR_INVALID",
@@ -444,6 +460,9 @@ const PlainErrorSchema = z.strictObject({
     "CASE_IDENTITY_CONFLICT",
     "CASE_NOT_FOUND",
     "SUITE_NOT_FOUND",
+    "RUN_NOT_FOUND",
+    "RUN_SUITE_EMPTY",
+    "RUN_CASE_RESULT_NOT_FOUND",
     "CONFIGURATION_NOT_FOUND",
     "CONFIGURATION_KIND_CONFLICT",
     "RESOURCE_IN_ACTIVE_RUN",
@@ -463,6 +482,7 @@ export const ApiErrorV1Schema = z.discriminatedUnion("code", [
   ImportItemErrorSchema,
   PromptReferenceErrorSchema,
   ConfigurationProbeErrorSchema,
+  RunStateConflictErrorSchema,
   PlainErrorSchema
 ]);
 

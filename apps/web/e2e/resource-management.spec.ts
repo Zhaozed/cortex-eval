@@ -76,7 +76,7 @@ test("资源 Dashboard 与测试集/Case 全流程", async ({ page }, testInfo) 
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "资源仪表盘" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "运行" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "运行" })).toBeVisible();
   await expect(page.getByRole("link", { name: "报告" })).toHaveCount(0);
   await expectHealthyPage(page, diagnostics);
 

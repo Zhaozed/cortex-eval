@@ -69,6 +69,14 @@ vi.mock("../src/features/configurations/configuration-list-page.tsx", () => ({
     );
   }
 }));
+vi.mock("../src/features/runs/run-list-page.tsx", () => ({
+  RunListPage: (): ReactElement => <h1>Run List Mock</h1>
+}));
+vi.mock("../src/features/runs/run-detail-page.tsx", () => ({
+  RunDetailPage: ({ runId }: { readonly runId: string }): ReactElement => (
+    <h1>Run Detail Mock {runId}</h1>
+  )
+}));
 
 beforeEach(() => {
   Object.defineProperty(window, "scrollTo", { configurable: true, value: vi.fn() });
@@ -79,9 +87,11 @@ beforeEach(() => {
 });
 afterEach(() => cleanup());
 
-describe("P4 根路由", () => {
+describe("P5 根路由", () => {
   it.each([
     ["/", "Dashboard Mock"],
+    ["/runs", "Run List Mock"],
+    [`/runs/${suiteId}`, `Run Detail Mock ${suiteId}`],
     ["/test-suites", "Suite List Mock"],
     [`/test-suites/${suiteId}`, `Suite Detail Mock ${suiteId}`],
     ["/endpoint-configs", "Config Mock ENDPOINT"],
@@ -119,7 +129,7 @@ describe("P4 根路由", () => {
   });
 
   it("未知未来路径保持 404，并可返回 Dashboard", async () => {
-    window.history.replaceState(null, "", "/runs");
+    window.history.replaceState(null, "", "/reports");
     render(<App />);
 
     expect(await screen.findByText("页面不存在")).toBeInTheDocument();

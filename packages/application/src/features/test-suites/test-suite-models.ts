@@ -1,5 +1,6 @@
 import type { DomainJsonObject } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 import type { CaseDefinition } from "@cortex-eval/domain/src/domain-evaluation.ts";
+import type { RunStage, RunStatus } from "@cortex-eval/domain/src/domain-run-state.ts";
 
 /** Current Test Suite aggregate root. */
 export interface TestSuite {
@@ -34,6 +35,22 @@ export interface TestSuiteSummary {
   /** Optimistic-concurrency token. */
   readonly revision: number;
   /** Last update time. */
+  readonly updatedAt: string;
+  /** Latest platform-created Run for this Suite; imported history is excluded. */
+  readonly latestPlatformRun: LatestPlatformRunReference | null;
+}
+
+/** Small latest platform Run reference embedded in one Suite summary. */
+export interface LatestPlatformRunReference {
+  /** Internal Run identity. */
+  readonly id: string;
+  /** Strict source discriminator. */
+  readonly sourceType: "PLATFORM";
+  /** Current lifecycle status. */
+  readonly status: RunStatus;
+  /** Current or terminal pipeline stage. */
+  readonly stage: RunStage;
+  /** Last durable Run update time. */
   readonly updatedAt: string;
 }
 

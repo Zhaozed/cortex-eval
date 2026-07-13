@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert.tsx";
 import { Button } from "./components/ui/button.tsx";
 import { Progress } from "./components/ui/progress.tsx";
 import { createResourceApi } from "./lib/resource-api.ts";
+import { createRunApi } from "./lib/run-api.ts";
 import { resolveWebRoute, type WebRoute } from "./lib/web-route.ts";
 import { message } from "./messages/messages.ts";
 
@@ -25,6 +26,14 @@ const ConfigurationListPage = lazy(async () => {
   const feature = await import("./features/configurations/configuration-list-page.tsx");
   return { default: feature.ConfigurationListPage };
 });
+const RunListPage = lazy(async () => {
+  const feature = await import("./features/runs/run-list-page.tsx");
+  return { default: feature.RunListPage };
+});
+const RunDetailPage = lazy(async () => {
+  const feature = await import("./features/runs/run-detail-page.tsx");
+  return { default: feature.RunDetailPage };
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +42,7 @@ const queryClient = new QueryClient({
   }
 });
 const api = createResourceApi();
+const runApi = createRunApi();
 const HISTORY_POSITION_KEY = "cortexEvalHistoryPosition";
 
 // Resolve the current path after every explicit or browser History navigation.
@@ -90,7 +100,25 @@ function RoutePage({
       </Alert>
     );
   }
-  if (route.kind === "DASHBOARD") return <DashboardPage api={api} />;
+  if (route.kind === "DASHBOARD") {
+    return <DashboardPage api={api} runApi={runApi} onNavigate={onNavigate} />;
+  }
+  if (route.kind === "RUN_LIST") {
+    return (
+      <RunListPage
+        api={runApi}
+        resourceApi={api}
+        onNavigate={onNavigate}
+        onCommittedNavigate={onCommittedNavigate}
+        onLeaveBlockedChange={onLeaveBlockedChange}
+      />
+    );
+  }
+  if (route.kind === "RUN_DETAIL") {
+    return (
+      <RunDetailPage key={route.runId} api={runApi} runId={route.runId} onNavigate={onNavigate} />
+    );
+  }
   if (route.kind === "TEST_SUITE_LIST") {
     return (
       <TestSuiteListPage
@@ -153,7 +181,7 @@ function RoutePage({
   );
 }
 
-/** Resource application mounted only after browser navigation capability validation. */
+/** Current application mounted only after browser navigation capability validation. */
 function ResourceApp({
   initialNavigationIndex
 }: {
@@ -252,7 +280,7 @@ function UnsupportedBrowser(): ReactElement {
   );
 }
 
-/** Root P4 Web application with a fail-closed Navigation API boundary. */
+/** Root P5 Web application with a fail-closed Navigation API boundary. */
 export function App(): ReactElement {
   const initialNavigationIndex = navigationIndex();
   if (initialNavigationIndex === null) return <UnsupportedBrowser />;

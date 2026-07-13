@@ -40,6 +40,21 @@ describe("P3 中文安全日志", () => {
     expect(line).not.toMatch(/expanded-secret|secret prompt|authorization|prompt/i);
   });
 
+  it("外化 P5 Run 冻结、执行、取消和完成业务事件", () => {
+    const expected = new Map([
+      ["RUN_INPUT_FROZEN", "运行输入已冻结"],
+      ["RUN_REST_STARTED", "REST 阶段已开始"],
+      ["RUN_REST_COMPLETED", "REST 阶段已完成"],
+      ["RUN_CANCEL_REQUESTED", "运行取消已请求"],
+      ["RUN_CANCELLED", "运行取消已完成"]
+    ] as const);
+    for (const [event, text] of expected) {
+      expect(
+        formatBusinessLogLine({ event, timestamp: "2026-07-13T00:00:00.000Z", resourceId: "run-1" })
+      ).toContain(text);
+    }
+  });
+
   it("达到阈值前轮转并只保留受控数量", async () => {
     const root = await mkdtemp(join(tmpdir(), "cortex-log-"));
     roots.push(root);
