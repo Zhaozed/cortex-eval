@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@cortex-eval/domain": "workspace:*"
+    "@cortex-eval/domain": "workspace:*",
+    "@cortex-eval/reporting": "workspace:*",
+    "js-yaml": "5.2.0"
   }
 }

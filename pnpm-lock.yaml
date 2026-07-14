@@ -205,6 +205,12 @@ importers:
       '@cortex-eval/domain':
         specifier: workspace:*
         version: link:../domain
+      '@cortex-eval/reporting':
+        specifier: workspace:*
+        version: link:../reporting
+      js-yaml:
+        specifier: 5.2.0
+        version: 5.2.0
 
   packages/contracts:
     dependencies:
@@ -226,6 +232,24 @@ importers:
       '@cortex-eval/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@cortex-eval/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@google/genai':
+        specifier: 2.11.0
+        version: 2.11.0(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))
+      openai:
+        specifier: 6.46.0
+        version: 6.46.0(@aws-sdk/credential-provider-node@3.972.66)(@smithy/signature-v4@5.6.4)(ws@8.21.0)(zod@4.4.3)
+
+  packages/reporting:
+    dependencies:
+      '@cortex-eval/domain':
+        specifier: workspace:*
+        version: link:../domain
+      ajv:
+        specifier: 8.20.0
+        version: 8.20.0
 
   packages/storage-sqlite:
     dependencies:

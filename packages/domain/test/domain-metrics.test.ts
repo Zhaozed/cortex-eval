@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { aggregateMetrics, calculateRate } from "../src/domain-metrics.ts";
+import { aggregateCaseMetrics, aggregateMetrics, calculateRate } from "../src/domain-metrics.ts";
 
 describe("Metric 聚合与 Rate", () => {
   it("同 Case 同 Metric 只贡献一次并按失败优先", () => {
@@ -28,5 +28,19 @@ describe("Metric 聚合与 Rate", () => {
   it("分母为零时 Rate 缺失", () => {
     expect(calculateRate(0, 0)).toBeNull();
     expect(calculateRate(1, 4)).toBe(0.25);
+  });
+
+  it("单 Case Metric 保留固定优先级并按名称稳定排序", () => {
+    expect(
+      aggregateCaseMetrics([
+        { metric: "quality", status: "ERROR" },
+        { metric: "quality", status: "FAIL" },
+        { metric: "accuracy", status: "PASS" },
+        { metric: "accuracy", status: "SKIPPED" }
+      ])
+    ).toEqual([
+      { metric: "accuracy", status: "PASS" },
+      { metric: "quality", status: "FAIL" }
+    ]);
   });
 });

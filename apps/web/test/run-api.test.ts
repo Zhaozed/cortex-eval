@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createRunApi, type RunEventSource } from "../src/lib/run-api.ts";
 import { requestBody, requestUrl } from "./request-fixture.ts";
-import { runDetail } from "./run-test-fixture.ts";
+import { runDetail, runEvalPage } from "./run-test-fixture.ts";
 
 const RUN_ID = "018f0f4e-7b7a-7cc0-8000-000000000001";
 const SUITE_ID = "018f0f4e-7b7a-7cc0-8000-000000000002";
@@ -77,6 +77,14 @@ describe("Run API Client", () => {
                 lockRevision: 1,
                 cancelRequestedAt: null,
                 rest: { total: 3, completed: 1, succeeded: 1, error: 0 },
+                evaluation: {
+                  total: 3,
+                  completed: 0,
+                  passed: 0,
+                  failed: 0,
+                  error: 0,
+                  notEvaluated: 0
+                },
                 createdAt: TIME,
                 updatedAt: TIME
               }
@@ -94,6 +102,14 @@ describe("Run API Client", () => {
             lockRevision: 1,
             cancelRequestedAt: null,
             rest: { total: 3, completed: 0, succeeded: 0, error: 0 },
+            evaluation: {
+              total: 3,
+              completed: 0,
+              passed: 0,
+              failed: 0,
+              error: 0,
+              notEvaluated: 0
+            },
             updatedAt: TIME
           })
         );
@@ -156,6 +172,30 @@ describe("Run API Client", () => {
     }
   });
 
+  it("查询归一化 Evaluation 结果时绑定 Run 身份", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response(runEvalPage));
+    const api = createRunApi(fetcher);
+
+    await expect(
+      api.listEvaluations({ runId: RUN_ID, limit: 20, cursor: null }, new AbortController().signal)
+    ).resolves.toEqual(runEvalPage);
+    const request = fetcher.mock.calls[0]?.[0];
+    if (request === undefined) throw new Error("TEST_REQUEST_MISSING");
+    expect(requestUrl(request)).toBe(`/api/v1/runs/${RUN_ID}/evaluations?limit=20`);
+    expect(fetcher.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+
+    const mismatch = {
+      ...runEvalPage,
+      items: [{ ...runEvalPage.items[0], runId: SUITE_ID }]
+    };
+    await expect(
+      createRunApi(() => Promise.resolve(response(mismatch))).listEvaluations(
+        { runId: RUN_ID, limit: 20, cursor: null },
+        new AbortController().signal
+      )
+    ).rejects.toMatchObject({ code: "CLIENT_RESPONSE_INVALID" });
+  });
+
   it("只把身份匹配且符合契约的 SSE Envelope 交给页面", () => {
     const source = new FakeRunEventSource();
     const onEnvelope = vi.fn();
@@ -175,6 +215,14 @@ describe("Run API Client", () => {
             lockRevision: 1,
             cancelRequestedAt: null,
             rest: { total: 3, completed: 1, succeeded: 1, error: 0 },
+            evaluation: {
+              total: 3,
+              completed: 0,
+              passed: 0,
+              failed: 0,
+              error: 0,
+              notEvaluated: 0
+            },
             updatedAt: TIME
           }
         })
@@ -194,6 +242,14 @@ describe("Run API Client", () => {
             lockRevision: 2,
             cancelRequestedAt: null,
             rest: { total: 3, completed: 2, succeeded: 2, error: 0 },
+            evaluation: {
+              total: 3,
+              completed: 0,
+              passed: 0,
+              failed: 0,
+              error: 0,
+              notEvaluated: 0
+            },
             updatedAt: TIME
           }
         })

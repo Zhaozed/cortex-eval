@@ -12,7 +12,7 @@ Domain 位于依赖最内层，不依赖其他业务 Package。Application 调�
 
 ## 实现状态
 
-P1 已落地纯 Domain Package；P2 补充 Suite、Endpoint、LLM、两类 Prompt 的纯模型/校验、Case 派生投影，以及 Suite/Endpoint/LLM/Prompt/Rubric Prompt Set 版本化哈希。P5 补充 Run 取消请求状态约束、REST Result/Result Set 版本化哈希和冻结 Run Context 输入。
+P1 已落地纯 Domain Package；P2 补充资源模型与哈希；P5 补充 Run/REST 规则。P6 已补充 Assertion Definition、Eval Result、Eval Result Set 和 Final Case Result 的版本化哈希输入，以及单 Case Metric 去重。
 
 Domain 不执行副作用、不接收 `unknown`，也不依赖 Contracts 或 Zod。P5 的 Application、Repository、Adapter 和入口只消费这些纯规则，未反向进入 Domain。
 
@@ -24,7 +24,7 @@ Domain 不执行副作用、不接收 `unknown`，也不依赖 Contracts 或 Zod
 - [domain-analysis.ts](../../packages/domain/src/domain-analysis.ts)：四类分析与 Proposal 纯校验。
 - [domain-metrics.ts](../../packages/domain/src/domain-metrics.ts)：Metric 去重、优先级和 Rate。
 - [domain-canonical-hash.ts](../../packages/domain/src/domain-canonical-hash.ts)：I-JSON、RFC 8785 与 SHA-256。
-- [domain-hash-inputs.ts](../../packages/domain/src/domain-hash-inputs.ts)：Case、Run Context、Final Case Result 和 Analysis Input 哈希输入。
+- [domain-hash-inputs.ts](../../packages/domain/src/domain-hash-inputs.ts)：Case、Assertion、REST/Eval Result Set、Final Case Result、Run Context 和 Analysis Input 哈希输入。
 - [domain-resource-models.ts](../../packages/domain/src/domain-resource-models.ts)：当前资源纯模型、安全校验和 Prompt 引用/变量派生。
 - [domain-resource-hashes.ts](../../packages/domain/src/domain-resource-hashes.ts)：资源运行语义哈希。
 - [domain-case-projection.ts](../../packages/domain/src/domain-case-projection.ts)：稳定 Case JSON 与筛选投影。
@@ -52,7 +52,7 @@ Eval Status 为 `PASS`、`FAIL`、`EVALUATION_ERROR` 和 `NOT_EVALUATED`。Run S
 
 ## 状态、事务与幂等
 
-Domain 不开启事务和执行副作用，只校验状态转换是否合法。哈希使用 RFC 8785 Canonical JSON 与 SHA-256。不存在的第三方事实表示为缺失值，不伪造零、空对象或空字符串。
+Domain 不开启事务和执行副作用，只校验状态转换是否合法。哈希使用 RFC 8785 Canonical JSON 与 SHA-256。单 Case Eval Result Hash 表示可复用语义，显式排除延迟、Token Usage、Cost 与 Raw Artifact 完整性；Eval Result Set Hash 显式绑定 `RUN/EXECUTION` 身份、Evaluation Context Hash 和有序 Case Hash，因此新执行不能沿用来源集合版本。不存在的第三方事实表示为缺失值，不伪造零、空对象或空字符串。
 
 Metric 聚合优先级为 `FAIL`、`ERROR`、`PASS`、`SKIPPED`、`NOT_EVALUATED`。一条 Case 对同名 Metric 最多贡献一次。Rate 分母为零时结果为空。
 
@@ -66,4 +66,4 @@ Domain 规则必须确定、可穷尽测试且不访问时钟、随机数或环�
 
 ## 相关测试
 
-当前测试覆盖 Case、Assertion、Provider Output、Run/Analysis 状态机、取消请求、REST Result Hash、Metric、Rate、Canonical Hash、四种分析分类、Proposal 联合、Revision 竞争和非法状态。
+当前测试覆盖 Case、Assertion、Provider Output、Run/Analysis 状态机、取消请求、REST/Eval Result Hash、执行版本化 Eval Result Set Hash、Metric、Rate、Canonical Hash、四种分析分类、Proposal 联合、Revision 竞争和非法状态。

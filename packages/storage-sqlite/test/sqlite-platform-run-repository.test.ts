@@ -6,10 +6,12 @@ import type {
   PlatformRun,
   StoredRestCaseResult
 } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
-import type { CaseDefinition } from "@cortex-eval/domain/src/domain-evaluation.ts";
+import type { PlatformEvalCaseResult } from "@cortex-eval/application/src/features/evaluation/platform-eval-models.ts";
 import { caseDefinitionJson } from "@cortex-eval/domain/src/domain-case-projection.ts";
 import {
   hashCaseDefinition,
+  hashEvalResult,
+  hashFinalCaseResult,
   hashRestResult,
   hashRunContext
 } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
@@ -24,6 +26,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { initializeSqliteStorage } from "../src/sqlite-database.ts";
 import { SqlitePlatformRunRepository } from "../src/sqlite-platform-run-repository.ts";
+import {
+  sqliteEvalResultSetHash,
+  sqliteRunCaseDefinition
+} from "../test-support/sqlite-platform-run-fixtures.ts";
 
 const openStorages: { close(): Promise<void> }[] = [];
 const FIRST_TIME = "2026-07-13T00:00:00.000Z";
@@ -42,24 +48,7 @@ afterEach(async () => {
   await Promise.all(openStorages.splice(0).map(async (storage) => storage.close()));
 });
 
-function caseDefinition(caseKey: string): CaseDefinition {
-  return {
-    caseKey,
-    description: caseKey,
-    threshold: 1,
-    task: "route",
-    requestBody: { input: caseKey },
-    metadata: {
-      requestId: `request-${caseKey}`,
-      taskId: `task-${caseKey}`,
-      businessModule: "chat",
-      scenarioTag: "smoke"
-    },
-    assertions: [{ type: "equals", metric: "quality", weight: 1 }]
-  };
-}
-
-const DEFINITION = caseDefinition("case-1");
+const DEFINITION = sqliteRunCaseDefinition("case-1");
 const DEFINITION_HASH = hashCaseDefinition({
   contractVersion: "cortex.case-definition.v1",
   caseKey: DEFINITION.caseKey,
@@ -158,12 +147,16 @@ function seedCurrentResources(databasePath: string): void {
   database.close();
 }
 
-function platformRun(id: string): PlatformRun {
+function platformRun(
+  id: string,
+  sourceRunId: string | null = null,
+  rerunMode: PlatformRun["rerunMode"] = "NONE"
+): PlatformRun {
   return {
     id,
     sourceType: "PLATFORM",
-    sourceRunId: null,
-    rerunMode: "NONE",
+    sourceRunId,
+    rerunMode,
     suite: {
       id: SUITE_ID,
       name: `Suite ${id}`,
@@ -205,6 +198,11 @@ function platformRun(id: string): PlatformRun {
     cancelRequestedAt: null,
     restCompletedCount: 0,
     restErrorCount: 0,
+    evalCompletedCount: 0,
+    evalPassCount: 0,
+    evalFailCount: 0,
+    evalErrorCount: 0,
+    evalNotEvaluatedCount: 0,
     resultSetHash: null,
     artifactManifest: {
       contractVersion: "cortex.artifact-manifest.v1",
@@ -220,7 +218,10 @@ function platformRun(id: string): PlatformRun {
   };
 }
 
-function successResult(runId: string): StoredRestCaseResult {
+function successResult(
+  runId: string,
+  provenance: StoredRestCaseResult["provenance"] = null
+): StoredRestCaseResult {
   const providerOutput = { ok: false as const, errorMessage: "business" };
   return {
     runId,
@@ -240,7 +241,110 @@ function successResult(runId: string): StoredRestCaseResult {
       caseKey: "case-1",
       caseDefinitionHash: DEFINITION_HASH,
       result: { status: "SUCCEEDED", httpStatus: 200, providerOutput }
-    })
+    }),
+    provenance
+  };
+}
+
+function passingEvalResult(runId: string): PlatformEvalCaseResult {
+  const assertions = [
+    {
+      index: 0,
+      definitionHash: hashCaseDefinition({
+        contractVersion: "cortex.case-definition.v1",
+        caseKey: "assertion",
+        definition: { type: "equals", metric: "quality", weight: 1 }
+      }),
+      type: "equals",
+      metric: "quality",
+      weight: 1,
+      status: "PASS" as const,
+      score: 1,
+      reason: "Assertion passed"
+    }
+  ];
+  const evalResultHash = hashEvalResult({
+    contractVersion: "cortex.eval-result.v1",
+    caseKey: "case-1",
+    status: "PASS",
+    promptfooSuccess: true,
+    score: 1,
+    reason: "All assertions passed",
+    evaluationError: null,
+    assertions,
+    diffs: [],
+    metrics: [{ metric: "quality", status: "PASS" }]
+  });
+  return {
+    runId,
+    caseKey: "case-1",
+    ordinal: 0,
+    status: "PASS",
+    promptfooSuccess: true,
+    score: 1,
+    reason: "All assertions passed",
+    evaluationError: null,
+    assertions,
+    diffs: [],
+    metrics: [{ metric: "quality", status: "PASS" }],
+    latencyMs: 5,
+    tokenUsage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+    cost: 0,
+    rawEvidence: {
+      present: true,
+      path: "runs/raw.json",
+      expectedSha256: HASH,
+      expectedSizeBytes: 10
+    },
+    evalResultHash,
+    finalCaseResultHash: hashFinalCaseResult({
+      contractVersion: "cortex.final-case-result.v1",
+      caseDefinitionHash: DEFINITION_HASH,
+      restResultHash: successResult(runId).resultHash,
+      evalResultHash
+    }),
+    provenance: null,
+    createdAt: SECOND_TIME,
+    updatedAt: SECOND_TIME
+  };
+}
+
+function evalArtifactManifest(runId: string): PlatformRun["artifactManifest"] {
+  return {
+    contractVersion: "cortex.artifact-manifest.v1",
+    owner: { kind: "RUN", id: runId },
+    artifacts: [
+      {
+        kind: "RAW_PROMPTFOO_EVIDENCE",
+        path: "runs/raw.json",
+        expectedSha256: HASH,
+        expectedSizeBytes: 10,
+        contractVersion: "cortex.raw-promptfoo-evidence.v1"
+      },
+      {
+        kind: "NORMALIZED_EVAL_RESULTS",
+        path: "runs/eval.json",
+        expectedSha256: "b".repeat(64),
+        expectedSizeBytes: 20,
+        contractVersion: "cortex.platform-normalized-eval.v1"
+      }
+    ]
+  };
+}
+
+function restArtifactManifest(runId: string): PlatformRun["artifactManifest"] {
+  return {
+    contractVersion: "cortex.artifact-manifest.v1",
+    owner: { kind: "RUN", id: runId },
+    artifacts: [
+      {
+        kind: "REST_RESULTS",
+        path: "runs/rest.json",
+        expectedSha256: "d".repeat(64),
+        expectedSizeBytes: 30,
+        contractVersion: "cortex.platform-rest-results.v1"
+      }
+    ]
   };
 }
 
@@ -334,7 +438,7 @@ describe("SQLite Platform Run Repository", () => {
         expectedRevision: recorded?.lockRevision ?? -1,
         expectedTotal: 1,
         resultSetHash: HASH,
-        artifactManifest: platformRun(RUN_A).artifactManifest,
+        artifactManifest: restArtifactManifest(RUN_A),
         updatedAt: SECOND_TIME
       })
     );
@@ -367,7 +471,7 @@ describe("SQLite Platform Run Repository", () => {
         expectedRevision: progress?.lockRevision ?? -1,
         expectedTotal: 1,
         resultSetHash: HASH,
-        artifactManifest: platformRun(RUN_C).artifactManifest,
+        artifactManifest: restArtifactManifest(RUN_C),
         updatedAt: SECOND_TIME
       })
     );
@@ -377,6 +481,425 @@ describe("SQLite Platform Run Repository", () => {
     );
     expect(page.items).toMatchObject([{ caseKey: "case-1", ordinal: 0, status: "SUCCEEDED" }]);
     expect(page.nextCursor).toBeNull();
+  });
+
+  it("持久化并还原重用 REST 结果的精确来源", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-platform-rerun-"));
+    const storage = await initializeSqliteStorage({ projectRoot });
+    openStorages.push(storage);
+    seedCurrentResources(storage.databasePath);
+    const manager = storage.createRunTransactionManager();
+    const sourceResult = successResult(RUN_A);
+    await manager.execute(async (transaction) => {
+      await transaction.runs.insertPlatformRun(platformRun(RUN_A));
+      const sourceClaim = await transaction.runs.claimStage(RUN_A, 0, SECOND_TIME);
+      if (!sourceClaim.ok) throw new Error("TEST_SOURCE_CLAIM_FAILED");
+      const sourceProgress = await transaction.runs.recordRestResult(sourceResult, SECOND_TIME);
+      await transaction.runs.completeRestStage({
+        runId: RUN_A,
+        expectedRevision: sourceProgress?.lockRevision ?? -1,
+        expectedTotal: 1,
+        resultSetHash: HASH,
+        artifactManifest: platformRun(RUN_A).artifactManifest,
+        updatedAt: SECOND_TIME
+      });
+      await transaction.runs.insertPlatformRerun(
+        { ...platformRun(RUN_B, RUN_A, "RETRY_FAILED"), restCompletedCount: 1 },
+        [
+          successResult(RUN_B, {
+            sourceKind: "RUN",
+            sourceId: RUN_A,
+            sourceResultHash: sourceResult.resultHash
+          })
+        ]
+      );
+    });
+
+    const stored = await manager.execute(async (transaction) =>
+      transaction.runs.getRestResult(RUN_B, "case-1")
+    );
+
+    expect(stored?.provenance).toEqual({
+      sourceKind: "RUN",
+      sourceId: RUN_A,
+      sourceResultHash: sourceResult.resultHash
+    });
+  });
+
+  it("拒绝与目标重跑来源或来源结果 Hash 不一致的 REST 复用事实", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-platform-rerun-invalid-"));
+    const storage = await initializeSqliteStorage({ projectRoot });
+    openStorages.push(storage);
+    seedCurrentResources(storage.databasePath);
+    const manager = storage.createRunTransactionManager();
+    const sourceResult = successResult(RUN_A);
+    await manager.execute(async (transaction) => {
+      await transaction.runs.insertPlatformRun(platformRun(RUN_A));
+      await transaction.runs.insertPlatformRun(platformRun(RUN_C));
+      await transaction.runs.insertPlatformRun(platformRun(RUN_B, RUN_A, "RETRY_FAILED"));
+      const sourceClaim = await transaction.runs.claimStage(RUN_A, 0, SECOND_TIME);
+      if (!sourceClaim.ok) throw new Error("TEST_SOURCE_CLAIM_FAILED");
+      const sourceProgress = await transaction.runs.recordRestResult(sourceResult, SECOND_TIME);
+      await transaction.runs.completeRestStage({
+        runId: RUN_A,
+        expectedRevision: sourceProgress?.lockRevision ?? -1,
+        expectedTotal: 1,
+        resultSetHash: HASH,
+        artifactManifest: platformRun(RUN_A).artifactManifest,
+        updatedAt: SECOND_TIME
+      });
+      const targetClaim = await transaction.runs.claimStage(RUN_B, 0, SECOND_TIME);
+      if (!targetClaim.ok) throw new Error("TEST_TARGET_CLAIM_FAILED");
+
+      await expect(
+        transaction.runs.recordRestResult(
+          successResult(RUN_B, {
+            sourceKind: "RUN",
+            sourceId: RUN_C,
+            sourceResultHash: sourceResult.resultHash
+          }),
+          SECOND_TIME
+        )
+      ).rejects.toThrow();
+      await expect(
+        transaction.runs.recordRestResult(
+          successResult(RUN_B, {
+            sourceKind: "RUN",
+            sourceId: RUN_A,
+            sourceResultHash: HASH
+          }),
+          SECOND_TIME
+        )
+      ).rejects.toThrow();
+    });
+  });
+
+  it("完整 Eval 集合在一个短事务中对账、写入并推进到 REPORT", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-platform-eval-"));
+    const storage = await initializeSqliteStorage({ projectRoot });
+    openStorages.push(storage);
+    seedCurrentResources(storage.databasePath);
+    const runManager = storage.createRunTransactionManager();
+    await runManager.execute(async (transaction) => {
+      await transaction.runs.insertPlatformRun(platformRun(RUN_C));
+      const restClaim = await transaction.runs.claimStage(RUN_C, 0, SECOND_TIME);
+      if (!restClaim.ok) throw new Error("TEST_REST_CLAIM_FAILED");
+      const restProgress = await transaction.runs.recordRestResult(
+        successResult(RUN_C),
+        SECOND_TIME
+      );
+      await transaction.runs.completeRestStage({
+        runId: RUN_C,
+        expectedRevision: restProgress?.lockRevision ?? -1,
+        expectedTotal: 1,
+        resultSetHash: HASH,
+        artifactManifest: restArtifactManifest(RUN_C),
+        updatedAt: SECOND_TIME
+      });
+    });
+    const evalClaim = await runManager.execute(async (transaction) =>
+      transaction.runs.claimStage(RUN_C, 3, SECOND_TIME)
+    );
+    if (!evalClaim.ok) throw new Error("TEST_EVAL_CLAIM_FAILED");
+    const evaluation = passingEvalResult(RUN_C);
+    const evalResultSetHash = sqliteEvalResultSetHash(RUN_C, HASH, [evaluation]);
+    const evalManager = storage.createEvalTransactionManager();
+    const evalManifest = evalArtifactManifest(RUN_C);
+    const committed = await evalManager.execute(async (transaction) =>
+      transaction.evaluations.completeStage({
+        runId: RUN_C,
+        expectedRevision: evalClaim.run.lockRevision,
+        expectedTotal: 1,
+        resultSetHash: evalResultSetHash,
+        evaluationContextHash: HASH,
+        results: [evaluation],
+        artifactManifest: {
+          ...evalManifest,
+          artifacts: [...evalManifest.artifacts].reverse()
+        },
+        updatedAt: SECOND_TIME
+      })
+    );
+    expect(committed).toMatchObject({
+      ok: true,
+      progress: {
+        status: "READY",
+        stage: "REPORT",
+        evalCompletedCount: 1,
+        evalPassCount: 1,
+        evalFailCount: 0,
+        evalErrorCount: 0,
+        evalNotEvaluatedCount: 0,
+        resultSetHash: evalResultSetHash
+      }
+    });
+    const stored = await evalManager.execute(async (transaction) =>
+      transaction.evaluations.queryResults({ runId: RUN_C, limit: 20 })
+    );
+    expect(stored).toMatchObject({
+      items: [
+        {
+          caseKey: "case-1",
+          status: "PASS",
+          evalResultHash: evaluation.evalResultHash,
+          finalCaseResultHash: evaluation.finalCaseResultHash
+        }
+      ],
+      nextCursor: null
+    });
+    const progress = await runManager.execute(async (transaction) =>
+      transaction.runs.getPlatformRunProgress(RUN_C)
+    );
+    expect(progress).toMatchObject({
+      evalCompletedCount: 1,
+      evalPassCount: 1,
+      evalFailCount: 0,
+      evalErrorCount: 0,
+      evalNotEvaluatedCount: 0
+    });
+    expect(progress?.artifactManifest.artifacts.map((item) => item.kind)).toEqual([
+      "REST_RESULTS",
+      "RAW_PROMPTFOO_EVIDENCE",
+      "NORMALIZED_EVAL_RESULTS"
+    ]);
+  });
+
+  it("只接受与来源 Eval 和复用 REST 精确对齐的 Eval Provenance", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-platform-eval-provenance-"));
+    const storage = await initializeSqliteStorage({ projectRoot });
+    openStorages.push(storage);
+    seedCurrentResources(storage.databasePath);
+    const runManager = storage.createRunTransactionManager();
+    const evalManager = storage.createEvalTransactionManager();
+    const sourceRest = successResult(RUN_A);
+    await runManager.execute(async (transaction) => {
+      await transaction.runs.insertPlatformRun(platformRun(RUN_A));
+      await transaction.runs.insertPlatformRun(platformRun(RUN_B, RUN_A, "RETRY_FAILED"));
+      const sourceClaim = await transaction.runs.claimStage(RUN_A, 0, SECOND_TIME);
+      if (!sourceClaim.ok) throw new Error("TEST_SOURCE_REST_CLAIM_FAILED");
+      const restProgress = await transaction.runs.recordRestResult(sourceRest, SECOND_TIME);
+      await transaction.runs.completeRestStage({
+        runId: RUN_A,
+        expectedRevision: restProgress?.lockRevision ?? -1,
+        expectedTotal: 1,
+        resultSetHash: HASH,
+        artifactManifest: restArtifactManifest(RUN_A),
+        updatedAt: SECOND_TIME
+      });
+    });
+    const sourceEvalClaim = await runManager.execute(async (transaction) =>
+      transaction.runs.claimStage(RUN_A, 3, SECOND_TIME)
+    );
+    if (!sourceEvalClaim.ok) throw new Error("TEST_SOURCE_EVAL_CLAIM_FAILED");
+    const sourceEvaluation = passingEvalResult(RUN_A);
+    const sourceResultSetHash = sqliteEvalResultSetHash(RUN_A, HASH, [sourceEvaluation]);
+    await evalManager.execute(async (transaction) =>
+      transaction.evaluations.completeStage({
+        runId: RUN_A,
+        expectedRevision: sourceEvalClaim.run.lockRevision,
+        expectedTotal: 1,
+        resultSetHash: sourceResultSetHash,
+        evaluationContextHash: HASH,
+        results: [sourceEvaluation],
+        artifactManifest: evalArtifactManifest(RUN_A),
+        updatedAt: SECOND_TIME
+      })
+    );
+    const evalClaim = await runManager.execute(async (transaction) => {
+      const restClaim = await transaction.runs.claimStage(RUN_B, 0, SECOND_TIME);
+      if (!restClaim.ok) throw new Error("TEST_TARGET_REST_CLAIM_FAILED");
+      const restProgress = await transaction.runs.recordRestResult(
+        successResult(RUN_B, {
+          sourceKind: "RUN",
+          sourceId: RUN_A,
+          sourceResultHash: sourceRest.resultHash
+        }),
+        SECOND_TIME
+      );
+      await transaction.runs.completeRestStage({
+        runId: RUN_B,
+        expectedRevision: restProgress?.lockRevision ?? -1,
+        expectedTotal: 1,
+        resultSetHash: HASH,
+        artifactManifest: restArtifactManifest(RUN_B),
+        updatedAt: SECOND_TIME
+      });
+      return transaction.runs.claimStage(RUN_B, 3, SECOND_TIME);
+    });
+    if (!evalClaim.ok) throw new Error("TEST_TARGET_EVAL_CLAIM_FAILED");
+    const evaluation = {
+      ...passingEvalResult(RUN_B),
+      rawEvidence: sourceEvaluation.rawEvidence,
+      provenance: {
+        sourceKind: "RUN" as const,
+        sourceId: RUN_A,
+        sourceResultHash: sourceEvaluation.evalResultHash
+      }
+    };
+    const resultSetHash = sqliteEvalResultSetHash(RUN_B, HASH, [evaluation]);
+    const rejected = await evalManager.execute(async (transaction) =>
+      transaction.evaluations.completeStage({
+        runId: RUN_B,
+        expectedRevision: evalClaim.run.lockRevision,
+        expectedTotal: 1,
+        resultSetHash,
+        evaluationContextHash: HASH,
+        results: [
+          {
+            ...evaluation,
+            provenance: { ...evaluation.provenance, sourceResultHash: HASH }
+          }
+        ],
+        artifactManifest: evalArtifactManifest(RUN_B),
+        updatedAt: SECOND_TIME
+      })
+    );
+    expect(rejected).toEqual({ ok: false, reason: "RESULT_ALIGNMENT" });
+    const committed = await evalManager.execute(async (transaction) =>
+      transaction.evaluations.completeStage({
+        runId: RUN_B,
+        expectedRevision: evalClaim.run.lockRevision,
+        expectedTotal: 1,
+        resultSetHash,
+        evaluationContextHash: HASH,
+        results: [evaluation],
+        artifactManifest: evalArtifactManifest(RUN_B),
+        updatedAt: SECOND_TIME
+      })
+    );
+    expect(committed).toMatchObject({ ok: true, progress: { stage: "REPORT" } });
+    const stored = await evalManager.execute(async (transaction) =>
+      transaction.evaluations.queryResults({ runId: RUN_B, limit: 20 })
+    );
+    expect(stored.items[0]?.provenance).toEqual(evaluation.provenance);
+  });
+
+  it("Eval 集合身份或 Final Hash 不一致时整批回滚且不推进 Run", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-platform-eval-rollback-"));
+    const storage = await initializeSqliteStorage({ projectRoot });
+    openStorages.push(storage);
+    seedCurrentResources(storage.databasePath);
+    const runManager = storage.createRunTransactionManager();
+    await runManager.execute(async (transaction) => {
+      await transaction.runs.insertPlatformRun(platformRun(RUN_C));
+      const restClaim = await transaction.runs.claimStage(RUN_C, 0, SECOND_TIME);
+      if (!restClaim.ok) throw new Error("TEST_REST_CLAIM_FAILED");
+      const restProgress = await transaction.runs.recordRestResult(
+        successResult(RUN_C),
+        SECOND_TIME
+      );
+      await transaction.runs.completeRestStage({
+        runId: RUN_C,
+        expectedRevision: restProgress?.lockRevision ?? -1,
+        expectedTotal: 1,
+        resultSetHash: HASH,
+        artifactManifest: restArtifactManifest(RUN_C),
+        updatedAt: SECOND_TIME
+      });
+    });
+    const evalClaim = await runManager.execute(async (transaction) =>
+      transaction.runs.claimStage(RUN_C, 3, SECOND_TIME)
+    );
+    if (!evalClaim.ok) throw new Error("TEST_EVAL_CLAIM_FAILED");
+    const valid = passingEvalResult(RUN_C);
+    const resultSetHash = sqliteEvalResultSetHash(RUN_C, HASH, [valid]);
+    const evalManager = storage.createEvalTransactionManager();
+    const rejected = await evalManager.execute(async (transaction) =>
+      transaction.evaluations.completeStage({
+        runId: RUN_C,
+        expectedRevision: evalClaim.run.lockRevision,
+        expectedTotal: 1,
+        resultSetHash,
+        evaluationContextHash: HASH,
+        results: [{ ...valid, finalCaseResultHash: "c".repeat(64) }],
+        artifactManifest: {
+          contractVersion: "cortex.artifact-manifest.v1",
+          owner: { kind: "RUN", id: RUN_C },
+          artifacts: []
+        },
+        updatedAt: SECOND_TIME
+      })
+    );
+    expect(rejected).toEqual({ ok: false, reason: "RESULT_ALIGNMENT" });
+    const forgedEvalResultHash = "d".repeat(64);
+    const forged = {
+      ...valid,
+      evalResultHash: forgedEvalResultHash,
+      finalCaseResultHash: hashFinalCaseResult({
+        contractVersion: "cortex.final-case-result.v1",
+        caseDefinitionHash: DEFINITION_HASH,
+        restResultHash: successResult(RUN_C).resultHash,
+        evalResultHash: forgedEvalResultHash
+      })
+    };
+    const forgedResultSetHash = sqliteEvalResultSetHash(RUN_C, HASH, [forged]);
+    const semanticHashRejected = await evalManager.execute(async (transaction) =>
+      transaction.evaluations.completeStage({
+        runId: RUN_C,
+        expectedRevision: evalClaim.run.lockRevision,
+        expectedTotal: 1,
+        resultSetHash: forgedResultSetHash,
+        evaluationContextHash: HASH,
+        results: [forged],
+        artifactManifest: {
+          contractVersion: "cortex.artifact-manifest.v1",
+          owner: { kind: "RUN", id: RUN_C },
+          artifacts: []
+        },
+        updatedAt: SECOND_TIME
+      })
+    );
+    expect(semanticHashRejected).toEqual({ ok: false, reason: "RESULT_ALIGNMENT" });
+    const missingArtifactsRejected = await evalManager.execute(async (transaction) =>
+      transaction.evaluations.completeStage({
+        runId: RUN_C,
+        expectedRevision: evalClaim.run.lockRevision,
+        expectedTotal: 1,
+        resultSetHash,
+        evaluationContextHash: HASH,
+        results: [valid],
+        artifactManifest: {
+          contractVersion: "cortex.artifact-manifest.v1",
+          owner: { kind: "RUN", id: RUN_C },
+          artifacts: []
+        },
+        updatedAt: SECOND_TIME
+      })
+    );
+    expect(missingArtifactsRejected).toEqual({ ok: false, reason: "RESULT_ALIGNMENT" });
+    const wrongEvidenceManifest = evalArtifactManifest(RUN_C);
+    const evidenceRejected = await evalManager.execute(async (transaction) =>
+      transaction.evaluations.completeStage({
+        runId: RUN_C,
+        expectedRevision: evalClaim.run.lockRevision,
+        expectedTotal: 1,
+        resultSetHash,
+        evaluationContextHash: HASH,
+        results: [valid],
+        artifactManifest: {
+          ...wrongEvidenceManifest,
+          artifacts: wrongEvidenceManifest.artifacts.map((item) =>
+            item.kind === "RAW_PROMPTFOO_EVIDENCE"
+              ? { ...item, expectedSha256: "c".repeat(64) }
+              : item
+          )
+        },
+        updatedAt: SECOND_TIME
+      })
+    );
+    expect(evidenceRejected).toEqual({ ok: false, reason: "RESULT_ALIGNMENT" });
+    const stored = await evalManager.execute(async (transaction) =>
+      transaction.evaluations.queryResults({ runId: RUN_C, limit: 20 })
+    );
+    expect(stored).toEqual({ items: [], nextCursor: null });
+    const progress = await runManager.execute(async (transaction) =>
+      transaction.runs.getPlatformRunProgress(RUN_C)
+    );
+    expect(progress).toMatchObject({
+      status: "RUNNING",
+      stage: "EVALUATION",
+      lockRevision: evalClaim.run.lockRevision
+    });
   });
 
   it("启动恢复只把遗留 RUNNING 收敛为 INTERRUPTED", async () => {

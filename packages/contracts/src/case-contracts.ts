@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import {
+  assertionConfigEntryIsUnsafe,
+  assertionExternalReferenceIsUnsafe
+} from "./assertion-config-safety.ts";
+import {
   BusinessKeySchema,
   JsonObjectSchema,
   JsonValueSchema,
@@ -39,20 +43,6 @@ export interface AssertionDefinitionV1 {
   assert?: AssertionDefinitionV1[] | undefined;
 }
 
-// Reject external executable references recursively while retaining trusted inline code.
-function containsForbiddenReference(value: JsonValue): boolean {
-  if (typeof value === "string") {
-    return value.startsWith("file://") || value.startsWith("package:");
-  }
-  if (Array.isArray(value)) {
-    return value.some(containsForbiddenReference);
-  }
-  if (value === null || typeof value !== "object") {
-    return false;
-  }
-  return Object.values(value).some(containsForbiddenReference);
-}
-
 const AssertionDefinitionV1SchemaInternal: z.ZodType<AssertionDefinitionV1> = z.lazy(() =>
   z
     .strictObject({
@@ -72,11 +62,14 @@ const AssertionDefinitionV1SchemaInternal: z.ZodType<AssertionDefinitionV1> = z.
       if (isSet !== (assertion.assert !== undefined)) {
         context.addIssue({ code: "custom", message: "ASSERTION_SET_SHAPE" });
       }
-      if (assertion.value !== undefined && containsForbiddenReference(assertion.value)) {
+      if (assertion.value !== undefined && assertionExternalReferenceIsUnsafe(assertion.value)) {
         context.addIssue({ code: "custom", message: "ASSERTION_EXTERNAL_REFERENCE" });
       }
+      if (assertion.config !== undefined && assertionConfigEntryIsUnsafe(assertion.config)) {
+        context.addIssue({ code: "custom", message: "ASSERTION_CONFIG_UNSAFE" });
+      }
       for (const field of [assertion.transform, assertion.contextTransform]) {
-        if (field?.startsWith("file://") || field?.startsWith("package:")) {
+        if (field !== undefined && assertionExternalReferenceIsUnsafe(field)) {
           context.addIssue({ code: "custom", message: "ASSERTION_EXTERNAL_REFERENCE" });
         }
       }

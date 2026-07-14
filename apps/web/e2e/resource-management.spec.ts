@@ -196,7 +196,8 @@ test("四类配置创建、预览、编辑与删除", async ({ page }, testInfo)
   await page.getByRole("textbox", { name: "Prompt Key" }).fill(`${prefix}.analysis`);
   await page.getByRole("textbox", { name: "内容" }).fill("{{case_definition}}");
   await page.getByRole("button", { name: "预览变量引用" }).click();
-  await expect(page.getByText("case_definition", { exact: true })).toBeVisible();
+  const analysisPreview = page.getByRole("heading", { name: "服务端预览" }).locator("..");
+  await expect(analysisPreview.getByText("case_definition", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "保存配置" }).click();
   await expect(page.getByText(`${prefix}-analysis-prompt`, { exact: true })).toBeVisible();
 

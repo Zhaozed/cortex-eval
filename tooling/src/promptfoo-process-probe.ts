@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -585,6 +585,347 @@ export async function runRealFixtureProcessProbe(root: string): Promise<RealFixt
     await new Promise<void>((resolvePromise, reject) =>
       server.close((error) => (error ? reject(error) : resolvePromise()))
     );
+    await rm(directory, { force: true, recursive: true });
+  }
+}
+
+/** Fixed-version evidence that a shared grader Provider does not receive Assertion identity. */
+export interface EvaluatorBridgeIdentityProbe {
+  /** Promptfoo process exit code. */
+  exitCode: number;
+  /** Number of normalized Assertion components. */
+  componentResults: number;
+  /** Number of real grader HTTP requests. */
+  requestCount: number;
+  /** Number of byte-distinct grader request bodies. */
+  distinctRequestBodies: number;
+  /** Ordered component Metric facts retained by Promptfoo. */
+  assertionMetrics: string[];
+  /** Ordered component Weight facts retained by Promptfoo. */
+  assertionWeights: number[];
+  /** Whether the HTTP body contains the strict Bridge identity fields. */
+  requestBodiesExposeAssertionIdentity: boolean;
+}
+
+/** Stable component-shape facts for one real Assertion Set. */
+export interface NestedAssertionSetProbe {
+  /** Promptfoo process exit code. */
+  readonly exitCode: number;
+  /** Ordered aggregate or leaf component kinds. */
+  readonly componentKinds: readonly ("ASSERTION_SET" | "ASSERTION")[];
+  /** Ordered Assertion types, including the synthetic set aggregate. */
+  readonly assertionTypes: readonly string[];
+  /** Ordered Metric identities. */
+  readonly assertionMetrics: readonly string[];
+  /** Child components retained inside the set aggregate. */
+  readonly aggregateChildCount: number;
+}
+
+// Read one small local probe request without accepting an unbounded body.
+async function readProbeRequestBody(request: IncomingMessage): Promise<string> {
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for await (const chunk of request) {
+    const bytes = Buffer.from(chunk as Uint8Array);
+    size += bytes.length;
+    if (size > 1_048_576) throw new Error("PROMPTFOO_BRIDGE_PROBE_REQUEST_TOO_LARGE");
+    chunks.push(bytes);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+// Return whether all required one-use Bridge identity fields are explicit JSON properties.
+function exposesBridgeIdentity(serialized: string): boolean {
+  let value: unknown;
+  try {
+    value = JSON.parse(serialized) as unknown;
+  } catch {
+    return false;
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return ["callId", "capability", "binding", "caseKey", "assertionIndex"].every((key) =>
+    Object.hasOwn(record, key)
+  );
+}
+
+/**
+ * Run a real duplicate-rubric Case through Promptfoo's shared HTTP grader Provider.
+ *
+ * The two Assertions intentionally differ in stable definition facts but create the same grader
+ * prompt. This proves that the shared transport cannot select two strict one-use capabilities.
+ */
+export async function runEvaluatorBridgeIdentityProbe(
+  root: string
+): Promise<EvaluatorBridgeIdentityProbe> {
+  const directory = await mkdtemp(join(tmpdir(), "cortex-eval-bridge-identity-probe-"));
+  const requestBodies: string[] = [];
+  const server = createServer((request, response) => {
+    void readProbeRequestBody(request)
+      .then((body) => {
+        requestBodies.push(body);
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(
+          JSON.stringify({
+            output: JSON.stringify({ reason: "identity probe", score: 1, pass: true })
+          })
+        );
+      })
+      .catch(() => {
+        response.writeHead(413, { "Content-Type": "application/json" });
+        response.end('{"error":"request too large"}');
+      });
+  });
+  await new Promise<void>((resolvePromise) => server.listen(0, "127.0.0.1", resolvePromise));
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("PROMPTFOO_BRIDGE_PROBE_SERVER");
+    const configPath = join(directory, "bridge-identity.config.json");
+    const outputPath = join(directory, "bridge-identity.output.json");
+    const evaluatorUrl = `http://127.0.0.1:${address.port}/evaluator`;
+    await writeFile(
+      configPath,
+      `${JSON.stringify(
+        {
+          prompts: ["{{ task }}"],
+          providers: [
+            {
+              id: "http",
+              config: {
+                url: `http://127.0.0.1:${address.port}/main-provider-must-not-run`,
+                method: "POST",
+                body: { prompt: "{{ prompt }}" },
+                maxRetries: 0
+              }
+            }
+          ],
+          defaultTest: {
+            options: {
+              provider: {
+                id: "http",
+                config: {
+                  url: evaluatorUrl,
+                  method: "POST",
+                  body: { prompt: "{{ prompt }}" },
+                  responseParser: "json.output",
+                  maxRetries: 0
+                }
+              }
+            }
+          },
+          tests: [
+            {
+              description: "duplicate rubric bridge identity probe",
+              vars: { task: "identity probe task" },
+              metadata: { caseKey: "bridge-identity-case", ordinal: 0 },
+              providerOutput: "actual output",
+              threshold: 0.75,
+              assert: [
+                {
+                  type: "llm-rubric",
+                  value: "same rubric",
+                  metric: "quality-primary",
+                  weight: 1
+                },
+                {
+                  type: "llm-rubric",
+                  value: "same rubric",
+                  metric: "quality-secondary",
+                  weight: 3
+                }
+              ]
+            }
+          ]
+        },
+        null,
+        2
+      )}\n`,
+      { encoding: "utf8", mode: 0o600 }
+    );
+    const processResult = await runBoundedProcess(
+      resolve(root, "node_modules/.bin/promptfoo"),
+      [
+        "eval",
+        "--config",
+        configPath,
+        "--output",
+        outputPath,
+        "--no-cache",
+        "--no-share",
+        "--no-table",
+        "--no-progress-bar"
+      ],
+      directory
+    );
+    if (processResult.exitCode !== 0) {
+      throw new Error(
+        `PROMPTFOO_BRIDGE_PROBE_PROCESS:${processResult.exitCode}:${processResult.stderr.slice(0, 400)}`
+      );
+    }
+    const raw = JSON.parse(await readFile(outputPath, "utf8")) as {
+      results?: { results?: { gradingResult?: { componentResults?: unknown[] } }[] };
+    };
+    const components = raw.results?.results?.[0]?.gradingResult?.componentResults;
+    if (!Array.isArray(components) || components.length !== 2) {
+      throw new Error("PROMPTFOO_BRIDGE_PROBE_COMPONENTS");
+    }
+    const assertions = components.map((component, index) => {
+      if (typeof component !== "object" || component === null || Array.isArray(component)) {
+        throw new Error(`PROMPTFOO_BRIDGE_PROBE_COMPONENT:${index}`);
+      }
+      const assertion = (component as { assertion?: unknown }).assertion;
+      if (typeof assertion !== "object" || assertion === null || Array.isArray(assertion)) {
+        throw new Error(`PROMPTFOO_BRIDGE_PROBE_ASSERTION:${index}`);
+      }
+      const { metric, weight } = assertion as { metric?: unknown; weight?: unknown };
+      if (typeof metric !== "string" || typeof weight !== "number") {
+        throw new Error(`PROMPTFOO_BRIDGE_PROBE_ASSERTION_FACT:${index}`);
+      }
+      return { metric, weight };
+    });
+    return {
+      exitCode: processResult.exitCode,
+      componentResults: components.length,
+      requestCount: requestBodies.length,
+      distinctRequestBodies: new Set(requestBodies).size,
+      assertionMetrics: assertions.map((item) => item.metric),
+      assertionWeights: assertions.map((item) => item.weight),
+      requestBodiesExposeAssertionIdentity:
+        requestBodies.length > 0 && requestBodies.every(exposesBridgeIdentity)
+    };
+  } finally {
+    await new Promise<void>((resolvePromise, reject) =>
+      server.close((error) => (error ? reject(error) : resolvePromise()))
+    );
+    await rm(directory, { force: true, recursive: true });
+  }
+}
+
+/** Run one real Assertion Set and expose only the stable importer alignment facts. */
+export async function runNestedAssertionSetProbe(root: string): Promise<NestedAssertionSetProbe> {
+  const directory = await mkdtemp(join(tmpdir(), "cortex-eval-assertion-set-probe-"));
+  try {
+    const configPath = join(directory, "assertion-set.config.json");
+    const outputPath = join(directory, "assertion-set.output.json");
+    await writeFile(
+      configPath,
+      `${JSON.stringify(
+        {
+          prompts: ["{{ task }}"],
+          providers: [{ id: "echo" }],
+          tests: [
+            {
+              description: "assertion set component probe",
+              vars: { task: "assertion set task" },
+              metadata: { case_id: "assertion-set-case" },
+              providerOutput: "actual",
+              assert: [
+                {
+                  type: "assert-set",
+                  metric: "set-quality",
+                  weight: 2,
+                  threshold: 1,
+                  assert: [
+                    {
+                      type: "equals",
+                      value: "actual",
+                      metric: "child-pass",
+                      weight: 1
+                    },
+                    {
+                      type: "equals",
+                      value: "different",
+                      metric: "child-fail",
+                      weight: 3
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        null,
+        2
+      )}\n`,
+      { encoding: "utf8", mode: 0o600 }
+    );
+    const processResult = await runBoundedProcess(
+      resolve(root, "node_modules/.bin/promptfoo"),
+      [
+        "eval",
+        "--config",
+        configPath,
+        "--output",
+        outputPath,
+        "--no-cache",
+        "--no-share",
+        "--no-table",
+        "--no-progress-bar"
+      ],
+      directory
+    );
+    if (processResult.exitCode !== 100) {
+      throw new Error(`PROMPTFOO_ASSERTION_SET_PROCESS:${processResult.exitCode}`);
+    }
+    const raw = JSON.parse(await readFile(outputPath, "utf8")) as {
+      results?: { results?: { gradingResult?: { componentResults?: unknown[] } }[] };
+    };
+    const components = raw.results?.results?.[0]?.gradingResult?.componentResults;
+    if (!Array.isArray(components) || components.length !== 3) {
+      throw new Error("PROMPTFOO_ASSERTION_SET_COMPONENTS");
+    }
+    const componentKinds: ("ASSERTION_SET" | "ASSERTION")[] = [];
+    const assertionTypes: string[] = [];
+    const assertionMetrics: string[] = [];
+    let aggregateChildCount = 0;
+    for (const [index, component] of components.entries()) {
+      if (typeof component !== "object" || component === null || Array.isArray(component)) {
+        throw new Error(`PROMPTFOO_ASSERTION_SET_COMPONENT:${index}`);
+      }
+      const record = component as Record<string, unknown>;
+      const metadata = record.metadata;
+      if (typeof metadata === "object" && metadata !== null && !Array.isArray(metadata)) {
+        const assertionSet = (metadata as Record<string, unknown>).assertionSet;
+        if (
+          typeof assertionSet !== "object" ||
+          assertionSet === null ||
+          Array.isArray(assertionSet)
+        ) {
+          throw new Error(`PROMPTFOO_ASSERTION_SET_METADATA:${index}`);
+        }
+        const set = assertionSet as Record<string, unknown>;
+        if (set.type !== "assert-set" || typeof set.metric !== "string") {
+          throw new Error(`PROMPTFOO_ASSERTION_SET_FACT:${index}`);
+        }
+        if (!Array.isArray(record.componentResults)) {
+          throw new Error(`PROMPTFOO_ASSERTION_SET_CHILDREN:${index}`);
+        }
+        componentKinds.push("ASSERTION_SET");
+        assertionTypes.push(set.type);
+        assertionMetrics.push(set.metric);
+        aggregateChildCount = record.componentResults.length;
+        continue;
+      }
+      const assertion = record.assertion;
+      if (typeof assertion !== "object" || assertion === null || Array.isArray(assertion)) {
+        throw new Error(`PROMPTFOO_ASSERTION_SET_ASSERTION:${index}`);
+      }
+      const leaf = assertion as Record<string, unknown>;
+      if (typeof leaf.type !== "string" || typeof leaf.metric !== "string") {
+        throw new Error(`PROMPTFOO_ASSERTION_SET_ASSERTION_FACT:${index}`);
+      }
+      componentKinds.push("ASSERTION");
+      assertionTypes.push(leaf.type);
+      assertionMetrics.push(leaf.metric);
+    }
+    return {
+      exitCode: processResult.exitCode,
+      componentKinds,
+      assertionTypes,
+      assertionMetrics,
+      aggregateChildCount
+    };
+  } finally {
     await rm(directory, { force: true, recursive: true });
   }
 }

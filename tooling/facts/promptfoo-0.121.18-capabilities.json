@@ -4117,7 +4117,7 @@
         "valueRequired": true,
         "thresholdRequired": false
       },
-      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER"],
+      "dependencies": ["PROMPTFOO_EVALUATOR_PROVIDER", "PROMPTFOO_MULTI_OUTPUT_TEST"],
       "rejectionBoundaries": [
         "FILE_REFERENCE",
         "EXTERNAL_MODULE",
@@ -4178,7 +4178,7 @@
         "valueRequired": false,
         "thresholdRequired": false
       },
-      "dependencies": [],
+      "dependencies": ["PROMPTFOO_MULTI_OUTPUT_TEST"],
       "rejectionBoundaries": [
         "FILE_REFERENCE",
         "EXTERNAL_MODULE",

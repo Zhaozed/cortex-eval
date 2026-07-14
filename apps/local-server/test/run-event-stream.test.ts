@@ -15,11 +15,15 @@ interface ProgressOverrides {
   /** Current lifecycle status. */
   readonly status?: "READY" | "RUNNING" | "FAILED" | "CANCELLED" | "INTERRUPTED";
   /** Current pipeline stage. */
-  readonly stage?: "REST" | "EVALUATION" | "DONE";
+  readonly stage?: "REST" | "EVALUATION" | "REPORT" | "DONE";
   /** Durable Revision and event sequence. */
   readonly lockRevision?: number;
   /** Durable cancellation request time. */
   readonly cancelRequestedAt?: string | null;
+  /** Durable REST counters. */
+  readonly rest?: Readonly<Record<string, number>>;
+  /** Durable Evaluation counters. */
+  readonly evaluation?: Readonly<Record<string, number>>;
 }
 
 // Build one schema-valid small progress response.
@@ -31,6 +35,14 @@ function progress(overrides: ProgressOverrides = {}): Readonly<Record<string, un
     lockRevision: 0,
     cancelRequestedAt: null,
     rest: { total: 1, completed: 0, succeeded: 0, error: 0 },
+    evaluation: {
+      total: 1,
+      completed: 0,
+      passed: 0,
+      failed: 0,
+      error: 0,
+      notEvaluated: 0
+    },
     updatedAt: NOW,
     ...overrides
   };
@@ -50,13 +62,14 @@ function runHandlers(getRunProgress: LocalApiHandler): LocalRunHandlers {
     getRun: inert(),
     listRunCases: inert(),
     getRunCase: inert(),
+    listRunEvaluations: inert(),
     startRun: inert(202),
     cancelRun: inert(202),
     getRunProgress
   };
 }
 
-describe("P5 Run 有限 SSE", () => {
+describe("P6 Run 有限 SSE", () => {
   const servers: FastifyInstance[] = [];
 
   afterEach(async () => {
@@ -76,14 +89,19 @@ describe("P5 Run 有限 SSE", () => {
         statusCode: 200,
         body: progress({ stage: "EVALUATION", lockRevision: 3, cancelRequestedAt: NOW })
       },
-      { statusCode: 200, body: progress({ status: "CANCELLED", stage: "DONE", lockRevision: 4 }) },
-      { statusCode: 200, body: progress({ status: "FAILED", stage: "DONE", lockRevision: 5 }) },
       {
         statusCode: 200,
-        body: progress({ status: "INTERRUPTED", stage: "DONE", lockRevision: 6 })
+        body: progress({ status: "RUNNING", stage: "EVALUATION", lockRevision: 4 })
       },
-      { statusCode: 200, body: progress({ status: "RUNNING", lockRevision: 7 }) },
-      { statusCode: 200, body: progress({ status: "RUNNING", lockRevision: 8 }) },
+      { statusCode: 200, body: progress({ stage: "REPORT", lockRevision: 6 }) },
+      { statusCode: 200, body: progress({ status: "CANCELLED", stage: "DONE", lockRevision: 7 }) },
+      { statusCode: 200, body: progress({ status: "FAILED", stage: "DONE", lockRevision: 8 }) },
+      {
+        statusCode: 200,
+        body: progress({ status: "INTERRUPTED", stage: "DONE", lockRevision: 9 })
+      },
+      { statusCode: 200, body: progress({ status: "RUNNING", lockRevision: 10 }) },
+      { statusCode: 200, body: progress({ status: "RUNNING", lockRevision: 11 }) },
       { statusCode: 404, body: {} }
     ];
     const getRunProgress = vi.fn<LocalApiHandler>().mockImplementation(() => {
@@ -115,6 +133,8 @@ describe("P5 Run 有限 SSE", () => {
       "REST_STARTED",
       "CANCEL_REQUESTED",
       "REST_COMPLETED",
+      "EVALUATION_STARTED",
+      "EVALUATION_COMPLETED",
       "RUN_CANCELLED",
       "RUN_FAILED",
       "RUN_INTERRUPTED",
@@ -122,8 +142,50 @@ describe("P5 Run 有限 SSE", () => {
     ]) {
       expect(response.body).toContain(`"event":"${event}"`);
     }
-    expect(response.body.match(/"sequence":1/g)).toHaveLength(1);
-    expect(getRunProgress).toHaveBeenCalledTimes(11);
+    expect(response.body.match(/"sequence":1,/g)).toHaveLength(1);
+    expect(response.body).not.toContain('"event":"EVALUATION_PROGRESS"');
+    expect(getRunProgress).toHaveBeenCalledTimes(13);
+  });
+
+  it("一次轮询跨过多个阶段时按流水线顺序补发所有可证明事件", async () => {
+    const getRunProgress = vi
+      .fn<LocalApiHandler>()
+      .mockResolvedValueOnce({ statusCode: 200, body: progress() })
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        body: progress({
+          stage: "REPORT",
+          lockRevision: 5,
+          rest: { total: 1, completed: 1, succeeded: 1, error: 0 }
+        })
+      })
+      .mockResolvedValueOnce({ statusCode: 404, body: {} });
+    const server = buildLocalServer({
+      requestIdGenerator: { nextId: (): string => REQUEST_ID },
+      resourceHandlers: {
+        listTestSuites: () =>
+          Promise.resolve({ statusCode: 200, body: { items: [], nextCursor: null } })
+      },
+      runHandlers: runHandlers(getRunProgress)
+    });
+    servers.push(server);
+
+    const response = await server.inject({
+      method: "GET",
+      url: `/api/v1/runs/${RUN_ID}/events`,
+      headers
+    });
+    const ordered = [
+      "REST_STARTED",
+      "REST_PROGRESS",
+      "REST_COMPLETED",
+      "EVALUATION_STARTED",
+      "EVALUATION_COMPLETED"
+    ];
+    const positions = ordered.map((event) => response.body.indexOf(`"event":"${event}"`));
+
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((left, right) => left - right));
   });
 
   it("初始参数错误在 Hijack 前保持普通 JSON 400", async () => {

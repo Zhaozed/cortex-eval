@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@google/genai": "2.11.0",
     "@cortex-eval/application": "workspace:*",
-    "@cortex-eval/contracts": "workspace:*"
+    "@cortex-eval/contracts": "workspace:*",
+    "@cortex-eval/domain": "workspace:*",
+    "openai": "6.46.0"
   }
 }

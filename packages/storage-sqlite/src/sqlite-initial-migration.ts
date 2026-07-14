@@ -2,6 +2,7 @@ import { sql, type Kysely } from "kysely";
 import type { Migration, MigrationProvider } from "kysely/migration";
 
 import { PLATFORM_RUN_INDEX_MIGRATION } from "./sqlite-platform-run-index-migration.ts";
+import { EVALUATION_SUMMARY_MIGRATION } from "./sqlite-evaluation-summary-migration.ts";
 
 const CREATE_STATEMENTS = [
   `CREATE TABLE test_suite (
@@ -252,7 +253,8 @@ export class CortexMigrationProvider implements MigrationProvider {
   public getMigrations(): Promise<Record<string, Migration>> {
     return Promise.resolve({
       "001_initial_schema": INITIAL_MIGRATION,
-      "002_platform_run_indexes": PLATFORM_RUN_INDEX_MIGRATION
+      "002_platform_run_indexes": PLATFORM_RUN_INDEX_MIGRATION,
+      "003_evaluation_summary": EVALUATION_SUMMARY_MIGRATION
     });
   }
 }

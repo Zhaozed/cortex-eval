@@ -46,6 +46,7 @@ const RUN_CAPABILITY_HANDLERS: LocalRunHandlers = {
   getRun: notExecutable,
   listRunCases: notExecutable,
   getRunCase: notExecutable,
+  listRunEvaluations: notExecutable,
   startRun: notExecutable,
   cancelRun: notExecutable,
   getRunProgress: notExecutable

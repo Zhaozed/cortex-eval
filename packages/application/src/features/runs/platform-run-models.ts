@@ -4,6 +4,7 @@ import type {
   LlmConfigDefinition,
   PromptDefinition
 } from "@cortex-eval/domain/src/domain-resource-models.ts";
+import { validateLlmConfig } from "@cortex-eval/domain/src/domain-resource-models.ts";
 
 import type { FrozenRunCase, RestExecutionErrorType } from "./run-rest-models.ts";
 
@@ -86,6 +87,13 @@ export interface FrozenRunEvaluator {
   readonly definition: LlmConfigDefinition;
 }
 
+/** Revalidate one typed Evaluator at the Application-to-Adapter boundary. */
+export function isValidFrozenRunEvaluatorDefinition(
+  value: FrozenRunEvaluator["definition"]
+): boolean {
+  return validateLlmConfig(value).ok;
+}
+
 /** Frozen Rubric Prompt captured by one platform Run. */
 export interface FrozenRunRubricPrompt {
   /** Current Prompt identity at freeze time, absent only for imported history. */
@@ -155,6 +163,16 @@ export interface PlatformRun {
   readonly restCompletedCount: number;
   /** Number of durable REST Error results. */
   readonly restErrorCount: number;
+  /** Number of atomically committed Evaluation results. */
+  readonly evalCompletedCount: number;
+  /** Number of committed Evaluation PASS results. */
+  readonly evalPassCount: number;
+  /** Number of committed Evaluation FAIL results. */
+  readonly evalFailCount: number;
+  /** Number of committed Evaluation system errors. */
+  readonly evalErrorCount: number;
+  /** Number of committed Not Evaluated results. */
+  readonly evalNotEvaluatedCount: number;
   /** Complete REST result-set hash after stage commit. */
   readonly resultSetHash: string | null;
   /** Complete immutable Artifact expectation facts. */
@@ -193,6 +211,16 @@ export interface PlatformRunProgress {
   readonly restCompletedCount: number;
   /** Durable REST Error count. */
   readonly restErrorCount: number;
+  /** Atomically committed Evaluation completion count. */
+  readonly evalCompletedCount: number;
+  /** Atomically committed Evaluation PASS count. */
+  readonly evalPassCount: number;
+  /** Atomically committed Evaluation FAIL count. */
+  readonly evalFailCount: number;
+  /** Atomically committed Evaluation system-error count. */
+  readonly evalErrorCount: number;
+  /** Atomically committed Not Evaluated count. */
+  readonly evalNotEvaluatedCount: number;
   /** Complete REST result-set hash after stage commit. */
   readonly resultSetHash: string | null;
   /** Complete immutable Artifact expectation facts. */
@@ -266,6 +294,11 @@ export function platformRunProgress(value: PlatformRun): PlatformRunProgress {
     restTotalCount: value.suite.cases.length,
     restCompletedCount: value.restCompletedCount,
     restErrorCount: value.restErrorCount,
+    evalCompletedCount: value.evalCompletedCount,
+    evalPassCount: value.evalPassCount,
+    evalFailCount: value.evalFailCount,
+    evalErrorCount: value.evalErrorCount,
+    evalNotEvaluatedCount: value.evalNotEvaluatedCount,
     resultSetHash: value.resultSetHash,
     artifactManifest: value.artifactManifest,
     errorCode: value.errorCode,
@@ -323,6 +356,12 @@ interface StoredRestCaseResultBase {
   readonly completedAt: string;
   /** Semantic REST result hash. */
   readonly resultHash: string;
+  /** Reuse identity for a copied REST result. */
+  readonly provenance: {
+    readonly sourceKind: "RUN" | "EXECUTION";
+    readonly sourceId: string;
+    readonly sourceResultHash: string;
+  } | null;
 }
 
 /** Persisted successful REST result. */
@@ -400,6 +439,16 @@ export interface PlatformRunSummary {
   readonly restCompletedCount: number;
   /** Durable REST Error count. */
   readonly restErrorCount: number;
+  /** Atomically committed Evaluation completion count. */
+  readonly evalCompletedCount: number;
+  /** Atomically committed Evaluation PASS count. */
+  readonly evalPassCount: number;
+  /** Atomically committed Evaluation FAIL count. */
+  readonly evalFailCount: number;
+  /** Atomically committed Evaluation system-error count. */
+  readonly evalErrorCount: number;
+  /** Atomically committed Not Evaluated count. */
+  readonly evalNotEvaluatedCount: number;
   /** Creation time. */
   readonly createdAt: string;
   /** Last durable update time. */

@@ -1,0 +1,10 @@
+{
+  "name": "@cortex-eval/reporting",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@cortex-eval/domain": "workspace:*",
+    "ajv": "8.20.0"
+  }
+}

@@ -56,7 +56,7 @@ async function startStub(): Promise<string> {
   return `http://127.0.0.1:${address.port}`;
 }
 
-async function waitForRestCommit(
+async function waitForEvaluationCommit(
   server: FastifyInstance,
   runId: string
 ): Promise<Readonly<Record<string, unknown>>> {
@@ -68,14 +68,14 @@ async function waitForRestCommit(
       headers: host
     });
     const body = parseJsonObject(response);
-    if (body.stage === "EVALUATION") return body;
+    if (body.stage === "REPORT") return body;
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
   throw new Error("TEST_RUN_TIMEOUT");
 }
 
-describe("P5 real Run API", () => {
-  it("真实 SQLite/HTTP 闭合 Preflight、Create、REST、Artifact 与 Case 查询", async () => {
+describe("P6 real Run API", () => {
+  it("真实 SQLite/HTTP 闭合 REST、Promptfoo 非模型 Assert、Evaluation Artifact 与结果查询", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-run-api-"));
     roots.push(projectRoot);
     const runtime = await createLocalServerRuntime({ projectRoot });
@@ -163,12 +163,16 @@ describe("P5 real Run API", () => {
       payload: { expectedRevision: 0 }
     });
     expect(started.statusCode).toBe(202);
-    const completed = await waitForRestCommit(server, runId);
+    const completed = await waitForEvaluationCommit(server, runId);
     expect(completed).toMatchObject({
       status: "READY",
-      stage: "EVALUATION",
+      stage: "REPORT",
       rest: { total: 1, completed: 1, succeeded: 1, error: 0 },
-      artifactAvailability: [{ kind: "REST_RESULTS", status: "PRESENT" }]
+      artifactAvailability: [
+        { kind: "REST_RESULTS", status: "PRESENT" },
+        { kind: "RAW_PROMPTFOO_EVIDENCE", status: "PRESENT" },
+        { kind: "NORMALIZED_EVAL_RESULTS", status: "PRESENT" }
+      ]
     });
     const cases = await server.inject({
       method: "GET",
@@ -185,6 +189,26 @@ describe("P5 real Run API", () => {
     });
     expect(parseJsonObject(detail)).toMatchObject({
       providerOutput: { ok: true, task_name: "route", parsed_output: { answer: "ok" } }
+    });
+    const evaluations = await server.inject({
+      method: "GET",
+      url: `/api/v1/runs/${runId}/evaluations`,
+      headers: host
+    });
+    expect(evaluations.statusCode).toBe(200);
+    expect(parseJsonObject(evaluations)).toMatchObject({
+      items: [
+        {
+          runId,
+          result: {
+            caseKey: "case-1",
+            status: "PASS",
+            promptfooSuccess: true,
+            assertions: [{ metric: "quality", status: "PASS" }]
+          }
+        }
+      ],
+      nextCursor: null
     });
     const listed = await server.inject({ method: "GET", url: "/api/v1/runs", headers: host });
     expect(parseJsonObject(listed)).toMatchObject({

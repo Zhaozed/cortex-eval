@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   EvaluatorBridgeCapabilityV1Schema,
+  EvaluatorBridgeCapabilityV2Schema,
   EvaluatorBridgeRequestV1Schema,
+  EvaluatorBridgeRequestV2Schema,
   EvaluatorBridgeResponseV1Schema,
+  EvaluatorBridgeResponseV2Schema,
   ProviderCapabilityErrorV1Schema
 } from "../src/evaluator-bridge-contracts.ts";
 
@@ -74,5 +77,77 @@ describe("Evaluator Bridge v1", () => {
     expect(
       ProviderCapabilityErrorV1Schema.safeParse({ ...error, rawResponse: "secret" }).success
     ).toBe(false);
+  });
+});
+
+describe("Evaluator Bridge v2", () => {
+  it("保留 v1 单次授权，同时以 Evaluation Context 绑定确定性总预算", () => {
+    const value = {
+      contractVersion: "cortex.evaluator-bridge-capability.v2",
+      capabilityHash: HASH,
+      binding: { kind: "RUN", runId: ID },
+      evaluationContextHash: HASH,
+      evaluatorConfigHash: HASH,
+      maxCalls: 17,
+      maxConcurrency: 2,
+      timeoutMs: 30_000,
+      expiresAt: TIME
+    };
+
+    expect(EvaluatorBridgeCapabilityV2Schema.parse(value).maxCalls).toBe(17);
+    expect(EvaluatorBridgeCapabilityV1Schema.safeParse(value).success).toBe(false);
+    expect(EvaluatorBridgeCapabilityV2Schema.safeParse({ ...value, maxCalls: 0 }).success).toBe(
+      true
+    );
+    expect(
+      EvaluatorBridgeCapabilityV2Schema.safeParse({
+        ...value,
+        maxCalls: Number.MAX_SAFE_INTEGER + 1
+      }).success
+    ).toBe(false);
+  });
+
+  it("请求只携带调用期身份和 Prompt，不携带 Assertion、Metric 或 Provider 覆盖", () => {
+    const request = {
+      contractVersion: "cortex.evaluator-bridge-request.v2",
+      capability: "A".repeat(43),
+      binding: { kind: "EXECUTION", executionId: ID },
+      evaluationContextHash: HASH,
+      prompt: "判断输出是否满足标准"
+    };
+
+    expect(EvaluatorBridgeRequestV2Schema.parse(request).evaluationContextHash).toBe(HASH);
+    for (const forbidden of [
+      { callId: ID },
+      { caseKey: "case-1" },
+      { assertionIndex: 0 },
+      { metric: "quality" },
+      { model: "other" },
+      { url: "https://example.com" },
+      { headers: { authorization: "secret" } }
+    ]) {
+      expect(EvaluatorBridgeRequestV2Schema.safeParse({ ...request, ...forbidden }).success).toBe(
+        false
+      );
+    }
+  });
+
+  it("响应使用独立 v2 版本并保留稳定零重试错误", () => {
+    const success = {
+      contractVersion: "cortex.evaluator-bridge-response.v2",
+      callId: ID,
+      status: "SUCCESS",
+      output: { text: "ok", structured: null, tokenUsage: null }
+    };
+    const failure = {
+      contractVersion: "cortex.evaluator-bridge-response.v2",
+      callId: ID,
+      status: "ERROR",
+      error: { code: "EVALUATOR_BUDGET_EXCEEDED", retryable: false, message: "调用预算已耗尽" }
+    };
+
+    expect(EvaluatorBridgeResponseV2Schema.parse(success).status).toBe("SUCCESS");
+    expect(EvaluatorBridgeResponseV2Schema.parse(failure).status).toBe("ERROR");
+    expect(EvaluatorBridgeResponseV1Schema.safeParse(success).success).toBe(false);
   });
 });

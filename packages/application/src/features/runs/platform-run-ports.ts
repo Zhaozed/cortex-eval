@@ -59,6 +59,11 @@ export interface FailPlatformRunInput {
 export interface PlatformRunRepository {
   /** Insert one fully frozen READY/REST Run. */
   insertPlatformRun(value: PlatformRun): Promise<void>;
+  /** Insert one frozen rerun and its already-validated reusable REST successes atomically. */
+  insertPlatformRerun(
+    value: PlatformRun,
+    reusedRestResults: readonly StoredRestCaseResult[]
+  ): Promise<void>;
   /** Read one strict platform Run without mapping imported history. */
   getPlatformRun(runId: string): Promise<PlatformRun | null>;
   /** Read one bounded platform Run detail without Case arrays or Prompt bodies. */
@@ -92,7 +97,7 @@ export interface PlatformRunRepository {
     expectedRevision: number,
     completedAt: string
   ): Promise<PlatformRunProgress | null>;
-  /** Commit one stage system failure only before cancellation wins. */
+  /** Commit one active or automatic-handoff stage failure only before cancellation wins. */
   failRun(input: FailPlatformRunInput): Promise<PlatformRunProgress | null>;
   /** Commit runtime interruption for the still-owned active stage, including a raced stage commit. */
   interruptRun(

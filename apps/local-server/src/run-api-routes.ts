@@ -29,6 +29,8 @@ type RunEventName =
   | "REST_PROGRESS"
   | "CANCEL_REQUESTED"
   | "REST_COMPLETED"
+  | "EVALUATION_STARTED"
+  | "EVALUATION_COMPLETED"
   | "RUN_CANCELLED"
   | "RUN_FAILED"
   | "RUN_INTERRUPTED";
@@ -63,20 +65,46 @@ function waitForPoll(signal: AbortSignal): Promise<void> {
   });
 }
 
-// Infer only closed P5 event names from consecutive durable snapshots.
-function eventName(
+// Infer every event logically entailed by consecutive durable snapshots.
+function eventNamesBetween(
   previous: ReturnType<typeof RunProgressV1Schema.parse>,
   current: ReturnType<typeof RunProgressV1Schema.parse>
-): RunEventName {
-  if (current.status === "CANCELLED") return "RUN_CANCELLED";
-  if (current.status === "FAILED") return "RUN_FAILED";
-  if (current.status === "INTERRUPTED") return "RUN_INTERRUPTED";
+): readonly RunEventName[] {
+  const events: RunEventName[] = [];
   if (previous.cancelRequestedAt === null && current.cancelRequestedAt !== null) {
-    return "CANCEL_REQUESTED";
+    events.push("CANCEL_REQUESTED");
   }
-  if (previous.stage === "REST" && current.stage === "EVALUATION") return "REST_COMPLETED";
-  if (previous.status !== "RUNNING" && current.status === "RUNNING") return "REST_STARTED";
-  return "REST_PROGRESS";
+  if (current.status === "CANCELLED") return [...events, "RUN_CANCELLED"];
+  if (current.status === "FAILED") return [...events, "RUN_FAILED"];
+  if (current.status === "INTERRUPTED") return [...events, "RUN_INTERRUPTED"];
+
+  const leftRest = previous.stage === "REST" && current.stage !== "REST";
+  const restStarted =
+    previous.stage === "REST" &&
+    previous.status !== "RUNNING" &&
+    (current.status === "RUNNING" || leftRest);
+  if (restStarted) events.push("REST_STARTED");
+  if (
+    previous.stage === "REST" &&
+    (current.rest.completed > previous.rest.completed ||
+      (current.stage === "REST" && current.status === "RUNNING" && !restStarted))
+  ) {
+    events.push("REST_PROGRESS");
+  }
+  if (leftRest) events.push("REST_COMPLETED");
+
+  const enteredEvaluation = previous.stage === "REST" && current.stage === "EVALUATION";
+  const crossedEvaluation = previous.stage === "REST" && current.stage === "REPORT";
+  const evaluationStarted =
+    crossedEvaluation ||
+    (current.stage === "EVALUATION" &&
+      current.status === "RUNNING" &&
+      (enteredEvaluation || previous.status !== "RUNNING"));
+  if (evaluationStarted) events.push("EVALUATION_STARTED");
+  if ((previous.stage === "EVALUATION" && current.stage === "REPORT") || crossedEvaluation) {
+    events.push("EVALUATION_COMPLETED");
+  }
+  return events;
 }
 
 // Write one validated SSE envelope with an explicit event ID.
@@ -189,16 +217,19 @@ function registerRunEventStream(
           if (response.statusCode !== 200) break;
           const current = RunProgressV1Schema.parse(response.body);
           if (current.lockRevision === previous.lockRevision) continue;
-          writeEnvelope(
-            reply,
-            RunStreamEnvelopeV1Schema.parse({
-              type: "EVENT",
-              sequence: current.lockRevision,
-              event: eventName(previous, current),
-              progress: current
-            })
-          );
+          const events = eventNamesBetween(previous, current);
           previous = current;
+          for (const event of events) {
+            writeEnvelope(
+              reply,
+              RunStreamEnvelopeV1Schema.parse({
+                type: "EVENT",
+                sequence: current.lockRevision,
+                event,
+                progress: current
+              })
+            );
+          }
         }
       } catch (error) {
         if (!streamOpened) throw error;
@@ -269,6 +300,14 @@ export function registerRunRoutes(
     "/api/v1/runs/:runId/cases/:caseKey",
     "getRunCase",
     handlers.getRunCase
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "GET",
+    "/api/v1/runs/:runId/evaluations",
+    "listRunEvaluations",
+    handlers.listRunEvaluations
   );
   registerHandlerRoute(
     server,

@@ -2,7 +2,7 @@
 
 ## 当前实现边界
 
-P5 当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST、查看逐 Case 结果与进度、取消和刷新恢复。提交的 OpenAPI 与 Web 导航只包含这些闭环能力。Evaluation、Report、Analysis、Retry/Force、Work Package 文件运行时和目标 CLI 仍是后续验收目标，不存在占位入口。
+当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST 与 Evaluation、查看两阶段逐 Case 结果和进度、取消及刷新恢复。`PIPELINE` 在 REST 提交后自动进入 Evaluation；`STAGED` 可按 Stage 显式启动。提交的 OpenAPI 与 Web 只暴露已闭环的 Evaluation 能力。Report、Analysis、Retry/Force、Work Package 文件运行时和目标 CLI 不存在占位入口。
 
 ## 使用方式
 
@@ -24,8 +24,8 @@ Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式选择满足
 
 ## 运行行为
 
-- 用户可以创建 `STAGED` 或 `PIPELINE` Run；P5 两种模式当前都只执行已闭环 REST，自动推进在 P6/P8 接入。
-- REST 阶段执行中和完成后可以查看真实逐 Case 结果；完成后停在 `READY/EVALUATION`，当前没有 Eval 动作。
+- 用户可以创建 `STAGED` 或 `PIPELINE` Run；`STAGED` 分阶段启动，`PIPELINE` 在 REST 提交后自动启动 Evaluation。
+- REST 与 Evaluation 执行中和完成后都可查看真实逐 Case 结果；Evaluation 完成后进入 `READY/REPORT`。
 - 部分或全部 REST Error 都保存为真实 Case 事实并完成 REST 阶段。
 - 页面刷新不影响后端执行和已完成事实。
 - 同一时刻只有一个平台运行阶段可以处于 `RUNNING`。
@@ -42,9 +42,11 @@ HTTP 非 2xx、网络错误、超时、JSON 解析失败或 Provider Output 结�
 
 ## Evaluation 与报告语义
 
-Eval Case 状态为 `PASS`、`FAIL`、`EVALUATION_ERROR` 或 `NOT_EVALUATED`。系统使用 Promptfoo 的结构化结果，不从自然语言 Reason 猜测状态。
+Eval Case 状态为 `PASS`、`FAIL`、`EVALUATION_ERROR` 或 `NOT_EVALUATED`。普通 Assertion 不满足条件是 `FAIL`；固定版本结构化 Row Error 和内联解释器执行失败是清洗后的 `EVALUATION_ERROR`，不展示第三方堆栈或绝对路径。系统不从一般自然语言 Reason 猜测状态。
 
-支持 Promptfoo `0.121.18` 能力矩阵中的全部 Assertion。内联 JavaScript、Python、Ruby、Transform 和 Context Transform 默认可信执行；不支持外部代码文件、额外依赖、Assertion Provider 覆盖或 Provider 插件。
+Case 构建不按 Assertion 类型设置平台白名单，Promptfoo `0.121.18` 能力矩阵中的全部 Assertion 都可进入受控配置。平台不在单输出流程中复现或限制 `select-best`、`max-score` 等原生执行语义。内联 JavaScript、Python、Ruby、Transform 和 Context Transform 默认可信执行；开放的 Assertion `config` 任意层级仍不支持外部代码文件、额外依赖、Provider、认证/Secret 或 Provider 插件。
+
+每个 Run ID 或离线 Execution ID 表示一次独立、不可覆盖的执行版本。其 Raw/Normalized Evaluation Artifact 与 Result Set Hash 表示绑定冻结 Evaluator 和契约版本的评估版本；当前不提供 Attempt 历史。
 
 报告展示整体有效通过率、已评估通过率、评估覆盖率、Error、Not Evaluated 和 By Metric 统计。分母为零时 Rate 为空，不伪造为零。
 

@@ -2,21 +2,19 @@
 
 ## 模块职责
 
-该 Feature 负责运行创建、输入冻结、运行模式、阶段推进、取消、恢复、进度计数和唯一活跃执行约束。P5 当前只闭合 REST 阶段。
+该 Feature 负责运行创建、输入冻结、REST/Evaluation 阶段推进、取消、恢复、进度计数、内部重跑和唯一活跃执行约束。
 
 模块不实现 HTTP 请求、Promptfoo 协议、模型 SDK 或报告纯计算。
 
 ## 边界与依赖
 
-Feature 当前依赖 Domain Run 规则、资源与 Run Repository、Transaction Manager、REST Executor、Run Artifact Store、Clock 和 ID Generator。Promptfoo Process 与 Reporting Port 在对应阶段闭环时接入。
+Feature 当前依赖 Domain Run 规则、资源与 Run/Eval Repository、Transaction Manager、REST/Evaluation Engine、Run Artifact Store、Clock 和 ID Generator。Reporting Port 在 Report 阶段闭环时接入。
 
 能力按阶段注册。REST、Eval、Report 和 Analysis 只有在各自闭环落地后才进入 API、CLI、Web 导航和 OpenAPI；未实现能力不提供占位入口。
 
 ## 实现状态
 
-P5 已落地平台 Run 预检与创建、冻结上下文、REST 阶段抢占和执行、逐 Case 结果、Artifact 提交、取消、Runtime Shutdown、启动恢复、分页查询和 Artifact 检查。全库唯一 `RUNNING`、跨进程取消与提交竞争由真实 SQLite 条件写和部分唯一索引收敛。
-
-当前 REST 成功提交后 Run 停在 `READY/EVALUATION`。Evaluation、Report、Retry/Force 和离线完整导入仍未注册。
+平台 Run 已闭合预检与创建、冻结上下文、REST/Evaluation 抢占和执行、逐 Case 结果、Artifact 提交、Pipeline 自动推进、取消、Runtime Shutdown、启动恢复、分页查询和 Artifact 检查。全库唯一 `RUNNING`、跨进程取消与提交竞争由真实 SQLite 条件写和部分唯一索引收敛。Evaluation 完成后停在 `READY/REPORT`；Report、对外 Retry/Force 和离线完整导入仍未注册。
 
 ## 目标代码落点
 
@@ -29,18 +27,27 @@ P5 已落地平台 Run 预检与创建、冻结上下文、REST 阶段抢占和�
 - [platform-run-ports.ts](../../packages/application/src/features/runs/platform-run-ports.ts)：短事务、资源读取与 Run Repository Port。
 - [run-artifact-port.ts](../../packages/application/src/features/runs/run-artifact-port.ts)：不可变 Run Artifact 边界。
 - [run-rest-models.ts](../../packages/application/src/features/runs/run-rest-models.ts)：REST Executor 输入与受控结果。
+- [platform-rerun-planner.ts](../../packages/application/src/features/runs/platform-rerun-planner.ts)：`RETRY_FAILED` 与 `FORCE` 的纯内部逐 Case 选择规则。
+- [platform-rerun-service.ts](../../packages/application/src/features/runs/platform-rerun-service.ts)：创建新版本 Run、预置可复用 REST 事实并保持来源不可变。
+- [platform-eval-models.ts](../../packages/application/src/features/evaluation/platform-eval-models.ts)：规范化平台 Eval 结果、分页、进度和复用来源模型。
+- [platform-eval-ports.ts](../../packages/application/src/features/evaluation/platform-eval-ports.ts)：完整 Eval 集合原子提交与查询 Port。
+- [platform-evaluation-service.ts](../../packages/application/src/features/evaluation/platform-evaluation-service.ts)：Evaluation 抢占、外部执行、Artifact、取消、复用和提交编排。
+- [platform-evaluation-reuse-reader.ts](../../packages/application/src/features/evaluation/platform-evaluation-reuse-reader.ts)：沿 Run Provenance 读取实际 Artifact 支撑的多代可复用 Eval 事实。
+- [promptfoo-result-importer.ts](../../packages/application/src/features/evaluation/promptfoo-result-importer.ts)：固定版本 Raw Result、实际评分 Output 与冻结 REST Output、完整 Definition Hash、Assertion Set 展开、Guardrail 特殊聚合、三种 `is-json` Schema、Diff、Metric、结果 Hash 和通用重复/缺失/错位对齐的严格 Application 规范化边界。
 
 ## 当前样例与测试入口
 
 - [platform-run-service.test.ts](../../packages/application/test/platform-run-service.test.ts)：冻结、提交、取消、Shutdown 与 Artifact 失败。
 - [sqlite-platform-run-repository.test.ts](../../packages/storage-sqlite/test/sqlite-platform-run-repository.test.ts)：真实 SQLite 抢占、竞争、恢复与查询。
 - [run-api.test.ts](../../apps/local-server/test/run-api.test.ts)：真实 SQLite、HTTP、Artifact 与逐 Case REST 闭环。
+- [promptfoo-result-importer.test.ts](../../packages/application/test/promptfoo-result-importer.test.ts)：严格成功导入、完整身份、集合展开/聚合、三种 JSON Schema、Validator 差异和未闭环 Bridge 证据拒绝。
+- [platform-rerun-planner.test.ts](../../packages/application/test/platform-rerun-planner.test.ts)：REST/Eval 复用、重评、重试、Force、顺序与来源对齐。
 
 ## 对外接口
 
-当前 Use Case 覆盖 Preflight、Create Run、仅启动 REST、Get Progress、Cancel Run、Run 查询、逐 Case REST 查询和 Artifact 可用性检查。查询返回有界冻结摘要、阶段事实和安全进度，不返回完整冻结 Case 数组或 Prompt 正文。
+当前 Use Case 覆盖 Preflight、Create Run、按 Stage 启动 REST/Evaluation、Pipeline 自动推进、Get Progress、Cancel Run、Run 查询、逐 Case REST/Eval 查询、Artifact 可用性检查，以及未注册的内部 Retry/Force 创建。查询返回有界冻结摘要、阶段事实、REST 计数和原子提交的 Evaluation 总/完成/PASS/FAIL/Error/Not Evaluated 分类计数，不返回完整冻结 Case 数组或 Prompt 正文。
 
-Run Pipeline、Build Report、Retry Run Failed 和 Force Run 仍是后续阶段目标，当前入口不存在。
+Build Report 及对外 Retry Run Failed/Force Run 仍是后续阶段目标，当前入口不存在。
 
 ## 核心流程
 
@@ -48,7 +55,15 @@ Run Pipeline、Build Report、Retry Run Failed 和 Force Run 仍是后续阶段�
 
 Artifact 文件先写到 Run 专属受控路径，Manifest 只有在数据库阶段提交成功后才成为持久事实；提交竞争失败会删除未提交文件。启动清理只删除未被任何持久 Manifest 引用的受控 Artifact。
 
-Retry Run Failed 与 Force Run 的来源模型已在 Domain 和存储中保留，但 Eval 复用规则闭环前不注册创建入口。
+Retry Run Failed 与 Force Run 的内部 Use Case 已固定逐 Case 复用、重评和重试规则。SQLite 对复用的 REST/Eval 来源 Run、Case、状态、Manifest 和语义 Hash 做精确对账；Artifact Store 在重跑规划与实际 Evaluation 两处校验立即来源 Normalized 文件，并沿 Provenance 追溯真正持有 Raw 的祖先文件，全部为 `PRESENT` 且 Hash/大小匹配才复用。缺失、损坏、断链或循环时不复用 Eval。Eval 复用必须绑定已复用的 REST。Use Case 创建新 Run，REST/Evaluation 只派发未复用 Case；单 Case Eval Result Hash 可复用，但完整 Result Set Hash 显式绑定新 Run 与本次 Evaluation Context，所以全复用路径也生成新的 Artifact/Result Set 版本。来源 Run 不修改。入口等待 Report 终态闭环。
+
+Normalized Evaluation Artifact Writer 只接受与冻结结果顺序一致的单遍流：Ordinal 必须从 `0` 连续递增、Case Key 唯一。它在临时文件内验证每项 Schema，并用同一 Owner 与 Evaluation Context Hash 复算 Result Set Hash；任一错位、重复或 Hash 不一致都清理临时文件，不发布 Artifact。
+
+PIPELINE 在 REST 提交后的固定交接 Revision 启动 Evaluation。Starter 返回失败或直接拒绝 Promise 都进入同一收口；只有 Run 仍处于该 `READY/EVALUATION` Revision 时才写入 `EVALUATION_STAGE_FAILED`，其他 Owner 已推进时保持最新事实。
+
+Evaluation Start 先在短事务中读取候选 Run 并校验 Stage/Revision，再读取当前 REST 与可复用 Eval 事实；事务外只对 REST 成功、未复用且会进入 Promptfoo 的冻结 Case 所需 Python/Ruby 执行真实内联能力检查。REST Error 与完整复用 Case 不要求解释器。失败不抢占 Stage；检查通过后才以新的短事务执行全局运行与 Revision 条件抢占，竞态仍由 CAS 收敛。
+
+Importer 把 Promptfoo Raw 视为脏边界。`failureReason=2` 只有在非空 Error、`gradingResult=null`、`score=0`、无 Response、非负耗时/成本、空 Named Scores 与合法 Token Usage 全部符合固定版本形状时才归一化；矛盾或缺失字段拒绝整次导入。规范化 Evaluation Error 只保存稳定 Code，Hash、Artifact 和 SQLite 不保存消息；Web 用消息资源显示可读说明。
 
 ## 状态、事务与幂等
 
@@ -68,4 +83,4 @@ Retry Run Failed 与 Force Run 的来源模型已在 Domain 和存储中保留�
 
 ## 相关测试
 
-当前测试覆盖状态机、REST Result Hash、冻结一致性、阶段抢占、双进程唯一运行、跨进程取消/提交竞争、逐 Case结果、Artifact 流式提交/失败/孤儿清理、小型查询投影、轮询拒绝、Shutdown 提交竞态、大小/超时/并发边界和真实 HTTP API。Pipeline、Eval 复用、Retry/Force 和报告提交随对应阶段补充。
+当前测试覆盖状态机、REST/Eval Result Hash、冻结一致性、阶段抢占、Pipeline、双进程唯一运行、跨进程取消/提交竞争、逐 Case结果、Artifact 提交/失败/孤儿清理、小型查询投影、轮询拒绝、Shutdown 竞态、大小/超时/并发边界、真实 HTTP API、Eval 原子提交/回滚/分页、REST/Eval Provenance、官方模型 SDK 和内部 Retry/Force。报告提交随 P8 补充。

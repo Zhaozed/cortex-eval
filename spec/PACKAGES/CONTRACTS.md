@@ -12,7 +12,7 @@ Entrypoint、Web、CLI、Work Package 和 Importer 使用 Contracts。Domain 不
 
 ## 实现状态
 
-P1 已落地纯 Contracts Package。P3 补充资源 API 的严格 Request/Response DTO、资源与 Case Cursor、组合查询和闭合 API Error 联合。P5 补充 Run 预检/创建/动作、Run Detail/Summary/Progress、Run/Case Cursor、逐 Case REST 结果、Snapshot-first SSE Envelope 和 Run 错误联合，并把 Run/Execution Artifact Manifest 统一为同一版本化对象。其余当前实现包含 Evaluator Bridge、Work Package v1、全部阶段 Artifact、Result Import、Analysis Input/Output 和 Canonical Export v1 的纯协议。
+P1 已落地纯 Contracts Package；P3–P5 补充资源与 Run/REST API。P6 新增使用 `runId + runContextHash` 的平台 Raw Promptfoo 和 Normalized Eval Artifact，避免伪造离线 Package/Execution 身份。Evaluator Bridge、Work Package v1、Result Import、Analysis 和 Canonical Export 仍是纯协议。
 
 Contracts 只冻结协议，不代表对应 API、CLI、Web 或文件运行时已经注册。P7–P9 只能实现 v1 Writer、Reader、Importer 和能力注册，不能修改 Work Package v1 Schema。
 
@@ -27,7 +27,7 @@ Contracts 只冻结协议，不代表对应 API、CLI、Web 或文件运行时�
 - [canonical-export-contracts.ts](../../packages/contracts/src/canonical-export-contracts.ts)：Canonical Export 请求、Manifest、JSONL Entity 与四类对账。
 - [error-contracts.ts](../../packages/contracts/src/error-contracts.ts)：稳定 Error Code。
 - [resource-api-contracts.ts](../../packages/contracts/src/resource-api-contracts.ts)：P3 资源 Request/Response、Cursor、分页和闭合 API Error。
-- [run-api-contracts.ts](../../packages/contracts/src/run-api-contracts.ts)：P5 Run Request/Response、Cursor、进度、Case 结果和 SSE Envelope。
+- [run-api-contracts.ts](../../packages/contracts/src/run-api-contracts.ts)：Run Request/Response、Cursor、REST/Evaluation 分类进度、Case 结果和 SSE Envelope。
 
 ## 当前样例与测试入口
 
@@ -39,11 +39,11 @@ Contracts 只冻结协议，不代表对应 API、CLI、Web 或文件运行时�
 
 ## 对外接口
 
-协议族包括资源 Request/Response、Cursor Page、Run 预检/创建/详情/进度/逐 Case结果/SSE、规范化 Result、Report、Analysis Input/Output、Evaluator Bridge、Artifact Manifest、完整 Work Package Manifest v1、Execution v1、全部阶段 Artifact、Execution Import 和 Canonical Export v1。
+协议族包括资源 Request/Response、Cursor Page、Run 预检/创建/详情/进度/逐 Case结果/SSE、规范化 Result、Report、Analysis Input/Output、Evaluator Bridge、Artifact Manifest、完整 Work Package Manifest v1、Execution v1、全部阶段 Artifact、Execution Import 和 Canonical Export v1。Run 进度显式包含 REST 总/完成/成功/错误和 Evaluation 总/完成/PASS/FAIL/Error/Not Evaluated，并校验分类之和等于完成数。Run SSE 的 Evaluation 事件只包含 Started/Completed；当前没有逐 Case持久进度事实，因而不声明 `EVALUATION_PROGRESS`。
 
 `RunExecutionLimitsV1` 由平台 Create Run 或离线 Create Execution 接受，包含 REST/Eval 并发；`AnalysisExecutionLimitsV1` 由平台 Analysis 请求或离线 Create Execution 接受，包含 Analysis 并发。两者的默认值、范围、冻结点和 Hash 归属是版本化协议，不使用散落配置。
 
-字段定义以当前真实 Schema 和导出类型为准。Analysis Prompt 预览响应的变量联合与 Domain 一致，闭合为 `case_definition`、`provider_output`、`failed_assertions`、`expected_actual_diffs`、`llm_rubric_results`、`run_context` 六项。文档只维护协议语义、版本关系和兼容边界。
+字段定义以当前真实 Schema 和导出类型为准。Assertion `type` 不设白名单，`config` 保持开放 JSON；边界递归拒绝其中的 Provider、OAuth/认证/Secret、模块/依赖字段。外部引用统一忽略前导空白和大小写后识别 `file://`、`package:`、`module:`、`node:`、`npm:`、`pip:`，敏感键按分隔符、camelCase 与紧凑敏感词组合识别，防止开放 Payload 绕过平台持有的执行边界。该边界不解释或限制 Promptfoo Assert 执行语义。Analysis Prompt 预览响应的变量联合与 Domain 一致，闭合为 `case_definition`、`provider_output`、`failed_assertions`、`expected_actual_diffs`、`llm_rubric_results`、`run_context` 六项。文档只维护协议语义、版本关系和兼容边界。
 
 ## 核心流程
 
@@ -55,7 +55,7 @@ Work Package v1 首版即包含 REST、Eval、Report 和 Analysis 的全部输�
 
 ## 状态、事务与幂等
 
-Contracts 不执行事务。协议身份显式携带 Package ID、Execution ID、Case Key、Hash、Revision 和 Contract Version。兼容性由版本化 Schema 决定，不通过宽泛可空字段猜测旧格式。
+Contracts 不执行事务。协议身份显式携带 Package ID、Execution ID、Case Key、Hash、Revision 和 Contract Version。Raw/Normalized Evaluation Artifact 显式携带 Evaluation Context Hash；Promptfoo `0.121.18` Raw Artifact 的原生退出码只接受 `0 | 100`。Result Set Hash 绑定 Run/Execution Owner 与该 Context，不把可复用单 Case语义 Hash误当执行版本。Normalized Artifact 的 Case 数组按连续 Ordinal 排列且 Case Key 唯一；Writer 在提交边界验证该集合约束，Schema 不接受已经写坏的公开事实。`EVALUATION_ERROR` 只携带进入 Hash 的稳定 Error Code，不把中文文案或第三方错误正文写入跨进程事实；展示层使用自己的消息资源。兼容性由版本化 Schema 决定，不通过宽泛可空字段猜测旧格式。
 
 ## 错误收敛
 
@@ -67,4 +67,4 @@ Schema 错误保留字段路径和稳定 Error Code。未知版本、未知联�
 
 ## 相关测试
 
-当前测试覆盖 Schema 正反例、版本拒绝、联合穷尽、资源与 Run DTO 严格键集合、Cursor、SSE、Artifact Manifest、闭合错误原因、脱敏、Canonical Serialization、Error Code、137 条 Assertion 能力和当前真实 Fixture。
+当前测试覆盖 Schema 正反例、版本拒绝、联合穷尽、资源与 Run DTO 严格键集合、Cursor、SSE、Artifact Manifest、闭合错误原因、脱敏、Canonical Serialization、Error Code、137 条 Assertion 能力、外部引用归一化与当前真实 Fixture。

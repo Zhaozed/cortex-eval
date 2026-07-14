@@ -12,19 +12,20 @@ Reporting 只依赖 Domain 结果类型和 JSON Schema Diff 所需的纯计算�
 
 ## 实现状态
 
-目标 Package 尚未落地。当前仓库存在 Promptfoo 原始结果 Fixture，但没有目标规范化 Reporting 实现。
+P6 已建立 `packages/reporting`，锁定 Ajv `8.20.0` 与 Draft 2020-12，实现纯 JSON Schema Diff、Missing 表达、Validator 对账和结构化错误。报告聚合、JSON Report 与 Markdown Renderer 尚未落地。
 
-## 目标代码落点
+## 代码落点
 
 `packages/reporting`
 
 ## 当前代码事实入口
 
-尚无当前 Reporting 代码入口。
+- [json-schema-diff.ts](../../packages/reporting/src/json-schema-diff.ts)：Ajv 2020-12 解释性 Diff 与 Promptfoo 判断对账。
 
 ## 当前样例与测试入口
 
-- `test_suite/current/eval_result/test_example.json`：当前已提交 Promptfoo 原始结果 Fixture。
+- [json-schema-diff.test.ts](../../packages/reporting/test/json-schema-diff.test.ts)：嵌套结构、Missing、非法 Schema 和 Validator 差异。
+- [test_example.json](../../test_suite/current/eval_result/test_example.json)：当前已提交 Promptfoo 原始结果 Fixture。
 - [loona_promptfoo_tests.json](../../test_suite/current/cases/loona_promptfoo_tests.json)
 
 ## 对外接口
@@ -55,4 +56,4 @@ Reporting 不执行事务。相同规范化输入和 Contract Version 必须生�
 
 ## 相关测试
 
-目标测试覆盖四种 Eval 状态、三个 Rate、空分母、Metric 优先级、同名去重、真实 JSON Schema 结构、Validator 差异、对账和 Markdown。
+当前已覆盖真实 JSON Schema 结构、Missing、非法 Schema 和 Validator 差异。后续目标测试覆盖四种 Eval 状态、三个 Rate、空分母、Metric 优先级、同名去重、结果对账和 Markdown。

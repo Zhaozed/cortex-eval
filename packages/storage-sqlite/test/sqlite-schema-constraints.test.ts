@@ -96,6 +96,13 @@ function insertEvalResult(
 }
 
 describe("SQLite 跨字段约束与删除语义", () => {
+  it("Evaluation 汇总计数必须完整分类且不超过冻结 Case 总数", () => {
+    insertRun(database, "run-1");
+    expect(() =>
+      database.prepare("UPDATE run_log SET eval_completed_count = 1 WHERE id = 'run-1'").run()
+    ).toThrow(/RUN_EVALUATION_COUNTERS_INVALID/);
+  });
+
   it("拒绝非法 Run 状态阶段和来源身份组合", () => {
     expect(() => {
       database
@@ -154,6 +161,32 @@ describe("SQLite 跨字段约束与删除语义", () => {
         )
         .run(HASH_B, HASH_A, HASH_A, HASH_A, NOW, NOW);
     }).toThrow(/FOREIGN KEY constraint failed/);
+  });
+
+  it("REST 与 Eval Provenance 必须且只能选择一个来源身份", () => {
+    insertRun(database, "source-run");
+    insertRun(database, "target-run", "source-run");
+    insertCaseResult(database, "target-run");
+    insertEvalResult(database, "target-run", "PASS", 1);
+
+    expect(() =>
+      database
+        .prepare(
+          `UPDATE case_result SET reused_from_run_id = 'source-run',
+            reused_from_execution_id = 'execution-1', reused_result_hash = ?
+           WHERE run_id = 'target-run'`
+        )
+        .run(HASH_A)
+    ).toThrow(/RUN_RESULT_PROVENANCE_INVALID/);
+    expect(() =>
+      database
+        .prepare(
+          `UPDATE eval_result SET reused_from_run_id = 'source-run',
+            reused_from_execution_id = 'execution-1', reused_eval_result_hash = ?
+           WHERE run_id = 'target-run'`
+        )
+        .run(HASH_A)
+    ).toThrow(/RUN_RESULT_PROVENANCE_INVALID/);
   });
 
   it("历史 Provenance 使用 RESTRICT，当前资源删除后快照和 Artifact 事实独立保留", () => {

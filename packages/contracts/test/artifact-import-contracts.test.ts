@@ -4,9 +4,12 @@ import {
   AnalysisResultsArtifactV1Schema,
   ArtifactManifestV1Schema,
   NormalizedEvalArtifactV1Schema,
+  PlatformNormalizedEvalArtifactV1Schema,
+  PlatformRawPromptfooEvidenceArtifactV1Schema,
   PlatformRestResultsArtifactV1Schema,
   RawPromptfooEvidenceArtifactV1Schema,
   ReportArtifactV1Schema,
+  RestArtifactCaseV1Schema,
   RestResultsArtifactV1Schema
 } from "../src/artifact-contracts.ts";
 import { ExecutionResultImportV1Schema } from "../src/result-import-contracts.ts";
@@ -17,6 +20,44 @@ const TIME = "2026-07-13T01:02:03.004Z";
 const identity = { packageId: ID, executionId: ID };
 
 describe("阶段 Artifact v1", () => {
+  it("穷尽 REST Error 的 HTTP 状态组合约束", () => {
+    const failure = {
+      caseKey: "case-1",
+      ordinal: 0,
+      caseDefinitionHash: HASH,
+      status: "ERROR",
+      httpStatus: null,
+      providerOutput: null,
+      error: { type: "TIMEOUT", message: "失败" },
+      durationMs: 12,
+      completedAt: TIME,
+      resultHash: HASH,
+      provenance: null
+    };
+    const valid = [
+      { ...failure, httpStatus: 500, error: { type: "HTTP_STATUS", message: "失败" } },
+      { ...failure, httpStatus: 200, error: { type: "RESPONSE_PARSE", message: "失败" } },
+      {
+        ...failure,
+        httpStatus: 299,
+        error: { type: "PROVIDER_OUTPUT_INVALID", message: "失败" }
+      },
+      failure
+    ];
+    const invalid = [
+      { ...failure, error: { type: "HTTP_STATUS", message: "失败" } },
+      { ...failure, httpStatus: 200, error: { type: "HTTP_STATUS", message: "失败" } },
+      { ...failure, httpStatus: 500, error: { type: "RESPONSE_PARSE", message: "失败" } },
+      { ...failure, error: { type: "PROVIDER_OUTPUT_INVALID", message: "失败" } },
+      { ...failure, httpStatus: 500 },
+      { ...failure, httpStatus: 500, error: { type: "NETWORK", message: "失败" } }
+    ];
+
+    for (const item of valid) expect(RestArtifactCaseV1Schema.safeParse(item).success).toBe(true);
+    for (const item of invalid)
+      expect(RestArtifactCaseV1Schema.safeParse(item).success).toBe(false);
+  });
+
   it("校验 REST 成功和错误分支的互斥事实", () => {
     const success = {
       contractVersion: "cortex.rest-results.v1",
@@ -111,6 +152,7 @@ describe("阶段 Artifact v1", () => {
     const value = {
       contractVersion: "promptfoo.0.121.18",
       ...identity,
+      evaluationContextHash: HASH,
       exitCode: 100,
       durationMs: 12,
       raw: { results: [] }
@@ -120,10 +162,76 @@ describe("阶段 Artifact v1", () => {
     );
   });
 
+  it("平台 Raw Promptfoo Artifact 使用 Run 身份并显式冻结第三方版本", () => {
+    const value = {
+      contractVersion: "cortex.platform-raw-promptfoo-evidence.v1",
+      runId: ID,
+      runContextHash: HASH,
+      evaluationContextHash: HASH,
+      promptfooVersion: "0.121.18",
+      exitCode: 100,
+      durationMs: 12,
+      raw: { results: [] }
+    };
+    expect(PlatformRawPromptfooEvidenceArtifactV1Schema.parse(value).runId).toBe(ID);
+    expect(
+      PlatformRawPromptfooEvidenceArtifactV1Schema.safeParse({
+        ...value,
+        packageId: ID,
+        executionId: ID
+      }).success
+    ).toBe(false);
+    expect(
+      PlatformRawPromptfooEvidenceArtifactV1Schema.safeParse({
+        ...value,
+        promptfooVersion: "latest"
+      }).success
+    ).toBe(false);
+  });
+
+  it("Raw Promptfoo Artifact 只接受固定版本的两个原生退出码", () => {
+    const offline = {
+      contractVersion: "promptfoo.0.121.18",
+      ...identity,
+      evaluationContextHash: HASH,
+      exitCode: 0,
+      durationMs: 12,
+      raw: { results: [] }
+    };
+    const platform = {
+      contractVersion: "cortex.platform-raw-promptfoo-evidence.v1",
+      runId: ID,
+      runContextHash: HASH,
+      evaluationContextHash: HASH,
+      promptfooVersion: "0.121.18",
+      exitCode: 0,
+      durationMs: 12,
+      raw: { results: [] }
+    };
+
+    for (const exitCode of [0, 100]) {
+      expect(RawPromptfooEvidenceArtifactV1Schema.safeParse({ ...offline, exitCode }).success).toBe(
+        true
+      );
+      expect(
+        PlatformRawPromptfooEvidenceArtifactV1Schema.safeParse({ ...platform, exitCode }).success
+      ).toBe(true);
+    }
+    for (const exitCode of [-1, 1, 99, 101]) {
+      expect(RawPromptfooEvidenceArtifactV1Schema.safeParse({ ...offline, exitCode }).success).toBe(
+        false
+      );
+      expect(
+        PlatformRawPromptfooEvidenceArtifactV1Schema.safeParse({ ...platform, exitCode }).success
+      ).toBe(false);
+    }
+  });
+
   it("校验规范化 Eval 的断言、Diff、Metric 和最终哈希", () => {
     const value = {
       contractVersion: "cortex.normalized-eval.v1",
       ...identity,
+      evaluationContextHash: HASH,
       completedAt: TIME,
       cases: [
         {
@@ -182,6 +290,84 @@ describe("阶段 Artifact v1", () => {
       NormalizedEvalArtifactV1Schema.safeParse({
         ...value,
         cases: [{ ...value.cases[0], status: "PASS", promptfooSuccess: false }]
+      }).success
+    ).toBe(false);
+    expect(
+      NormalizedEvalArtifactV1Schema.safeParse({
+        ...value,
+        cases: [{ ...value.cases[0], status: "PASS", promptfooSuccess: true, score: 1 }]
+      }).success
+    ).toBe(true);
+  });
+
+  it("平台规范化 Eval Artifact 使用 Run Context 且保持完整 Case 对齐", () => {
+    const value = {
+      contractVersion: "cortex.platform-normalized-eval.v1",
+      runId: ID,
+      runContextHash: HASH,
+      evaluationContextHash: HASH,
+      completedAt: TIME,
+      cases: [
+        {
+          caseKey: "case-1",
+          ordinal: 0,
+          status: "NOT_EVALUATED",
+          promptfooSuccess: null,
+          score: null,
+          reason: null,
+          evaluationError: null,
+          assertions: [],
+          diffs: [],
+          metrics: [{ metric: "quality", status: "NOT_EVALUATED" }],
+          latencyMs: null,
+          tokenUsage: null,
+          cost: null,
+          rawEvidence: null,
+          evalResultHash: HASH,
+          finalCaseResultHash: HASH,
+          provenance: null
+        }
+      ],
+      resultSetHash: HASH
+    };
+    expect(PlatformNormalizedEvalArtifactV1Schema.parse(value).runContextHash).toBe(HASH);
+    const evaluationErrorCase = {
+      ...value.cases[0],
+      status: "EVALUATION_ERROR",
+      evaluationError: { code: "PROMPTFOO_ASSERTION_EXECUTION_ERROR" },
+      metrics: [{ metric: "quality", status: "ERROR" }]
+    };
+    expect(
+      PlatformNormalizedEvalArtifactV1Schema.safeParse({
+        ...value,
+        cases: [evaluationErrorCase]
+      }).success
+    ).toBe(true);
+    expect(
+      PlatformNormalizedEvalArtifactV1Schema.safeParse({
+        ...value,
+        cases: [
+          {
+            ...evaluationErrorCase,
+            evaluationError: {
+              code: "PROMPTFOO_ASSERTION_EXECUTION_ERROR",
+              message: "hardcoded"
+            }
+          }
+        ]
+      }).success
+    ).toBe(false);
+    expect(
+      PlatformNormalizedEvalArtifactV1Schema.safeParse({
+        ...value,
+        cases: [value.cases[0], { ...value.cases[0], ordinal: 1 }]
+      }).success
+    ).toBe(false);
+    expect(
+      PlatformNormalizedEvalArtifactV1Schema.safeParse({
+        ...value,
+        packageId: ID,
+        executionId: ID
       }).success
     ).toBe(false);
   });
@@ -265,6 +451,19 @@ describe("阶段 Artifact v1", () => {
       ArtifactManifestV1Schema.safeParse({
         ...value,
         artifacts: [{ ...value.artifacts[0], path: "../report.json" }]
+      }).success
+    ).toBe(false);
+    expect(
+      ArtifactManifestV1Schema.safeParse({
+        ...value,
+        owner: { kind: "RUN", id: ID },
+        artifacts: [value.artifacts[0], { ...value.artifacts[0], path: "runs/x/report-copy.json" }]
+      }).success
+    ).toBe(false);
+    expect(
+      ArtifactManifestV1Schema.safeParse({
+        ...value,
+        artifacts: [value.artifacts[0], { ...value.artifacts[0], kind: "REPORT_MARKDOWN" }]
       }).success
     ).toBe(false);
   });

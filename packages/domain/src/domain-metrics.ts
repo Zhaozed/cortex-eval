@@ -37,6 +37,41 @@ const STATUS_PRIORITY: Readonly<Record<MetricStatus, number>> = {
   NOT_EVALUATED: 1
 };
 
+/** One Assertion contribution to a single Case Metric. */
+export interface CaseMetricContribution {
+  /** Stable Metric name. */
+  readonly metric: string;
+  /** Component state. */
+  readonly status: MetricStatus;
+}
+
+/** One deduplicated Case Metric fact. */
+export interface CaseMetricResult {
+  /** Stable Metric name. */
+  readonly metric: string;
+  /** Highest-priority state among same-name Assertions. */
+  readonly status: MetricStatus;
+}
+
+/** Deduplicate one Case's Metric facts by the frozen status priority. */
+export function aggregateCaseMetrics(
+  contributions: readonly CaseMetricContribution[]
+): CaseMetricResult[] {
+  const results = new Map<string, MetricStatus>();
+  for (const contribution of contributions) {
+    const existing = results.get(contribution.metric);
+    if (
+      existing === undefined ||
+      STATUS_PRIORITY[contribution.status] > STATUS_PRIORITY[existing]
+    ) {
+      results.set(contribution.metric, contribution.status);
+    }
+  }
+  return [...results]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([metric, status]) => ({ metric, status }));
+}
+
 /** Calculate a Rate without inventing zero for an empty denominator. */
 export function calculateRate(numerator: number, denominator: number): number | null {
   return denominator === 0 ? null : numerator / denominator;

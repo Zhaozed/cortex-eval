@@ -3,7 +3,8 @@ import { createHash, type Hash } from "node:crypto";
 import {
   canonicalJson,
   sha256CanonicalJson,
-  type DomainJsonObject
+  type DomainJsonObject,
+  type DomainJsonValue
 } from "./domain-canonical-hash.ts";
 import type { ProviderOutput } from "./domain-evaluation.ts";
 
@@ -14,6 +15,14 @@ export interface CaseDefinitionHashInput {
   /** Stable Case key. */
   readonly caseKey: string;
   /** Complete normalized definition. */
+  readonly definition: DomainJsonObject;
+}
+
+/** Assertion Definition identity input. */
+export interface AssertionDefinitionHashInput {
+  /** Hash contract version. */
+  readonly contractVersion: "cortex.assertion-definition.v1";
+  /** Complete normalized recursive Assertion definition. */
   readonly definition: DomainJsonObject;
 }
 
@@ -60,6 +69,33 @@ export interface ExecutionContextHashInput {
     /** Analysis maximum in-flight count. */
     readonly analysisConcurrency: number;
   };
+}
+
+/** Frozen identity of one platform or offline Evaluation execution. */
+export interface EvaluationContextHashInput {
+  /** Hash contract version. */
+  readonly contractVersion: "cortex.evaluation-context.v1";
+  /** Immutable execution-version owner. */
+  readonly executionBinding: {
+    /** Platform or offline execution discriminator. */
+    readonly kind: "RUN" | "EXECUTION";
+    /** Run ID or Execution ID. */
+    readonly id: string;
+  };
+  /** Frozen platform Run context or imported equivalent. */
+  readonly runContextHash: string;
+  /** Complete REST result-set identity consumed by Evaluation. */
+  readonly restResultSetHash: string;
+  /** Frozen Evaluator configuration identity. */
+  readonly evaluatorConfigHash: string;
+  /** Exact Promptfoo package version. */
+  readonly promptfooVersion: string;
+  /** Controlled Promptfoo generation contract. */
+  readonly configContractVersion: string;
+  /** Exact Assertion capability-matrix identity. */
+  readonly capabilityMatrixHash: string;
+  /** Deterministically derived maximum Evaluator calls. */
+  readonly evaluatorCallBudget: number;
 }
 
 /** Final per-Case result identity input. */
@@ -131,6 +167,108 @@ export interface RestResultSetHashInput {
   readonly cases: readonly RestResultSetCaseHashInput[];
 }
 
+/** Stable normalized Assertion fact inside one Eval result identity. */
+export interface EvalAssertionHashFact {
+  /** Frozen zero-based Assertion index. */
+  readonly index: number;
+  /** Canonical Assertion definition hash. */
+  readonly definitionHash: string;
+  /** Promptfoo Assertion type. */
+  readonly type: string;
+  /** Stable Metric name. */
+  readonly metric: string;
+  /** Nonnegative aggregate weight. */
+  readonly weight: number;
+  /** Normalized Assertion status. */
+  readonly status: "PASS" | "FAIL" | "ERROR" | "SKIPPED";
+  /** Observed score when available. */
+  readonly score: number | null;
+  /** Stable reason when available. */
+  readonly reason: string | null;
+}
+
+/** Stable JSON Schema explanation fact inside one Eval result identity. */
+export interface EvalDiffHashFact {
+  /** Owning Assertion index. */
+  readonly assertionIndex: number;
+  /** JSON Pointer into the actual value. */
+  readonly instancePath: string;
+  /** JSON Pointer into the frozen Schema. */
+  readonly schemaPath: string;
+  /** JSON Schema keyword. */
+  readonly keyword: string;
+  /** Expected keyword constraint. */
+  readonly expectedConstraint: DomainJsonValue;
+  /** Actual value at the failing path. */
+  readonly actual: DomainJsonValue;
+  /** Stable localized explanation. */
+  readonly reason: string;
+  /** Exact validator package version. */
+  readonly validatorVersion: string;
+  /** Frozen JSON Schema dialect. */
+  readonly schemaDialect: string;
+  /** Diff contract identity. */
+  readonly diffContractVersion: "cortex.assertion-diff.v1";
+}
+
+/** Stable Case Metric result inside one Eval result identity. */
+export interface EvalMetricHashFact {
+  /** Stable Metric name. */
+  readonly metric: string;
+  /** Case-level Metric status. */
+  readonly status: "PASS" | "FAIL" | "ERROR" | "SKIPPED" | "NOT_EVALUATED";
+}
+
+/** Complete normalized per-Case Eval identity input. */
+export interface EvalResultHashInput {
+  /** Hash contract identity. */
+  readonly contractVersion: "cortex.eval-result.v1";
+  /** Stable Suite-local Case key. */
+  readonly caseKey: string;
+  /** Normalized Evaluation status. */
+  readonly status: "PASS" | "FAIL" | "EVALUATION_ERROR" | "NOT_EVALUATED";
+  /** Exact Promptfoo aggregate success fact when evaluated. */
+  readonly promptfooSuccess: boolean | null;
+  /** Exact Promptfoo aggregate score when evaluated. */
+  readonly score: number | null;
+  /** Stable aggregate reason when present. */
+  readonly reason: string | null;
+  /** Structured system evaluation error when present. */
+  readonly evaluationError: {
+    readonly code: string;
+  } | null;
+  /** Ordered normalized Assertion facts. */
+  readonly assertions: readonly EvalAssertionHashFact[];
+  /** Ordered stable Schema explanation facts. */
+  readonly diffs: readonly EvalDiffHashFact[];
+  /** Stable Case Metric facts. */
+  readonly metrics: readonly EvalMetricHashFact[];
+}
+
+/** One ordered Case identity inside a complete Eval result set. */
+export interface EvalResultSetCaseHashInput {
+  /** Stable Suite-local Case key. */
+  readonly caseKey: string;
+  /** Frozen zero-based Case order. */
+  readonly ordinal: number;
+  /** Normalized single-Case Eval result hash. */
+  readonly evalResultHash: string;
+}
+
+/** Complete Eval result-set identity input. */
+export interface EvalResultSetHashInput {
+  /** Hash contract identity. */
+  readonly contractVersion: "cortex.eval-result-set.v1";
+  /** Immutable platform Run or offline Execution version identity. */
+  readonly owner:
+    | { readonly kind: "RUN"; readonly id: string }
+    | { readonly kind: "EXECUTION"; readonly id: string };
+  /** Frozen Evaluation generation, matrix and Evaluator context. */
+  readonly evaluationContextHash: string;
+  /** Complete Cases, normalized by frozen Ordinal. */
+  readonly cases: readonly EvalResultSetCaseHashInput[];
+}
+
 /** Complete Analysis identity input. */
 export interface AnalysisInputHashInput {
   /** Hash contract version. */
@@ -165,6 +303,14 @@ export function hashCaseDefinition(input: CaseDefinitionHashInput): string {
   });
 }
 
+/** Hash one normalized recursive Assertion definition. */
+export function hashAssertionDefinition(input: AssertionDefinitionHashInput): string {
+  return sha256CanonicalJson({
+    contractVersion: input.contractVersion,
+    definition: input.definition
+  });
+}
+
 /** Hash a complete frozen Run context, including execution limits. */
 export function hashRunContext(input: RunContextHashInput): string {
   return sha256CanonicalJson({
@@ -186,6 +332,21 @@ export function hashExecutionContext(input: ExecutionContextHashInput): string {
     manifestHash: input.manifestHash,
     runExecutionLimits: { ...input.runExecutionLimits },
     analysisExecutionLimits: { ...input.analysisExecutionLimits }
+  });
+}
+
+/** Hash one immutable Evaluation version context without creating Attempt history. */
+export function hashEvaluationContext(input: EvaluationContextHashInput): string {
+  return sha256CanonicalJson({
+    contractVersion: input.contractVersion,
+    executionBinding: { ...input.executionBinding },
+    runContextHash: input.runContextHash,
+    restResultSetHash: input.restResultSetHash,
+    evaluatorConfigHash: input.evaluatorConfigHash,
+    promptfooVersion: input.promptfooVersion,
+    configContractVersion: input.configContractVersion,
+    capabilityMatrixHash: input.capabilityMatrixHash,
+    evaluatorCallBudget: input.evaluatorCallBudget
   });
 }
 
@@ -251,6 +412,56 @@ export function hashRestResultSet(input: RestResultSetHashInput): string {
       caseKey: item.caseKey,
       ordinal: item.ordinal,
       resultHash: item.resultHash
+    }))
+  });
+}
+
+/** Hash all stable normalized Evaluation facts for one Case. */
+export function hashEvalResult(input: EvalResultHashInput): string {
+  return sha256CanonicalJson({
+    contractVersion: input.contractVersion,
+    caseKey: input.caseKey,
+    status: input.status,
+    promptfooSuccess: input.promptfooSuccess,
+    score: input.score,
+    reason: input.reason,
+    evaluationError: input.evaluationError === null ? null : { ...input.evaluationError },
+    assertions: input.assertions.map((item) => ({ ...item })),
+    diffs: input.diffs.map((item) => ({ ...item })),
+    metrics: input.metrics.map((item) => ({ ...item }))
+  });
+}
+
+/** Hash one complete aligned Eval result set in frozen Case order. */
+export function hashEvalResultSet(input: EvalResultSetHashInput): string {
+  const cases = [...input.cases].sort(
+    (left, right) => left.ordinal - right.ordinal || left.caseKey.localeCompare(right.caseKey)
+  );
+  const keys = new Set<string>();
+  const aligned =
+    cases.length > 0 &&
+    cases.every((item, index) => {
+      const valid =
+        item.ordinal === index &&
+        item.caseKey.trim() !== "" &&
+        /^[0-9a-f]{64}$/.test(item.evalResultHash) &&
+        !keys.has(item.caseKey);
+      keys.add(item.caseKey);
+      return valid;
+    });
+  const ownerIsValid = input.owner.id.trim() !== "";
+  const contextIsValid = /^[0-9a-f]{64}$/.test(input.evaluationContextHash);
+  if (!aligned || !ownerIsValid || !contextIsValid) {
+    throw new Error("EVAL_RESULT_SET_ALIGNMENT");
+  }
+  return sha256CanonicalJson({
+    contractVersion: input.contractVersion,
+    owner: { ...input.owner },
+    evaluationContextHash: input.evaluationContextHash,
+    cases: cases.map((item) => ({
+      caseKey: item.caseKey,
+      ordinal: item.ordinal,
+      evalResultHash: item.evalResultHash
     }))
   });
 }

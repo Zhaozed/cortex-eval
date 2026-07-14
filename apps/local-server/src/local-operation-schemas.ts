@@ -37,6 +37,7 @@ import {
   PlatformRunPageV1Schema,
   RunCaseDetailV1Schema,
   RunCasePageV1Schema,
+  RunEvalPageV1Schema,
   RunPreflightRequestV1Schema,
   RunPreflightV1Schema,
   RunProgressV1Schema,
@@ -127,6 +128,7 @@ function operationResponseSchema(operationId: string): Record<string, unknown> {
     listRuns: PlatformRunPageV1Schema,
     getRun: PlatformRunDetailV1Schema,
     listRunCases: RunCasePageV1Schema,
+    listRunEvaluations: RunEvalPageV1Schema,
     getRunCase: RunCaseDetailV1Schema,
     startRun: RunProgressV1Schema,
     cancelRun: RunProgressV1Schema,
@@ -146,7 +148,8 @@ function operationQuerySchema(operationId: string): Record<string, unknown> | un
     "listLLM_RUBRIC_PROMPT",
     "listCASE_ANALYSIS_PROMPT",
     "listRuns",
-    "listRunCases"
+    "listRunCases",
+    "listRunEvaluations"
   ]);
   if (pageableOperations.has(operationId)) {
     const properties: Record<string, unknown> = {
@@ -166,7 +169,7 @@ function operationQuerySchema(operationId: string): Record<string, unknown> | un
         metric: oneOrMany
       });
     }
-    if (operationId === "listRunCases") {
+    if (operationId === "listRunCases" || operationId === "listRunEvaluations") {
       properties.limit = { type: "integer", minimum: 1, maximum: 100, default: 20 };
     }
     return { type: "object", additionalProperties: false, properties };

@@ -4,7 +4,7 @@
 
 `spec/` 是 Cortex Eval 目标系统的稳定事实入口，服务人类工程师和 AI coding agent。产品行为以 [REQ.md](../REQ.md) 为来源，技术架构以 [TECH.md](../TECH.md) 为来源，文档组织规则以 [SPEC_DOC.md](../SPEC_DOC.md) 为来源。
 
-当前仓库已完成 P0–P5：纯 Contracts 与 Domain、十表 SQLite、资源 Application 用例、Local Server、资源管理 Web，以及平台 Run 创建与 REST 执行闭环已落地。`REQ.md` 和 `TECH.md` 仍描述完整目标，不代表 Evaluation、Report、Analysis、Retry/Force、Work Package 文件运行时或目标 CLI 已实现。当前状态、现有入口与目标落点由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
+当前仓库已完成 P0–P6，P7 正在实现 Work Package、CLI、重跑与导入基础。平台 REST→Evaluation Pipeline、Eval API/Web/SSE、Raw/Normalized Artifact、规范化 Hash、Ajv Diff、严格 Importer、SQLite 原子提交、受控 Promptfoo/Bridge/官方 SDK 链和内部 Retry/Force Use Case 已闭环。Case Assert 构建不设类型白名单，平台不复现或限制 Assert 执行；Bridge 只执行冻结 Evaluator 调用，不识别 Assertion/Metric。`REQ.md` 和 `TECH.md` 描述完整目标，不代表 Report、Analysis、对外 Retry/Force、Work Package 文件运行时或目标 CLI 已实现。当前状态由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
 
 Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入口。每个阶段必须同步更新本索引和直接相关 spec，未落地能力不得提前改写为代码事实。
 
@@ -106,15 +106,17 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 - [packages/contracts/test](../packages/contracts/test)：P1 Contracts 正反例、真实 Fixture 和能力映射测试。
 - [packages/domain/src](../packages/domain/src)：P1 纯业务类型、状态机、统计、Proposal 和哈希输入。
 - [packages/domain/test](../packages/domain/test)：P1 Domain 单元、边界、竞争和回归测试。
-- [packages/application/src](../packages/application/src)：P2–P5 资源 Use Case、流式 Case 导入导出、Run/REST 编排与 Port。
-- [packages/storage-sqlite/src](../packages/storage-sqlite/src)：P2–P5 十表 SQLite、资源/Run Repository、事务与外部 Case staging。
-- [packages/evaluation-adapters/src](../packages/evaluation-adapters/src)：P5 REST 请求准备与 Fetch Executor。
-- [packages/evaluation-adapters/test](../packages/evaluation-adapters/test)：P5 REST 模板、大小、HTTP、超时、并发和取消测试。
-- [apps/local-server/src](../apps/local-server/src)：P3–P5 Fastify、资源/Run Route、Run SSE、生产 Web 静态入口、协议 Mapper、安全入口、日志与装配。
-- [apps/local-server/openapi.json](../apps/local-server/openapi.json)：由真实 P5 Route 与 Schema 确定生成的 OpenAPI。
-- [apps/local-server/test](../apps/local-server/test)：P3–P5 HTTP、OpenAPI、安全、流式边界、Run/REST、生命周期与真实 SQLite 集成测试。
-- [apps/web/src](../apps/web/src)：P4–P5 资源与 Run Web、API Client、路由、Feature 注册和 shadcn/ui Primitive。
-- [apps/web/test](../apps/web/test)：P4–P5 组件、表单映射、Run、错误定位、冲突、URL 状态和缓存失效测试。
+- [packages/application/src](../packages/application/src)：资源 Use Case、流式 Case 导入导出、Run/REST/Evaluation 编排、严格 Promptfoo Result Importer、Eval 持久化 Port 和内部重跑 Use Case。
+- [packages/storage-sqlite/src](../packages/storage-sqlite/src)：P2–P5 十表 SQLite、资源/Run Repository、事务与外部 Case staging，以及 P6 原子 Eval 提交和复用 Provenance 对账。
+- [packages/evaluation-adapters/src](../packages/evaluation-adapters/src)：REST 请求准备/执行及 Promptfoo、Bridge、冻结 Evaluator SDK Adapter。
+- [packages/evaluation-adapters/test](../packages/evaluation-adapters/test)：REST 与 Evaluation Adapter 边界测试。
+- [packages/reporting/src](../packages/reporting/src)：P6 锁定 Ajv 版本的 JSON Schema Diff 基础。
+- [packages/reporting/test](../packages/reporting/test)：P6 Diff、Missing、非法 Schema 与 Validator 差异测试。
+- [apps/local-server/src](../apps/local-server/src)：Fastify、资源/Run REST/Evaluation Route、Run SSE、生产 Web 静态入口、协议 Mapper、安全入口、日志与装配。
+- [apps/local-server/openapi.json](../apps/local-server/openapi.json)：由真实当前 Route 与 Schema 确定生成的 OpenAPI。
+- [apps/local-server/test](../apps/local-server/test)：HTTP、OpenAPI、安全、流式边界、Run/REST/Evaluation、生命周期与真实 SQLite 集成测试。
+- [apps/web/src](../apps/web/src)：资源与 Run REST/Evaluation Web、API Client、路由、Feature 注册和 shadcn/ui Primitive。
+- [apps/web/test](../apps/web/test)：组件、表单映射、Run、错误定位、冲突、URL 状态和缓存失效测试。
 - [apps/web/e2e](../apps/web/e2e)：P4 生产构建上的完整资源流程、键盘、无障碍、CSP、Reduced Motion 和目标尺寸测试。
 - [data_scripts/run_promptfoo_rest_types.ts](../data_scripts/run_promptfoo_rest_types.ts)：当前 REST 运行器公开类型。
 - [data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)：当前 REST 请求、并发、续跑和原子输出实现。
@@ -124,7 +126,8 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 - [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：当前转换测试族。
 - [package.json](../package.json)：Node 24 下的格式、Lint、架构、类型、测试、覆盖率、文档和构建门禁。
 - [tooling/src/runtime-doctor.ts](../tooling/src/runtime-doctor.ts)：Node、Python 与 Ruby 运行时事实检查。
-- [tooling/src/promptfoo-process-probe.ts](../tooling/src/promptfoo-process-probe.ts)：固定版本预计算输出、退出码、组件和解释器真实进程探针。
+- [tooling/src/promptfoo-process-probe.ts](../tooling/src/promptfoo-process-probe.ts)：固定版本预计算输出、退出码、组件、解释器和 Bridge 无 Assertion 身份真实进程探针。
+- [tooling/src/promptfoo-special-assertion-probe.ts](../tooling/src/promptfoo-special-assertion-probe.ts)：固定版本比较 Assertion 延迟追加、最终聚合与 Reason 覆盖真实进程探针。
 - [tooling/facts/promptfoo-0.121.18-capabilities.json](../tooling/facts/promptfoo-0.121.18-capabilities.json)：Assertion 能力矩阵。
 - [tooling/facts/p0-environment.json](../tooling/facts/p0-environment.json)：P0 macOS ARM64 环境与性能基线。
 - [test_suite/current/cases/loona_promptfoo_tests.json](../test_suite/current/cases/loona_promptfoo_tests.json)：当前测试集 Fixture。

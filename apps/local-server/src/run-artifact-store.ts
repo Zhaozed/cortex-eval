@@ -15,26 +15,37 @@ import {
 import { isAbsolute, join, relative, sep } from "node:path";
 
 import type {
+  PlatformNormalizedEvalArtifactInput,
+  PlatformRawPromptfooArtifactInput,
   PlatformRestArtifactInput,
   PlatformRestArtifactWriteResult,
   RunArtifactAvailability,
   RunArtifactStore
 } from "@cortex-eval/application/src/features/runs/run-artifact-port.ts";
+import type { PlatformEvalCaseResult } from "@cortex-eval/application/src/features/evaluation/platform-eval-models.ts";
 import type {
   RunArtifactDescriptor,
   RunArtifactManifest,
   StoredRestCaseResult
 } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
-import { RestArtifactCaseV1Schema } from "@cortex-eval/contracts/src/artifact-contracts.ts";
+import {
+  EvalCaseV1Schema,
+  PlatformRawPromptfooEvidenceArtifactV1Schema,
+  RestArtifactCaseV1Schema
+} from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import {
   canonicalJson,
   type DomainJsonObject
 } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
-import { OrderedRestResultSetHasher } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
+import {
+  hashEvalResultSet,
+  OrderedRestResultSetHasher
+} from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 
 const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const REST_ARTIFACT_PATH = /^runs\/([0-9a-f-]+)\/rest-results\.json$/;
-const TEMP_ARTIFACT = /^\.rest-results\.[A-Za-z0-9-]+\.tmp$/;
+const RUN_ARTIFACT_PATH =
+  /^runs\/([0-9a-f-]+)\/(rest-results|promptfoo-raw|normalized-eval)\.json$/;
+const TEMP_ARTIFACT = /^\.(rest-results|promptfoo-raw|normalized-eval)\.[A-Za-z0-9-]+\.tmp$/;
 
 /** Local Run Artifact Store construction options. */
 export interface LocalRunArtifactStoreOptions {
@@ -119,7 +130,14 @@ function artifactCase(value: StoredRestCaseResult): DomainJsonObject {
     durationMs: value.durationMs,
     completedAt: value.completedAt,
     resultHash: value.resultHash,
-    provenance: null
+    provenance:
+      value.provenance === null
+        ? null
+        : {
+            sourceKind: value.provenance.sourceKind,
+            sourceId: value.provenance.sourceId,
+            sourceResultHash: value.provenance.sourceResultHash
+          }
   };
   if (value.status === "SUCCEEDED") {
     return { ...common, providerOutput: providerOutput(value.providerOutput) };
@@ -128,6 +146,29 @@ function artifactCase(value: StoredRestCaseResult): DomainJsonObject {
     ...common,
     providerOutput: null,
     error: { type: value.errorType, message: value.errorMessage }
+  };
+}
+
+// Map one clean normalized result into the immutable Eval Artifact projection.
+function evalArtifactCase(value: PlatformEvalCaseResult): DomainJsonObject {
+  return {
+    caseKey: value.caseKey,
+    ordinal: value.ordinal,
+    status: value.status,
+    promptfooSuccess: value.promptfooSuccess,
+    score: value.score,
+    reason: value.reason,
+    evaluationError: value.evaluationError === null ? null : { ...value.evaluationError },
+    assertions: value.assertions.map((item) => ({ ...item })),
+    diffs: value.diffs.map((item) => ({ ...item })),
+    metrics: value.metrics.map((item) => ({ ...item })),
+    latencyMs: value.latencyMs,
+    tokenUsage: value.tokenUsage === null ? null : { ...value.tokenUsage },
+    cost: value.cost,
+    rawEvidence: value.rawEvidence === null ? null : { ...value.rawEvidence },
+    evalResultHash: value.evalResultHash,
+    finalCaseResultHash: value.finalCaseResultHash,
+    provenance: value.provenance === null ? null : { ...value.provenance }
   };
 }
 
@@ -182,7 +223,7 @@ async function inspectFile(
 
 // Resolve only the one closed P5 Artifact path shape.
 function artifactRunId(path: string): string | null {
-  const match = REST_ARTIFACT_PATH.exec(path);
+  const match = RUN_ARTIFACT_PATH.exec(path);
   const runId = match?.[1];
   return runId !== undefined && RUN_ID.test(runId) ? runId : null;
 }
@@ -298,10 +339,158 @@ export class LocalRunArtifactStore implements RunArtifactStore {
     }
   }
 
+  /** Atomically write one immutable raw Promptfoo evidence Artifact. */
+  public async writeRawPromptfooEvidence(
+    input: PlatformRawPromptfooArtifactInput
+  ): Promise<RunArtifactDescriptor> {
+    const artifact = {
+      contractVersion: "cortex.platform-raw-promptfoo-evidence.v1" as const,
+      runId: input.runId,
+      runContextHash: input.runContextHash,
+      evaluationContextHash: input.evaluationContextHash,
+      promptfooVersion: input.promptfooVersion,
+      exitCode: input.exitCode,
+      durationMs: input.durationMs,
+      raw: input.raw
+    };
+    if (!PlatformRawPromptfooEvidenceArtifactV1Schema.safeParse(artifact).success) {
+      throw new RunArtifactStoreError();
+    }
+    const relativePath = `runs/${input.runId}/promptfoo-raw.json`;
+    let tempPath: string | null = null;
+    let handle: Awaited<ReturnType<typeof open>> | null = null;
+    try {
+      const runRoot = await ensureDirectory(this.#runsRoot, join(this.#runsRoot, input.runId));
+      tempPath = join(runRoot, `.promptfoo-raw.${this.#nonce()}.tmp`);
+      const targetPath = join(runRoot, "promptfoo-raw.json");
+      handle = await open(tempPath, "wx", 0o600);
+      const fileHash = createHash("sha256");
+      const sizeBytes = await writeChunk(handle, fileHash, `${canonicalJson(artifact)}\n`);
+      await handle.sync();
+      await handle.close();
+      handle = null;
+      await chmod(tempPath, 0o600);
+      await link(tempPath, targetPath);
+      await syncDirectory(runRoot);
+      await unlink(tempPath);
+      tempPath = null;
+      return {
+        kind: "RAW_PROMPTFOO_EVIDENCE",
+        path: relativePath,
+        expectedSha256: fileHash.digest("hex"),
+        expectedSizeBytes: sizeBytes,
+        contractVersion: "cortex.platform-raw-promptfoo-evidence.v1"
+      };
+    } catch {
+      throw new RunArtifactStoreError();
+    } finally {
+      if (handle !== null) await handle.close().catch(() => undefined);
+      if (tempPath !== null) await unlink(tempPath).catch(() => undefined);
+    }
+  }
+
+  /** Atomically stream one immutable normalized Evaluation Artifact. */
+  public async writeNormalizedEvalResults(
+    input: PlatformNormalizedEvalArtifactInput
+  ): Promise<RunArtifactDescriptor> {
+    if (
+      !RUN_ID.test(input.runId) ||
+      !/^[0-9a-f]{64}$/.test(input.runContextHash) ||
+      !/^[0-9a-f]{64}$/.test(input.evaluationContextHash) ||
+      !validTimestamp(input.completedAt) ||
+      !Number.isInteger(input.expectedTotal) ||
+      input.expectedTotal < 1 ||
+      !/^[0-9a-f]{64}$/.test(input.resultSetHash)
+    ) {
+      throw new RunArtifactStoreError();
+    }
+    const relativePath = `runs/${input.runId}/normalized-eval.json`;
+    let tempPath: string | null = null;
+    let handle: Awaited<ReturnType<typeof open>> | null = null;
+    try {
+      const runRoot = await ensureDirectory(this.#runsRoot, join(this.#runsRoot, input.runId));
+      tempPath = join(runRoot, `.normalized-eval.${this.#nonce()}.tmp`);
+      const targetPath = join(runRoot, "normalized-eval.json");
+      handle = await open(tempPath, "wx", 0o600);
+      const fileHash = createHash("sha256");
+      const identities: { caseKey: string; ordinal: number; evalResultHash: string }[] = [];
+      const caseKeys = new Set<string>();
+      let sizeBytes = await writeChunk(handle, fileHash, '{"cases":[');
+      let caseCount = 0;
+      for await (const item of input.cases) {
+        if (
+          caseCount >= input.expectedTotal ||
+          item.runId !== input.runId ||
+          item.ordinal !== caseCount ||
+          caseKeys.has(item.caseKey)
+        ) {
+          throw new RunArtifactStoreError();
+        }
+        const projected = evalArtifactCase(item);
+        if (!EvalCaseV1Schema.safeParse(projected).success) throw new RunArtifactStoreError();
+        caseKeys.add(item.caseKey);
+        identities.push({
+          caseKey: item.caseKey,
+          ordinal: item.ordinal,
+          evalResultHash: item.evalResultHash
+        });
+        if (caseCount > 0) sizeBytes += await writeChunk(handle, fileHash, ",");
+        sizeBytes += await writeChunk(handle, fileHash, canonicalJson(projected));
+        caseCount += 1;
+      }
+      if (caseCount !== input.expectedTotal) throw new RunArtifactStoreError();
+      const computedResultSetHash = hashEvalResultSet({
+        contractVersion: "cortex.eval-result-set.v1",
+        owner: { kind: "RUN", id: input.runId },
+        evaluationContextHash: input.evaluationContextHash,
+        cases: identities
+      });
+      if (computedResultSetHash !== input.resultSetHash) throw new RunArtifactStoreError();
+      const trailer =
+        `],"completedAt":${canonicalJson(input.completedAt)},` +
+        `"contractVersion":"cortex.platform-normalized-eval.v1",` +
+        `"evaluationContextHash":${canonicalJson(input.evaluationContextHash)},` +
+        `"resultSetHash":${canonicalJson(input.resultSetHash)},` +
+        `"runContextHash":${canonicalJson(input.runContextHash)},` +
+        `"runId":${canonicalJson(input.runId)}}\n`;
+      sizeBytes += await writeChunk(handle, fileHash, trailer);
+      await handle.sync();
+      await handle.close();
+      handle = null;
+      await chmod(tempPath, 0o600);
+      await link(tempPath, targetPath);
+      await syncDirectory(runRoot);
+      await unlink(tempPath);
+      tempPath = null;
+      return {
+        kind: "NORMALIZED_EVAL_RESULTS",
+        path: relativePath,
+        expectedSha256: fileHash.digest("hex"),
+        expectedSizeBytes: sizeBytes,
+        contractVersion: "cortex.platform-normalized-eval.v1"
+      };
+    } catch {
+      throw new RunArtifactStoreError();
+    } finally {
+      if (handle !== null) await handle.close().catch(() => undefined);
+      if (tempPath !== null) await unlink(tempPath).catch(() => undefined);
+    }
+  }
+
   /** Remove only one controlled uncommitted immutable file. */
   public async removeUncommitted(artifact: RunArtifactDescriptor): Promise<void> {
     const runId = artifactRunId(artifact.path);
-    if (artifact.kind !== "REST_RESULTS" || runId === null) throw new RunArtifactStoreError();
+    if (runId === null) throw new RunArtifactStoreError();
+    const fileName = artifact.path.split("/").at(-1);
+    const expectedFile =
+      artifact.kind === "REST_RESULTS"
+        ? "rest-results.json"
+        : artifact.kind === "RAW_PROMPTFOO_EVIDENCE"
+          ? "promptfoo-raw.json"
+          : artifact.kind === "NORMALIZED_EVAL_RESULTS"
+            ? "normalized-eval.json"
+            : null;
+    if (fileName !== expectedFile) throw new RunArtifactStoreError();
     const path = join(this.#artifactRoot, artifact.path);
     const facts = await lstat(path).catch(() => null);
     if (facts === null) return;
@@ -346,9 +535,12 @@ export class LocalRunArtifactStore implements RunArtifactStore {
       for (const file of files) {
         if (!file.isFile() || file.isSymbolicLink()) continue;
         const relativePath = `runs/${runEntry.name}/${file.name}`;
+        const controlled =
+          file.name === "rest-results.json" ||
+          file.name === "promptfoo-raw.json" ||
+          file.name === "normalized-eval.json";
         const removable =
-          (file.name === "rest-results.json" && !durablePaths.has(relativePath)) ||
-          TEMP_ARTIFACT.test(file.name);
+          (controlled && !durablePaths.has(relativePath)) || TEMP_ARTIFACT.test(file.name);
         if (removable) await unlink(join(runRoot, file.name));
       }
       if ((await readdir(runRoot)).length === 0) await rmdir(runRoot);

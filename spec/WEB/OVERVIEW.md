@@ -14,7 +14,7 @@ UI Primitive 只负责表现、可访问性和基础交互，不负责请求、�
 
 ## 实现状态
 
-P5 已落地资源管理与平台 Run/REST Web。当前注册 Dashboard 资源数量和最近平台 Run、Test Suite/Case、Endpoint、LLM、LLM Rubric Prompt、Case Analysis Prompt，以及 Run 创建/详情；Report 和 Analysis 页面保持未注册。
+已落地资源管理与平台 Run/REST/Evaluation Web。当前注册 Dashboard 资源数量和最近平台 Run、Test Suite/Case、Endpoint、LLM、LLM Rubric Prompt、Case Analysis Prompt，以及 Run 创建/详情；Report 和 Analysis 页面保持未注册。
 
 ## 目标代码落点
 
@@ -27,7 +27,7 @@ P5 已落地资源管理与平台 Run/REST Web。当前注册 Dashboard 资源�
 - [app.tsx](../../apps/web/src/app.tsx)：闭合路由、Feature 动态加载和 Query 根装配。
 - [resource-api.ts](../../apps/web/src/lib/resource-api.ts)：Contracts 与请求上下文双重校验的资源 API Client、Query Key 和精确失效范围。
 - [run-api.ts](../../apps/web/src/lib/run-api.ts)：Run HTTP/SSE 严格协议和请求身份校验。
-- [feature-registry.ts](../../apps/web/src/features/feature-registry.ts)：P5 导航与 Dashboard 能力贡献。
+- [feature-registry.ts](../../apps/web/src/features/feature-registry.ts)：当前导航与 Dashboard 能力贡献。
 - [app-shell.tsx](../../apps/web/src/components/app-shell.tsx)：桌面外壳、跳转、焦点和小屏提示。
 - [styles.css](../../apps/web/src/styles.css)：浅色本地实验室仪表台视觉、目标尺寸和 Reduced Motion。
 

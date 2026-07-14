@@ -3,6 +3,7 @@ import type {
   PlatformRunPage,
   RunCaseDetail,
   RunCasePage,
+  RunEvalPage,
   RunPreflight,
   RunProgress
 } from "../src/lib/run-api.ts";
@@ -24,7 +25,13 @@ export function runDetail(
   overrides: Partial<
     Pick<
       PlatformRunDetail,
-      "status" | "stage" | "lockRevision" | "rest" | "cancelRequestedAt" | "startedAt"
+      | "status"
+      | "stage"
+      | "lockRevision"
+      | "rest"
+      | "evaluation"
+      | "cancelRequestedAt"
+      | "startedAt"
     >
   > = {}
 ): PlatformRunDetail {
@@ -84,6 +91,14 @@ export function runDetail(
     lockRevision: overrides.lockRevision ?? 0,
     cancelRequestedAt: overrides.cancelRequestedAt ?? null,
     rest: overrides.rest ?? { total: 3, completed: 0, succeeded: 0, error: 0 },
+    evaluation: overrides.evaluation ?? {
+      total: 3,
+      completed: 0,
+      passed: 0,
+      failed: 0,
+      error: 0,
+      notEvaluated: 0
+    },
     artifactManifest: {
       contractVersion: "cortex.artifact-manifest.v1",
       owner: { kind: "RUN", id: RUN_ID },
@@ -129,6 +144,7 @@ export function runPage(detail = runDetail()): PlatformRunPage {
         lockRevision: detail.lockRevision,
         cancelRequestedAt: detail.cancelRequestedAt,
         rest: detail.rest,
+        evaluation: detail.evaluation,
         createdAt: detail.createdAt,
         updatedAt: detail.updatedAt
       }
@@ -189,6 +205,82 @@ export const runCasePage: RunCasePage = {
   nextCursor: null
 };
 
+/** Valid observed and Evaluation-error page fixture. */
+export const runEvalPage: RunEvalPage = {
+  items: [
+    {
+      runId: RUN_ID,
+      createdAt: RUN_TIME,
+      updatedAt: RUN_TIME,
+      result: {
+        caseKey: "case-1",
+        ordinal: 0,
+        status: "PASS",
+        promptfooSuccess: true,
+        score: 1,
+        reason: "匹配成功",
+        evaluationError: null,
+        assertions: [
+          {
+            index: 0,
+            definitionHash: HASH,
+            type: "equals",
+            metric: "quality",
+            weight: 1,
+            status: "PASS",
+            score: 1,
+            reason: "断言匹配"
+          }
+        ],
+        diffs: [],
+        metrics: [{ metric: "quality", status: "PASS" }],
+        latencyMs: null,
+        tokenUsage: null,
+        cost: null,
+        rawEvidence: {
+          present: true,
+          path: `runs/${RUN_ID}/promptfoo-raw.json`,
+          expectedSha256: HASH,
+          expectedSizeBytes: 128
+        },
+        evalResultHash: HASH,
+        finalCaseResultHash: HASH,
+        provenance: null
+      }
+    },
+    {
+      runId: RUN_ID,
+      createdAt: RUN_TIME,
+      updatedAt: RUN_TIME,
+      result: {
+        caseKey: "case-2",
+        ordinal: 1,
+        status: "EVALUATION_ERROR",
+        promptfooSuccess: null,
+        score: null,
+        reason: null,
+        evaluationError: { code: "EVALUATOR_TIMEOUT" },
+        assertions: [],
+        diffs: [],
+        metrics: [{ metric: "quality", status: "ERROR" }],
+        latencyMs: null,
+        tokenUsage: null,
+        cost: null,
+        rawEvidence: {
+          present: true,
+          path: `runs/${RUN_ID}/promptfoo-raw.json`,
+          expectedSha256: HASH,
+          expectedSizeBytes: 128
+        },
+        evalResultHash: HASH,
+        finalCaseResultHash: HASH,
+        provenance: null
+      }
+    }
+  ],
+  nextCursor: null
+};
+
 /** Convert one detail into its mutation progress projection. */
 export function runProgress(detail: PlatformRunDetail): RunProgress {
   return {
@@ -198,6 +290,7 @@ export function runProgress(detail: PlatformRunDetail): RunProgress {
     lockRevision: detail.lockRevision,
     cancelRequestedAt: detail.cancelRequestedAt,
     rest: detail.rest,
+    evaluation: detail.evaluation,
     updatedAt: detail.updatedAt
   };
 }

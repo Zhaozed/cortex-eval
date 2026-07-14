@@ -19,6 +19,7 @@ import {
   runCaseDetail,
   runCasePage,
   runDetail,
+  runEvalPage,
   runPage,
   runPreflight,
   runProgress
@@ -728,7 +729,7 @@ describe("Run 页面", () => {
     let detailCalls = 0;
     const current = {
       ...runDetail({
-        stage: "EVALUATION",
+        stage: "REPORT",
         rest: { total: 0, completed: 0, succeeded: 0, error: 0 }
       }),
       errorCode: "INTERNAL_ERROR"
@@ -838,6 +839,92 @@ describe("Run 页面", () => {
     expect(await screen.findByText("case-2")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "上一页" }));
     expect(await screen.findByText("error-case")).toBeInTheDocument();
+  });
+
+  it("Run Detail 在 Evaluation 阶段提供启动入口，并展示归一化评估结果", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.endsWith("/start") && init?.method === "POST") {
+        return Promise.resolve(
+          response(
+            runProgress(runDetail({ status: "RUNNING", stage: "EVALUATION", lockRevision: 3 }))
+          )
+        );
+      }
+      if (url.includes("/evaluations?")) return Promise.resolve(response(runEvalPage));
+      if (url.includes("/cases?")) return Promise.resolve(response(runCasePage));
+      if (url === `/api/v1/runs/${RUN_ID}`) {
+        return Promise.resolve(response(runDetail({ stage: "EVALUATION", lockRevision: 2 })));
+      }
+      return Promise.resolve(response({ invalid: true }));
+    });
+    render(
+      <QueryClientProvider client={client()}>
+        <RunDetailPage
+          api={createRunApi(fetcher, inertEventSource)}
+          runId={RUN_ID}
+          onNavigate={vi.fn()}
+        />
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText("逐 Case Evaluation 结果")).toBeInTheDocument();
+    expect(await screen.findByRole("columnheader", { name: "原因" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "评估错误" })).toBeInTheDocument();
+    expect(screen.getByText("匹配成功")).toBeInTheDocument();
+    expect(screen.getByText(/权重 1 · 分数 1 · 原因 断言匹配/)).toBeInTheDocument();
+    expect(screen.getByText("EVALUATOR_TIMEOUT：评估器响应超时")).toBeInTheDocument();
+    expect((await screen.findAllByText(/quality/)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/通过/).length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole("button", { name: "启动 Evaluation 阶段" }));
+    expect(fetcher).toHaveBeenCalledWith(
+      `/api/v1/runs/${RUN_ID}/start`,
+      expect.objectContaining({ body: JSON.stringify({ expectedRevision: 2 }) })
+    );
+  });
+
+  it("Run Detail 在 Evaluation 完成后展示原子提交的完整分类计数", async () => {
+    const detail = runDetail({
+      status: "READY",
+      stage: "REPORT",
+      rest: { total: 3, completed: 3, succeeded: 2, error: 1 },
+      evaluation: {
+        total: 3,
+        completed: 3,
+        passed: 1,
+        failed: 1,
+        error: 1,
+        notEvaluated: 0
+      }
+    });
+    const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes("/evaluations?")) return Promise.resolve(response(runEvalPage));
+      if (url.includes("/cases?")) return Promise.resolve(response(runCasePage));
+      if (url === `/api/v1/runs/${RUN_ID}`) return Promise.resolve(response(detail));
+      return Promise.resolve(response({ invalid: true }));
+    });
+    render(
+      <QueryClientProvider client={client()}>
+        <RunDetailPage
+          api={createRunApi(fetcher, inertEventSource)}
+          runId={RUN_ID}
+          onNavigate={vi.fn()}
+        />
+      </QueryClientProvider>
+    );
+
+    const stageHeading = await screen.findByRole("heading", { name: "Report" });
+    const stagePanel = stageHeading.closest("section");
+    if (stagePanel === null) throw new Error("TEST_STAGE_PANEL_MISSING");
+    expect([...stagePanel.querySelectorAll("article")].map((item) => item.textContent)).toEqual([
+      "3总数",
+      "3 / 3已完成",
+      "1通过",
+      "1未通过",
+      "1错误",
+      "0未评估"
+    ]);
   });
 
   it("Run Detail 显式呈现 Case 查询和状态写入失败", async () => {

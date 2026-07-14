@@ -5,10 +5,13 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  runEvaluatorBridgeIdentityProbe,
   runBoundedProcess,
+  runNestedAssertionSetProbe,
   runPromptfooProcessProbe,
   runRealFixtureProcessProbe
 } from "../src/promptfoo-process-probe.ts";
+import { runPromptfooSpecialAssertionProbe } from "../src/promptfoo-special-assertion-probe.ts";
 
 describe("Promptfoo 真实进程探针", () => {
   it("使用预计算 providerOutput，不调用 Provider，并保留组件结果与退出码语义", async () => {
@@ -42,6 +45,55 @@ describe("Promptfoo 真实进程探针", () => {
     expect(probe.componentResults).toBe(expectedTypes.length);
     expect(probe.assertionTypes).toEqual(expectedTypes);
     expect(probe.exitCode).toBe(100);
+  }, 30_000);
+
+  it("默认评分 Provider 无法区分同 Case 中定义不同但评分 Prompt 相同的断言", async () => {
+    const probe = await runEvaluatorBridgeIdentityProbe(process.cwd());
+
+    expect(probe.exitCode).toBe(0);
+    expect(probe.componentResults).toBe(2);
+    expect(probe.requestCount).toBe(2);
+    expect(probe.distinctRequestBodies).toBe(1);
+    expect(probe.assertionMetrics).toEqual(["quality-primary", "quality-secondary"]);
+    expect(probe.assertionWeights).toEqual([1, 3]);
+    expect(probe.requestBodiesExposeAssertionIdentity).toBe(false);
+  }, 30_000);
+
+  it("真实嵌套 Assertion Set 输出包含集合聚合与可对齐的子组件", async () => {
+    const probe = await runNestedAssertionSetProbe(process.cwd());
+
+    expect(probe.exitCode).toBe(100);
+    expect(probe.componentKinds).toEqual(["ASSERTION_SET", "ASSERTION", "ASSERTION"]);
+    expect(probe.assertionTypes).toEqual(["assert-set", "equals", "equals"]);
+    expect(probe.assertionMetrics).toEqual(["set-quality", "child-pass", "child-fail"]);
+    expect(probe.aggregateChildCount).toBe(2);
+  }, 30_000);
+
+  it("真实比较阶段把 select-best 与 max-score 追加到普通组件之后", async () => {
+    const probe = await runPromptfooSpecialAssertionProbe(process.cwd());
+
+    expect(probe.selectBest.exitCode).toBe(100);
+    expect(probe.selectBest.componentTypes).toEqual([
+      ["contains", "select-best"],
+      ["contains", "select-best"]
+    ]);
+    expect(probe.selectBest.successes).toEqual([false, false]);
+    expect(probe.selectBest.scores).toEqual([0, 0]);
+    expect(probe.selectBest.reasons).toEqual([
+      "Output not selected: prefer the exact output",
+      "Aggregate score 0.00 < 0.75 threshold"
+    ]);
+    expect(probe.maxScore.exitCode).toBe(100);
+    expect(probe.maxScore.componentTypes).toEqual([
+      ["contains", "max-score"],
+      ["contains", "max-score"]
+    ]);
+    expect(probe.maxScore.successes).toEqual([false, true]);
+    expect(probe.maxScore.scores).toEqual([0, 1]);
+    expect(probe.maxScore.reasons).toEqual([
+      "Aggregate score 0.00 < 0.75 threshold",
+      "Aggregate score 1.00 ≥ 0.75 threshold"
+    ]);
   }, 30_000);
 
   it("超时后先终止再强制回收卡住的子进程", async () => {

@@ -36,6 +36,7 @@ import {
   mapPlatformRunRow,
   mapRunManifest,
   mapStoredRestResult,
+  platformRestResultHashMatches,
   platformRunInsertValues,
   requireRunTimestamp,
   restResultInsertValues
@@ -72,6 +73,62 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
     await this.#database.insertInto("run_log").values(platformRunInsertValues(value)).execute();
   }
 
+  /** Insert one frozen rerun and its selected reusable REST successes atomically. */
+  public async insertPlatformRerun(
+    value: PlatformRun,
+    reusedRestResults: readonly StoredRestCaseResult[]
+  ): Promise<void> {
+    const sourceRunId = value.sourceRunId;
+    if (
+      sourceRunId === null ||
+      value.rerunMode === "NONE" ||
+      value.restCompletedCount !== reusedRestResults.length ||
+      value.restErrorCount !== 0 ||
+      (value.rerunMode === "FORCE" && reusedRestResults.length !== 0)
+    ) {
+      throw new SqliteRowInvalidError();
+    }
+    const source = await this.getPlatformRun(sourceRunId);
+    if (
+      source?.runContextHash !== value.runContextHash ||
+      source.suite.cases.length !== value.suite.cases.length ||
+      source.suite.cases.some((item, index) => {
+        const target = value.suite.cases[index];
+        return (
+          target?.caseKey !== item.caseKey ||
+          target.ordinal !== item.ordinal ||
+          target.definitionHash !== item.definitionHash
+        );
+      })
+    ) {
+      throw new SqliteRowInvalidError();
+    }
+    for (const result of reusedRestResults) {
+      const provenance = result.provenance;
+      const sourceResult = await this.getRestResult(sourceRunId, result.caseKey);
+      if (
+        result.runId !== value.id ||
+        result.status !== "SUCCEEDED" ||
+        provenance?.sourceKind !== "RUN" ||
+        provenance.sourceId !== sourceRunId ||
+        provenance.sourceResultHash !== result.resultHash ||
+        sourceResult?.status !== "SUCCEEDED" ||
+        sourceResult.ordinal !== result.ordinal ||
+        sourceResult.caseDefinitionHash !== result.caseDefinitionHash ||
+        sourceResult.resultHash !== result.resultHash
+      ) {
+        throw new SqliteRowInvalidError();
+      }
+    }
+    await this.insertPlatformRun(value);
+    if (reusedRestResults.length > 0) {
+      await this.#database
+        .insertInto("case_result")
+        .values(reusedRestResults.map(restResultInsertValues))
+        .execute();
+    }
+  }
+
   /** Read one strict platform Run without touching imported history. */
   public async getPlatformRun(runId: string): Promise<PlatformRun | null> {
     const row = await this.#database
@@ -105,6 +162,11 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         "cancel_requested_at",
         "rest_completed_count",
         "rest_error_count",
+        "eval_completed_count",
+        "eval_pass_count",
+        "eval_fail_count",
+        "eval_error_count",
+        "eval_not_evaluated_count",
         "result_set_hash",
         "artifact_manifest_json",
         "error_code",
@@ -148,6 +210,11 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         "cancel_requested_at",
         "rest_completed_count",
         "rest_error_count",
+        "eval_completed_count",
+        "eval_pass_count",
+        "eval_fail_count",
+        "eval_error_count",
+        "eval_not_evaluated_count",
         "result_set_hash",
         "artifact_manifest_json",
         "error_code",
@@ -182,6 +249,11 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         "cancel_requested_at",
         "rest_completed_count",
         "rest_error_count",
+        "eval_completed_count",
+        "eval_pass_count",
+        "eval_fail_count",
+        "eval_error_count",
+        "eval_not_evaluated_count",
         "created_at",
         "updated_at",
         sql<string>`json_extract(suite_snapshot_json, '$.id')`.as("snapshot_suite_id"),
@@ -231,6 +303,11 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         restTotalCount: row.snapshot_case_count,
         restCompletedCount: row.rest_completed_count,
         restErrorCount: row.rest_error_count,
+        evalCompletedCount: row.eval_completed_count,
+        evalPassCount: row.eval_pass_count,
+        evalFailCount: row.eval_fail_count,
+        evalErrorCount: row.eval_error_count,
+        evalNotEvaluatedCount: row.eval_not_evaluated_count,
         createdAt: row.created_at,
         updatedAt: row.updated_at
       };
@@ -318,6 +395,8 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
       .select([
         "status",
         "stage",
+        "source_run_id",
+        "rerun_mode",
         sql<string>`json_extract(suite_snapshot_json, ${`${casePath}.caseKey`})`.as(
           "frozen_case_key"
         ),
@@ -331,9 +410,36 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
     if (run?.status !== "RUNNING" || run.stage !== "REST") return null;
     if (
       run.frozen_case_key !== value.caseKey ||
-      run.frozen_definition_hash !== value.caseDefinitionHash
+      run.frozen_definition_hash !== value.caseDefinitionHash ||
+      !platformRestResultHashMatches(value)
     ) {
       throw new SqliteRowInvalidError();
+    }
+    const provenance = value.provenance;
+    if (provenance !== null) {
+      if (
+        provenance.sourceKind !== "RUN" ||
+        run.rerun_mode !== "RETRY_FAILED" ||
+        run.source_run_id !== provenance.sourceId ||
+        value.status !== "SUCCEEDED" ||
+        value.resultHash !== provenance.sourceResultHash
+      ) {
+        throw new SqliteRowInvalidError();
+      }
+      const source = await this.#database
+        .selectFrom("case_result")
+        .select(["ordinal", "case_definition_hash", "rest_status", "run_result_hash"])
+        .where("run_id", "=", provenance.sourceId)
+        .where("case_key", "=", value.caseKey)
+        .executeTakeFirst();
+      if (
+        source?.ordinal !== value.ordinal ||
+        source.case_definition_hash !== value.caseDefinitionHash ||
+        source.rest_status !== "SUCCEEDED" ||
+        source.run_result_hash !== provenance.sourceResultHash
+      ) {
+        throw new SqliteRowInvalidError();
+      }
     }
     const inserted = await this.#database
       .insertInto("case_result")
@@ -422,7 +528,7 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
     return result === undefined ? null : this.getPlatformRunProgress(result.id);
   }
 
-  /** Commit one terminal stage system failure while cancellation remains absent. */
+  /** Commit one active or automatic-handoff stage failure while cancellation remains absent. */
   public async failRun(input: FailPlatformRunInput): Promise<PlatformRunProgress | null> {
     requireRunTimestamp(input.completedAt);
     const result = await this.#database
@@ -438,7 +544,7 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
       }))
       .where("id", "=", input.runId)
       .where("source_type", "=", "PLATFORM")
-      .where("status", "=", "RUNNING")
+      .where("status", "in", ["READY", "RUNNING"])
       .where("stage", "!=", "DONE")
       .where("cancel_requested_at", "is", null)
       .where("lock_revision", "=", input.expectedRevision)

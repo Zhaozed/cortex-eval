@@ -43,6 +43,7 @@ const runHandlers: LocalRunHandlers = {
   getRun: success,
   listRunCases: success,
   getRunCase: success,
+  listRunEvaluations: success,
   startRun: success,
   cancelRun: success,
   getRunProgress: success

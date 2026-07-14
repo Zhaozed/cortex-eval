@@ -7,6 +7,7 @@ import {
   PlatformRunPageV1Schema,
   RunCaseDetailV1Schema,
   RunCasePageV1Schema,
+  RunEvalPageV1Schema,
   RunPreflightV1Schema,
   RunProgressV1Schema,
   RunStreamEnvelopeV1Schema
@@ -27,6 +28,8 @@ export type PlatformRunPage = z.infer<typeof PlatformRunPageV1Schema>;
 export type RunCasePage = z.infer<typeof RunCasePageV1Schema>;
 /** Validated real REST Case result detail. */
 export type RunCaseDetail = z.infer<typeof RunCaseDetailV1Schema>;
+/** Validated normalized Evaluation result page. */
+export type RunEvalPage = z.infer<typeof RunEvalPageV1Schema>;
 /** Validated Run progress returned by state mutations. */
 export type RunProgress = z.infer<typeof RunProgressV1Schema>;
 /** Validated snapshot-first SSE envelope. */
@@ -80,6 +83,8 @@ export interface RunApi {
   readonly getRun: (runId: string, signal: AbortSignal) => Promise<PlatformRunDetail>;
   /** List durable real REST Case results. */
   readonly listCases: (input: RunCasePageInput, signal: AbortSignal) => Promise<RunCasePage>;
+  /** List durable normalized Evaluation results. */
+  readonly listEvaluations: (input: RunCasePageInput, signal: AbortSignal) => Promise<RunEvalPage>;
   /** Read one durable real REST Case result. */
   readonly getCase: (runId: string, caseKey: string, signal: AbortSignal) => Promise<RunCaseDetail>;
   /** Start the currently registered REST stage. */
@@ -195,6 +200,16 @@ export function createRunApi(
       return apiRequestJson(
         `/api/v1/runs/${encodeURIComponent(input.runId)}/cases?${search.toString()}`,
         RunCasePageV1Schema,
+        { signal },
+        fetcher,
+        (output) => output.items.every((item) => item.runId === input.runId)
+      );
+    },
+    listEvaluations: (input, signal): Promise<RunEvalPage> => {
+      const search = buildApiSearch({ limit: input.limit, cursor: input.cursor });
+      return apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(input.runId)}/evaluations?${search.toString()}`,
+        RunEvalPageV1Schema,
         { signal },
         fetcher,
         (output) => output.items.every((item) => item.runId === input.runId)

@@ -25,6 +25,22 @@ export const EvaluatorBridgeCapabilityV1Schema = z.strictObject({
   expiresAt: UtcDateTimeSchema
 });
 
+/** Server-side Evaluation-call-lifetime grant; the raw token is never persisted. */
+export const EvaluatorBridgeCapabilityV2Schema = z.strictObject({
+  contractVersion: z.literal("cortex.evaluator-bridge-capability.v2"),
+  capabilityHash: Sha256Schema,
+  binding: EvaluatorBindingV1Schema,
+  evaluationContextHash: Sha256Schema,
+  evaluatorConfigHash: Sha256Schema,
+  maxCalls: z.number().int().nonnegative(),
+  maxConcurrency: z.number().int().min(1).max(16),
+  timeoutMs: z.number().int().min(100).max(600_000),
+  expiresAt: UtcDateTimeSchema
+});
+
+/** Evaluator Bridge v2 capability DTO. */
+export type EvaluatorBridgeCapabilityV2 = z.infer<typeof EvaluatorBridgeCapabilityV2Schema>;
+
 /** Narrow Promptfoo-to-Evaluator Bridge request. */
 export const EvaluatorBridgeRequestV1Schema = z.strictObject({
   contractVersion: z.literal("cortex.evaluator-bridge-request.v1"),
@@ -35,6 +51,18 @@ export const EvaluatorBridgeRequestV1Schema = z.strictObject({
   assertionIndex: z.number().int().nonnegative(),
   prompt: z.string().trim().min(1)
 });
+
+/** Narrow Promptfoo-to-Evaluator Bridge v2 request without Assertion identity. */
+export const EvaluatorBridgeRequestV2Schema = z.strictObject({
+  contractVersion: z.literal("cortex.evaluator-bridge-request.v2"),
+  capability: z.string().regex(/^[A-Za-z0-9_-]{43,128}$/),
+  binding: EvaluatorBindingV1Schema,
+  evaluationContextHash: Sha256Schema,
+  prompt: JsonValueSchema
+});
+
+/** Evaluator Bridge v2 request DTO. */
+export type EvaluatorBridgeRequestV2 = z.infer<typeof EvaluatorBridgeRequestV2Schema>;
 
 const TokenUsageV1Schema = z.strictObject({
   inputTokens: z.number().int().nonnegative(),
@@ -78,6 +106,34 @@ const EvaluatorBridgeFailureV1Schema = z.strictObject({
 export const EvaluatorBridgeResponseV1Schema = z.discriminatedUnion("status", [
   EvaluatorBridgeSuccessV1Schema,
   EvaluatorBridgeFailureV1Schema
+]);
+
+const EvaluatorBridgeSuccessV2Schema = z.strictObject({
+  contractVersion: z.literal("cortex.evaluator-bridge-response.v2"),
+  callId: UuidV7Schema,
+  status: z.literal("SUCCESS"),
+  output: z.strictObject({
+    text: z.string(),
+    structured: JsonValueSchema.nullable(),
+    tokenUsage: TokenUsageV1Schema.nullable()
+  })
+});
+
+const EvaluatorBridgeFailureV2Schema = z.strictObject({
+  contractVersion: z.literal("cortex.evaluator-bridge-response.v2"),
+  callId: UuidV7Schema,
+  status: z.literal("ERROR"),
+  error: z.strictObject({
+    code: EvaluatorBridgeErrorCodeSchema,
+    retryable: z.literal(false),
+    message: z.string().trim().min(1)
+  })
+});
+
+/** Bridge v2 response with no automatic retry semantics. */
+export const EvaluatorBridgeResponseV2Schema = z.discriminatedUnion("status", [
+  EvaluatorBridgeSuccessV2Schema,
+  EvaluatorBridgeFailureV2Schema
 ]);
 
 /** Stable error when a configured Provider cannot honor one required feature. */

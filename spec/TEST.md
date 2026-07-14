@@ -10,10 +10,11 @@
 - [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：原始数据到 Promptfoo Case 的转换规则。
 - [packages/contracts/test](../packages/contracts/test)：P1 Schema、版本、Secret、Work Package、Bridge、Snapshot、Artifact、Canonical Export、137 条能力映射和真实 Fixture。
 - [packages/domain/test](../packages/domain/test)：P1 纯 Case/Result、状态、Revision、统计、Proposal 和专用哈希输入。
-- [packages/application/test](../packages/application/test)：P2–P5 资源用例、统一 Case Writer、Revision、引用、Cursor、导出、Run 冻结/REST/取消和事务外验证。
-- [packages/storage-sqlite/test](../packages/storage-sqlite/test)：P2–P5 十表、严格行映射与 Hash 对账、约束、权限、资源/Run 双连接和双进程竞争、Execution 幂等和千级性能。
-- [packages/evaluation-adapters/test](../packages/evaluation-adapters/test)：P5 REST 模板、Selector、大小、HTTP、超时、并发和取消。
-- [apps/local-server/test](../apps/local-server/test)：P3–P5 资源与 Run API、真实 SQLite 装配、安全入口、OpenAPI、配置 Probe、日志、SSE、Artifact 和流式导入边界。
+- [packages/application/test](../packages/application/test)：资源用例、统一 Case Writer、Revision、引用、Cursor、导出、Run 冻结/REST/Evaluation/取消、Pipeline、严格 Promptfoo Result Importer与内部 Retry/Force。
+- [packages/storage-sqlite/test](../packages/storage-sqlite/test)：P2–P5 十表、严格行映射与 Hash 对账、约束、权限、资源/Run 双连接和双进程竞争、Execution 幂等和千级性能，以及 P6 Eval 原子提交、回滚、分页、行清洗和复用 Provenance。
+- [packages/evaluation-adapters/test](../packages/evaluation-adapters/test)：P5 REST 模板、Selector、大小、HTTP、超时、并发和取消；P6 配置物化、固定 Promptfoo 进程、Bridge v2 和双官方 SDK Adapter。
+- [packages/reporting/test](../packages/reporting/test)：P6 Ajv 2020-12 Diff、Missing、非法 Schema 和 Validator 差异。
+- [apps/local-server/test](../apps/local-server/test)：资源与 Run REST/Evaluation API、真实 SQLite 装配、安全入口、OpenAPI、配置 Probe、日志、SSE、Artifact 和流式导入边界。
 
 Vitest、V8 覆盖率和架构测试已在 P0 落地。P2 已把 Application 与 Storage SQLite 纳入覆盖率范围，P3 纳入 Local Server。当前全仓门禁为语句/行 90%、函数 90%、分支 85%；最终门禁仍以本 Goal 全局要求为准。
 
@@ -31,7 +32,7 @@ Vitest、V8 覆盖率和架构测试已在 P0 落地。P2 已把 Application 与
 
 ## SQLite 测试
 
-当前覆盖十表 Migration、外键、唯一约束、索引、删除策略、Case Definition Writer 原子性、真实 SQLite 首/中/末 Case 删除与重排失败回滚、闭合 JSON 键集合、大小写无关字面搜索、唯一运行双进程竞争、Suite/唯一字段/Execution 双连接竞争、Execution ID 幂等导入，以及平台 Run 阶段条件提交、跨进程取消/提交竞争和恢复。
+当前覆盖十表 Migration、外键、唯一约束、索引、删除策略、Case Definition Writer 原子性、真实 SQLite 首/中/末 Case 删除与重排失败回滚、闭合 JSON 键集合、大小写无关字面搜索、唯一运行双进程竞争、Suite/唯一字段/Execution 双连接竞争、Execution ID 幂等导入，以及平台 Run 阶段条件提交、跨进程取消/提交竞争和恢复。P6 追加 Eval 完整集合的状态/Revision/取消/REST/Hash/Artifact 对账、失败整批回滚、严格行映射和 REST/Eval Provenance 来源校验。
 
 每个数据库测试使用独立临时数据库。并发正确性必须使用独立连接或独立进程验证，不能仅用进程内 Mock 代替。
 
@@ -53,17 +54,21 @@ REST、Eval、Analysis 分别验证默认并发 4、2、1，范围 1–64、1–
 
 ## Promptfoo 契约测试
 
-覆盖 Promptfoo `0.121.18`、受控配置、Echo Provider、预计算 Provider Output、Rubric Prompt、Assertion 对齐、退出码和真实 Fixture 完整导入。P0 的真实进程测试在隔离副本中执行 4 个当前 REST Case 和原始 18 条 Assertion，验证主 Provider 零调用、本机隔离 Evaluator 调用、Case ID、Assertion 类型顺序和组件数量；子进程测试验证超时后 `SIGTERM` 与 `SIGKILL` 回收。每个探针使用独立 `PROMPTFOO_CONFIG_DIR`，并行测试不共享 Promptfoo 状态。
+覆盖 Promptfoo `0.121.18`、受控配置、Echo Provider、预计算 Provider Output、Rubric Prompt、Assertion 对齐、退出码和真实 Fixture 完整导入。P0 的真实进程测试在隔离副本中执行 4 个当前 REST Case 和原始 18 条 Assertion，验证主 Provider 零调用、本机隔离 Evaluator 调用、Case ID、Assertion 类型顺序和组件数量；子进程测试验证超时后的完整进程组回收，并固定主进程先退出时解释器后代仍获得剩余 `SIGTERM` 宽限期，耗尽后才升级 `SIGKILL`。真实内联 JavaScript 证明无关父进程 Secret 不进入 Promptfoo 环境。Python/Ruby 阶段前探测以真实 Promptfoo 内联 Assertion 验证所需解释器。每个探针使用独立 `PROMPTFOO_CONFIG_DIR`，并行测试不共享 Promptfoo 状态。
 
-精确版本能力矩阵的 137 条完全展开契约逐条保存全部合法 Payload 形态、值与阈值必填性、Evaluator/解释器/协议依赖、拒绝边界、合法 Schema Probe、精确运行时代码证据和 Importer 对齐键。测试逐条执行非法 Payload、`file://`、外部模块、Provider 覆盖拒绝以及组件身份映射，并把每个类型精确映射到锁定包处理器；处理器名称即使存在于包内，只要不属于该类型也会失败。布尔 `equals` 和数字数组 `contains-any` 另由真实进程正例固定。P0 真实进程覆盖内联 JavaScript、Python 和 Ruby；P6 必须继续覆盖 Transform、Context Transform、嵌套 Assertion Set 和矩阵中的全部能力，并稳定拒绝 `file://`、外部模块、额外依赖、Assertion Provider 覆盖和 Provider 插件。
+精确版本能力矩阵的 137 条完全展开契约逐条保存合法 Payload 形态、值与阈值必填性、Evaluator/解释器/协议依赖、拒绝边界、合法 Schema Probe、精确运行时代码证据和 Importer 对齐键。矩阵测试证明全部类型都可通过同一开放 Case Assert 契约和通用物化路径，不建立类型白名单；文件/模块/包/依赖协议、Provider/OAuth/认证/Secret 使用统一递归边界拒绝，并覆盖大小写、前导空白和紧凑组合键绕过，不要求流程逐类型复现 Promptfoo 执行。布尔 `equals`、数字数组 `contains-any`、内联 JavaScript/Python/Ruby、Transform、Context Transform 和嵌套 Assertion Set 使用真实进程代表性验证。
 
-Evaluator Bridge 测试 Capability、Run/Execution 绑定、调用预算、取消、超时、端口并发、无自动重试、Secret 脱敏和不能作为任意代理。
+Evaluator Bridge 测试 Capability、Run/Execution 绑定、调用预算、取消、超时、端口并发、无自动重试、Secret 脱敏和不能作为任意代理；超时与主动关闭均使用忽略 Abort、永不结束的 Evaluator 替身证明 Bridge 自身能够收口。真实 Promptfoo 测试同时覆盖 SDK Token Usage 非空精确映射和合法 `null` 时省略 Usage、保留评分结果。
+
+P6 真实最小探针固定：两个具有不同 Metric/Weight、但相同 Rubric 的 `llm-rubric` Assertion 会产生两个有序组件和两个默认 Grading HTTP Provider 请求，请求体不包含稳定 Assertion 身份。Bridge v2 因而只绑定 Evaluation 调用期、冻结上下文、确定性总预算和并发，不接收 Assertion/Metric 身份；Importer 再从 Raw Result 的 Metric、完整 Definition 和组件结构区分结果。覆盖能力矩阵全部 Assert 表示构建不设类型白名单，并不要求平台复现或限制每类 Assert 的 Promptfoo 执行流程。
+
+另一项真实进程探针固定 Assertion Set 的稳定展开及 `select-best`、`max-score` 的多输出比较事实。Case 构建和配置生成不按这些类型拒绝，也不由平台复现或限制 Assert 执行；Importer 只按通用 Case 重复、缺失、组件和 Definition Hash 规则对齐。测试覆盖实际评分 Output 与冻结 REST Output 的 Canonical 对账、完整 Definition Hash、Rubric Prompt 物化身份恢复、集合/Case 聚合、redteam `guardrails`、三种 `is-json` 能力及 REST Error 的 `NOT_EVALUATED`。
 
 原始结果测试必须经过 Importer，不直接把 Promptfoo 内部字段当作平台事实。
 
 ## Reporting 测试
 
-覆盖整体统计、By Metric、同 Case 同 Metric 去重、空分母、JSON Schema Diff、Validator 差异、结果对账、JSON Report 和 Markdown Renderer。
+当前已覆盖 JSON Schema Diff、Missing、非法 Schema和 Validator 差异。完整目标继续覆盖整体统计、By Metric、同 Case 同 Metric 去重、空分母、结果对账、JSON Report 和 Markdown Renderer。
 
 Markdown 断言关注结构和事实，不对无关排版做脆弱快照。
 
@@ -86,6 +91,8 @@ P3 API 当前额外覆盖严格成功响应 DTO、六项 Analysis Prompt 变量�
 P4 把 `apps/web/src` 纳入全仓 V8 覆盖率。组件测试覆盖 API Client、请求/响应身份、编辑 Session Revision、删除确认事实原子性与冲突恢复卸载、路由、表单映射、字段错误、冲突、URL 恢复、Query 失效和资源交互；Playwright 使用真实 SQLite/Application/Local Server 和生产 Vite 产物，覆盖 1440×900、1280×800 Reduced Motion、900px 小屏提示、键盘、焦点、axe 与 CSP。`pnpm verify` 必须运行该 E2E 矩阵。
 
 P5 确定性阶段回归通过 100 个 Vitest 文件、541 项测试；完整 `pnpm verify` 的 V8 覆盖率为 Statements 90.33%、Branches 85.06%、Functions 91.81%、Lines 93.14%。回归覆盖有界 Run 投影、逐 Case 写入不读取完整快照、Artifact 单遍流式写入与等价 Hash、Worker 持久化失败后的 Owner 收口、Shutdown/阶段提交竞态、取消轮询拒绝、闭合业务日志、SSE 成功/错误媒体类型与 Hijack 后读取/异步写错误收口、Web 预检 Abort/A→B→A 迟到响应拒绝、同选择重新预检失败门禁及创建响应身份。生产 Playwright E2E 通过 7 项测试，并通过真实 SQLite、Application、Local Server 与生产 Vite 产物覆盖 REST Run 创建、启动、刷新恢复、Case 明细、Dashboard 和 Suite 聚合；完整 `pnpm verify` 已通过。
+
+P6 确定性阶段回归通过 112 个 Vitest 文件、679 项测试；完整 `pnpm verify` 的 V8 覆盖率为 Statements 90.22%（6794/7530）、Branches 85.23%（4568/5359）、Functions 91.83%（1619/1763）、Lines 93.32%（6303/6754）。回归新增 REST→Evaluation Pipeline、Eval API/Web/SSE、受控 Promptfoo/Bridge/双官方 SDK、严格 Importer、不可变 Raw/Normalized Artifact、原子提交/回滚、取消/Shutdown、内部 Retry/Force 与来源复用对账，并覆盖子进程 Secret/Capability 隔离、Assertion config 紧凑组合敏感键及大小写/前导空白外部引用绕过拒绝、主进程提前退出时后代保留 TERM 剩余宽限期、Raw Artifact 原生退出码 `0 | 100`、单 Case Eval Hash 排除执行观测与 Artifact 完整性、Root 外路径与临时符号链接拒绝、函数返回前完整进程组回收、Normalized Case 乱序/重复 Key 原子拒绝、解释器阶段前 Smoke、来源 Artifact `MISSING/CORRUPTED`、Evaluation 原子分类计数、冻结完整 Schema Hash 的 P5 002→P6 003 数据库升级、Pipeline Starter 返回失败与拒绝 Promise 的自动收口、Bridge 精确 Host、排队后 TTL 复核、非协作上游真实并发占槽及超时/关闭、Promptfoo 版本探测与执行共享总时限、有界诊断输出、固定 Row Error 闭合字段和矛盾字段拒绝、持久 Evaluation Error 仅保存 Code 并在 Web 边界映射消息、缺失 Token Usage、Raw/Normalized Artifact Context Hash、全复用 Retry 的新执行版本 Hash、Web Case/Assertion Reason/Score/Weight、DONE 阶段计数选择和无虚假 Evaluation Progress 事件；生产 Playwright E2E 7 项、Python 7 项和旧 TypeScript 5 项回归通过。
 
 ## 性能测试
 

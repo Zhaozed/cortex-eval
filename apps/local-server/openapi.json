@@ -45193,6 +45193,50 @@
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$",
                             "type": "string"
                           },
+                          "evaluation": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "completed": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "error": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "failed": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "notEvaluated": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "passed": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "total": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "total",
+                              "completed",
+                              "passed",
+                              "failed",
+                              "error",
+                              "notEvaluated"
+                            ],
+                            "type": "object"
+                          },
                           "id": {
                             "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
                             "type": "string"
@@ -45268,6 +45312,7 @@
                           "lockRevision",
                           "cancelRequestedAt",
                           "rest",
+                          "evaluation",
                           "updatedAt",
                           "createdAt"
                         ],
@@ -47121,6 +47166,7 @@
                             "EVALUATOR_BUDGET_EXCEEDED",
                             "EVALUATOR_TIMEOUT",
                             "EVALUATOR_CANCELLED",
+                            "EVALUATION_STAGE_FAILED",
                             "PROVIDER_REQUEST_FAILED",
                             "ANALYSIS_STATE_CONFLICT",
                             "ANALYSIS_OUTPUT_INVALID",
@@ -47164,6 +47210,34 @@
                         },
                         { "type": "null" }
                       ]
+                    },
+                    "evaluation": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "completed": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "error": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "failed": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "notEvaluated": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "passed": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "total": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" }
+                      },
+                      "required": [
+                        "total",
+                        "completed",
+                        "passed",
+                        "failed",
+                        "error",
+                        "notEvaluated"
+                      ],
+                      "type": "object"
                     },
                     "evaluator": {
                       "additionalProperties": false,
@@ -47450,6 +47524,7 @@
                     "lockRevision",
                     "cancelRequestedAt",
                     "rest",
+                    "evaluation",
                     "artifactManifest",
                     "artifactAvailability",
                     "errorCode",
@@ -49269,6 +49344,7 @@
                             "EVALUATOR_BUDGET_EXCEEDED",
                             "EVALUATOR_TIMEOUT",
                             "EVALUATOR_CANCELLED",
+                            "EVALUATION_STAGE_FAILED",
                             "PROVIDER_REQUEST_FAILED",
                             "ANALYSIS_STATE_CONFLICT",
                             "ANALYSIS_OUTPUT_INVALID",
@@ -49312,6 +49388,34 @@
                         },
                         { "type": "null" }
                       ]
+                    },
+                    "evaluation": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "completed": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "error": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "failed": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "notEvaluated": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "passed": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "total": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" }
+                      },
+                      "required": [
+                        "total",
+                        "completed",
+                        "passed",
+                        "failed",
+                        "error",
+                        "notEvaluated"
+                      ],
+                      "type": "object"
                     },
                     "evaluator": {
                       "additionalProperties": false,
@@ -49598,6 +49702,7 @@
                     "lockRevision",
                     "cancelRequestedAt",
                     "rest",
+                    "evaluation",
                     "artifactManifest",
                     "artifactAvailability",
                     "errorCode",
@@ -51194,6 +51299,34 @@
                         { "type": "null" }
                       ]
                     },
+                    "evaluation": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "completed": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "error": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "failed": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "notEvaluated": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "passed": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "total": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" }
+                      },
+                      "required": [
+                        "total",
+                        "completed",
+                        "passed",
+                        "failed",
+                        "error",
+                        "notEvaluated"
+                      ],
+                      "type": "object"
+                    },
                     "lockRevision": {
                       "maximum": 9007199254740991,
                       "minimum": 0,
@@ -51247,6 +51380,7 @@
                     "lockRevision",
                     "cancelRequestedAt",
                     "rest",
+                    "evaluation",
                     "updatedAt"
                   ],
                   "type": "object"
@@ -56277,6 +56411,2280 @@
         }
       }
     },
+    "/api/v1/runs/{runId}/evaluations": {
+      "get": {
+        "operationId": "listRunEvaluations",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": { "default": 20, "maximum": 100, "minimum": 1, "type": "integer" }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": { "minLength": 1, "type": "string" }
+          },
+          {
+            "in": "path",
+            "name": "runId",
+            "required": true,
+            "schema": { "minLength": 1, "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "createdAt": {
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$",
+                            "type": "string"
+                          },
+                          "result": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "assertions": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "definitionHash": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "index": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "metric": { "minLength": 1, "type": "string" },
+                                        "reason": {
+                                          "anyOf": [
+                                            { "minLength": 1, "type": "string" },
+                                            { "type": "null" }
+                                          ]
+                                        },
+                                        "score": {
+                                          "anyOf": [{ "type": "number" }, { "type": "null" }]
+                                        },
+                                        "status": {
+                                          "enum": ["PASS", "FAIL", "ERROR", "SKIPPED"],
+                                          "type": "string"
+                                        },
+                                        "type": { "minLength": 1, "type": "string" },
+                                        "weight": { "minimum": 0, "type": "number" }
+                                      },
+                                      "required": [
+                                        "index",
+                                        "definitionHash",
+                                        "type",
+                                        "metric",
+                                        "weight",
+                                        "status",
+                                        "score",
+                                        "reason"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "caseKey": { "maxLength": 256, "minLength": 1, "type": "string" },
+                                  "cost": {
+                                    "anyOf": [
+                                      { "minimum": 0, "type": "number" },
+                                      { "type": "null" }
+                                    ]
+                                  },
+                                  "diffs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "actual": { "$ref": "#/components/schemas/__schema0" },
+                                        "assertionIndex": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "diffContractVersion": {
+                                          "enum": ["cortex.assertion-diff.v1"],
+                                          "type": "string"
+                                        },
+                                        "expectedConstraint": {
+                                          "$ref": "#/components/schemas/__schema0"
+                                        },
+                                        "instancePath": { "type": "string" },
+                                        "keyword": { "minLength": 1, "type": "string" },
+                                        "reason": { "minLength": 1, "type": "string" },
+                                        "schemaDialect": { "minLength": 1, "type": "string" },
+                                        "schemaPath": { "minLength": 1, "type": "string" },
+                                        "validatorVersion": { "minLength": 1, "type": "string" }
+                                      },
+                                      "required": [
+                                        "assertionIndex",
+                                        "instancePath",
+                                        "schemaPath",
+                                        "keyword",
+                                        "expectedConstraint",
+                                        "actual",
+                                        "reason",
+                                        "validatorVersion",
+                                        "schemaDialect",
+                                        "diffContractVersion"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "evalResultHash": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "evaluationError": { "type": "null" },
+                                  "finalCaseResultHash": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "latencyMs": {
+                                    "anyOf": [
+                                      { "minimum": 0, "type": "number" },
+                                      { "type": "null" }
+                                    ]
+                                  },
+                                  "metrics": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "metric": { "minLength": 1, "type": "string" },
+                                        "status": {
+                                          "enum": [
+                                            "PASS",
+                                            "FAIL",
+                                            "ERROR",
+                                            "SKIPPED",
+                                            "NOT_EVALUATED"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["metric", "status"],
+                                      "type": "object"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "ordinal": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "promptfooSuccess": { "type": "boolean" },
+                                  "provenance": {
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "sourceId": {
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "sourceKind": {
+                                            "enum": ["RUN", "EXECUTION"],
+                                            "type": "string"
+                                          },
+                                          "sourceResultHash": {
+                                            "pattern": "^[0-9a-f]{64}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": ["sourceKind", "sourceId", "sourceResultHash"],
+                                        "type": "object"
+                                      },
+                                      { "type": "null" }
+                                    ]
+                                  },
+                                  "rawEvidence": {
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "expectedSha256": {
+                                            "pattern": "^[0-9a-f]{64}$",
+                                            "type": "string"
+                                          },
+                                          "expectedSizeBytes": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          },
+                                          "path": { "minLength": 1, "type": "string" },
+                                          "present": { "type": "boolean" }
+                                        },
+                                        "required": [
+                                          "present",
+                                          "path",
+                                          "expectedSha256",
+                                          "expectedSizeBytes"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      { "type": "null" }
+                                    ]
+                                  },
+                                  "reason": {
+                                    "anyOf": [
+                                      { "minLength": 1, "type": "string" },
+                                      { "type": "null" }
+                                    ]
+                                  },
+                                  "score": { "type": "number" },
+                                  "status": { "enum": ["PASS", "FAIL"], "type": "string" },
+                                  "tokenUsage": {
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "inputTokens": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          },
+                                          "outputTokens": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          },
+                                          "totalTokens": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "required": ["inputTokens", "outputTokens", "totalTokens"],
+                                        "type": "object"
+                                      },
+                                      { "type": "null" }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "caseKey",
+                                  "ordinal",
+                                  "status",
+                                  "promptfooSuccess",
+                                  "score",
+                                  "reason",
+                                  "evaluationError",
+                                  "assertions",
+                                  "diffs",
+                                  "metrics",
+                                  "latencyMs",
+                                  "tokenUsage",
+                                  "cost",
+                                  "rawEvidence",
+                                  "evalResultHash",
+                                  "finalCaseResultHash",
+                                  "provenance"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "assertions": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "definitionHash": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "index": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "metric": { "minLength": 1, "type": "string" },
+                                        "reason": {
+                                          "anyOf": [
+                                            { "minLength": 1, "type": "string" },
+                                            { "type": "null" }
+                                          ]
+                                        },
+                                        "score": {
+                                          "anyOf": [{ "type": "number" }, { "type": "null" }]
+                                        },
+                                        "status": {
+                                          "enum": ["PASS", "FAIL", "ERROR", "SKIPPED"],
+                                          "type": "string"
+                                        },
+                                        "type": { "minLength": 1, "type": "string" },
+                                        "weight": { "minimum": 0, "type": "number" }
+                                      },
+                                      "required": [
+                                        "index",
+                                        "definitionHash",
+                                        "type",
+                                        "metric",
+                                        "weight",
+                                        "status",
+                                        "score",
+                                        "reason"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "caseKey": { "maxLength": 256, "minLength": 1, "type": "string" },
+                                  "cost": {
+                                    "anyOf": [
+                                      { "minimum": 0, "type": "number" },
+                                      { "type": "null" }
+                                    ]
+                                  },
+                                  "diffs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "actual": { "$ref": "#/components/schemas/__schema0" },
+                                        "assertionIndex": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "diffContractVersion": {
+                                          "enum": ["cortex.assertion-diff.v1"],
+                                          "type": "string"
+                                        },
+                                        "expectedConstraint": {
+                                          "$ref": "#/components/schemas/__schema0"
+                                        },
+                                        "instancePath": { "type": "string" },
+                                        "keyword": { "minLength": 1, "type": "string" },
+                                        "reason": { "minLength": 1, "type": "string" },
+                                        "schemaDialect": { "minLength": 1, "type": "string" },
+                                        "schemaPath": { "minLength": 1, "type": "string" },
+                                        "validatorVersion": { "minLength": 1, "type": "string" }
+                                      },
+                                      "required": [
+                                        "assertionIndex",
+                                        "instancePath",
+                                        "schemaPath",
+                                        "keyword",
+                                        "expectedConstraint",
+                                        "actual",
+                                        "reason",
+                                        "validatorVersion",
+                                        "schemaDialect",
+                                        "diffContractVersion"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "evalResultHash": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "evaluationError": {
+                                    "additionalProperties": false,
+                                    "properties": { "code": { "minLength": 1, "type": "string" } },
+                                    "required": ["code"],
+                                    "type": "object"
+                                  },
+                                  "finalCaseResultHash": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "latencyMs": {
+                                    "anyOf": [
+                                      { "minimum": 0, "type": "number" },
+                                      { "type": "null" }
+                                    ]
+                                  },
+                                  "metrics": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "metric": { "minLength": 1, "type": "string" },
+                                        "status": {
+                                          "enum": [
+                                            "PASS",
+                                            "FAIL",
+                                            "ERROR",
+                                            "SKIPPED",
+                                            "NOT_EVALUATED"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["metric", "status"],
+                                      "type": "object"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "ordinal": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "promptfooSuccess": { "type": "null" },
+                                  "provenance": {
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "sourceId": {
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "sourceKind": {
+                                            "enum": ["RUN", "EXECUTION"],
+                                            "type": "string"
+                                          },
+                                          "sourceResultHash": {
+                                            "pattern": "^[0-9a-f]{64}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": ["sourceKind", "sourceId", "sourceResultHash"],
+                                        "type": "object"
+                                      },
+                                      { "type": "null" }
+                                    ]
+                                  },
+                                  "rawEvidence": {
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "expectedSha256": {
+                                            "pattern": "^[0-9a-f]{64}$",
+                                            "type": "string"
+                                          },
+                                          "expectedSizeBytes": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          },
+                                          "path": { "minLength": 1, "type": "string" },
+                                          "present": { "type": "boolean" }
+                                        },
+                                        "required": [
+                                          "present",
+                                          "path",
+                                          "expectedSha256",
+                                          "expectedSizeBytes"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      { "type": "null" }
+                                    ]
+                                  },
+                                  "reason": { "type": "null" },
+                                  "score": { "type": "null" },
+                                  "status": { "enum": ["EVALUATION_ERROR"], "type": "string" },
+                                  "tokenUsage": {
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "inputTokens": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          },
+                                          "outputTokens": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          },
+                                          "totalTokens": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "required": ["inputTokens", "outputTokens", "totalTokens"],
+                                        "type": "object"
+                                      },
+                                      { "type": "null" }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "caseKey",
+                                  "ordinal",
+                                  "status",
+                                  "promptfooSuccess",
+                                  "score",
+                                  "reason",
+                                  "evaluationError",
+                                  "assertions",
+                                  "diffs",
+                                  "metrics",
+                                  "latencyMs",
+                                  "tokenUsage",
+                                  "cost",
+                                  "rawEvidence",
+                                  "evalResultHash",
+                                  "finalCaseResultHash",
+                                  "provenance"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "assertions": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "definitionHash": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "index": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "metric": { "minLength": 1, "type": "string" },
+                                        "reason": {
+                                          "anyOf": [
+                                            { "minLength": 1, "type": "string" },
+                                            { "type": "null" }
+                                          ]
+                                        },
+                                        "score": {
+                                          "anyOf": [{ "type": "number" }, { "type": "null" }]
+                                        },
+                                        "status": {
+                                          "enum": ["PASS", "FAIL", "ERROR", "SKIPPED"],
+                                          "type": "string"
+                                        },
+                                        "type": { "minLength": 1, "type": "string" },
+                                        "weight": { "minimum": 0, "type": "number" }
+                                      },
+                                      "required": [
+                                        "index",
+                                        "definitionHash",
+                                        "type",
+                                        "metric",
+                                        "weight",
+                                        "status",
+                                        "score",
+                                        "reason"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 0,
+                                    "minItems": 0,
+                                    "type": "array"
+                                  },
+                                  "caseKey": { "maxLength": 256, "minLength": 1, "type": "string" },
+                                  "cost": { "type": "null" },
+                                  "diffs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "actual": { "$ref": "#/components/schemas/__schema0" },
+                                        "assertionIndex": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "diffContractVersion": {
+                                          "enum": ["cortex.assertion-diff.v1"],
+                                          "type": "string"
+                                        },
+                                        "expectedConstraint": {
+                                          "$ref": "#/components/schemas/__schema0"
+                                        },
+                                        "instancePath": { "type": "string" },
+                                        "keyword": { "minLength": 1, "type": "string" },
+                                        "reason": { "minLength": 1, "type": "string" },
+                                        "schemaDialect": { "minLength": 1, "type": "string" },
+                                        "schemaPath": { "minLength": 1, "type": "string" },
+                                        "validatorVersion": { "minLength": 1, "type": "string" }
+                                      },
+                                      "required": [
+                                        "assertionIndex",
+                                        "instancePath",
+                                        "schemaPath",
+                                        "keyword",
+                                        "expectedConstraint",
+                                        "actual",
+                                        "reason",
+                                        "validatorVersion",
+                                        "schemaDialect",
+                                        "diffContractVersion"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 0,
+                                    "minItems": 0,
+                                    "type": "array"
+                                  },
+                                  "evalResultHash": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "evaluationError": { "type": "null" },
+                                  "finalCaseResultHash": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "latencyMs": { "type": "null" },
+                                  "metrics": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "metric": { "minLength": 1, "type": "string" },
+                                        "status": {
+                                          "enum": [
+                                            "PASS",
+                                            "FAIL",
+                                            "ERROR",
+                                            "SKIPPED",
+                                            "NOT_EVALUATED"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["metric", "status"],
+                                      "type": "object"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "ordinal": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "promptfooSuccess": { "type": "null" },
+                                  "provenance": {
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "sourceId": {
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "sourceKind": {
+                                            "enum": ["RUN", "EXECUTION"],
+                                            "type": "string"
+                                          },
+                                          "sourceResultHash": {
+                                            "pattern": "^[0-9a-f]{64}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": ["sourceKind", "sourceId", "sourceResultHash"],
+                                        "type": "object"
+                                      },
+                                      { "type": "null" }
+                                    ]
+                                  },
+                                  "rawEvidence": { "type": "null" },
+                                  "reason": { "type": "null" },
+                                  "score": { "type": "null" },
+                                  "status": { "enum": ["NOT_EVALUATED"], "type": "string" },
+                                  "tokenUsage": { "type": "null" }
+                                },
+                                "required": [
+                                  "caseKey",
+                                  "ordinal",
+                                  "status",
+                                  "promptfooSuccess",
+                                  "score",
+                                  "reason",
+                                  "evaluationError",
+                                  "assertions",
+                                  "diffs",
+                                  "metrics",
+                                  "latencyMs",
+                                  "tokenUsage",
+                                  "cost",
+                                  "rawEvidence",
+                                  "evalResultHash",
+                                  "finalCaseResultHash",
+                                  "provenance"
+                                ],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "runId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["runId", "createdAt", "updatedAt", "result"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "anyOf": [{ "minLength": 1, "type": "string" }, { "type": "null" }]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "VALIDATION_FAILED",
+                                "CASE_DEFINITION_INVALID",
+                                "ENDPOINT_CONFIG_INVALID",
+                                "LLM_CONFIG_INVALID",
+                                "PROMPT_INVALID",
+                                "ANALYSIS_PROMPT_INVALID"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "path"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "actualRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "code": { "enum": ["RESOURCE_REVISION_CONFLICT"], "type": "string" },
+                            "expectedRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "expectedRevision",
+                            "actualRevision"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RESOURCE_UNIQUE_CONFLICT"], "type": "string" },
+                            "field": { "enum": ["name", "promptKey"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "field"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "caseKey": { "type": "string" },
+                            "causeCode": {
+                              "enum": [
+                                "SUITE_NOT_FOUND",
+                                "CASE_NOT_FOUND",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_DEFINITION_INVALID",
+                                "CASE_ID_DUPLICATE",
+                                "RUBRIC_PROMPT_NOT_FOUND",
+                                "RESOURCE_REVISION_CONFLICT"
+                              ],
+                              "type": "string"
+                            },
+                            "code": { "enum": ["CASE_IMPORT_ITEM_INVALID"], "type": "string" },
+                            "index": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "index",
+                            "caseKey",
+                            "causeCode"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": ["RUBRIC_PROMPT_IN_USE", "RUBRIC_PROMPT_NOT_FOUND"],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "promptKey": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "promptKey"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["CONFIGURATION_PROBE_FAILED"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": [
+                                "UNAVAILABLE",
+                                "TIMEOUT",
+                                "CANCELLED",
+                                "CAPABILITY_UNSUPPORTED"
+                              ],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RUN_STATE_CONFLICT"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": ["STATE_OR_REVISION", "GLOBAL_RUNNING", "STAGE_UNAVAILABLE"],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "CURSOR_INVALID",
+                                "CURSOR_VERSION_UNSUPPORTED",
+                                "HOST_NOT_ALLOWED",
+                                "ORIGIN_NOT_ALLOWED",
+                                "REQUEST_BODY_TOO_LARGE",
+                                "REQUEST_ABORTED",
+                                "CASE_IMPORT_TOO_LARGE",
+                                "CASE_IMPORT_CANCELLED",
+                                "CASE_ID_DUPLICATE",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_NOT_FOUND",
+                                "SUITE_NOT_FOUND",
+                                "RUN_NOT_FOUND",
+                                "RUN_SUITE_EMPTY",
+                                "RUN_CASE_RESULT_NOT_FOUND",
+                                "CONFIGURATION_NOT_FOUND",
+                                "CONFIGURATION_KIND_CONFLICT",
+                                "RESOURCE_IN_ACTIVE_RUN",
+                                "STORAGE_TRANSACTION_CONFLICT",
+                                "EXPORT_REVISION_CONFLICT",
+                                "INTERNAL_ERROR",
+                                "ROUTE_NOT_FOUND"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId"],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "VALIDATION_FAILED",
+                                "CASE_DEFINITION_INVALID",
+                                "ENDPOINT_CONFIG_INVALID",
+                                "LLM_CONFIG_INVALID",
+                                "PROMPT_INVALID",
+                                "ANALYSIS_PROMPT_INVALID"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "path"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "actualRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "code": { "enum": ["RESOURCE_REVISION_CONFLICT"], "type": "string" },
+                            "expectedRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "expectedRevision",
+                            "actualRevision"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RESOURCE_UNIQUE_CONFLICT"], "type": "string" },
+                            "field": { "enum": ["name", "promptKey"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "field"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "caseKey": { "type": "string" },
+                            "causeCode": {
+                              "enum": [
+                                "SUITE_NOT_FOUND",
+                                "CASE_NOT_FOUND",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_DEFINITION_INVALID",
+                                "CASE_ID_DUPLICATE",
+                                "RUBRIC_PROMPT_NOT_FOUND",
+                                "RESOURCE_REVISION_CONFLICT"
+                              ],
+                              "type": "string"
+                            },
+                            "code": { "enum": ["CASE_IMPORT_ITEM_INVALID"], "type": "string" },
+                            "index": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "index",
+                            "caseKey",
+                            "causeCode"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": ["RUBRIC_PROMPT_IN_USE", "RUBRIC_PROMPT_NOT_FOUND"],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "promptKey": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "promptKey"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["CONFIGURATION_PROBE_FAILED"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": [
+                                "UNAVAILABLE",
+                                "TIMEOUT",
+                                "CANCELLED",
+                                "CAPABILITY_UNSUPPORTED"
+                              ],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RUN_STATE_CONFLICT"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": ["STATE_OR_REVISION", "GLOBAL_RUNNING", "STAGE_UNAVAILABLE"],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "CURSOR_INVALID",
+                                "CURSOR_VERSION_UNSUPPORTED",
+                                "HOST_NOT_ALLOWED",
+                                "ORIGIN_NOT_ALLOWED",
+                                "REQUEST_BODY_TOO_LARGE",
+                                "REQUEST_ABORTED",
+                                "CASE_IMPORT_TOO_LARGE",
+                                "CASE_IMPORT_CANCELLED",
+                                "CASE_ID_DUPLICATE",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_NOT_FOUND",
+                                "SUITE_NOT_FOUND",
+                                "RUN_NOT_FOUND",
+                                "RUN_SUITE_EMPTY",
+                                "RUN_CASE_RESULT_NOT_FOUND",
+                                "CONFIGURATION_NOT_FOUND",
+                                "CONFIGURATION_KIND_CONFLICT",
+                                "RESOURCE_IN_ACTIVE_RUN",
+                                "STORAGE_TRANSACTION_CONFLICT",
+                                "EXPORT_REVISION_CONFLICT",
+                                "INTERNAL_ERROR",
+                                "ROUTE_NOT_FOUND"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId"],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "VALIDATION_FAILED",
+                                "CASE_DEFINITION_INVALID",
+                                "ENDPOINT_CONFIG_INVALID",
+                                "LLM_CONFIG_INVALID",
+                                "PROMPT_INVALID",
+                                "ANALYSIS_PROMPT_INVALID"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "path"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "actualRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "code": { "enum": ["RESOURCE_REVISION_CONFLICT"], "type": "string" },
+                            "expectedRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "expectedRevision",
+                            "actualRevision"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RESOURCE_UNIQUE_CONFLICT"], "type": "string" },
+                            "field": { "enum": ["name", "promptKey"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "field"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "caseKey": { "type": "string" },
+                            "causeCode": {
+                              "enum": [
+                                "SUITE_NOT_FOUND",
+                                "CASE_NOT_FOUND",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_DEFINITION_INVALID",
+                                "CASE_ID_DUPLICATE",
+                                "RUBRIC_PROMPT_NOT_FOUND",
+                                "RESOURCE_REVISION_CONFLICT"
+                              ],
+                              "type": "string"
+                            },
+                            "code": { "enum": ["CASE_IMPORT_ITEM_INVALID"], "type": "string" },
+                            "index": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "index",
+                            "caseKey",
+                            "causeCode"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": ["RUBRIC_PROMPT_IN_USE", "RUBRIC_PROMPT_NOT_FOUND"],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "promptKey": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "promptKey"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["CONFIGURATION_PROBE_FAILED"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": [
+                                "UNAVAILABLE",
+                                "TIMEOUT",
+                                "CANCELLED",
+                                "CAPABILITY_UNSUPPORTED"
+                              ],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RUN_STATE_CONFLICT"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": ["STATE_OR_REVISION", "GLOBAL_RUNNING", "STAGE_UNAVAILABLE"],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "CURSOR_INVALID",
+                                "CURSOR_VERSION_UNSUPPORTED",
+                                "HOST_NOT_ALLOWED",
+                                "ORIGIN_NOT_ALLOWED",
+                                "REQUEST_BODY_TOO_LARGE",
+                                "REQUEST_ABORTED",
+                                "CASE_IMPORT_TOO_LARGE",
+                                "CASE_IMPORT_CANCELLED",
+                                "CASE_ID_DUPLICATE",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_NOT_FOUND",
+                                "SUITE_NOT_FOUND",
+                                "RUN_NOT_FOUND",
+                                "RUN_SUITE_EMPTY",
+                                "RUN_CASE_RESULT_NOT_FOUND",
+                                "CONFIGURATION_NOT_FOUND",
+                                "CONFIGURATION_KIND_CONFLICT",
+                                "RESOURCE_IN_ACTIVE_RUN",
+                                "STORAGE_TRANSACTION_CONFLICT",
+                                "EXPORT_REVISION_CONFLICT",
+                                "INTERNAL_ERROR",
+                                "ROUTE_NOT_FOUND"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId"],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "VALIDATION_FAILED",
+                                "CASE_DEFINITION_INVALID",
+                                "ENDPOINT_CONFIG_INVALID",
+                                "LLM_CONFIG_INVALID",
+                                "PROMPT_INVALID",
+                                "ANALYSIS_PROMPT_INVALID"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "path"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "actualRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "code": { "enum": ["RESOURCE_REVISION_CONFLICT"], "type": "string" },
+                            "expectedRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "expectedRevision",
+                            "actualRevision"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RESOURCE_UNIQUE_CONFLICT"], "type": "string" },
+                            "field": { "enum": ["name", "promptKey"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "field"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "caseKey": { "type": "string" },
+                            "causeCode": {
+                              "enum": [
+                                "SUITE_NOT_FOUND",
+                                "CASE_NOT_FOUND",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_DEFINITION_INVALID",
+                                "CASE_ID_DUPLICATE",
+                                "RUBRIC_PROMPT_NOT_FOUND",
+                                "RESOURCE_REVISION_CONFLICT"
+                              ],
+                              "type": "string"
+                            },
+                            "code": { "enum": ["CASE_IMPORT_ITEM_INVALID"], "type": "string" },
+                            "index": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "index",
+                            "caseKey",
+                            "causeCode"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": ["RUBRIC_PROMPT_IN_USE", "RUBRIC_PROMPT_NOT_FOUND"],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "promptKey": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "promptKey"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["CONFIGURATION_PROBE_FAILED"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": [
+                                "UNAVAILABLE",
+                                "TIMEOUT",
+                                "CANCELLED",
+                                "CAPABILITY_UNSUPPORTED"
+                              ],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RUN_STATE_CONFLICT"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": ["STATE_OR_REVISION", "GLOBAL_RUNNING", "STAGE_UNAVAILABLE"],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "CURSOR_INVALID",
+                                "CURSOR_VERSION_UNSUPPORTED",
+                                "HOST_NOT_ALLOWED",
+                                "ORIGIN_NOT_ALLOWED",
+                                "REQUEST_BODY_TOO_LARGE",
+                                "REQUEST_ABORTED",
+                                "CASE_IMPORT_TOO_LARGE",
+                                "CASE_IMPORT_CANCELLED",
+                                "CASE_ID_DUPLICATE",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_NOT_FOUND",
+                                "SUITE_NOT_FOUND",
+                                "RUN_NOT_FOUND",
+                                "RUN_SUITE_EMPTY",
+                                "RUN_CASE_RESULT_NOT_FOUND",
+                                "CONFIGURATION_NOT_FOUND",
+                                "CONFIGURATION_KIND_CONFLICT",
+                                "RESOURCE_IN_ACTIVE_RUN",
+                                "STORAGE_TRANSACTION_CONFLICT",
+                                "EXPORT_REVISION_CONFLICT",
+                                "INTERNAL_ERROR",
+                                "ROUTE_NOT_FOUND"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId"],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "VALIDATION_FAILED",
+                                "CASE_DEFINITION_INVALID",
+                                "ENDPOINT_CONFIG_INVALID",
+                                "LLM_CONFIG_INVALID",
+                                "PROMPT_INVALID",
+                                "ANALYSIS_PROMPT_INVALID"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "path"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "actualRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "code": { "enum": ["RESOURCE_REVISION_CONFLICT"], "type": "string" },
+                            "expectedRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "expectedRevision",
+                            "actualRevision"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RESOURCE_UNIQUE_CONFLICT"], "type": "string" },
+                            "field": { "enum": ["name", "promptKey"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "field"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "caseKey": { "type": "string" },
+                            "causeCode": {
+                              "enum": [
+                                "SUITE_NOT_FOUND",
+                                "CASE_NOT_FOUND",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_DEFINITION_INVALID",
+                                "CASE_ID_DUPLICATE",
+                                "RUBRIC_PROMPT_NOT_FOUND",
+                                "RESOURCE_REVISION_CONFLICT"
+                              ],
+                              "type": "string"
+                            },
+                            "code": { "enum": ["CASE_IMPORT_ITEM_INVALID"], "type": "string" },
+                            "index": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "index",
+                            "caseKey",
+                            "causeCode"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": ["RUBRIC_PROMPT_IN_USE", "RUBRIC_PROMPT_NOT_FOUND"],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "promptKey": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "promptKey"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["CONFIGURATION_PROBE_FAILED"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": [
+                                "UNAVAILABLE",
+                                "TIMEOUT",
+                                "CANCELLED",
+                                "CAPABILITY_UNSUPPORTED"
+                              ],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RUN_STATE_CONFLICT"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": ["STATE_OR_REVISION", "GLOBAL_RUNNING", "STAGE_UNAVAILABLE"],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "CURSOR_INVALID",
+                                "CURSOR_VERSION_UNSUPPORTED",
+                                "HOST_NOT_ALLOWED",
+                                "ORIGIN_NOT_ALLOWED",
+                                "REQUEST_BODY_TOO_LARGE",
+                                "REQUEST_ABORTED",
+                                "CASE_IMPORT_TOO_LARGE",
+                                "CASE_IMPORT_CANCELLED",
+                                "CASE_ID_DUPLICATE",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_NOT_FOUND",
+                                "SUITE_NOT_FOUND",
+                                "RUN_NOT_FOUND",
+                                "RUN_SUITE_EMPTY",
+                                "RUN_CASE_RESULT_NOT_FOUND",
+                                "CONFIGURATION_NOT_FOUND",
+                                "CONFIGURATION_KIND_CONFLICT",
+                                "RESOURCE_IN_ACTIVE_RUN",
+                                "STORAGE_TRANSACTION_CONFLICT",
+                                "EXPORT_REVISION_CONFLICT",
+                                "INTERNAL_ERROR",
+                                "ROUTE_NOT_FOUND"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId"],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "VALIDATION_FAILED",
+                                "CASE_DEFINITION_INVALID",
+                                "ENDPOINT_CONFIG_INVALID",
+                                "LLM_CONFIG_INVALID",
+                                "PROMPT_INVALID",
+                                "ANALYSIS_PROMPT_INVALID"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "path"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "actualRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "code": { "enum": ["RESOURCE_REVISION_CONFLICT"], "type": "string" },
+                            "expectedRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "expectedRevision",
+                            "actualRevision"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RESOURCE_UNIQUE_CONFLICT"], "type": "string" },
+                            "field": { "enum": ["name", "promptKey"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "field"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "caseKey": { "type": "string" },
+                            "causeCode": {
+                              "enum": [
+                                "SUITE_NOT_FOUND",
+                                "CASE_NOT_FOUND",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_DEFINITION_INVALID",
+                                "CASE_ID_DUPLICATE",
+                                "RUBRIC_PROMPT_NOT_FOUND",
+                                "RESOURCE_REVISION_CONFLICT"
+                              ],
+                              "type": "string"
+                            },
+                            "code": { "enum": ["CASE_IMPORT_ITEM_INVALID"], "type": "string" },
+                            "index": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "index",
+                            "caseKey",
+                            "causeCode"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": ["RUBRIC_PROMPT_IN_USE", "RUBRIC_PROMPT_NOT_FOUND"],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "promptKey": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "promptKey"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["CONFIGURATION_PROBE_FAILED"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": [
+                                "UNAVAILABLE",
+                                "TIMEOUT",
+                                "CANCELLED",
+                                "CAPABILITY_UNSUPPORTED"
+                              ],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RUN_STATE_CONFLICT"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": ["STATE_OR_REVISION", "GLOBAL_RUNNING", "STAGE_UNAVAILABLE"],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "CURSOR_INVALID",
+                                "CURSOR_VERSION_UNSUPPORTED",
+                                "HOST_NOT_ALLOWED",
+                                "ORIGIN_NOT_ALLOWED",
+                                "REQUEST_BODY_TOO_LARGE",
+                                "REQUEST_ABORTED",
+                                "CASE_IMPORT_TOO_LARGE",
+                                "CASE_IMPORT_CANCELLED",
+                                "CASE_ID_DUPLICATE",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_NOT_FOUND",
+                                "SUITE_NOT_FOUND",
+                                "RUN_NOT_FOUND",
+                                "RUN_SUITE_EMPTY",
+                                "RUN_CASE_RESULT_NOT_FOUND",
+                                "CONFIGURATION_NOT_FOUND",
+                                "CONFIGURATION_KIND_CONFLICT",
+                                "RESOURCE_IN_ACTIVE_RUN",
+                                "STORAGE_TRANSACTION_CONFLICT",
+                                "EXPORT_REVISION_CONFLICT",
+                                "INTERNAL_ERROR",
+                                "ROUTE_NOT_FOUND"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId"],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "VALIDATION_FAILED",
+                                "CASE_DEFINITION_INVALID",
+                                "ENDPOINT_CONFIG_INVALID",
+                                "LLM_CONFIG_INVALID",
+                                "PROMPT_INVALID",
+                                "ANALYSIS_PROMPT_INVALID"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "path"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "actualRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "code": { "enum": ["RESOURCE_REVISION_CONFLICT"], "type": "string" },
+                            "expectedRevision": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "expectedRevision",
+                            "actualRevision"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RESOURCE_UNIQUE_CONFLICT"], "type": "string" },
+                            "field": { "enum": ["name", "promptKey"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "field"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "caseKey": { "type": "string" },
+                            "causeCode": {
+                              "enum": [
+                                "SUITE_NOT_FOUND",
+                                "CASE_NOT_FOUND",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_DEFINITION_INVALID",
+                                "CASE_ID_DUPLICATE",
+                                "RUBRIC_PROMPT_NOT_FOUND",
+                                "RESOURCE_REVISION_CONFLICT"
+                              ],
+                              "type": "string"
+                            },
+                            "code": { "enum": ["CASE_IMPORT_ITEM_INVALID"], "type": "string" },
+                            "index": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "path": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "index",
+                            "caseKey",
+                            "causeCode"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": ["RUBRIC_PROMPT_IN_USE", "RUBRIC_PROMPT_NOT_FOUND"],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "promptKey": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "promptKey"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["CONFIGURATION_PROBE_FAILED"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": [
+                                "UNAVAILABLE",
+                                "TIMEOUT",
+                                "CANCELLED",
+                                "CAPABILITY_UNSUPPORTED"
+                              ],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": { "enum": ["RUN_STATE_CONFLICT"], "type": "string" },
+                            "message": { "minLength": 1, "type": "string" },
+                            "reason": {
+                              "enum": ["STATE_OR_REVISION", "GLOBAL_RUNNING", "STAGE_UNAVAILABLE"],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId", "reason"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "CURSOR_INVALID",
+                                "CURSOR_VERSION_UNSUPPORTED",
+                                "HOST_NOT_ALLOWED",
+                                "ORIGIN_NOT_ALLOWED",
+                                "REQUEST_BODY_TOO_LARGE",
+                                "REQUEST_ABORTED",
+                                "CASE_IMPORT_TOO_LARGE",
+                                "CASE_IMPORT_CANCELLED",
+                                "CASE_ID_DUPLICATE",
+                                "CASE_IDENTITY_CONFLICT",
+                                "CASE_NOT_FOUND",
+                                "SUITE_NOT_FOUND",
+                                "RUN_NOT_FOUND",
+                                "RUN_SUITE_EMPTY",
+                                "RUN_CASE_RESULT_NOT_FOUND",
+                                "CONFIGURATION_NOT_FOUND",
+                                "CONFIGURATION_KIND_CONFLICT",
+                                "RESOURCE_IN_ACTIVE_RUN",
+                                "STORAGE_TRANSACTION_CONFLICT",
+                                "EXPORT_REVISION_CONFLICT",
+                                "INTERNAL_ERROR",
+                                "ROUTE_NOT_FOUND"
+                              ],
+                              "type": "string"
+                            },
+                            "message": { "minLength": 1, "type": "string" },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["code", "message", "requestId"],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/v1/runs/{runId}/events": {
       "get": {
         "operationId": "streamRunEvents",
@@ -57218,6 +59626,34 @@
                         { "type": "null" }
                       ]
                     },
+                    "evaluation": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "completed": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "error": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "failed": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "notEvaluated": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "passed": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" },
+                        "total": { "maximum": 9007199254740991, "minimum": 0, "type": "integer" }
+                      },
+                      "required": [
+                        "total",
+                        "completed",
+                        "passed",
+                        "failed",
+                        "error",
+                        "notEvaluated"
+                      ],
+                      "type": "object"
+                    },
                     "lockRevision": {
                       "maximum": 9007199254740991,
                       "minimum": 0,
@@ -57271,6 +59707,7 @@
                     "lockRevision",
                     "cancelRequestedAt",
                     "rest",
+                    "evaluation",
                     "updatedAt"
                   ],
                   "type": "object"

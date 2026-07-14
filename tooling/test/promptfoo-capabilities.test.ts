@@ -104,6 +104,12 @@ describe("Promptfoo 0.121.18 Assertion 能力矩阵", () => {
     expect(matrix.find((item) => item.type === "select-best")?.dependencies).toContain(
       "PROMPTFOO_EVALUATOR_PROVIDER"
     );
+    expect(matrix.find((item) => item.type === "select-best")?.dependencies).toContain(
+      "PROMPTFOO_MULTI_OUTPUT_TEST"
+    );
+    expect(matrix.find((item) => item.type === "max-score")?.dependencies).toContain(
+      "PROMPTFOO_MULTI_OUTPUT_TEST"
+    );
     expect(matrix.find((item) => item.type === "equals")?.payload.acceptedKinds).toContain(
       "BOOLEAN"
     );

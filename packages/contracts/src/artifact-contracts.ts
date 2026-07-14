@@ -258,8 +258,7 @@ const EvalErrorV1Schema = z.strictObject({
   score: z.null(),
   reason: z.null(),
   evaluationError: z.strictObject({
-    code: z.string().trim().min(1),
-    message: z.string().trim().min(1)
+    code: z.string().trim().min(1)
   }),
   assertions: z.array(AssertionResultV1Schema),
   diffs: z.array(AssertionDiffV1Schema),
@@ -293,21 +292,33 @@ const NotEvaluatedV1Schema = z.strictObject({
   provenance: ReuseProvenanceV1Schema.nullable()
 });
 
+export const EvalCaseV1Schema = z.discriminatedUnion("status", [
+  EvalObservedV1Schema,
+  EvalErrorV1Schema,
+  NotEvaluatedV1Schema
+]);
+
 /** Normalized Promptfoo facts used by Reporting and import. */
 export const NormalizedEvalArtifactV1Schema = z
   .strictObject({
     contractVersion: z.literal("cortex.normalized-eval.v1"),
     ...ArtifactIdentityV1Schema.shape,
+    evaluationContextHash: Sha256Schema,
     completedAt: UtcDateTimeSchema,
-    cases: z
-      .array(
-        z.discriminatedUnion("status", [
-          EvalObservedV1Schema,
-          EvalErrorV1Schema,
-          NotEvaluatedV1Schema
-        ])
-      )
-      .min(1),
+    cases: z.array(EvalCaseV1Schema).min(1),
+    resultSetHash: Sha256Schema
+  })
+  .superRefine((artifact, context) => validateCaseSequence(artifact.cases, context));
+
+/** Immutable normalized Evaluation facts bound to one platform Run. */
+export const PlatformNormalizedEvalArtifactV1Schema = z
+  .strictObject({
+    contractVersion: z.literal("cortex.platform-normalized-eval.v1"),
+    runId: UuidV7Schema,
+    runContextHash: Sha256Schema,
+    evaluationContextHash: Sha256Schema,
+    completedAt: UtcDateTimeSchema,
+    cases: z.array(EvalCaseV1Schema).min(1),
     resultSetHash: Sha256Schema
   })
   .superRefine((artifact, context) => validateCaseSequence(artifact.cases, context));
@@ -407,11 +418,26 @@ export const AnalysisResultsArtifactV1Schema = z
   })
   .superRefine((artifact, context) => validateCaseSequence(artifact.cases, context));
 
+const PromptfooNativeExitCodeSchema = z.union([z.literal(0), z.literal(100)]);
+
 /** Raw Promptfoo evidence preserved under the exact frozen third-party version. */
 export const RawPromptfooEvidenceArtifactV1Schema = z.strictObject({
   contractVersion: z.literal("promptfoo.0.121.18"),
   ...ArtifactIdentityV1Schema.shape,
-  exitCode: z.number().int(),
+  evaluationContextHash: Sha256Schema,
+  exitCode: PromptfooNativeExitCodeSchema,
+  durationMs: z.number().nonnegative(),
+  raw: JsonObjectSchema
+});
+
+/** Raw Promptfoo evidence bound to one platform Run without offline identity fields. */
+export const PlatformRawPromptfooEvidenceArtifactV1Schema = z.strictObject({
+  contractVersion: z.literal("cortex.platform-raw-promptfoo-evidence.v1"),
+  runId: UuidV7Schema,
+  runContextHash: Sha256Schema,
+  evaluationContextHash: Sha256Schema,
+  promptfooVersion: z.literal("0.121.18"),
+  exitCode: PromptfooNativeExitCodeSchema,
   durationMs: z.number().nonnegative(),
   raw: JsonObjectSchema
 });

@@ -9,7 +9,10 @@ import type {
   RestExecutionSummary,
   RestExecutor
 } from "../src/features/runs/run-rest-models.ts";
-import { PlatformRunService } from "../src/features/runs/platform-run-service.ts";
+import {
+  PlatformRunService,
+  type PlatformRunMutationResult
+} from "../src/features/runs/platform-run-service.ts";
 import type { ConfigurationResource } from "../src/features/configurations/configuration-models.ts";
 import type { StoredTestCase, TestSuite } from "../src/features/test-suites/test-suite-models.ts";
 import { caseDefinitionJson } from "@cortex-eval/domain/src/domain-case-projection.ts";
@@ -32,11 +35,16 @@ import {
 import {
   BlockingArtifactStore,
   DelayedSuccessfulRestExecutor,
+  ErrorRestExecutor,
   FailingArtifacts,
   FullReadCountingRunStore,
   MemoryArtifacts,
   MemoryRunEvents,
-  PollReadFailureRunStore
+  MisalignedRestExecutor,
+  PollReadFailureRunStore,
+  SilentRestExecutor,
+  SuccessfulRestExecutor,
+  ThrowingRestExecutor
 } from "../test-support/platform-run-resilience-fixtures.ts";
 
 const RUN_ID = "01900000-0000-7000-8000-000000000001";
@@ -182,26 +190,6 @@ class MemoryResources implements PlatformRunResourceReader {
   }
 }
 
-class SuccessfulRestExecutor implements RestExecutor {
-  /** Concurrency value observed by the Adapter boundary. */
-  concurrency = 0;
-
-  /** Emit one valid result. */
-  public async execute(input: RestExecutionInput): Promise<RestExecutionSummary> {
-    this.concurrency = input.concurrency;
-    await input.onResult({
-      caseKey: "case-1",
-      ordinal: 0,
-      status: "SUCCEEDED",
-      httpStatus: 200,
-      providerOutput: { ok: false, errorMessage: "business" },
-      errorType: undefined,
-      durationMs: 12
-    });
-    return { dispatchedCount: 1 };
-  }
-}
-
 class BlockingRestExecutor implements RestExecutor {
   /** Emit one cancelled real result after the owner Abort signal fires. */
   public execute(input: RestExecutionInput): Promise<RestExecutionSummary> {
@@ -222,60 +210,6 @@ class BlockingRestExecutor implements RestExecutor {
       if (input.signal.aborted) finish();
       else input.signal.addEventListener("abort", finish, { once: true });
     });
-  }
-}
-
-class ErrorRestExecutor implements RestExecutor {
-  /** Stable REST failure emitted for the single frozen Case. */
-  readonly #errorType: RestExecutionErrorType;
-
-  /** Bind one error classification. */
-  public constructor(errorType: RestExecutionErrorType) {
-    this.#errorType = errorType;
-  }
-
-  /** Emit the configured normalized error. */
-  public async execute(input: RestExecutionInput): Promise<RestExecutionSummary> {
-    await input.onResult({
-      caseKey: "case-1",
-      ordinal: 0,
-      status: "ERROR",
-      httpStatus: this.#errorType === "HTTP_STATUS" ? 503 : null,
-      providerOutput: undefined,
-      errorType: this.#errorType,
-      durationMs: 9
-    });
-    return { dispatchedCount: 1 };
-  }
-}
-
-class SilentRestExecutor implements RestExecutor {
-  /** Finish without emitting the required Case result. */
-  public execute(): Promise<RestExecutionSummary> {
-    return Promise.resolve({ dispatchedCount: 0 });
-  }
-}
-
-class MisalignedRestExecutor implements RestExecutor {
-  /** Emit an ordinal/key pair that does not match the frozen Case. */
-  public async execute(input: RestExecutionInput): Promise<RestExecutionSummary> {
-    await input.onResult({
-      caseKey: "wrong-case",
-      ordinal: 0,
-      status: "ERROR",
-      httpStatus: null,
-      providerOutput: undefined,
-      errorType: "NETWORK",
-      durationMs: 1
-    });
-    return { dispatchedCount: 1 };
-  }
-}
-
-class ThrowingRestExecutor implements RestExecutor {
-  /** Reject before producing any normalized result. */
-  public execute(): Promise<RestExecutionSummary> {
-    return Promise.reject(new Error("ADAPTER_FAILED"));
   }
 }
 
@@ -600,6 +534,85 @@ describe("PlatformRunService", () => {
       stage: "EVALUATION",
       restCompletedCount: 1,
       artifactManifest: { artifacts: [{ kind: "REST_RESULTS" }] }
+    });
+  });
+
+  it("PIPELINE 在 REST 提交后以最新 Revision 自动启动 Evaluation", async () => {
+    const runs = new MemoryPlatformRunStore();
+    const resources = new MemoryResources();
+    const manager: PlatformRunTransactionManager = {
+      execute: (work) => work({ resources, runs })
+    };
+    const starts: { readonly runId: string; readonly expectedRevision: number }[] = [];
+    const service = new PlatformRunService({
+      transactionManager: manager,
+      restExecutor: new SuccessfulRestExecutor(),
+      artifactStore: new MemoryArtifacts(),
+      clock: { now: (): string => NOW },
+      idGenerator: { nextId: (): string => RUN_ID },
+      messageResolver: { message: (code): string => code },
+      eventSink: new MemoryRunEvents(),
+      cancellationPollMs: 25,
+      pipelineEvaluationStarter: {
+        start: (input): Promise<PlatformRunMutationResult> => {
+          starts.push(input);
+          const run = runs.values.get(input.runId);
+          if (run === undefined) throw new Error("TEST_RUN_MISSING");
+          return Promise.resolve({ ok: true, run });
+        }
+      }
+    });
+
+    await service.create({
+      suiteId: SUITE_ID,
+      endpointConfigId: ENDPOINT_ID,
+      evaluatorConfigId: EVALUATOR_ID,
+      runMode: "PIPELINE"
+    });
+    await service.start({ runId: RUN_ID, expectedRevision: 0 });
+    await service.waitForIdle();
+
+    expect(starts).toEqual([{ runId: RUN_ID, expectedRevision: 3 }]);
+  });
+
+  it.each([
+    [
+      "返回失败",
+      (): Promise<PlatformRunMutationResult> =>
+        Promise.resolve({
+          ok: false,
+          error: { code: "VALIDATION_FAILED", path: "cases[0].assertions[0]" }
+        })
+    ],
+    ["直接拒绝", (): Promise<PlatformRunMutationResult> => Promise.reject(new Error("failed"))]
+  ])("PIPELINE 自动启动 Evaluation %s 时持久化阶段失败", async (_label, start) => {
+    const runs = new MemoryPlatformRunStore();
+    const resources = new MemoryResources();
+    const manager: PlatformRunTransactionManager = { execute: (work) => work({ resources, runs }) };
+    const service = new PlatformRunService({
+      transactionManager: manager,
+      restExecutor: new SuccessfulRestExecutor(),
+      artifactStore: new MemoryArtifacts(),
+      clock: { now: (): string => NOW },
+      idGenerator: { nextId: (): string => RUN_ID },
+      messageResolver: { message: (code): string => code },
+      eventSink: new MemoryRunEvents(),
+      cancellationPollMs: 25,
+      pipelineEvaluationStarter: { start }
+    });
+    await service.create({
+      suiteId: SUITE_ID,
+      endpointConfigId: ENDPOINT_ID,
+      evaluatorConfigId: EVALUATOR_ID,
+      runMode: "PIPELINE"
+    });
+    await service.start({ runId: RUN_ID, expectedRevision: 0 });
+    await service.waitForIdle();
+    expect(runs.values.get(RUN_ID)).toMatchObject({
+      status: "FAILED",
+      stage: "DONE",
+      errorCode: "EVALUATION_STAGE_FAILED",
+      errorMessage: "EVALUATION_STAGE_FAILED"
     });
   });
 

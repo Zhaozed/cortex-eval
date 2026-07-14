@@ -3,6 +3,8 @@ import type {
   PlatformRunService,
   PlatformRunServiceError
 } from "@cortex-eval/application/src/features/runs/platform-run-service.ts";
+import type { PlatformEvaluationService } from "@cortex-eval/application/src/features/evaluation/platform-evaluation-service.ts";
+import type { PlatformEvalCaseResult } from "@cortex-eval/application/src/features/evaluation/platform-eval-models.ts";
 import {
   platformRunDetail,
   type PlatformRun,
@@ -24,6 +26,8 @@ import {
   RunCaseDetailV1Schema,
   RunCaseListQueryV1Schema,
   RunCasePageV1Schema,
+  RunEvalListQueryV1Schema,
+  RunEvalPageV1Schema,
   RunPreflightRequestV1Schema,
   RunPreflightV1Schema,
   RunProgressV1Schema,
@@ -56,7 +60,14 @@ export type ApplicationRunServiceBoundary = Pick<
   | "getRestResult"
   | "start"
   | "cancel"
->;
+> & {
+  /** Claim the closed Evaluation stage. */
+  readonly startEvaluation: PlatformEvaluationService["start"];
+  /** Cancel one active Evaluation owner. */
+  readonly cancelEvaluation: PlatformEvaluationService["cancel"];
+  /** Query normalized Evaluation results. */
+  readonly queryEvalResults: PlatformEvaluationService["queryResults"];
+};
 
 /** Closed P5 Run protocol handlers. */
 export interface LocalRunHandlers {
@@ -72,6 +83,8 @@ export interface LocalRunHandlers {
   readonly listRunCases: LocalApiHandler;
   /** Read one real REST Case result detail. */
   readonly getRunCase: LocalApiHandler;
+  /** List normalized Evaluation results. */
+  readonly listRunEvaluations: LocalApiHandler;
   /** Start only the closed REST stage. */
   readonly startRun: LocalApiHandler;
   /** Request cancellation. */
@@ -222,6 +235,12 @@ function caseDetail(value: StoredRestCaseResult): Record<string, unknown> {
       };
 }
 
+// Build one complete Eval API item without embedding raw Promptfoo content.
+function evalItem(value: PlatformEvalCaseResult): Record<string, unknown> {
+  const { runId: owner, createdAt, updatedAt, ...result } = value;
+  return { runId: owner, createdAt, updatedAt, result };
+}
+
 // Build one recent Run summary DTO.
 function runSummary(value: PlatformRunSummary): Record<string, unknown> {
   return {
@@ -239,6 +258,14 @@ function runSummary(value: PlatformRunSummary): Record<string, unknown> {
       completed: value.restCompletedCount,
       succeeded: value.restCompletedCount - value.restErrorCount,
       error: value.restErrorCount
+    },
+    evaluation: {
+      total: value.restTotalCount,
+      completed: value.evalCompletedCount,
+      passed: value.evalPassCount,
+      failed: value.evalFailCount,
+      error: value.evalErrorCount,
+      notEvaluated: value.evalNotEvaluatedCount
     },
     createdAt: value.createdAt,
     updatedAt: value.updatedAt
@@ -259,6 +286,14 @@ function runProgress(value: PlatformRun | PlatformRunProgress): Record<string, u
       completed: value.restCompletedCount,
       succeeded: value.restCompletedCount - value.restErrorCount,
       error: value.restErrorCount
+    },
+    evaluation: {
+      total,
+      completed: value.evalCompletedCount,
+      passed: value.evalPassCount,
+      failed: value.evalFailCount,
+      error: value.evalErrorCount,
+      notEvaluated: value.evalNotEvaluatedCount
     },
     updatedAt: value.updatedAt
   };
@@ -318,6 +353,14 @@ async function runDetail(
       completed: value.restCompletedCount,
       succeeded: value.restCompletedCount - value.restErrorCount,
       error: value.restErrorCount
+    },
+    evaluation: {
+      total: value.restTotalCount,
+      completed: value.evalCompletedCount,
+      passed: value.evalPassCount,
+      failed: value.evalFailCount,
+      error: value.evalErrorCount,
+      notEvaluated: value.evalNotEvaluatedCount
     },
     artifactManifest: value.artifactManifest,
     artifactAvailability: availability.map((item) => ({
@@ -472,12 +515,62 @@ export function createApplicationRunHandlers(
           }
         : { statusCode: 200, body: RunCaseDetailV1Schema.parse(caseDetail(value)) };
     },
+    listRunEvaluations: async (input): Promise<LocalApiHandlerResponse> => {
+      const id = runId(input);
+      if (!id.ok) return id.response;
+      if ((await service.getProgress(id.value)) === null) {
+        return {
+          statusCode: 404,
+          body: errorBody({ code: "RUN_NOT_FOUND", requestId: input.requestId })
+        };
+      }
+      const query = parse(RunEvalListQueryV1Schema, input.query, input.requestId);
+      if (!query.ok) return query.response;
+      let afterOrdinal;
+      try {
+        afterOrdinal =
+          query.value.cursor === undefined
+            ? undefined
+            : decodeRunCaseCursorV1(query.value.cursor).ordinal;
+      } catch (error) {
+        const code =
+          error instanceof Error && error.message === "CURSOR_VERSION_UNSUPPORTED"
+            ? "CURSOR_VERSION_UNSUPPORTED"
+            : "CURSOR_INVALID";
+        return { statusCode: 400, body: errorBody({ code, requestId: input.requestId }) };
+      }
+      const page = await service.queryEvalResults({
+        runId: id.value,
+        limit: query.value.limit,
+        ...(afterOrdinal === undefined ? {} : { afterOrdinal })
+      });
+      return {
+        statusCode: 200,
+        body: RunEvalPageV1Schema.parse({
+          items: page.items.map(evalItem),
+          nextCursor:
+            page.nextCursor === null
+              ? null
+              : encodeRunCaseCursorV1({ version: 1, ordinal: page.nextCursor })
+        })
+      };
+    },
     startRun: async (input): Promise<LocalApiHandlerResponse> => {
       const id = runId(input);
       if (!id.ok) return id.response;
       const body = parse(RunRevisionRequestV1Schema, input.body, input.requestId);
       if (!body.ok) return body.response;
-      const result = await service.start({ runId: id.value, ...body.value });
+      const current = await service.getProgress(id.value);
+      if (current === null) {
+        return {
+          statusCode: 404,
+          body: errorBody({ code: "RUN_NOT_FOUND", requestId: input.requestId })
+        };
+      }
+      const result =
+        current.stage === "EVALUATION"
+          ? await service.startEvaluation({ runId: id.value, ...body.value })
+          : await service.start({ runId: id.value, ...body.value });
       return result.ok
         ? { statusCode: 202, body: RunProgressV1Schema.parse(runProgress(result.run)) }
         : applicationError(result.error, input.requestId);
@@ -487,7 +580,17 @@ export function createApplicationRunHandlers(
       if (!id.ok) return id.response;
       const body = parse(RunRevisionRequestV1Schema, input.body, input.requestId);
       if (!body.ok) return body.response;
-      const result = await service.cancel({ runId: id.value, ...body.value });
+      const current = await service.getProgress(id.value);
+      if (current === null) {
+        return {
+          statusCode: 404,
+          body: errorBody({ code: "RUN_NOT_FOUND", requestId: input.requestId })
+        };
+      }
+      const result =
+        current.stage === "EVALUATION"
+          ? await service.cancelEvaluation({ runId: id.value, ...body.value })
+          : await service.cancel({ runId: id.value, ...body.value });
       return result.ok
         ? { statusCode: 202, body: RunProgressV1Schema.parse(runProgress(result.run)) }
         : applicationError(result.error, input.requestId);

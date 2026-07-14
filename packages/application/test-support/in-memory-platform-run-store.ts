@@ -34,6 +34,18 @@ export class MemoryPlatformRunStore implements PlatformRunRepository {
     return Promise.resolve();
   }
 
+  /** Insert one test rerun with its reusable REST facts. */
+  public insertPlatformRerun(
+    value: PlatformRun,
+    reusedRestResults: readonly StoredRestCaseResult[]
+  ): Promise<void> {
+    this.values.set(value.id, value);
+    for (const result of reusedRestResults) {
+      this.results.set(`${value.id}:${result.caseKey}`, result);
+    }
+    return Promise.resolve();
+  }
+
   /** Read one Run. */
   public getPlatformRun(runId: string): Promise<PlatformRun | null> {
     return Promise.resolve(this.values.get(runId) ?? null);
@@ -66,6 +78,11 @@ export class MemoryPlatformRunStore implements PlatformRunRepository {
       restTotalCount: run.suite.cases.length,
       restCompletedCount: run.restCompletedCount,
       restErrorCount: run.restErrorCount,
+      evalCompletedCount: run.evalCompletedCount,
+      evalPassCount: run.evalPassCount,
+      evalFailCount: run.evalFailCount,
+      evalErrorCount: run.evalErrorCount,
+      evalNotEvaluatedCount: run.evalNotEvaluatedCount,
       createdAt: run.createdAt,
       updatedAt: run.updatedAt
     }));
@@ -186,7 +203,14 @@ export class MemoryPlatformRunStore implements PlatformRunRepository {
   /** Commit one system failure. */
   public failRun(input: FailPlatformRunInput): Promise<PlatformRunProgress | null> {
     const run = this.values.get(input.runId);
-    if (run?.lockRevision !== input.expectedRevision) return Promise.resolve(null);
+    if (
+      run?.lockRevision !== input.expectedRevision ||
+      (run.status !== "READY" && run.status !== "RUNNING") ||
+      run.stage === "DONE" ||
+      run.cancelRequestedAt !== null
+    ) {
+      return Promise.resolve(null);
+    }
     const failed = {
       ...run,
       status: "FAILED" as const,

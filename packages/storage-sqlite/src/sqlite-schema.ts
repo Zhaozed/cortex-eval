@@ -205,8 +205,14 @@ export interface RunLogTable {
   rest_error_count: Generated<number>;
   /** Durable Evaluation completion count. */
   eval_completed_count: Generated<number>;
+  /** Durable Evaluation PASS count. */
+  eval_pass_count: Generated<number>;
+  /** Durable Evaluation FAIL count. */
+  eval_fail_count: Generated<number>;
   /** Durable Evaluation Error count. */
   eval_error_count: Generated<number>;
+  /** Durable Not Evaluated count. */
+  eval_not_evaluated_count: Generated<number>;
   /** Terminal report summary JSON. */
   summary_json: string | null;
   /** Complete stage result-set hash. */
@@ -263,6 +269,52 @@ export interface CaseResultTable {
   reused_result_hash: string | null;
 }
 
+/** SQLite row for one normalized Evaluation Case result. */
+export interface EvalResultTable {
+  /** Owning Run identity. */
+  run_id: string;
+  /** Frozen Case key. */
+  case_key: string;
+  /** Normalized Eval status. */
+  eval_status: "PASS" | "FAIL" | "EVALUATION_ERROR" | "NOT_EVALUATED";
+  /** Promptfoo aggregate success encoded as SQLite boolean. */
+  promptfoo_success: number | null;
+  /** Promptfoo aggregate score. */
+  score: number | null;
+  /** Promptfoo aggregate reason. */
+  reason: string | null;
+  /** Structured Evaluation error JSON. */
+  evaluation_error: string | null;
+  /** Ordered Assertion result JSON. */
+  assertion_results_json: string;
+  /** Ordered Assertion Diff JSON. */
+  expected_actual_diffs_json: string;
+  /** Deduplicated Metric result JSON. */
+  metric_results_json: string;
+  /** Promptfoo-observed latency. */
+  latency_ms: number | null;
+  /** Promptfoo grader token usage JSON. */
+  token_usage_json: string | null;
+  /** Promptfoo grader cost. */
+  cost: number | null;
+  /** Allowlisted raw evidence reference JSON. */
+  allowlist_raw_evidence_json: string;
+  /** Semantic normalized Eval hash. */
+  eval_result_hash: string;
+  /** Hash binding Case, REST and Eval. */
+  final_case_result_hash: string;
+  /** Source Run provenance. */
+  reused_from_run_id: string | null;
+  /** Source Execution provenance. */
+  reused_from_execution_id: string | null;
+  /** Exact reused Eval result hash. */
+  reused_eval_result_hash: string | null;
+  /** First persistence time. */
+  created_at: string;
+  /** Latest persistence time. */
+  updated_at: string;
+}
+
 /** Placeholder row for tables whose repositories land later in P2. */
 export interface DeferredTable {
   /** Prevent accidental query construction before the table mapper exists. */
@@ -280,7 +332,7 @@ export interface SqliteDatabaseSchema {
   /** Current Endpoint configurations. */
   endpoint_config: EndpointConfigTable;
   /** Normalized evaluation results. */
-  eval_result: DeferredTable;
+  eval_result: EvalResultTable;
   /** Current LLM configurations. */
   llm_config: LlmConfigTable;
   /** Current Rubric Prompts. */

@@ -39,17 +39,19 @@ P5 的 Web 创建页先读取 Preflight 事实，再提交可选执行限制；R
 7. 所有已派发请求收口后核对真实结果计数，再按稳定 Cursor 单遍流式读取；Artifact Writer 同步增量计算 Result Set Hash、文件 Hash 与大小，不把完整结果集合驻留内存。
 8. 数据库以最新 Revision 对账计数并提交 Manifest，转为 `READY/EVALUATION`；提交竞争失败删除未提交 Artifact。
 
-P5 到此停止，不自动启动 Evaluation。逐 Case API 只返回真实已完成结果。SSE 通过独立数据库查询发送当前 Snapshot 和 Revision 变化，页面刷新或流重连只重新读取事实。
+`STAGED` 到此停在 `READY/EVALUATION`；`PIPELINE` 使用 REST 提交后的最新 Revision 自动启动 Evaluation。Starter 返回失败且 Run 仍处于同一交接 Revision 时提交 `EVALUATION_STAGE_FAILED`；若其他 Owner 已推进，则保留最新事实。逐 Case API 只返回真实已完成结果。SSE 通过独立数据库查询发送当前 Snapshot 和有持久语义的 Revision 事件；Evaluation 只有开始/完成事件，不伪造没有逐 Case持久计数支撑的进度事件。轮询跨过多个 Stage 时，以同一最新 Revision 按流水线顺序补发全部可证明事件。页面刷新或流重连只重新读取事实。
 
 ## Evaluation 阶段
 
-1. Application 条件抢占 `READY/EVALUATION`。
+以下 P6 流程已闭环并注册平台 API/Web。Bridge 不需要 Assertion 身份，按调用期总预算和并发限制调用冻结 Evaluator。
+
+1. Application 校验候选 Run 后，在状态改变前只对 REST 成功、未复用且实际进入 Promptfoo 的 Case 所需 Python/Ruby 执行真实内联 Smoke；通过后才条件抢占 `READY/EVALUATION`。
 2. 系统只把 REST 成功 Case 物化为受控 Promptfoo 输入，并使用预计算 `providerOutput`。
 3. Promptfoo Adapter 使用固定版本和固定参数启动子进程，不通过 Shell 拼接输入。
 4. Provider-dependent Assertion 通过本机临时 Evaluator Bridge 调用冻结 Run Evaluator；Bridge 不能代理任意 Provider、URL、Model、Header 或 Secret。
 5. Importer 对齐 Case 和 Assertion，提取结构化事实，生成 Diff、Metric 和结果哈希。
 6. REST Error Case 生成 `NOT_EVALUATED`。全部 REST Error 时跳过 Promptfoo，但仍生成完整的 Not Evaluated 集合。
-7. 完整结果集合提交后转为 `READY/REPORT`。
+7. SQLite 提交边界复算 Eval、Final 和 Result Set Hash，对齐 REST 状态、Raw Evidence Artifact、来源 Provenance、Revision 与取消事实；完整集合在一个短事务中写入后转为 `READY/REPORT`。
 
 Assertion 失败退出码属于评估事实。进程启动、配置、文件、信号或未知输出结构错误才是系统执行失败。
 
@@ -84,11 +86,11 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 
 相同 Execution ID 与相同结果哈希重复导入幂等成功；相同 ID 对应不同结果返回冲突。报告和分析允许分两次导入。
 
-平台 Retry 与离线 `--retry-failed` 使用来源冻结输入创建新 Run/Execution：复制 REST `SUCCEEDED`，重新请求 REST `ERROR`；复制对齐的 Eval `PASS/FAIL`；重新评估 `EVALUATION_ERROR`、缺失 Eval 事实和新 REST 成功后的 `NOT_EVALUATED`。Force 在新身份下重新执行全部 REST/Eval。两者保存来源与每条复用 Hash，重新生成 Result Set Hash，不能覆盖来源。
+平台 Retry 与离线 `--retry-failed` 使用来源冻结输入创建新 Run/Execution：复制 REST `SUCCEEDED`，重新请求 REST `ERROR`；只复制对齐且 Raw/Normalized 来源 Artifact 在规划和 Evaluation 时均实际校验为 `PRESENT` 的 Eval `PASS/FAIL`；文件缺失/损坏、`EVALUATION_ERROR`、缺失 Eval 事实和新 REST 成功后的 `NOT_EVALUATED` 都重新评估。Force 在新身份下重新执行全部 REST/Eval。P6 内部 Use Case 已创建新 Run、跳过复用 Case 的外部调用并重新生成完整 Artifact/Result Set；来源事实不得覆盖。对外入口等待 Report 终态闭环后注册。
 
 ## 取消与恢复
 
-- P5 取消先持久化请求，再停止派发新 REST Case，并让在途请求被 Abort 或安全收口；跨进程轮询拒绝会立即 Abort 并由 Owner 收敛为受控失败，不产生未处理 Promise。Promptfoo 终止规则在 P6 生效。
+- 取消先持久化请求，再停止派发新 REST/Evaluation 工作，并让在途请求或子进程被 Abort、安全收口；跨进程轮询拒绝会立即 Abort 并由 Owner 收敛为受控失败，不产生未处理 Promise。
 - 已真实完成的阶段事实保留；未执行 Case 不生成伪造结果。
 - 取消与阶段提交通过条件更新竞争，只允许先成功的一方生效。
 - Runtime Shutdown 在 Artifact 写入和阶段提交后重查中断门禁，最终把仍未 `DONE` 的本地 Owner 修正为 `INTERRUPTED/DONE`。
@@ -102,9 +104,11 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 - 当前 Run 编排：[packages/application/src/features/runs](../packages/application/src/features/runs)
 - 当前 REST Adapter：[packages/evaluation-adapters/src](../packages/evaluation-adapters/src)
 - 当前 Run Repository：[packages/storage-sqlite/src/sqlite-platform-run-repository.ts](../packages/storage-sqlite/src/sqlite-platform-run-repository.ts)
+- 当前 Eval Repository：[packages/storage-sqlite/src/sqlite-platform-eval-repository.ts](../packages/storage-sqlite/src/sqlite-platform-eval-repository.ts)
+- 当前重跑选择器：[packages/application/src/features/runs/platform-rerun-planner.ts](../packages/application/src/features/runs/platform-rerun-planner.ts)
 - 当前 P3–P5 Local API：[apps/local-server/src](../apps/local-server/src)
 - 当前 P4–P5 Web：[apps/web/src](../apps/web/src)
-- Importer、Evaluation、Reporting 和 Work Package 文件运行时仍未落地。
+- Promptfoo 外部链、Eval 原子持久化、内部重跑用例与 Reporting Ajv Diff 基础已落地；报告聚合和 Work Package 文件运行时仍未落地。
 - [APPLICATION/RUNS.md](APPLICATION/RUNS.md)
 - [APPLICATION/EXECUTION_IMPORTS.md](APPLICATION/EXECUTION_IMPORTS.md)
 - [PACKAGES/EVALUATION_ADAPTERS.md](PACKAGES/EVALUATION_ADAPTERS.md)

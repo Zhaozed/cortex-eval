@@ -290,6 +290,11 @@ export interface PlatformRunProgressRowProjection {
   readonly snapshot_case_count: number;
   readonly rest_completed_count: number;
   readonly rest_error_count: number;
+  readonly eval_completed_count: number;
+  readonly eval_pass_count: number;
+  readonly eval_fail_count: number;
+  readonly eval_error_count: number;
+  readonly eval_not_evaluated_count: number;
   readonly result_set_hash: string | null;
   readonly artifact_manifest_json: string;
   readonly error_code: string | null;
@@ -315,6 +320,37 @@ export interface PlatformRunDetailRowProjection extends PlatformRunProgressRowPr
   readonly contract_versions_json: string;
   readonly run_execution_limits_json: string;
   readonly run_mode: PlatformRun["runMode"];
+}
+
+interface EvaluationCounterProjection {
+  /** Atomically committed Evaluation total. */
+  readonly eval_completed_count: number;
+  /** Committed PASS count. */
+  readonly eval_pass_count: number;
+  /** Committed FAIL count. */
+  readonly eval_fail_count: number;
+  /** Committed Evaluation Error count. */
+  readonly eval_error_count: number;
+  /** Committed Not Evaluated count. */
+  readonly eval_not_evaluated_count: number;
+}
+
+// Validate one dirty persistence-boundary Evaluation summary against its frozen total.
+function hasValidEvaluationCounters(row: EvaluationCounterProjection, total: number): boolean {
+  const counters = [
+    row.eval_completed_count,
+    row.eval_pass_count,
+    row.eval_fail_count,
+    row.eval_error_count,
+    row.eval_not_evaluated_count
+  ];
+  const classified =
+    row.eval_pass_count + row.eval_fail_count + row.eval_error_count + row.eval_not_evaluated_count;
+  return (
+    counters.every((value) => Number.isInteger(value) && value >= 0) &&
+    row.eval_completed_count === classified &&
+    row.eval_completed_count <= total
+  );
 }
 
 // Parse one strict JSON boundary contract without exposing Zod details upstream.
@@ -549,7 +585,8 @@ export function mapPlatformRunProgressRow(
     !Number.isInteger(row.rest_error_count) ||
     row.rest_error_count < 0 ||
     row.rest_error_count > row.rest_completed_count ||
-    row.rest_completed_count > row.snapshot_case_count
+    row.rest_completed_count > row.snapshot_case_count ||
+    !hasValidEvaluationCounters(row, row.snapshot_case_count)
   ) {
     throw new SqliteRowInvalidError();
   }
@@ -563,6 +600,11 @@ export function mapPlatformRunProgressRow(
     restTotalCount: row.snapshot_case_count,
     restCompletedCount: row.rest_completed_count,
     restErrorCount: row.rest_error_count,
+    evalCompletedCount: row.eval_completed_count,
+    evalPassCount: row.eval_pass_count,
+    evalFailCount: row.eval_fail_count,
+    evalErrorCount: row.eval_error_count,
+    evalNotEvaluatedCount: row.eval_not_evaluated_count,
     resultSetHash: row.result_set_hash,
     artifactManifest: mapRunManifest(row.artifact_manifest_json, row.id),
     errorCode: row.error_code,
@@ -604,7 +646,11 @@ export function mapPlatformRunDetailRow(row: PlatformRunDetailRowProjection): Pl
     promptfooVersion: row.promptfoo_version,
     runExecutionLimits
   });
-  if (contextHash !== row.run_context_hash || row.promptfoo_version !== "0.121.18") {
+  if (
+    contextHash !== row.run_context_hash ||
+    row.promptfoo_version !== "0.121.18" ||
+    !hasValidEvaluationCounters(row, row.snapshot_case_count)
+  ) {
     throw new SqliteRowInvalidError();
   }
   return {
@@ -659,7 +705,11 @@ export function mapPlatformRunRow(row: Selectable<RunLogTable>): PlatformRun {
     promptfooVersion: row.promptfoo_version,
     runExecutionLimits
   });
-  if (contextHash !== row.run_context_hash || row.promptfoo_version !== "0.121.18") {
+  if (
+    contextHash !== row.run_context_hash ||
+    row.promptfoo_version !== "0.121.18" ||
+    !hasValidEvaluationCounters(row, suite.cases.length)
+  ) {
     throw new SqliteRowInvalidError();
   }
   return {
@@ -682,6 +732,11 @@ export function mapPlatformRunRow(row: Selectable<RunLogTable>): PlatformRun {
     cancelRequestedAt: row.cancel_requested_at,
     restCompletedCount: row.rest_completed_count,
     restErrorCount: row.rest_error_count,
+    evalCompletedCount: row.eval_completed_count,
+    evalPassCount: row.eval_pass_count,
+    evalFailCount: row.eval_fail_count,
+    evalErrorCount: row.eval_error_count,
+    evalNotEvaluatedCount: row.eval_not_evaluated_count,
     resultSetHash: row.result_set_hash,
     artifactManifest: mapRunManifest(row.artifact_manifest_json, row.id),
     errorCode: row.error_code,
@@ -755,8 +810,11 @@ export function platformRunInsertValues(value: PlatformRun): Insertable<RunLogTa
     cancel_requested_at: value.cancelRequestedAt,
     rest_completed_count: value.restCompletedCount,
     rest_error_count: value.restErrorCount,
-    eval_completed_count: 0,
-    eval_error_count: 0,
+    eval_completed_count: value.evalCompletedCount,
+    eval_pass_count: value.evalPassCount,
+    eval_fail_count: value.evalFailCount,
+    eval_error_count: value.evalErrorCount,
+    eval_not_evaluated_count: value.evalNotEvaluatedCount,
     summary_json: null,
     result_set_hash: value.resultSetHash,
     artifact_manifest_json: canonicalJson({
@@ -778,6 +836,7 @@ export function mapStoredRestResult(row: Selectable<CaseResultTable>): StoredRes
   const definitionV1 = parseJson(CaseDefinitionV1Schema, row.case_definition_json);
   const definition = caseFromV1(definitionV1);
   if (definition.caseKey !== row.case_key) throw new SqliteRowInvalidError();
+  const provenance = mapRestProvenance(row);
   if (row.rest_status === "SUCCEEDED") {
     if (
       row.provider_output_json === null ||
@@ -796,22 +855,17 @@ export function mapStoredRestResult(row: Selectable<CaseResultTable>): StoredRes
       ordinal: row.ordinal,
       definition,
       caseDefinitionHash: row.case_definition_hash,
-      status: row.rest_status,
+      status: "SUCCEEDED",
       httpStatus: row.http_status,
       providerOutput,
       errorType: null,
       errorMessage: null,
       durationMs: row.duration_ms,
       completedAt: row.completed_at,
-      resultHash: row.run_result_hash
+      resultHash: row.run_result_hash,
+      provenance
     };
-    const hash = hashRestResult({
-      contractVersion: "cortex.rest-result.v1",
-      caseKey: result.caseKey,
-      caseDefinitionHash: result.caseDefinitionHash,
-      result: { status: result.status, httpStatus: result.httpStatus, providerOutput }
-    });
-    if (hash !== result.resultHash) throw new SqliteRowInvalidError();
+    if (!platformRestResultHashMatches(result)) throw new SqliteRowInvalidError();
     return result;
   }
   const errorType = restErrorType(row.error_type);
@@ -824,23 +878,64 @@ export function mapStoredRestResult(row: Selectable<CaseResultTable>): StoredRes
     ordinal: row.ordinal,
     definition,
     caseDefinitionHash: row.case_definition_hash,
-    status: row.rest_status,
+    status: "ERROR",
     httpStatus: row.http_status,
     providerOutput: null,
     errorType,
     errorMessage: row.error_message,
     durationMs: row.duration_ms,
     completedAt: row.completed_at,
-    resultHash: row.run_result_hash
+    resultHash: row.run_result_hash,
+    provenance
   };
-  const hash = hashRestResult({
-    contractVersion: "cortex.rest-result.v1",
-    caseKey: result.caseKey,
-    caseDefinitionHash: result.caseDefinitionHash,
-    result: { status: result.status, httpStatus: result.httpStatus, errorType }
-  });
-  if (hash !== result.resultHash) throw new SqliteRowInvalidError();
+  if (!platformRestResultHashMatches(result)) throw new SqliteRowInvalidError();
   return result;
+}
+
+/** Recompute one REST semantic hash before accepting a caller or persisted row. */
+export function platformRestResultHashMatches(value: StoredRestCaseResult): boolean {
+  const resultHash =
+    value.status === "SUCCEEDED"
+      ? hashRestResult({
+          contractVersion: "cortex.rest-result.v1",
+          caseKey: value.caseKey,
+          caseDefinitionHash: value.caseDefinitionHash,
+          result: {
+            status: "SUCCEEDED",
+            httpStatus: value.httpStatus,
+            providerOutput: value.providerOutput
+          }
+        })
+      : hashRestResult({
+          contractVersion: "cortex.rest-result.v1",
+          caseKey: value.caseKey,
+          caseDefinitionHash: value.caseDefinitionHash,
+          result: {
+            status: "ERROR",
+            httpStatus: value.httpStatus,
+            errorType: value.errorType
+          }
+        });
+  return resultHash === value.resultHash;
+}
+
+// Convert the three nullable persistence columns into one closed provenance fact.
+function mapRestProvenance(row: Selectable<CaseResultTable>): StoredRestCaseResult["provenance"] {
+  const sourceHash = row.reused_result_hash;
+  const runId = row.reused_from_run_id;
+  const executionId = row.reused_from_execution_id;
+  if (sourceHash === null) {
+    if (runId !== null || executionId !== null) throw new SqliteRowInvalidError();
+    return null;
+  }
+  if (!Sha256Schema.safeParse(sourceHash).success || (runId === null) === (executionId === null)) {
+    throw new SqliteRowInvalidError();
+  }
+  if (runId !== null) {
+    return { sourceKind: "RUN", sourceId: runId, sourceResultHash: sourceHash };
+  }
+  if (executionId === null) throw new SqliteRowInvalidError();
+  return { sourceKind: "EXECUTION", sourceId: executionId, sourceResultHash: sourceHash };
 }
 
 // Narrow one persisted error type into the closed Application union.
@@ -875,9 +970,10 @@ export function restResultInsertValues(value: StoredRestCaseResult): Insertable<
     error_message: value.errorMessage,
     completed_at: value.completedAt,
     run_result_hash: value.resultHash,
-    reused_from_run_id: null,
-    reused_from_execution_id: null,
-    reused_result_hash: null
+    reused_from_run_id: value.provenance?.sourceKind === "RUN" ? value.provenance.sourceId : null,
+    reused_from_execution_id:
+      value.provenance?.sourceKind === "EXECUTION" ? value.provenance.sourceId : null,
+    reused_result_hash: value.provenance?.sourceResultHash ?? null
   };
 }
 

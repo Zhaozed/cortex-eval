@@ -112,6 +112,11 @@ function run(): PlatformRun {
     cancelRequestedAt: null,
     restCompletedCount: 1,
     restErrorCount: 0,
+    evalCompletedCount: 0,
+    evalPassCount: 0,
+    evalFailCount: 0,
+    evalErrorCount: 0,
+    evalNotEvaluatedCount: 0,
     resultSetHash: HASH,
     artifactManifest: {
       contractVersion: "cortex.artifact-manifest.v1",
@@ -150,6 +155,11 @@ function runSummary(): PlatformRunSummary {
     restTotalCount: 2,
     restCompletedCount: 2,
     restErrorCount: 1,
+    evalCompletedCount: 0,
+    evalPassCount: 0,
+    evalFailCount: 0,
+    evalErrorCount: 0,
+    evalNotEvaluatedCount: 0,
     createdAt: NOW,
     updatedAt: NOW
   };
@@ -179,7 +189,8 @@ function successfulResult(businessSuccess: boolean): StoredRestCaseResult {
     errorMessage: null,
     durationMs: 12,
     completedAt: NOW,
-    resultHash: HASH
+    resultHash: HASH,
+    provenance: null
   };
 }
 
@@ -199,7 +210,8 @@ function failedResult(): StoredRestCaseResult {
     errorMessage: "REST 请求返回非成功状态。",
     durationMs: successful.durationMs,
     completedAt: successful.completedAt,
-    resultHash: successful.resultHash
+    resultHash: successful.resultHash,
+    provenance: null
   };
 }
 
@@ -246,6 +258,9 @@ function service(
     getRestResult: vi.fn().mockResolvedValue(null),
     start: vi.fn().mockResolvedValue({ ok: true, run: run() }),
     cancel: vi.fn().mockResolvedValue({ ok: true, run: run() }),
+    startEvaluation: vi.fn().mockResolvedValue({ ok: true, run: run() }),
+    cancelEvaluation: vi.fn().mockResolvedValue({ ok: true, run: platformRunProgress(run()) }),
+    queryEvalResults: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
     ...overrides
   };
 }
@@ -374,7 +389,14 @@ describe("Application Run HTTP handlers", () => {
     const first = await handlers.listRuns(input({ query: { limit: 1 } }));
     expect(first).toMatchObject({
       statusCode: 200,
-      body: { items: [{ rest: { total: 2, completed: 2, succeeded: 1, error: 1 } }] }
+      body: {
+        items: [
+          {
+            rest: { total: 2, completed: 2, succeeded: 1, error: 1 },
+            evaluation: { total: 2, completed: 0, passed: 0, failed: 0 }
+          }
+        ]
+      }
     });
     const cursor = (first.body as { readonly nextCursor: string }).nextCursor;
     const second = await handlers.listRuns(input({ query: { limit: 1, cursor } }));
@@ -399,6 +421,7 @@ describe("Application Run HTTP handlers", () => {
       id: RUN_ID,
       suite: { id: SUITE_ID, caseCount: 1 },
       rubricPrompts: [{ promptKey: "quality" }],
+      evaluation: { total: 1, completed: 0, error: 0, notEvaluated: 0 },
       artifactAvailability: [{ status: "PRESENT" }]
     });
     expect(JSON.stringify(response.body)).not.toContain("secret prompt body");
@@ -423,7 +446,11 @@ describe("Application Run HTTP handlers", () => {
     const handlers = createApplicationRunHandlers(service());
     expect(await handlers.getRunProgress(input({ params: { runId: RUN_ID } }))).toMatchObject({
       statusCode: 200,
-      body: { runId: RUN_ID, rest: { total: 1, completed: 1 } }
+      body: {
+        runId: RUN_ID,
+        rest: { total: 1, completed: 1 },
+        evaluation: { total: 1, completed: 0 }
+      }
     });
   });
 
@@ -509,10 +536,10 @@ describe("Application Run HTTP handlers", () => {
     }
   });
 
-  it("状态冲突返回结构化 reason，未闭环 Stage 不被 Start 暴露", async () => {
+  it("Evaluation 状态冲突返回结构化 reason", async () => {
     const handlers = createApplicationRunHandlers(
       service({
-        start: vi.fn().mockResolvedValue({
+        startEvaluation: vi.fn().mockResolvedValue({
           ok: false,
           error: { code: "RUN_STATE_CONFLICT", reason: "STAGE_UNAVAILABLE" }
         })
@@ -551,9 +578,34 @@ describe("Application Run HTTP handlers", () => {
     }
   });
 
+  it("按当前阶段分派 Evaluation 启动，并分页返回不含 Raw 正文的规范化结果", async () => {
+    const start = vi.fn().mockResolvedValue({ ok: true, run: run() });
+    const startEvaluation = vi.fn().mockResolvedValue({ ok: true, run: run() });
+    const queryEvalResults = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    const handlers = createApplicationRunHandlers(
+      service({ start, startEvaluation, queryEvalResults })
+    );
+    const actionInput = input({
+      params: { runId: RUN_ID },
+      body: { expectedRevision: 3 }
+    });
+
+    expect((await handlers.startRun(actionInput)).statusCode).toBe(202);
+    expect(start).not.toHaveBeenCalled();
+    expect(startEvaluation).toHaveBeenCalledWith({ runId: RUN_ID, expectedRevision: 3 });
+    expect(
+      (
+        await handlers.listRunEvaluations(
+          input({ params: { runId: RUN_ID }, query: { limit: 20 } })
+        )
+      ).statusCode
+    ).toBe(200);
+    expect(queryEvalResults).toHaveBeenCalledWith({ runId: RUN_ID, limit: 20 });
+  });
+
   it("启动和取消透传 Run 缺失与 Revision 冲突", async () => {
     const actionInput = input({ params: { runId: RUN_ID }, body: { expectedRevision: 3 } });
-    for (const method of ["start", "cancel"] as const) {
+    for (const method of ["startEvaluation", "cancelEvaluation"] as const) {
       for (const error of [
         { code: "RUN_NOT_FOUND" as const },
         { code: "RUN_STATE_CONFLICT" as const, reason: "STATE_OR_REVISION" as const }
@@ -562,7 +614,7 @@ describe("Application Run HTTP handlers", () => {
           service({ [method]: vi.fn().mockResolvedValue({ ok: false, error }) })
         );
         const response =
-          method === "start"
+          method === "startEvaluation"
             ? await handlers.startRun(actionInput)
             : await handlers.cancelRun(actionInput);
         expect(response.statusCode).toBe(error.code === "RUN_NOT_FOUND" ? 404 : 409);

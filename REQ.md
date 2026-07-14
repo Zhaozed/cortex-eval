@@ -4,7 +4,7 @@
 
 本文档定义 Cortex Eval 本地版的产品目标、使用方式、业务对象、用户流程、UI 与 CLI 能力、报告口径、异常行为和验收标准。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。截至 P5，纯 Contracts/Domain、SQLite、资源 Application 用例、Local Server、资源管理 Web，以及平台 Run 创建与 REST 执行闭环已落地。OpenAPI 与 Web 已注册 Run 预检、创建、查询、REST 启动、取消、进度和逐 Case REST 结果；Evaluation、Report、Analysis、Retry/Force、Execution Import、Work Package 文件运行时和目标 CLI 仍未注册。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P6 已完成，P7 正在实现 Work Package、CLI、重跑与导入基础。平台 REST→Evaluation Pipeline、Eval API/Web/SSE、不可变 Raw/Normalized Artifact、规范化 Hash、JSON Schema Diff、严格 Importer、SQLite 原子提交、受控 Promptfoo 进程、Bridge v2、官方 SDK Adapter及内部 Retry/Force Use Case 已闭环。Report、Analysis、对外 Retry/Force、Execution Import、Work Package 文件运行时和目标 CLI 尚未闭合。
 
 技术选型、项目架构、模块边界、数据字段、工作包协议、事务、并发和测试设计以 `TECH.md` 为准。本文档不包含具体实现代码。
 
@@ -110,13 +110,13 @@ Case 支持以下顶层信息：
 
 ### 5.3 Assertion
 
-系统支持锁定 Promptfoo `0.121.18` 提供的全部内置 Assertion 类型，包括 Assertion Set、模型评分、内联 JavaScript、Python、Ruby、`transform` 和 `contextTransform`。能力范围以版本化 Assertion 能力矩阵为单一事实源。
+Case 构建不按 Assertion `type` 设置平台白名单。锁定 Promptfoo `0.121.18` 能够接收的全部内置 Assertion，包括 Assertion Set、模型评分、内联 JavaScript、Python、Ruby、`transform`、`contextTransform`、`select-best` 和 `max-score`，都可以原样进入受控配置。能力范围以版本化 Assertion 能力矩阵为单一事实源；矩阵用于校验 Payload、依赖与结果对齐，不要求平台在单输出流程中人为复现、替代或限制 Promptfoo 的 Assertion 执行语义。
 
 每条 Assertion 必须有非空 `type` 和 `metric`。`weight` 可选，有效权重不得为负数。
 
 `llm-rubric.rubricPrompt` 在平台内统一使用 `prompt://<prompt-key>`。导入当前 Fixture 时只额外接受 `file://rubric_prompt/<prompt-key>.json` 并规范化；其他文件路径被拒绝。
 
-Assertion 和内联可执行表达式默认可信，执行权限等同当前用户。系统不做可信标记、运行警告、额外授权或可执行内容检测。当前不支持 `file://` 外部脚本、外部模块、额外 npm/pip 依赖、Assertion 内嵌 Provider 或 Provider 插件。需要 Provider 的 Assertion 统一使用 Run 选择的 Evaluator。
+Assertion 和内联可执行表达式默认可信，执行权限等同当前用户。系统不做可信标记、运行警告、额外授权或可执行内容检测。`config` 保持适配全部类型的开放 JSON 形状，但任意嵌套层级都不支持 Provider、OAuth/认证/Secret、`file://`、`package:`、`module:`、`node:`、`npm:`、`pip:`、外部模块或额外依赖；协议判断忽略前导空白和大小写。敏感键识别覆盖分隔符、camelCase 和紧凑敏感词组合，不得以 `accessToken`、`refresh_token`、`dbPassword`、`authToken`、`providertoken`、`credentialsecret`、`oauth`、`module` 或 `dependencies` 等字段绕过。不得因为 Assertion 类型名称或能力矩阵分类拒绝 Case。需要 Provider 的 Assertion 统一使用 Run 选择的 Evaluator。
 
 ### 5.4 Endpoint 配置
 
@@ -237,7 +237,7 @@ HTTP 非 2xx、网络错误、超时、JSON 解析失败或结构校验失败才
 - 将离线结果导回平台。
 - 基于来源运行创建新的失败重跑或 `--force` 全量重跑，不覆盖原运行。
 
-平台 Retry 与离线 `--retry-failed` 使用同一集合：复制 REST `SUCCEEDED`，重新请求 REST `ERROR`；复制与复用 REST 事实对齐的 Eval `PASS/FAIL`；重新评估 `EVALUATION_ERROR`、缺失 Eval 事实，以及 REST 重试后新成功的 `NOT_EVALUATED`。REST 重试仍失败时保持 `NOT_EVALUATED`。新 Run/Execution 记录来源和每条复用 Hash，并重新计算 Result Set Hash。Force 使用来源冻结上下文重新执行全部 REST 和 Eval。
+平台 Retry 与离线 `--retry-failed` 使用同一集合：复制 REST `SUCCEEDED`，重新请求 REST `ERROR`；只有来源 Normalized Eval Artifact 和结果真正引用的祖先 Raw Artifact 实际文件按 Manifest Hash 与大小校验为 `PRESENT` 时，才复制与复用 REST 事实对齐的 Eval `PASS/FAIL`。连续 Retry 必须沿 Provenance 逐代追溯 Raw，不要求中间运行复制 Raw；文件缺失、损坏、来源断裂/循环、`EVALUATION_ERROR`、缺失 Eval 事实，以及 REST 重试后新成功的 `NOT_EVALUATED` 都重新评估。规划与实际 Evaluation 启动时分别校验来源链 Artifact，避免两者之间的文件变化被复用。REST 重试仍失败时保持 `NOT_EVALUATED`。新 Run/Execution 记录来源和每条复用 Hash，并重新计算 Result Set Hash。Force 使用来源冻结上下文重新执行全部 REST 和 Eval。
 
 ### 6.3 UI 修改闭环
 
@@ -337,6 +337,8 @@ Case 创建、复制、删除或导入在用户显式使用最新 Revision 重�
 
 阶段发生系统错误时停止自动推进，展示已真实完成的结果和稳定错误码。用户取消时停止派发新工作并安全回收当前外部进程。
 
+一键模式在 REST 提交后自动启动 Evaluation；若启动前预检或阶段抢占返回失败，且 Run 仍停留在同一 `READY/EVALUATION` 交接 Revision，则必须原子提交 `EVALUATION_STAGE_FAILED`，不得静默遗留待执行状态。若其他 Owner 已推进 Revision，则以最新持久事实为准，不覆盖其结果。
+
 ### 7.8 报告页面
 
 - 展示整体统计和 By Metric 统计。
@@ -390,6 +392,8 @@ Execution 中已经成功提交的阶段产物不可覆盖。重新执行必须�
 CLI 从当前进程环境或用户显式指定的 Env 文件读取 Secret。Env 文件不是工作包内容，不参与导入。
 
 使用 Python/Ruby Assertion 时，运行前必须能解析对应解释器。Python 通过 `PROMPTFOO_PYTHON` 或 `python3` 选择，最低为 Promptfoo 文档要求的 Python 3.7；Ruby 通过 `PROMPTFOO_RUBY` 或 `ruby` 选择，并必须通过内联 Assertion Doctor Smoke。系统不自动安装解释器、Gem 或 Python Package。
+
+平台 Evaluation 在改变 Run 状态前，只对 REST `SUCCEEDED`、未复用且实际会进入 Promptfoo 的 Case 所依赖的 Python/Ruby 运行真实内联 Smoke；REST Error 和完整复用 Case 不要求解释器。失败不得抢占 Stage 或启动评估子进程。Promptfoo 子进程只继承 `PATH`、用户/临时目录、Locale、`PROMPTFOO_PYTHON`、`PROMPTFOO_RUBY`、当前调用期 Capability 和固定 Promptfoo 开关，不继承无关 Secret；进程边界必须在 Raw 离开临时目录前递归拒绝任何包含完整 Capability 的输出，污染证据不得写入 Artifact、SQLite 或 API。取消或超时必须先 TERM 完整进程组；即使主进程先退出，也要把剩余宽限期留给解释器后代清理，宽限期耗尽后才 KILL，并等待完整进程组退出。
 
 环境依赖按阶段校验：
 
@@ -474,7 +478,13 @@ Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式设置阶段
 6. 为 REST Error Cases 生成 `NOT_EVALUATED` 规范化结果。
 7. 按冻结 Case 顺序合并完整结果集合，全部稳定事实生成后再计算结果哈希。
 
-Promptfoo 因 Assertion 失败返回的失败退出码属于评估事实，不等同于系统执行失败。固定版本 `0.121.18` 的真实进程探针确认该原始退出码为 `100`；平台和 CLI Adapter 必须识别该事实，目标 CLI 对外仍映射为退出码 `1`。进程启动、配置、文件或未知输出结构错误才属于系统失败。
+平台 Run ID 和离线 Execution ID 是每次执行的不可变版本身份；重试和 Force 必须创建新身份，不覆盖来源执行。单 Case Eval Result Hash 只表示可复用的规范化语义事实，不包含延迟、Token Usage、Cost 或 Raw Artifact Hash/大小等执行观测与完整性事实；Eval Result Set Hash 必须额外输入 Run/Execution 身份和 Evaluation Context Hash。每次 Evaluation 的 Raw/Normalized Artifact 都显式保存同一个 Evaluation Context Hash，并与 Result Set Hash 共同构成绑定该执行身份、冻结 Evaluator、Promptfoo/生成契约版本和 Case Definition Hash 的不可变评估版本。即使全部 Case 复用来源 Eval，新的 Retry/Force 身份也必须生成不同的 Result Set Hash。当前不保存 Eval Attempt 历史。
+
+Normalized Eval Artifact 的 `cases` 必须按冻结 Ordinal 从 `0` 连续排列，Case Key 在集合内唯一。Writer 必须在原子提交前同时校验公开 Schema、顺序、唯一性、Owner、Evaluation Context Hash 与 Result Set Hash；不得通过排序后校验 Hash、再把乱序输入原样落盘。
+
+Provider-dependent Assertion 通过 Evaluation 调用期级 Bridge v2 使用冻结 Evaluator。该调用期只存在于当前进程，不持久化 Attempt ID；Capability 绑定一个 Run/Execution、Evaluation Context Hash、Evaluator Config Hash、TTL、并发和确定性总调用预算。Bridge 不接收或识别 Case、Assertion、Metric 或组件身份，不参与 Promptfoo 评分与聚合。排队请求在获得并发槽后、调用 Evaluator 前必须重新校验关闭状态与 TTL，过期请求不得触发模型调用。官方 SDK 没有返回完整 Token Usage 时保持 `null`，Promptfoo Provider 不伪造零计数；Bridge 超时或关闭必须主动 Abort，并由自身受控竞速返回终态，不能依赖上游 Promise 配合结束。
+
+Promptfoo 因普通 Assertion 失败返回的失败退出码属于评估事实，不等同于系统执行失败。固定版本 `0.121.18` 的真实进程探针确认原生退出码只接受成功 `0` 或 Assertion 失败 `100`，Raw Artifact Schema 必须拒绝其他整数；平台和 CLI Adapter 必须识别该事实，目标 CLI 对外仍把 `100` 映射为退出码 `1`。固定版本结构化 Row Error 必须先校验非空 `error`、空 `gradingResult`、零分、无 Provider Response、非负耗时/成本、空 Named Score 和合法 Token Usage 等固定错误形状；缺失、类型错误或与评分结果矛盾时拒绝完整导入。合法 Row Error 与内联 JavaScript/Python/Ruby 的固定执行失败结构清洗为可重试 `EVALUATION_ERROR`，持久事实和 Eval Hash 只保存稳定错误码，不保存第三方正文、本地化文案、绝对路径或堆栈；可读说明在 API/UI 展示边界由消息资源解析。进程启动、配置、文件或未知输出结构错误才属于阶段系统失败。
 
 如果全部 REST 请求失败，则跳过 Promptfoo，全部 Cases 标记为 `NOT_EVALUATED`，仍允许生成完整错误报告。
 
@@ -656,6 +666,7 @@ Proposal 使用判别联合明确动作和目标：
 - 工作包虽然不含 API Key，但可能包含 Case、请求、Provider Output 和模型分析等敏感业务数据。
 - 外部 JSON 在进入核心逻辑前必须完成结构校验。可信内联 Assertion 由 Promptfoo 执行，不做代码安全检测或沙箱承诺。
 - 平台状态根、数据库目录、临时目录和文件使用受控名称；任何 mkdir、chmod、数据库打开或清理前必须拒绝路径逃逸和符号链接逃逸，不得修改项目根外内容。
+- Promptfoo 临时父目录必须显式绑定项目 Containment Root，逐级通过 `lstat` 与 canonical containment 后才能创建或修改权限；取消或超时时，主进程提前退出不得截断解释器后代剩余 TERM 宽限期，返回前必须确认完整 POSIX 进程组已经消失，随后才能关闭 Bridge 和回收目录。
 - Promptfoo 使用固定参数启动，不通过 Shell 拼接用户输入。
 - 日志不记录完整 Vars、Provider Output、Prompt、Secret 或第三方堆栈。
 - 日志以单行中文可读文本记录安全字段，单文件 10 MiB 轮转并保留最近 10 个文件；日志写入失败只做脱敏 stderr 降级，不改变业务事实。
@@ -738,7 +749,7 @@ Proposal 使用判别联合明确动作和目标：
 - 重启能把遗留运行收敛为 Interrupted。
 - 工作包半写、Hash 错误和路径逃逸被稳定拒绝。
 - Secret 不出现在数据库、工作包、日志、快照或 API 响应中。
-- Promptfoo `0.121.18` 能力矩阵中的每个 Assertion 类型都有契约测试；可信内联 JavaScript、Python、Ruby、Transform、Context Transform 和嵌套 Assertion Set 能真实执行。
+- Promptfoo `0.121.18` 能力矩阵中的每个 Assertion 类型都可通过同一开放 Case Assert 契约进入受控配置，不按类型设置白名单；真实进程只固定可信内联 JavaScript、Python、Ruby、Transform、Context Transform 和嵌套 Assertion Set 等跨执行边界代表路径，不要求平台逐类型复现 Promptfoo 原生执行。
 - `pnpm verify:release` 在 macOS ARM64 上通过，并包含一次真实 Gemini `llm-rubric` 和一次真实 Analyzer 结构输出；任何层不得自动重试。
 
 ### 16.8 Canonical Export 和迁移边界

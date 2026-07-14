@@ -21,6 +21,7 @@ import type {
 } from "./platform-run-models.ts";
 import type { RunArtifactAvailability, RunArtifactStore } from "./run-artifact-port.ts";
 import type {
+  FrozenRunCase,
   RestCaseExecutionResult,
   RestExecutionErrorType,
   RestExecutor
@@ -135,6 +136,12 @@ export interface PlatformRunEventSink {
   readonly record: (event: PlatformRunBusinessEvent) => Promise<void>;
 }
 
+/** Narrow P6 continuation Port used only after a durable REST commit. */
+export interface PipelineEvaluationStarter {
+  /** Claim and launch READY/EVALUATION with the just-committed Revision. */
+  readonly start: (input: PlatformRunRevisionInput) => Promise<PlatformRunMutationResult>;
+}
+
 /** Platform Run orchestration dependencies. */
 export interface PlatformRunServiceDependencies {
   /** Dedicated short database transaction boundary. */
@@ -151,6 +158,8 @@ export interface PlatformRunServiceDependencies {
   readonly messageResolver: PlatformRunMessageResolver;
   /** Resilient safe Run business-event sink. */
   readonly eventSink: PlatformRunEventSink;
+  /** Optional closed P6 continuation used only by PIPELINE Runs. */
+  readonly pipelineEvaluationStarter?: PipelineEvaluationStarter | undefined;
   /** Cross-process cancellation observation interval. */
   readonly cancellationPollMs?: number | undefined;
 }
@@ -235,6 +244,8 @@ export class PlatformRunService {
   readonly #messageResolver: PlatformRunMessageResolver;
   /** Entrypoint-owned resilient business-event sink. */
   readonly #eventSink: PlatformRunEventSink;
+  /** Closed automatic REST-to-Evaluation continuation. */
+  readonly #pipelineEvaluationStarter: PipelineEvaluationStarter | undefined;
   /** Cross-process cancellation polling interval. */
   readonly #cancellationPollMs: number;
   /** Active Run-owned Abort controllers. */
@@ -257,6 +268,7 @@ export class PlatformRunService {
     this.#idGenerator = dependencies.idGenerator;
     this.#messageResolver = dependencies.messageResolver;
     this.#eventSink = dependencies.eventSink;
+    this.#pipelineEvaluationStarter = dependencies.pipelineEvaluationStarter;
     this.#cancellationPollMs = poll;
   }
 
@@ -334,6 +346,11 @@ export class PlatformRunService {
           cancelRequestedAt: null,
           restCompletedCount: 0,
           restErrorCount: 0,
+          evalCompletedCount: 0,
+          evalPassCount: 0,
+          evalFailCount: 0,
+          evalErrorCount: 0,
+          evalNotEvaluatedCount: 0,
           resultSetHash: null,
           artifactManifest: {
             contractVersion: "cortex.artifact-manifest.v1",
@@ -604,19 +621,22 @@ export class PlatformRunService {
       }
     );
     try {
-      await this.#restExecutor.execute({
-        cases: run.suite.cases,
-        endpoint: run.endpoint.definition,
-        concurrency: run.runExecutionLimits.restConcurrency,
-        signal: controller.signal,
-        onResult: async (result): Promise<void> => {
-          const stored = this.#storeResult(run, result, this.#clock.now());
-          const progress = await this.#transactionManager.execute(async (transaction) =>
-            transaction.runs.recordRestResult(stored, stored.completedAt)
-          );
-          if (progress === null) throw new Error("RUN_PROGRESS_CONFLICT");
-        }
-      });
+      const pendingCases = await this.#pendingRestCases(run);
+      if (pendingCases.length > 0) {
+        await this.#restExecutor.execute({
+          cases: pendingCases,
+          endpoint: run.endpoint.definition,
+          concurrency: run.runExecutionLimits.restConcurrency,
+          signal: controller.signal,
+          onResult: async (result): Promise<void> => {
+            const stored = this.#storeResult(run, result, this.#clock.now());
+            const progress = await this.#transactionManager.execute(async (transaction) =>
+              transaction.runs.recordRestResult(stored, stored.completedAt)
+            );
+            if (progress === null) throw new Error("RUN_PROGRESS_CONFLICT");
+          }
+        });
+      }
       pollController.abort();
       await poll;
       if (pollFailure !== undefined) {
@@ -667,7 +687,24 @@ export class PlatformRunService {
       );
       if (completed !== null) {
         await this.#recordEvent("RUN_REST_COMPLETED", completed.id, completed.updatedAt);
-        if (this.#interrupting.has(run.id)) await this.#interrupt(completed);
+        if (this.#interrupting.has(run.id)) {
+          await this.#interrupt(completed);
+          return;
+        }
+        if (run.runMode === "PIPELINE" && this.#pipelineEvaluationStarter !== undefined) {
+          try {
+            const started = await this.#pipelineEvaluationStarter.start({
+              runId: run.id,
+              expectedRevision: completed.lockRevision
+            });
+            if (started.ok) return;
+          } catch {
+            // The unchanged handoff Revision below prevents overriding another owner.
+          }
+          if (completed.stage === "EVALUATION") {
+            await this.#settlePipelineEvaluationStartFailure(run.id, completed.lockRevision);
+          }
+        }
         return;
       }
       await this.#artifactStore.removeUncommitted(descriptor);
@@ -680,6 +717,18 @@ export class PlatformRunService {
       await poll;
       await this.#settleSystemFailure(run.id, error);
     }
+  }
+
+  // Select only Cases without a durable preseeded reuse result.
+  #pendingRestCases(run: PlatformRun): Promise<readonly FrozenRunCase[]> {
+    return this.#transactionManager.execute(async (transaction) => {
+      const pending: FrozenRunCase[] = [];
+      for (const frozen of run.suite.cases) {
+        const existing = await transaction.runs.getRestResult(run.id, frozen.caseKey);
+        if (existing === null) pending.push(frozen);
+      }
+      return pending;
+    });
   }
 
   // Poll durable state so cancellation from another process reaches the local Adapter.
@@ -733,7 +782,8 @@ export class PlatformRunService {
         errorMessage: null,
         durationMs: result.durationMs,
         completedAt,
-        resultHash
+        resultHash,
+        provenance: null
       };
     }
     const resultHash = hashRestResult({
@@ -759,7 +809,8 @@ export class PlatformRunService {
       errorMessage: this.#messageResolver.message(restMessageCode(result.errorType)),
       durationMs: result.durationMs,
       completedAt,
-      resultHash
+      resultHash,
+      provenance: null
     };
   }
 
@@ -841,6 +892,31 @@ export class PlatformRunService {
         errorCode,
         errorMessage: this.#messageResolver.message(errorCode),
         completedAt: this.#clock.now()
+      })
+    );
+  }
+
+  // Persist an automatic transition failure only while the Run remains at its untouched handoff.
+  async #settlePipelineEvaluationStartFailure(
+    runId: string,
+    expectedRevision: number
+  ): Promise<void> {
+    const current = await this.getProgress(runId);
+    if (
+      current?.status !== "READY" ||
+      current.stage !== "EVALUATION" ||
+      current.lockRevision !== expectedRevision
+    ) {
+      return;
+    }
+    const completedAt = this.#clock.now();
+    await this.#transactionManager.execute(async (transaction) =>
+      transaction.runs.failRun({
+        runId,
+        expectedRevision,
+        errorCode: "EVALUATION_STAGE_FAILED",
+        errorMessage: this.#messageResolver.message("EVALUATION_STAGE_FAILED"),
+        completedAt
       })
     );
   }

@@ -41,6 +41,36 @@ Storage 使用 Kysely 与 better-sqlite3，只实现 SQLite Schema、Migration �
 
 生效。
 
+## P6 Assert 构建、Bridge 职责与执行版本
+
+### 决策
+
+Case Assert 构建不设置类型白名单。Promptfoo `0.121.18` 能力矩阵中的全部 Assert 可以进入受控配置；平台不复现、不替代也不限制各类 Assert 的原生执行流程。不同 Assert 的结果由 Promptfoo Raw Result 中的 Metric、完整 Definition 和组件顺序区分。
+
+Bridge v2 只在一次 Evaluation 调用期内把 Provider-dependent Assert 的模型请求转交给冻结 Evaluator。Capability 绑定 Run/Execution、Evaluation Context Hash、Evaluator Config Hash、TTL、并发和确定性总调用预算。Bridge 不接收 Case、Assertion、Metric 或组件身份，不参与评分和聚合。
+
+每个 Run ID 或离线 Execution ID 表示独立执行版本。Retry 和 Force 创建新身份，不覆盖来源。单 Case Eval Result Hash 表示允许 Provenance 复用的语义事实，排除延迟、Token Usage、Cost 和 Raw Artifact Hash/大小等执行观测与完整性；Result Set Hash 显式输入 Run/Execution Owner 和 Evaluation Context Hash。Raw/Normalized Eval Artifact 显式保存同一 Context Hash，与 Result Set Hash 一起表示绑定执行身份、冻结 Evaluator和契约版本的评估版本；当前不建立 Attempt 历史。
+
+### 原因
+
+真实 Promptfoo Grading 请求不携带稳定 Assertion 身份，而 Raw Result 已保存结果对齐所需事实。把 Assertion 身份或评分职责塞入 Bridge 会重复 Promptfoo 逻辑并制造无法验证的协议。执行与评估都需要不可覆盖身份，才能保证重跑来源、复用 Hash 和历史结果可对账。
+
+### 代码影响
+
+配置物化器不按 Assert 类型拒绝输入，但 Contracts 与物化器使用同一递归安全判定拒绝 Assertion `config` 中的 Provider/OAuth/认证/Secret、模块/依赖字段、紧凑组合敏感键和外部引用。外部引用先忽略前导空白并转小写，覆盖文件、模块、包及 npm/pip 依赖协议。Bridge v2 使用调用期授权、精确回环 Host、FIFO 并发和总预算，排队请求出队后复验关闭状态与 TTL；非空 Token Usage 映射回 Promptfoo 原生计数字段，`null` 保持缺失而不伪造零计数。Bridge 对 Evaluator Promise 与超时/关闭做受控竞速，即使上游忽略 Abort 也先收口 HTTP 与 Owner，并处理迟到 Promise；真实上游 Promise 未结束前继续占用并发槽，关闭监听器后统计仍保留该无法强杀的实际在途调用。Engine 从同一整体预算派生 Bridge TTL 和 Promptfoo 剩余时间，版本检查与 Eval 共享单调截止时间。Importer 负责 Assertion/Metric/组件对齐，只在固定 Row Error 形状闭合后将其与内联解释器执行错误清洗为 `EVALUATION_ERROR`；持久事实只保存进入 Hash 的 Error Code，展示文案由 Web 消息资源解析。Promptfoo 子进程采用最小环境白名单、单次触发的有界诊断闩锁和独立进程组，防止可信内联代码读取父进程无关 Secret、超限后继续累积输出或在取消后遗留解释器；主进程先退出时继续等待解释器后代，并把从首次 TERM 起算的剩余宽限期留给后代清理，耗尽后才 KILL。临时路径绑定显式项目 Root 并逐级拒绝路径/符号链接逃逸，终止返回前确认进程组消失，输出离开临时目录前递归拒绝完整 Capability，污染 Raw 不进入 Application。Normalized Artifact Writer 强制连续 Ordinal 与唯一 Case Key，避免排序校验 Hash 后写出乱序事实。Evaluation 在抢占 Stage 前只对 REST 成功、未复用且将进入 Promptfoo 的 Case 运行解释器 Smoke。内部 Retry/Force Use Case 创建新 Run，在规划和实际 Evaluation 两处沿 Provenance 验证 Normalized 与真正祖先 Raw Artifact，再按逐 Case Hash 决定复用并重新生成目标完整结果集合；全复用时也用目标 Owner 与本次 Context 生成不同 Result Set Hash。Evaluation 分类计数与完整明细在同一事务原子提交，P6 Migration 不改写 P5 001，只从 002 增量新增分类列与 Provenance 单一来源身份触发器；Pipeline Starter 返回失败或直接拒绝 Promise 时，都只在未变化的交接 Revision 上提交稳定阶段错误。SSE 不暴露没有逐 Case持久事实支撑的 Evaluation Progress，一次轮询跨越多个 Revision/Stage 时，可从同一最新 Revision 按流水线顺序补发全部可证明事件。Web 终态根据已提交 Evaluation 完成事实选择 Evaluation 或 REST 计数，不把 REST 失败伪装成全零 Evaluation。
+
+### 测试影响
+
+契约与真实进程探针覆盖能力矩阵、不同 Metric、嵌套组件、可信内联解释器、嵌套 config、紧凑组合敏感键及大小写/前导空白外部引用绕过拒绝、单 Case Eval Hash 排除执行观测和 Artifact 完整性、父进程 Secret 隔离、诊断输出上限、Root 外路径/临时符号链接拒绝、主进程提前退出时后代保留 TERM 剩余宽限期、函数返回前进程组回收、整体 Deadline、Raw Artifact 原生退出码 `0 | 100`、严格 Row Error、Code-only Evaluation Error、Normalized 乱序/重复 Key 拒绝、非零及缺失 Token Usage 和特殊比较类型；Bridge 测试覆盖授权、绑定、精确 Host、预算、并发、排队 TTL 过期、非协作上游的真实并发占槽及超时/关闭、取消和 Provider 能力错误。重跑测试验证新身份、来源不变、多代 Provenance、Manifest 缺失及实际文件 `MISSING/CORRUPTED` 时不复用，并只执行待补 Case。SQLite 升级测试冻结 P5 002 完整 Schema Hash，证明 001 未漂移且 003 安装新计数与 Provenance 约束。Web 测试覆盖 Case/Assertion 的 Score、Reason、Weight、Evaluation Error 消息资源与 DONE 阶段计数选择；SSE 契约测试拒绝 `EVALUATION_PROGRESS` 并覆盖跨阶段补发顺序。
+
+### 排障影响
+
+Assert 结果错位先检查 Raw Result 的 Metric、Definition 和组件顺序，不向 Bridge 增加身份字段。重跑结果异常先核对来源 Artifact 完整性、Provenance 与 Result Hash，不使用同一 Run ID 覆盖执行。
+
+### 状态
+
+生效；取代 P6 早期关于 Bridge 必须识别 Assertion 以及 `select-best`/`max-score` 构成阻塞的判断。
+
 ## P4 资源 Web、冲突 Draft 与严格同源静态边界
 
 ### 决策
@@ -401,7 +431,7 @@ Adapter 使用官方 Gemini 与 OpenAI SDK。OpenAI-compatible Thinking 映射�
 
 ### 测试影响
 
-精确版本能力矩阵中的每个类型必须有正例、非法 Payload 或能力错误和 Importer 对齐测试；内联语言与 Transform 使用真实进程测试。
+精确版本能力矩阵中的每个类型必须能通过同一开放 Case Assert 契约和通用物化路径，不按类型建立白名单；非法 Provider/Secret/外部引用使用统一边界测试，内联语言、Transform、Context Transform 与嵌套集合使用代表性真实进程测试。
 
 ### 排障影响
 
@@ -436,6 +466,82 @@ Bridge 使用一次性 Capability、Run/Execution 绑定、Schema、调用预算
 ### 状态
 
 生效。
+
+## Evaluator Bridge v2 调用期授权与断言身份边界
+
+### 当前事实
+
+锁定 Promptfoo `0.121.18` 的真实最小探针表明：两个具有不同 Metric/Weight、但相同 Rubric 的 `llm-rubric` Assertion 会生成两个有序组件并分别调用默认 Grading HTTP Provider，但两次请求体逐字节相同，且没有 `callId`、Capability、Run/Execution 绑定、Case Key 或 Assertion Index。
+
+### 决策
+
+Bridge 不承担 Assertion 身份。既有单次调用 Bridge v1 保持不变；P6 新增 v2，将 Capability 绑定一次非持久化 Evaluation 调用期、Run/Execution、Evaluation Context Hash、Evaluator Config Hash、TTL、并发和按生成配置确定性派生的总调用预算。Bridge 不接收 Case、Assertion、Metric 或组件身份，也不参与 Promptfoo 评分聚合。
+
+### 原因
+
+Assertion 的区分事实已存在于 Promptfoo Raw Result 的 Metric、完整 Definition 和组件结构；把不存在于 Grader 请求中的身份强塞给 Bridge 会迫使系统猜测请求顺序并干预 Promptfoo 执行。调用期总预算足以限制冻结 Evaluator 的外部调用面，同时保留 Promptfoo 原生执行。
+
+### 代码与测试影响
+
+系统只在受控临时 Promptfoo 配置的共享 Grading Provider 中配置随机回环 Bridge；用户输入和持久化 Assertion Definition 仍不能提供 Provider、Secret、外部模块或额外依赖。Capability 仅经子进程环境注入。测试覆盖预算、FIFO 并发、错误绑定、TTL、超时、取消、无重试和无 Assertion 身份字段。
+
+### 状态
+
+生效，替代原“每个 Assertion 一次性 Capability”假设。
+
+## Promptfoo Importer 展开对齐、字符串 Schema 与比较输出边界
+
+### 决策
+
+Importer 对普通组件规范化完整 Assertion Definition 并比较 Definition Hash，不以 Type、Metric、Weight 三元组代替身份。Promptfoo `assert-set` 按固定版本真实输出解释为“集合聚合组件 + 有序子组件”，同时核对子组件副本、完整子 Definition、Weight、Threshold、集合加权分数和 Case 加权分数。
+
+`select-best` 与 `max-score` 不参与普通 Assertion 批次，而是在比较阶段追加，并可能产生共享同一个 `case_id` 的多条行。Case 构建和配置生成不按类型设置白名单或拒绝规则；平台不复制单 REST Output、不伪造候选，也不复现或限制 Assert 执行。Importer 仅按通用重复、缺失、组件和 Definition Hash 对齐规则接收或拒绝实际结构。
+
+`guardrails` 在 `config.purpose=redteam` 且组件失败时，会在其所在 `AssertionsResult` 聚合层最后覆盖 Threshold 并强制 Pass；该覆盖不跨越 Assertion Set 自动传播到外层 Case。Importer 逐层复现，不把普通失败误判为系统错误。
+
+`is-json` 的 NONE 形态使用空 Schema 解释已解析 JSON；STRING 形态使用与 Promptfoo `0.121.18` 相同的 `js-yaml 5.2.0` 解析后清洗为 JSON Schema；OBJECT 形态直接使用冻结结构。三种形态最终都由 Reporting 的锁定 Ajv 对账，Validator 不一致时拒绝导入。
+
+### 原因
+
+固定版本会把 Assertion Set 聚合与子结果一起展开，并对 redteam Guardrail 使用特殊聚合覆盖；能力矩阵同时允许 `is-json` 的 NONE、STRING、OBJECT。只按顶层数量或局部字段处理会错误绑定冻结定义；按类型预判比较行为同样会越界干预 Promptfoo。
+
+### 代码影响
+
+Application Importer 负责脏数据清洗、YAML Schema 解析、受控 Rubric Prompt 身份恢复、完整 Definition Hash 对齐和原生聚合复算；重复、缺失或无法对齐的结构返回通用错误，不使用 Assertion 类型拒绝分支。Domain 与 Reporting 继续只接收已验证 JSON 和强类型事实。
+
+### 测试影响
+
+覆盖同 Type/Metric/Weight 但 Value 不同的错位拒绝、NONE/STRING/OBJECT Schema、真实 Assertion Set 展开、真实比较多行与阶段顺序事实、比较输出模型拒绝、redteam Guardrail 覆盖、集合聚合篡改拒绝和 REST Error 时子 Metric 的 `NOT_EVALUATED`。
+
+### 状态
+
+Assertion Set、Schema 和 Guardrail 规则生效；比较输出模型阻塞，等待 Case/Result 契约显式扩展。
+
+## Eval 原子提交与复用来源对账
+
+### 决策
+
+平台 Eval 只接受完整、有序的规范化 Case 集合。Importer 必须把 Promptfoo v3 `response.output` 清洗为 JSON 后与冻结 REST Provider Output 做 Canonical 对账，不能只依赖 `case_id` 和 Assertion 元数据。SQLite 提交边界在一个短事务中复算 Eval、Final 和 Result Set Hash，对齐冻结 REST 状态、Raw Evidence Artifact、Run Revision、取消事实和 Case 顺序；全部通过后整体写入并推进到 `READY/REPORT`，任一不一致整批回滚。
+
+Eval 提交输入只包含 Raw/Normalized Eval Artifact 描述。Repository 从当前 Run 读取并严格验证既有 REST Manifest，再按稳定顺序追加两条 Eval 描述；调用方不能覆盖或删除 REST Artifact 事实。
+
+`RETRY_FAILED` 的纯内部选择器固定四类逐 Case 动作：复用 REST/Eval、复用 REST 后重评、重试 REST 后评估、Force 全量执行。REST/Eval Provenance 必须且只能选择一个来源身份。平台 Repository 只接受目标 Run 声明的来源 Run 中真实存在、同 Case、同状态和同语义 Hash 的事实；Eval 复用还必须与目标已复用 REST 对齐。REST Artifact 必须保留 Provenance，不得在文件边界清空来源。
+
+### 原因
+
+Hash 和 Provenance 是重跑不可变性的证据，不能只依赖 Application 调用方自报。完整 Eval 集合会同时改变明细、计数、Manifest 和阶段，必须由同一事务提交，避免部分结果或伪造来源进入 Reporting。
+
+### 代码影响
+
+Application 定义平台 Eval 模型、提交/查询 Port 和纯重跑选择器；Storage SQLite 实现严格映射、来源对账和原子提交。当前只闭合内部基础，不创建新重跑 Run，不跳过外部执行，也不注册 Evaluation 或 Retry/Force API、OpenAPI、CLI、Web。
+
+### 测试影响
+
+覆盖 Promptfoo 实际 Output 错配、Eval 成功提交、状态/Revision/取消、语义 Hash、Final Hash、Result Set Hash、REST 状态、REST Manifest 保留、Artifact/Evidence、整批回滚、严格行映射、REST/Eval 来源 Run 与 Hash、Provenance 异或约束、Artifact 来源保留，以及 Retry/Force 选择规则。
+
+### 状态
+
+内部持久化和选择基础生效；外部 Evaluation 链与完整重跑用例仍受 P6 阻塞条件约束。
 
 ## POST Endpoint 与新身份重跑
 
@@ -583,7 +689,7 @@ Playwright 验收 1440×900 与 1280×800、键盘、焦点、错误关联和 Re
 
 ### 测试影响
 
-测试校验实际 `process.execPath`、Promptfoo 版本、主 Provider 与隔离 Evaluator 请求计数、退出码、真实 Fixture Case ID、原始 Assertion 类型顺序、18 个组件结果以及 Python/Ruby 内联 Assertion。完整 Runtime Doctor 自身返回 Python/Ruby Smoke 结果，并把显式选择的 `PROMPTFOO_PYTHON`、`PROMPTFOO_RUBY` 原样传给 Smoke 子进程。能力矩阵不再由类型名隐式生成契约，而是逐项保存全部合法 Payload 形态、值与阈值必填性、依赖、拒绝边界、Schema Probe、精确源码证据和 Importer 对齐键；测试对每项实际执行拒绝与映射，把类型精确映射到安装包处理器，并用真实进程固定布尔 `equals` 和数字数组 `contains-any`。
+测试校验实际 `process.execPath`、Promptfoo 版本、主 Provider 与隔离 Evaluator 请求计数、退出码、真实 Fixture Case ID、原始 Assertion 类型顺序、18 个组件结果以及 Python/Ruby 内联 Assertion。完整 Runtime Doctor 自身返回 Python/Ruby Smoke 结果，并把显式选择的 `PROMPTFOO_PYTHON`、`PROMPTFOO_RUBY` 原样传给 Smoke 子进程。能力矩阵不再由类型名隐式生成契约，而是逐项保存全部合法 Payload 形态、值与阈值必填性、依赖、拒绝边界、Schema Probe、精确源码证据和 Importer 对齐键；全部类型通过开放契约与通用物化路径，统一安全边界和代表性真实进程测试固定执行事实，不逐类型复现 Promptfoo 流程。
 
 ### 排障影响
 

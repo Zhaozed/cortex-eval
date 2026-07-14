@@ -8,6 +8,7 @@ import { Migrator } from "kysely/migration";
 import { CortexMigrationProvider } from "./sqlite-initial-migration.ts";
 import { SqliteTransactionManager } from "./sqlite-application-repositories.ts";
 import { SqlitePlatformRunTransactionManager } from "./sqlite-platform-run-repository.ts";
+import { SqlitePlatformEvalTransactionManager } from "./sqlite-platform-eval-repository.ts";
 import {
   SqliteCaseImportStagingFactory,
   type SqliteCaseImportStagingFactoryOptions
@@ -103,6 +104,11 @@ export class SqliteStorage {
   /** Create the dedicated platform Run short-transaction boundary. */
   public createRunTransactionManager(): SqlitePlatformRunTransactionManager {
     return new SqlitePlatformRunTransactionManager(this.#database);
+  }
+
+  /** Create the dedicated platform Evaluation short-transaction boundary. */
+  public createEvalTransactionManager(): SqlitePlatformEvalTransactionManager {
+    return new SqlitePlatformEvalTransactionManager(this.#database);
   }
 
   /** Create isolated external Case import staging sessions for this storage. */

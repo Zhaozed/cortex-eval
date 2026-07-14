@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   chmod,
   mkdtemp,
@@ -12,6 +13,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import Database from "better-sqlite3";
+import { Kysely, SqliteDialect } from "kysely";
+import { Migrator } from "kysely/migration";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -19,8 +22,23 @@ import {
   initializeSqliteStorage,
   resolveDefaultDatabasePath
 } from "../src/sqlite-database.ts";
+import { CortexMigrationProvider } from "../src/sqlite-initial-migration.ts";
 
 const openStorages: { close(): Promise<void> }[] = [];
+const P5_002_SCHEMA_HASH = "49cfbbb1e859a73d0dd303db26bb770506846ee55ee58c620172186c4dee6421";
+
+// Hash the complete published schema while excluding Kysely bookkeeping tables.
+function hashPublishedSchema(database: Database.Database): string {
+  const rows = database
+    .prepare(
+      `SELECT type, name, tbl_name, sql
+       FROM sqlite_master
+       WHERE name NOT LIKE 'sqlite_%' AND name NOT LIKE 'kysely_%'
+       ORDER BY type, name`
+    )
+    .all();
+  return createHash("sha256").update(JSON.stringify(rows)).digest("hex");
+}
 
 afterEach(async () => {
   await Promise.all(openStorages.splice(0).map(async (storage) => storage.close()));
@@ -108,6 +126,104 @@ describe("SQLite 初始化与 Migration", () => {
 
     expect(row?.sql).toContain("run_log(suite_id, created_at DESC, id DESC)");
     expect(row?.sql).toContain("WHERE source_type = 'PLATFORM'");
+  });
+
+  it("安装持久 Evaluation 分类计数及其跨字段完整性触发器", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-"));
+    const storage = await initializeSqliteStorage({ projectRoot });
+    openStorages.push(storage);
+
+    const database = new Database(storage.databasePath, { readonly: true });
+    const columns = database.prepare("PRAGMA table_info(run_log)").all() as {
+      readonly name: string;
+    }[];
+    const triggers = database
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'run_log_eval_counters_%' ORDER BY name"
+      )
+      .all() as { readonly name: string }[];
+    database.close();
+
+    expect(columns.map((item) => item.name)).toEqual(
+      expect.arrayContaining([
+        "eval_completed_count",
+        "eval_pass_count",
+        "eval_fail_count",
+        "eval_error_count",
+        "eval_not_evaluated_count"
+      ])
+    );
+    expect(triggers.map((item) => item.name)).toEqual([
+      "run_log_eval_counters_insert",
+      "run_log_eval_counters_update"
+    ]);
+  });
+
+  it("从不可变 P5 002 Schema 升级时只新增三类 Evaluation 计数", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-upgrade-"));
+    const databasePath = resolveDefaultDatabasePath(projectRoot);
+    await mkdir(dirname(databasePath), { recursive: true, mode: 0o700 });
+    const nativeDatabase = new Database(databasePath);
+    const database = new Kysely<unknown>({
+      dialect: new SqliteDialect({ database: nativeDatabase })
+    });
+    const result = await new Migrator({
+      db: database,
+      provider: new CortexMigrationProvider()
+    }).migrateTo("002_platform_run_indexes");
+    expect(result.error).toBeUndefined();
+    await database.destroy();
+
+    const legacyDatabase = new Database(databasePath, { readonly: true });
+    const legacyColumns = legacyDatabase.prepare("PRAGMA table_info(run_log)").all() as {
+      readonly name: string;
+    }[];
+    const legacyCaseResult = legacyDatabase
+      .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'case_result'")
+      .get() as { readonly sql: string };
+    const legacyEvalResult = legacyDatabase
+      .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'eval_result'")
+      .get() as { readonly sql: string };
+    expect(hashPublishedSchema(legacyDatabase)).toBe(P5_002_SCHEMA_HASH);
+    legacyDatabase.close();
+    expect(legacyColumns.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["eval_completed_count", "eval_error_count"])
+    );
+    expect(legacyColumns.map((item) => item.name)).not.toContain("eval_pass_count");
+    expect(legacyCaseResult.sql).toContain(
+      "((reused_from_run_id IS NOT NULL OR reused_from_execution_id IS NOT NULL) AND reused_result_hash IS NOT NULL)"
+    );
+    expect(legacyEvalResult.sql).toContain(
+      "((reused_from_run_id IS NOT NULL OR reused_from_execution_id IS NOT NULL) AND reused_eval_result_hash IS NOT NULL)"
+    );
+
+    const storage = await initializeSqliteStorage({ projectRoot });
+    openStorages.push(storage);
+    const upgradedDatabase = new Database(storage.databasePath, { readonly: true });
+    const upgradedColumns = upgradedDatabase.prepare("PRAGMA table_info(run_log)").all() as {
+      readonly name: string;
+    }[];
+    const provenanceTriggers = upgradedDatabase
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE '%_provenance_%' ORDER BY name"
+      )
+      .all() as { readonly name: string }[];
+    upgradedDatabase.close();
+    expect(upgradedColumns.map((item) => item.name)).toEqual(
+      expect.arrayContaining([
+        "eval_completed_count",
+        "eval_error_count",
+        "eval_pass_count",
+        "eval_fail_count",
+        "eval_not_evaluated_count"
+      ])
+    );
+    expect(provenanceTriggers.map((item) => item.name)).toEqual([
+      "case_result_provenance_insert",
+      "case_result_provenance_update",
+      "eval_result_provenance_insert",
+      "eval_result_provenance_update"
+    ]);
   });
 
   it("每个独立连接均启用外键、WAL、Busy Timeout 和 FULL 同步", async () => {

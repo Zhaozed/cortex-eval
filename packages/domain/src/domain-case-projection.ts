@@ -9,8 +9,8 @@ export interface CaseSearchProjection {
   readonly metrics: readonly string[];
 }
 
-// Map one clean Assertion into its stable persisted JSON form.
-function assertionJson(assertion: AssertionDefinition): DomainJsonObject {
+/** Map one clean recursive Assertion into its stable v1 JSON definition. */
+export function assertionDefinitionJson(assertion: AssertionDefinition): DomainJsonObject {
   const result: DomainJsonObject = {
     type: assertion.type,
     metric: assertion.metric,
@@ -28,7 +28,7 @@ function assertionJson(assertion: AssertionDefinition): DomainJsonObject {
     if (value !== undefined) result[key] = value;
   }
   if (assertion.assertions !== undefined) {
-    result.assert = assertion.assertions.map(assertionJson);
+    result.assert = assertion.assertions.map(assertionDefinitionJson);
   }
   return result;
 }
@@ -47,7 +47,7 @@ export function caseDefinitionJson(definition: CaseDefinition): DomainJsonObject
       business_module: definition.metadata.businessModule,
       scenario_tag: definition.metadata.scenarioTag
     },
-    assert: definition.assertions.map(assertionJson)
+    assert: definition.assertions.map(assertionDefinitionJson)
   };
 }
 

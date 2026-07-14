@@ -14,7 +14,7 @@ Local Server 依赖 Contracts、Application 和具体 Infrastructure 实现。Ro
 
 ## 实现状态
 
-P3–P5 已落地 Fastify Local Server、真实 SQLite 装配、资源与 Run REST Route、严格请求/响应 Schema、OpenAPI、生产 Web 静态入口、安全边界、中文业务日志和有限期 Run SSE。当前不注册 Evaluation、Execution、Report、Analysis、Work Package、Retry/Force 或目标 CLI 能力。
+Fastify Local Server 已装配真实 SQLite、资源与 Run REST/Evaluation Route、严格请求/响应 Schema、OpenAPI、生产 Web 静态入口、安全边界、中文业务日志和有限期 Run SSE。当前不注册 Execution、Report、Analysis、Work Package、Retry/Force 或目标 CLI 能力。
 
 ## 当前代码事实入口
 
@@ -22,7 +22,7 @@ P3–P5 已落地 Fastify Local Server、真实 SQLite 装配、资源与 Run RE
 - [local-operation-schemas.ts](../../apps/local-server/src/local-operation-schemas.ts)：资源与 Run 操作的 Runtime/OpenAPI Schema。
 - [application-resource-handlers.ts](../../apps/local-server/src/application-resource-handlers.ts)：DTO/Application Mapper 与稳定错误映射。
 - [application-run-handlers.ts](../../apps/local-server/src/application-run-handlers.ts)：Run DTO/Application Mapper 与稳定错误映射。
-- [run-api-routes.ts](../../apps/local-server/src/run-api-routes.ts)：P5 Run Route 和 Snapshot-first SSE。
+- [run-api-routes.ts](../../apps/local-server/src/run-api-routes.ts)：Run REST/Evaluation Route 和 Snapshot-first SSE。
 - [run-artifact-store.ts](../../apps/local-server/src/run-artifact-store.ts)：Run 专属不可变 Artifact 与孤儿清理。
 - [case-export-staging.ts](../../apps/local-server/src/case-export-staging.ts)：响应前一致性校验、0600 导出文件和取消清理。
 - [local-server-runtime.ts](../../apps/local-server/src/local-server-runtime.ts)：SQLite、Application、Adapter 和生命周期装配。
@@ -37,7 +37,7 @@ P3–P5 已落地 Fastify Local Server、真实 SQLite 装配、资源与 Run RE
 
 ## 对外接口
 
-当前 `/api/v1` 包含 Test Suites、Suite-local Cases、Endpoint Configs、LLM Configs、Rubric Prompts、Analysis Prompts 和平台 Runs。资源能力覆盖 CRUD、Suite 影响查询、Case 搜索/组合过滤/Cursor 分页、全量导入导出、配置验证、Prompt 预览与引用查询；Run 能力覆盖预检、创建、倒序分页、详情、REST 启动、取消、进度流和逐 Case REST 结果。Route 按完成阶段注册，未闭环能力不出现在 OpenAPI。
+当前 `/api/v1` 包含 Test Suites、Suite-local Cases、Endpoint Configs、LLM Configs、Rubric Prompts、Analysis Prompts 和平台 Runs。资源能力覆盖 CRUD、Suite 影响查询、Case 搜索/组合过滤/Cursor 分页、全量导入导出、配置验证、Prompt 预览与引用查询；Run 能力覆盖预检、创建、倒序分页、详情、REST/Evaluation 启动、取消、进度流和两阶段逐 Case 结果。Route 按完成阶段注册，未闭环能力不出现在 OpenAPI。
 
 列表使用 Cursor 分页，大 JSON 只在详情返回。写请求返回稳定 Error Code 和必要字段路径。
 
@@ -47,7 +47,7 @@ P3–P5 已落地 Fastify Local Server、真实 SQLite 装配、资源与 Run RE
 
 ## 状态、事务与幂等
 
-Route 不持有业务事务。Application 决定事务边界和幂等语义。Case 导入只保留单项内存，逐项写外部 staging；multipart 截断检查属于定义流完成条件，只有确认未超限后才最终原子替换主库。导出先冻结 Suite Revision，再逐 Case 短事务读取并写 owner-only 临时文件；Revision 变化在打开 200 前返回 409，完整文件再按背压发送。Run Start/Cancel 使用 Revision DTO 并只返回小型进度事实；Run Detail 和 Case Detail 分开读取，避免大快照进入列表或动作响应。
+Route 不持有业务事务。Application 决定事务边界和幂等语义。Case 导入只保留单项内存，逐项写外部 staging；multipart 截断检查属于定义流完成条件，只有确认未超限后才最终原子替换主库。导出先冻结 Suite Revision，再逐 Case 短事务读取并写 owner-only 临时文件；Revision 变化在打开 200 前返回 409，完整文件再按背压发送。Run Start/Cancel 使用 Revision DTO 并只返回小型进度事实；进度、列表和详情包含持久 REST 与 Evaluation 分类计数，Run Detail 和 Case Detail 分开读取，避免大快照进入列表或动作响应。
 
 ## 错误收敛
 
@@ -55,8 +55,8 @@ Route 不持有业务事务。Application 决定事务边界和幂等语义。Ca
 
 ## 观测与验收
 
-默认监听 `127.0.0.1:4310` 并同源提供生产 Web 与 API。P5 为资源页、`/runs` 和 `/runs/:runId` 注册 SPA 回退，未来页面路径仍返回 404。Run SSE 先验证 Run，再以 `text/event-stream` 和当前 Snapshot 开流；开流前保留 400/403/404/500 普通 JSON 错误，开流后的轮询拒绝、脏响应或写流错误只结束已 Hijack 响应并释放 Controller。单连接最多 5 秒、250 毫秒查询一次、声明 1 秒重连，跨进程变化最坏可见时间约 6 秒。静态响应使用不含 `'unsafe-eval'` 的脚本 CSP；响应序列化编译时只移除 fast-json-stringify 不支持的 `propertyNames`，Route Runtime Schema 和 OpenAPI 保持原严格事实。默认数据目录是项目根 `.cortex-eval/`。写请求 Body 使用 Route 级上限；Case JSON 文件上限 200 MiB。默认 composition root 把请求、staging 安全事件和闭合 Run 生命周期事件接入 owner-only 日志，单文件 10 MiB、保留 10 个轮转文件；写失败输出外化 stderr 提示且不改变业务结果。Runtime 关闭在 SQLite 前等待日志队列 flush。
+默认监听 `127.0.0.1:4310` 并同源提供生产 Web 与 API。资源页、`/runs` 和 `/runs/:runId` 注册 SPA 回退，未来页面路径仍返回 404。Run SSE 先验证 Run，再以 `text/event-stream` 和当前 Snapshot 开流；REST 的开始/进度/完成及 Evaluation 的开始/完成由持久 Stage/Revision 推导，不暴露无持久计数支撑的 Evaluation Progress 事件。若一次轮询跨过多个 Stage，则以同一最新 `lockRevision` 按 REST Start/Progress/Complete、Evaluation Start/Complete 的顺序发送全部可证明事件，客户端仍以随后重读 Snapshot 为事实源。开流前保留 400/403/404/500 普通 JSON 错误，开流后的轮询拒绝、脏响应或写流错误只结束已 Hijack 响应并释放 Controller。单连接最多 5 秒、250 毫秒查询一次、声明 1 秒重连，跨进程变化最坏可见时间约 6 秒。静态响应使用不含 `'unsafe-eval'` 的脚本 CSP；响应序列化编译时只移除 fast-json-stringify 不支持的 `propertyNames`，Route Runtime Schema 和 OpenAPI 保持原严格事实。默认数据目录是项目根 `.cortex-eval/`。写请求 Body 使用 Route 级上限；Case JSON 文件上限 200 MiB。默认 composition root 把请求、staging 安全事件和闭合 Run 生命周期事件接入 owner-only 日志，单文件 10 MiB、保留 10 个轮转文件；写失败输出外化 stderr 提示且不改变业务结果。Runtime 关闭在 SQLite 前等待日志队列 flush。
 
 ## 相关测试
 
-当前测试覆盖生命周期、真实 SQLite 装配、Host、Origin、Request ID、分页/过滤、错误映射、脱敏、取消、OpenAPI 精确路径与所有操作 403、生产静态资源与 P5 SPA 路径、CSP、未注册未来 Route、`200 MiB-1/200 MiB/200 MiB+1`（含合法数组后的超限尾随空白）、固定 192 MiB RSS 增量门禁、导出响应前冲突和正常/取消临时资源清理，以及 Run 预检、创建、REST、Artifact、逐 Case 结果、SSE 和启动恢复。
+当前测试覆盖生命周期、真实 SQLite 装配、Host、Origin、Request ID、分页/过滤、错误映射、脱敏、取消、OpenAPI 精确路径与所有操作 403、生产静态资源、CSP、未注册未来 Route、流式大小/RSS 门禁、临时资源清理，以及 Run 预检、创建、REST→Evaluation、Artifact、两阶段逐 Case 结果、SSE 和启动恢复。

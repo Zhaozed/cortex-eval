@@ -6,7 +6,7 @@
 
 产品行为和验收口径以 `REQ.md` 为准。本文档不包含具体实现代码。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。截至 P5，Contracts、Domain、十表 SQLite、资源 Application 用例、Local Server、资源管理 Web，以及平台 Run 创建与 REST 执行闭环已落地；Work Package、Evaluator Bridge 和 Canonical Export 仍只有纯协议。Evaluation、Report、Analysis、Retry/Force、Execution Import、Work Package 文件运行时和目标 CLI 入口按后续阶段推进。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P6 已完成，P7 正在实现 Work Package、CLI、重跑与导入基础。平台 REST→Evaluation Pipeline、Eval API/Web/SSE、不可变 Artifact、规范化 Hash、Ajv 2020-12 Diff、严格 Importer、SQLite 原子提交、受控 Promptfoo 进程、Bridge v2、官方 SDK Adapter 及内部 Retry/Force Use Case 已闭环。Report、Analysis、对外 Retry/Force 及尚未落地的 P7 能力仍未闭合。
 
 ## 2. 总体结论
 
@@ -43,7 +43,7 @@ API、Web 和 CLI 不承载业务规则。所有业务入口调用 Application U
 - `test_suite/current/rubric_prompt/*.json`：LLM Rubric Prompts。
 - `test_suite/current/pf_config.yaml`：生成配置的结构参考。
 
-系统支持 Promptfoo `0.121.18` 能力矩阵列出的全部内置 Assertion。技术方案必须覆盖 `rubricPrompt`、可信内联 JavaScript/Python/Ruby、`transform`、`contextTransform`、嵌套 Assertion Set、组件级 Grading Result 和预计算 `providerOutput`。当前不支持 `file://` 外部代码、外部模块、额外依赖或自定义 Provider 插件。
+Case Definition 和受控配置生成器不按 Assertion `type` 设置平台白名单。Promptfoo `0.121.18` 能力矩阵列出的全部内置 Assertion 都可进入生成配置；矩阵用于 Payload、依赖和 Importer 对齐，不要求单输出平台流程复现或限制 Assertion 的原生执行语义。技术方案覆盖 `rubricPrompt`、可信内联 JavaScript/Python/Ruby、`transform`、`contextTransform`、嵌套 Assertion Set、组件级 Grading Result 和预计算 `providerOutput`。当前只按统一安全边界拒绝外部文件/模块/包/依赖、用户 Provider 覆盖或自定义 Provider 插件，不因 Assertion 类型本身拒绝。
 
 ## 4. 项目架构设计
 
@@ -382,7 +382,7 @@ Promptfoo 是评估执行器，不是业务数据库、报告事实源或平台 
 
 系统从精确版本生成 Assertion 能力矩阵。矩阵记录每种类型、合法 Payload、是否需要 Evaluator、解释器或外部协议，以及 Importer 对齐规则；测试门禁保证矩阵中每个类型都有对应契约测试。
 
-Assertion 中的内联 JavaScript、Python、Ruby、`transform` 和 `contextTransform` 默认可信，不检测、不提示、不沙箱。`file://` 外部代码、外部模块、额外依赖、Assertion 内嵌 Provider 和 Provider 插件在边界拒绝。
+Assertion 中的内联 JavaScript、Python、Ruby、`transform` 和 `contextTransform` 默认可信，不检测、不提示、不沙箱。外部引用协议先忽略前导空白并转小写，再拒绝 `file://`、`package:`、`module:`、`node:`、`npm:`、`pip:`；外部模块、额外依赖、Assertion 内嵌 Provider/OAuth/认证/Secret 和 Provider 插件同样在边界拒绝。
 
 P0 Doctor 冻结发布环境前置：Python 使用 `PROMPTFOO_PYTHON` 或 `python3`，版本不低于 3.7；Ruby 使用 `PROMPTFOO_RUBY` 或 `ruby`，并以真实内联 Assertion Smoke 判定兼容。发布记录实际解释器路径与版本，但不把机器绝对路径写入 Work Package。系统不自动安装解释器或第三方语言依赖。
 
@@ -463,7 +463,7 @@ Revision 独立于 Config Hash。Config Hash 包含 Provider、Model、统一 Op
 
 Options JSON 使用 Provider 白名单 Schema，并在读取时拒绝未知字段、非法枚举与认证联合不匹配的 Secret 形状。任意层级出现 `apiKey`、`token`、`secret`、`password`、`credential`、`authorization` 或同义字段时拒绝保存，Secret 只能通过独立 EnvSecretRef 字段提供。四类配置的持久化行都必须重新计算语义 Hash 并与存储值一致。
 
-Provider Type 只允许 `GOOGLE_GEMINI` 和 `OPENAI_COMPATIBLE`。两者统一公开 `model`、`thinkingLevel`、`temperature`、`topP`、`maxOutputTokens` 和 `timeoutMs`。OpenAI-compatible 只实现 Chat Completions，把 `OFF | LOW | MEDIUM | HIGH` 映射为 `reasoning_effort: none | low | medium | high`；Provider 以 400/422 拒绝统一能力参数时返回 `CAPABILITY_UNSUPPORTED`，不得静默忽略。远程 Base URL 必须使用 HTTPS 与 Bearer EnvSecretRef；本地回环可显式选择无认证，此时 SDK 请求必须显式移除 `Authorization`。Analyzer 结构输出能力显式为 `JSON_SCHEMA | JSON_OBJECT`。
+Provider Type 只允许 `GOOGLE_GEMINI` 和 `OPENAI_COMPATIBLE`。两者统一公开 `model`、`thinkingLevel`、`temperature`、`topP`、`maxOutputTokens` 和 `timeoutMs`。OpenAI-compatible 只实现 Chat Completions，把 `OFF | LOW | MEDIUM | HIGH` 映射为 `reasoning_effort: none | low | medium | high`；Provider 以 400/422 拒绝统一能力参数时返回 `PROVIDER_CAPABILITY_UNSUPPORTED`，不得静默忽略。远程 Base URL 必须使用 HTTPS 与 Bearer EnvSecretRef；本地回环可显式选择无认证，此时 SDK 请求必须显式移除 `Authorization`。Analyzer 结构输出能力显式为 `JSON_SCHEMA | JSON_OBJECT`。
 
 ### 7.5 llm_rubric_prompt
 
@@ -721,7 +721,7 @@ HTTP 2xx 且 Provider Output 合法视为 REST `SUCCEEDED`，包括业务 `ok=fa
 
 REST 不自动重试。失败重跑创建新 Run/Execution，复用来源成功事实；`--force` 在新身份下重新执行全部 Cases。
 
-平台 `RetryRunFailed` 和离线 `--retry-failed` 使用同一选择规则：复制 REST `SUCCEEDED`；重新请求 REST `ERROR`；复制与复用 REST 事实对齐的 Eval `PASS/FAIL`；重新评估 `EVALUATION_ERROR`、缺失 Eval 事实，以及 REST 重试后新成功的 `NOT_EVALUATED`。REST 重试仍失败的 Case 保持 `NOT_EVALUATED`。新运行记录每条复用 Provenance 并重新生成 Result Set Hash。`ForceRun`/`--force` 使用来源冻结上下文重新执行全部 REST 和 Eval。
+平台 `RetryRunFailed` 和离线 `--retry-failed` 使用同一选择规则：复制 REST `SUCCEEDED`；重新请求 REST `ERROR`；仅在来源 Normalized Eval Artifact 与结果所引用的原始 Raw Artifact 实际文件按 Manifest Hash/大小校验为 `PRESENT` 时，复制与复用 REST 事实对齐的 Eval `PASS/FAIL`。连续 Retry 沿逐代 Provenance 追溯到真正持有 Raw 的祖先 Run，不要求中间 Run 复制 Raw。规划和实际 Evaluation 各自校验一次来源链 Artifact；文件缺失/损坏、循环/断裂 Provenance、`EVALUATION_ERROR`、缺失 Eval 事实，以及 REST 重试后新成功的 `NOT_EVALUATED` 都重新评估。REST 重试仍失败的 Case 保持 `NOT_EVALUATED`。新运行记录每条复用 Provenance 并重新生成 Result Set Hash。`ForceRun`/`--force` 使用来源冻结上下文重新执行全部 REST 和 Eval。
 
 ## 12. Promptfoo 执行和导入
 
@@ -734,21 +734,24 @@ REST 不自动重试。失败重跑创建新 Run/Execution，复用来源成功�
 - 引用的 Rubric Prompt 文件。
 - 受控 Promptfoo Config。
 
-Secret 只在子进程启动前注入环境，不写入生成文件。
+Secret 只在子进程启动前注入环境，不写入生成文件。Assertion `config` 保持适配全部类型的开放 JSON 形状，但 Contracts 与物化器递归拒绝其中的 Provider/OAuth/认证/Secret/模块/依赖字段和归一化后的外部文件、模块、包与依赖协议；敏感键按分隔符、camelCase 和紧凑敏感词组合识别，不能以组合字段、大小写、前导空白或嵌套配置绕过平台边界。Promptfoo 可执行可信内联代码，因此子进程不得继承完整父进程环境；只透传 `PATH`、用户/临时目录、Locale、`PROMPTFOO_PYTHON`、`PROMPTFOO_RUBY`，再注入当前调用期 Capability 和固定 Promptfoo 开关。Promptfoo 输出离开临时目录前按字符串值与对象键递归检查完整 Capability；命中即使阶段失败，禁止写入 Raw/Normalized Artifact、SQLite 或 API。
 
-Promptfoo 主 Provider 始终使用 Echo 和预计算 Provider Output。需要 Provider 的 Assertion 统一调用仅绑定随机回环端口的 Evaluator Bridge；Bridge 通过一次性 Capability、Run/Execution 身份、请求 Schema、调用预算、并发和超时限制请求，只能调用冻结的统一 Gemini/OpenAI-compatible SDK Adapter，不能转发任意 Provider、Model、URL、Header 或 Secret。
+Promptfoo 主 Provider 始终使用 Echo 和预计算 Provider Output。需要 Provider 的 Assertion 统一调用仅绑定随机回环端口的 Evaluator Bridge v2。v2 Capability 绑定当前非持久化 Evaluation 调用期、Run/Execution 身份、Evaluation Context Hash、Evaluator Config Hash、TTL、并发和超时；总调用预算由生成配置中需要 Evaluator 的 Assertion 实例数按锁定能力矩阵确定性派生，并进入 Evaluation Context Hash。Bridge 不接收 Case、Assertion、Metric 或组件身份，不参与评分聚合，只能调用冻结的统一 Gemini/OpenAI-compatible SDK Adapter，不能转发任意 Provider、Model、URL、Header 或 Secret。请求入队前与获得 FIFO 并发槽后各校验一次关闭状态和 TTL，过期排队请求消耗已接受调用预算但不进入 Evaluator。SDK 未提供完整 Token Usage 时 Bridge 保留 `null`，Promptfoo HTTP Provider 只在非空时映射 `prompt/completion/total`。Bridge 对调用 Promise 与自身超时/关闭信号做受控竞速，先产生的终态立即结束 HTTP 调用；即使 SDK 或网络边界忽略 Abort，也不得阻塞 Bridge 关闭。进程结束立即清空授权。
 
 ### 12.2 子进程
 
+- Promptfoo 进程边界显式接收项目 Containment Root 与其下临时父目录。任何目录创建或 `chmod` 前，先校验绝对 lexical 子路径，再从 Root 逐级执行 `lstat + realpath` canonical containment；任一级符号链接、非目录或 Root 外路径都以稳定错误拒绝。一次运行目录必须保持在校验后的真实父目录内并使用 owner-only 权限。
+- `promptfooTimeoutMs` 是从 Engine 创建调用期到 Promptfoo 结束的整体预算。Bridge TTL 由同一预算起点计算；Bridge/配置物化已消耗的时间先从进程预算扣除，进程内版本检查和 Eval 再共享一个单调截止时间，不允许版本检查后重新获得完整超时。
+- Application 在抢占 `READY/EVALUATION` 前，只对 REST `SUCCEEDED` 且未复用 Eval、确实会进入 Promptfoo 的 Case 检查解释器依赖；只对需要的 Python/Ruby 执行真实 Promptfoo 内联 Smoke，失败返回稳定字段路径且不改变 Run。REST Error 与完整复用 Case 不触发解释器要求。
 - 使用固定可执行文件和参数数组，不启用 Shell。
 - 校验 Promptfoo 实际版本。
 - 禁用 Share 和非必要本地持久化。
 - 显式写 Raw JSON Output。
 - 记录安全 Exit Code、耗时和文件 Hash。
 - Promptfoo HTTP Provider、Evaluator Bridge 和官方 SDK 都显式关闭重试。
-- 取消时先发送 `SIGTERM`，5 秒未退出再发送 `SIGKILL`，随后关闭 Bridge 并回收临时资源。
+- Promptfoo 运行在独立 POSIX 进程组；取消或超时时先向完整进程组发送 `SIGTERM`。主进程先退出时继续等待解释器后代，并把从首次 TERM 起算的剩余 5 秒宽限期留给其清理；宽限期耗尽后才向完整进程组发送 `SIGKILL`。确认进程组消失后关闭 Bridge 并回收临时资源。Bridge 关闭不等待不协作的迟到 Evaluator Promise，但已为其安装终态处理，禁止未处理拒绝反向污染 Owner。
 
-Assertion 失败对应的 Promptfoo 原始退出码 `100` 是评估事实，CLI Adapter 对外映射为退出码 `1`。进程启动、配置、信号、文件和未知格式错误才是系统错误。该事实由固定版本真实进程探针验证，不从自然语言输出推断。
+Promptfoo 原生退出码被 Raw Artifact 契约收紧为成功 `0` 或 Assertion 失败 `100`；`100` 是评估事实，CLI Adapter 对外映射为退出码 `1`。其他退出码、进程启动、配置、信号、文件和未知格式错误才是系统错误。该事实由固定版本真实进程探针验证，不从自然语言输出推断。
 
 ### 12.3 Importer
 
@@ -757,14 +760,19 @@ Importer：
 1. 校验顶层版本和 Schema。
 2. 按 Case Key 与 Ordinal 对齐。
 3. 按 Assertion Index 和 Definition Hash 对齐组件结果。
-4. 提取 Pass、Score、Reason、Metric、Weight、Token、Latency 和 Cost。
+4. 提取 Pass、Score、Reason、Metric、Weight、Token、Latency 和 Cost；Bridge Token Usage 显式映射为 Promptfoo `prompt/completion/total` 后再导入。
 5. 对失败 `is-json` 生成解释性 Diff。
 6. 生成 Case Metric Results。
 7. 丢弃不稳定和敏感字段。
-8. 为 REST Error Case 生成 `NOT_EVALUATED`。
-9. 所有规范化 Eval、Assertion、Diff 和 Metric 事实稳定后，生成 Eval Result Hash 和 Final Case Result Hash。
+8. 为 REST Error Case 生成 `NOT_EVALUATED`；固定版本结构化 Row Error 先按闭合错误形状校验非空 Error、空 Grading、零分、无 Response、计数类型及禁止矛盾评分字段，再与内联 JavaScript/Python/Ruby 的固定执行失败结构一起清洗为可重试 `EVALUATION_ERROR`。持久事实只保留稳定错误码，不保留第三方正文、本地化文案、绝对路径或堆栈；Web 在消息资源中解析可读说明。
+9. 所有规范化 Eval、Assertion、Diff 和 Metric 事实稳定后，生成可跨重跑复用的单 Case Eval Result Hash 和 Final Case Result Hash；延迟、Token Usage、Cost 与 Raw Artifact Hash/大小属于执行观测或完整性事实，不进入单 Case 语义 Hash。
+10. 完整集合按冻结顺序生成 Result Set Hash；输入固定包含 `owner: RUN | EXECUTION`、执行 ID、Evaluation Context Hash 和逐 Case Eval Result Hash。Evaluation Context Hash 已绑定 Run/Execution、Run Context、REST Result Set、Evaluator Config、Promptfoo/生成契约、能力矩阵和确定性调用预算。
+
+平台与离线 Raw/Normalized Evaluation Artifact 都显式保存 Evaluation Context Hash。Artifact Writer 和 SQLite 提交边界使用同一执行身份与 Context Hash 复算 Result Set Hash；Normalized Writer 还要求输入 Case 按 `0..N-1` 连续 Ordinal 排列且 Case Key 唯一，禁止排序校验后原样写入乱序集合。因此语义完全复用的 Retry 仍得到新执行版本 Hash，来源单 Case Eval Result Hash 保持可追溯复用。
 
 未知结构、重复 Case、错位组件或无法可靠识别聚合状态时拒绝完整导入。
+
+Importer 不以 `select-best`、`max-score` 或任何其他 Assertion 类型名称作为拒绝条件。固定 Promptfoo 产生的单行或多行结果统一按 Case、组件和 Definition Hash 规则对齐；重复、缺失或无法归属的真实结构返回通用结构化对齐错误，不由平台预判某类 Assertion 是否适用于当前输入。
 
 ## 13. 报告设计
 
@@ -909,7 +917,7 @@ API 固定前缀为 `/api/v1`，同源默认地址为 `127.0.0.1:4310`。Fastify
 
 P3 当前只注册 Test Suite、Case、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 的资源 CRUD、Case 导入导出、配置验证与 Prompt 预览/引用查询。请求与成功响应均由严格 Zod DTO 投影为 Runtime/OpenAPI Schema；Host/Origin 拒绝可能发生在所有 Route，因此所有操作均声明闭合 403 响应。Case 导入逐项流式校验并写入独立 SQLite staging 文件，multipart 截断事实作为定义流结束条件参与最终提交，随后才在主库同一连接的短事务中整体替换；staging 不是业务表，失败、取消和完成后均按 owner 身份清理。Case 导出先把固定 Suite Revision 的 JSON 流写入 owner-only `0600` 临时文件，完整一致性校验成功后才打开 200 响应；正常完成、取消和准备失败均按 owner 身份清理，内存只保留单 Case 或流缓冲块。SQLite 在创建状态/db 目录或打开数据库前验证 `.cortex-eval`、`db` 与现有数据库/WAL/SHM 不是符号链接并保持 canonical 项目 containment；临时根执行相同约束。无 owner 的新目录未过 TTL 时视为可能仍在初始化，不隔离。
 
-P5 当前注册 Run 预检、创建、倒序分页、详情、逐 Case REST 结果、REST 启动、取消和有限期 SSE 进度。Start/Cancel 使用 Run Revision 条件写并返回小型 `RunProgress`；Run Detail 使用不含冻结 Case 数组和 Prompt 正文的有界投影；逐 Case 写入、轮询和 SSE 只读取小型进度投影，不反复反序列化完整冻结输入。REST Artifact 按结果 Cursor 单遍流式写入并增量计算文件 Hash 与 Result Set Hash，不聚合完整结果数组。SSE 先校验 Run，再以 `text/event-stream` 发送当前 Snapshot，并从独立 SQLite 查询观察 Revision 变化；开流前的 400/403/404/500 保持普通 JSON 错误响应，开流后的轮询、Schema 或写入失败由 Route 结束响应并释放连接，不向已 Hijack 的响应改写 JSON。当前只允许启动 `READY/REST`，REST 提交后停在 `READY/EVALUATION`。一键自动推进、Evaluation、Report、Analysis、Retry/Force 和 Execution Route 均不注册。
+P6 当前注册 Run 预检、创建、倒序分页、详情、逐 Case REST 结果、逐 Case Evaluation 结果、阶段启动、取消和有限期 SSE 进度。Start/Cancel 使用 Run Revision 条件写；Run Detail 使用不含冻结 Case 数组和 Prompt 正文的有界投影。进度、列表和详情都返回 Evaluation 总数、完成数、PASS、FAIL、Error 与 Not Evaluated 持久汇总；Promptfoo 批处理期间完成数保持 0，Evaluation 原子提交时一次写入完整分类。`READY/REST` 与 `READY/EVALUATION` 可按 Revision 启动；`PIPELINE` 在 REST 原子提交后以新 Revision自动抢占 Evaluation，Starter 正常返回失败或直接拒绝 Promise 时，只在交接 Revision 未变化时提交 `EVALUATION_STAGE_FAILED`，其他 Owner 已推进时不覆盖最新事实。Evaluation 结果通过 `/runs/:id/evaluations` 进行有界 Cursor 查询；SSE 只发送有持久 Revision 事实支撑的 Evaluation 开始和完成事件，不声明不存在逐 Case持久计数的 `EVALUATION_PROGRESS`。Report、Analysis、Retry/Force 和 Execution Route 仍不注册。
 
 ### 15.2 Web
 
@@ -923,7 +931,7 @@ Web 使用简体中文、浅色本地实验室仪表台视觉和桌面优先布�
 
 P4 当前注册 Dashboard 资源数量、Test Suite/Case 管理、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 配置页面。Case 结构化编辑与完整 JSON 共享同一已校验 Draft，Assertion 保留完整闭合 JSON；默认每页 50 条，筛选和 Cursor 历史写入 URL。资源写入或删除发生 409 时先读取最新服务端 Snapshot，保留本地意图，并由用户显式选择最新 Revision 重试或采用 Snapshot；Case 编辑 Snapshot 与可见 Draft 分离，冲突待决时不重挂编辑器。若刷新得到稳定 `CASE_NOT_FOUND`，则进入显式 `REMOTE_CASE_DELETED` 状态，不构造 Case Revision：编辑流程先禁用详情 Query，再移除精确详情缓存并刷新 Suite/列表，持续只读展示本地 Draft；删除流程保留确认 Dialog。两者都没有重试动作，只能显式采用远端删除事实后关闭并解除离开门禁。该规则覆盖 Suite 元数据与删除、Case 编辑/创建/复制/删除/导入和四类配置的保存与删除，连续冲突每次重新读取事实，采用 Snapshot 后下一次写入使用其 Revision。Suite 创建/元数据、Case 非编辑写操作、Case 编辑和配置探测、预览、保存使用同步单飞锁，请求在途或冲突待决时冻结对应编辑面并阻止关闭编辑容器。页面级离开门禁同时拦截关闭按钮、Esc、侧栏、应用内返回、浏览器前进后退和页面卸载；应用 History 条目保存单调位置，受阻的已知条目遍历用 `history.go` 回到原位置，不追加条目或截断前进栈；从前进或后退进入第三方或旧版未知 State 时，以 `Navigation.currentEntry.index` 的同源绝对索引恢复原位置。只有写入结束、用户显式完成 Draft/Snapshot 决策，或互斥写入已经成功提交后，应用壳层才恢复或执行导航。配置重试在途仍保留冲突决策，操作层同时拒绝重复决策。Test Suite 删除影响预检本身单飞并占用页面写槽，期间禁用其他 Suite/Case 写入口；其他写入待决时反向禁用删除入口。Suite Snapshot 同步详情与所有已加载 Suite 列表；Case Snapshot 在显式采用前只同步 Case 列表，采用后再替换可见详情；缺少具体 Case Snapshot 时使 Case 列表失效重取。配置保存和删除冲突都同步详情与已加载的同类列表 Query，关闭重开或放弃删除不回退旧 Snapshot。Case 删除移除精确详情缓存，全量导入移除该 Suite 全部 Case 详情缓存；Test Suite 删除移除其详情和全部 Case Query，配置删除移除精确详情 Query，再刷新存活的 Dashboard 与列表。导入关闭、成功或放弃时同步清空原生文件输入，允许再次选择同一文件；导入和删除请求在途或冲突待决时取消按钮禁用。新建 Endpoint 默认 60 秒，新建 LLM 默认 `JSON_OBJECT`；Case Analysis Prompt 从 Contracts 闭合枚举展示六个允许变量。API Client 对成功与错误响应执行 Contracts 校验，取消收敛为稳定客户端错误；Case 和配置本地 Contracts 路径先映射到真实结构化字段、动态 Header、Provider 分支或 Prompt 消息控件，所有 Select 暴露焦点引用，`RUBRIC_PROMPT_IN_USE` 保留 Prompt Key 并映射到 `promptKey` 字段。探测、模板变量和其他字段失败在当前 Sheet/Dialog 内关联并聚焦最近的表单、结构化或完整 JSON 编辑器，请求锁释放后再恢复焦点；Suite 创建/编辑和批量导入错误同样保留字段路径、顺序与 Case ID。Rubric 引用读取在完成前不伪装为空集合，失败时提供显式重试；删除目标切换通过 Abort 与请求代次门禁拒绝迟到结果。
 
-P5 增加 `/runs` 与 `/runs/:id` 页面、Run 导航、Dashboard 最近平台 Run 卡片和测试集列表最近平台 Run 状态。创建页先读取资源候选，再以预检事实展示 Case 数、Rubric 依赖、所需 Env Key、超时和将被冻结的并发限制；选择改变、重新预检或组件卸载会 Abort 旧请求，并以选择代次拒绝迟到响应。重新预检会先失效上一代事实，新请求在途或失败时保持创建门禁；只有当前选择与当前代对应的成功预检后才能创建。创建响应除 Schema 外还必须匹配请求固定的 Suite、Endpoint、Evaluator、Run Mode 和显式执行限制。详情页以服务端 Run Detail 为事实源，启动与取消携带最新 Revision，运行时同时使用有限期 SSE 和查询刷新，流重连或协议错误只触发重新读取事实。页面只展示 REST 计数、真实逐 Case 结果和冻结摘要，不显示 Evaluation、Report、Analysis、Retry/Force 或一键执行动作。
+P6 在 `/runs` 与 `/runs/:id` 上补充 Evaluation 启动、Pipeline 自动推进后的恢复、逐 Case Evaluation 结果和 Cursor 分页。详情页根据服务端 Stage 选择 REST 或 Evaluation 动作，展示 Assertion 状态、Metric、Score、Reason 与 Evaluation Error；运行时仍以 SSE 和查询刷新重新读取持久事实。Report、Analysis、Retry/Force 和工作包动作不显示。
 
 Case 编辑使用显式 Session 同时冻结初始 Definition、Case Revision 与 Suite Revision。每次打开必须等待该 Case 本次详情 Query 成功且身份匹配；刷新失败时即使 Query 保留旧 data，也只展示读取错误。API Client 在 Zod 校验后通过请求上下文验证器继续约束请求已固定的身份：Suite 读取/更新匹配 ID；Case 列表、读取、创建、更新、复制和导入匹配 Suite、目标 Case Key 与 Definition Case ID；配置列表、读取、创建和更新匹配 Kind 及已固定的 ID。首次读取、普通写入和冲突刷新都拒绝契约有效但身份错配的响应，错误事实不能进入 Query 缓存、覆盖 Draft 或触发成功状态。Session 建立后不跟随后台 Query 改写，普通保存只使用 Session Revision；普通冲突显式采用服务端 Snapshot 时才创建新 Session。`REMOTE_CASE_DELETED` 保留原 Session 和同一编辑器实例，因此结构化/完整 JSON 模式、本地文本与 DOM 状态都不被重置。
 
@@ -1040,7 +1048,7 @@ CLI 用户文案从消息资源加载。`--json` 使用 NDJSON，stdout 只输�
 
 - 精确版本检查。
 - Echo Provider 和预计算 Provider Output。
-- 能力矩阵中全部 Assertion 的正例、非法 Payload 或能力错误和 Importer 对齐。
+- 能力矩阵中全部 Assertion 均可通过开放 Case Assert 契约和通用物化路径，不按类型设置白名单；非法 Provider/Secret/外部引用统一拒绝，代表性跨执行边界与 Importer 对齐使用真实进程验证。
 - 可信内联 JavaScript、Python、Ruby、Transform、Context Transform 和嵌套 Assertion Set 的真实进程执行。
 - `file://`、外部模块、额外依赖、Provider 覆盖和 Bridge 滥用的稳定拒绝。
 - Assertion Component 对齐。

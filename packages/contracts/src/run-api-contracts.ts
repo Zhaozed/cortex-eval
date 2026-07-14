@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ArtifactManifestV1Schema } from "./artifact-contracts.ts";
+import { ArtifactManifestV1Schema, EvalCaseV1Schema } from "./artifact-contracts.ts";
 import { CaseDefinitionV1Schema } from "./case-contracts.ts";
 import {
   BusinessKeySchema,
@@ -74,12 +74,29 @@ const RestCountersV1Schema = z
     }
   });
 
+const EvaluationCountersV1Schema = z
+  .strictObject({
+    total: z.number().int().nonnegative(),
+    completed: z.number().int().nonnegative(),
+    passed: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
+    error: z.number().int().nonnegative(),
+    notEvaluated: z.number().int().nonnegative()
+  })
+  .superRefine((value, context) => {
+    const classified = value.passed + value.failed + value.error + value.notEvaluated;
+    if (value.completed !== classified || value.completed > value.total) {
+      context.addIssue({ code: "custom", message: "RUN_EVALUATION_COUNTERS_INVALID" });
+    }
+  });
+
 const RunProgressShape = {
   status: RunStatusV1Schema,
   stage: RunStageV1Schema,
   lockRevision: z.number().int().nonnegative(),
   cancelRequestedAt: UtcDateTimeSchema.nullable(),
   rest: RestCountersV1Schema,
+  evaluation: EvaluationCountersV1Schema,
   updatedAt: UtcDateTimeSchema
 } as const;
 
@@ -244,6 +261,7 @@ export const PlatformRunDetailV1Schema = z.strictObject({
   lockRevision: z.number().int().nonnegative(),
   cancelRequestedAt: UtcDateTimeSchema.nullable(),
   rest: RestCountersV1Schema,
+  evaluation: EvaluationCountersV1Schema,
   artifactManifest: ArtifactManifestV1Schema,
   artifactAvailability: z.array(ArtifactAvailabilityV1Schema),
   errorCode: z.enum(ERROR_CODES).nullable(),
@@ -300,6 +318,23 @@ export const RunCaseListQueryV1Schema = z.strictObject({
   cursor: z.string().min(1).optional()
 });
 
+/** One complete normalized Evaluation result with durable platform metadata. */
+export const RunEvalItemV1Schema = z.strictObject({
+  runId: UuidV7Schema,
+  createdAt: UtcDateTimeSchema,
+  updatedAt: UtcDateTimeSchema,
+  result: EvalCaseV1Schema
+});
+
+/** Cursor-paged complete normalized Evaluation results. */
+export const RunEvalPageV1Schema = z.strictObject({
+  items: z.array(RunEvalItemV1Schema),
+  nextCursor: z.string().min(1).nullable()
+});
+
+/** Bounded Evaluation result query reusing the frozen Case ordinal cursor. */
+export const RunEvalListQueryV1Schema = RunCaseListQueryV1Schema;
+
 /** Complete real REST Case result detail. */
 export const RunCaseDetailV1Schema = z.discriminatedUnion("status", [
   z.strictObject({
@@ -327,13 +362,15 @@ export const RunRevisionRequestV1Schema = z.strictObject({
   expectedRevision: z.number().int().nonnegative()
 });
 
-/** SSE event types emitted only by the closed P5 Run/REST capability. */
+/** SSE event types emitted by the closed Run REST and Evaluation capabilities. */
 export const RunStreamEventTypeV1Schema = z.enum([
   "RUN_CREATED",
   "REST_STARTED",
   "REST_PROGRESS",
   "CANCEL_REQUESTED",
   "REST_COMPLETED",
+  "EVALUATION_STARTED",
+  "EVALUATION_COMPLETED",
   "RUN_CANCELLED",
   "RUN_FAILED",
   "RUN_INTERRUPTED"

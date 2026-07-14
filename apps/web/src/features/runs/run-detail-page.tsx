@@ -23,6 +23,7 @@ import {
 } from "../../components/ui/table.tsx";
 import type { RunApi } from "../../lib/run-api.ts";
 import { formatMessage, message } from "../../messages/messages.ts";
+import { selectRunProgressView } from "./run-progress-view.ts";
 import { displayRunDate, runStageLabel, runStatusLabel } from "./run-ui.ts";
 
 /** Run detail page properties. */
@@ -35,6 +36,15 @@ export interface RunDetailPageProps {
   readonly onNavigate: (path: string) => void;
 }
 
+// Resolve stable Evaluation Error codes only at the presentation boundary.
+function evaluationErrorMessage(code: string): string {
+  if (code === "EVALUATOR_TIMEOUT") return message("runs.evaluationErrors.EVALUATOR_TIMEOUT");
+  if (code === "PROMPTFOO_ASSERTION_EXECUTION_ERROR") {
+    return message("runs.evaluationErrors.PROMPTFOO_ASSERTION_EXECUTION_ERROR");
+  }
+  return message("runs.evaluationErrors.UNKNOWN");
+}
+
 // Refresh all consumers of a changed durable Run fact.
 async function invalidateRunFacts(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -43,6 +53,7 @@ async function invalidateRunFacts(
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ["runs", "detail", runId] }),
     queryClient.invalidateQueries({ queryKey: ["runs", "cases", runId] }),
+    queryClient.invalidateQueries({ queryKey: ["runs", "evaluations", runId] }),
     queryClient.invalidateQueries({ queryKey: ["runs", "list"] }),
     queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
     queryClient.invalidateQueries({ queryKey: ["test-suites", "list"] })
@@ -53,6 +64,8 @@ async function invalidateRunFacts(
 export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): ReactElement {
   const [caseCursor, setCaseCursor] = useState<string | null>(null);
   const [caseHistory, setCaseHistory] = useState<readonly (string | null)[]>([]);
+  const [evaluationCursor, setEvaluationCursor] = useState<string | null>(null);
+  const [evaluationHistory, setEvaluationHistory] = useState<readonly (string | null)[]>([]);
   const [selectedCaseKey, setSelectedCaseKey] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const detail = useQuery({
@@ -72,6 +85,13 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
       return api.getCase(runId, selectedCaseKey, signal);
     },
     enabled: selectedCaseKey !== null
+  });
+  const evaluations = useQuery({
+    queryKey: ["runs", "evaluations", runId, { cursor: evaluationCursor, limit: 20 }] as const,
+    queryFn: ({ signal }) =>
+      api.listEvaluations({ runId, limit: 20, cursor: evaluationCursor }, signal),
+    enabled: detail.data !== undefined && selectRunProgressView(detail.data).kind === "EVALUATION",
+    refetchInterval: detail.data?.status === "RUNNING" ? 1_000 : false
   });
   const start = useMutation({
     mutationFn: (expectedRevision: number) =>
@@ -109,8 +129,11 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
   }
 
   const run = detail.data;
-  const progressPercent = run.rest.total === 0 ? 0 : (run.rest.completed / run.rest.total) * 100;
-  const canStartRest = run.status === "READY" && run.stage === "REST";
+  const currentProgress = selectRunProgressView(run);
+  const progressPercent =
+    currentProgress.total === 0 ? 0 : (currentProgress.completed / currentProgress.total) * 100;
+  const canStartCurrentStage =
+    run.status === "READY" && (run.stage === "REST" || run.stage === "EVALUATION");
   const canCancel = run.status === "RUNNING" && run.cancelRequestedAt === null;
 
   return (
@@ -138,14 +161,18 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
             <h2 id="run-rest-heading">{runStageLabel(run.stage)}</h2>
           </div>
           <div className="editor-actions">
-            {canStartRest ? (
+            {canStartCurrentStage ? (
               <Button
                 type="button"
                 disabled={start.isPending}
                 onClick={() => start.mutate(run.lockRevision)}
               >
                 <Play aria-hidden="true" />
-                {start.isPending ? message("runs.starting") : message("runs.startRest")}
+                {start.isPending
+                  ? message("runs.starting")
+                  : run.stage === "REST"
+                    ? message("runs.startRest")
+                    : message("runs.startEvaluation")}
               </Button>
             ) : null}
             {canCancel ? (
@@ -164,26 +191,49 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
         <Progress value={progressPercent} aria-label={message("runs.progress")} />
         <div className="run-counter-grid">
           <article>
-            <strong>{run.rest.total}</strong>
+            <strong>{currentProgress.total}</strong>
             <span>{message("runs.total")}</span>
           </article>
           <article>
             <strong>
               {formatMessage("runs.progressCount", {
-                completed: run.rest.completed,
-                total: run.rest.total
+                completed: currentProgress.completed,
+                total: currentProgress.total
               })}
             </strong>
             <span>{message("runs.completed")}</span>
           </article>
-          <article>
-            <strong>{run.rest.succeeded}</strong>
-            <span>{message("runs.succeeded")}</span>
-          </article>
-          <article>
-            <strong>{run.rest.error}</strong>
-            <span>{message("runs.errors")}</span>
-          </article>
+          {currentProgress.kind === "REST" ? (
+            <>
+              <article>
+                <strong>{run.rest.succeeded}</strong>
+                <span>{message("runs.succeeded")}</span>
+              </article>
+              <article>
+                <strong>{run.rest.error}</strong>
+                <span>{message("runs.errors")}</span>
+              </article>
+            </>
+          ) : (
+            <>
+              <article>
+                <strong>{run.evaluation.passed}</strong>
+                <span>{message("runs.passed")}</span>
+              </article>
+              <article>
+                <strong>{run.evaluation.failed}</strong>
+                <span>{message("runs.failed")}</span>
+              </article>
+              <article>
+                <strong>{run.evaluation.error}</strong>
+                <span>{message("runs.errors")}</span>
+              </article>
+              <article>
+                <strong>{run.evaluation.notEvaluated}</strong>
+                <span>{message("runs.notEvaluated")}</span>
+              </article>
+            </>
+          )}
         </div>
       </section>
 
@@ -193,7 +243,7 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
           <AlertDescription>{message("runs.cancelRequestedDescription")}</AlertDescription>
         </Alert>
       ) : null}
-      {run.status === "READY" && run.stage !== "REST" ? (
+      {run.status === "READY" && run.stage !== "REST" && run.stage !== "EVALUATION" ? (
         <Alert>
           <AlertTitle>{message("runs.stageNotRegisteredTitle")}</AlertTitle>
           <AlertDescription>{message("runs.stageNotRegisteredDescription")}</AlertDescription>
@@ -294,6 +344,110 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
           </div>
         )}
       </section>
+
+      {currentProgress.kind === "REST" ? null : (
+        <section className="data-panel" aria-labelledby="run-evaluations-heading">
+          <div className="run-panel-heading">
+            <div>
+              <p className="eyebrow">{message("runs.evaluationFacts")}</p>
+              <h2 id="run-evaluations-heading">{message("runs.evaluationResults")}</h2>
+            </div>
+          </div>
+          {evaluations.isPending ? (
+            <Progress aria-label={message("runs.evaluationsLoading")} />
+          ) : null}
+          {evaluations.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>{message("runs.evaluationsError")}</AlertTitle>
+            </Alert>
+          ) : null}
+          {evaluations.data?.items.length === 0 ? (
+            <p className="empty-state">{message("runs.noEvaluationResults")}</p>
+          ) : null}
+          {evaluations.data === undefined || evaluations.data.items.length === 0 ? null : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{message("caseList.caseId")}</TableHead>
+                  <TableHead>{message("runs.status")}</TableHead>
+                  <TableHead>{message("runs.score")}</TableHead>
+                  <TableHead>{message("runs.reason")}</TableHead>
+                  <TableHead>{message("runs.evaluationError")}</TableHead>
+                  <TableHead>{message("runs.metrics")}</TableHead>
+                  <TableHead>{message("runs.assertions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {evaluations.data.items.map((item) => (
+                  <TableRow key={item.result.caseKey}>
+                    <TableCell>{item.result.caseKey}</TableCell>
+                    <TableCell>
+                      <Badge variant={item.result.status === "PASS" ? "default" : "accent"}>
+                        {message(`runs.evaluationStatus.${item.result.status}`)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{item.result.score ?? message("runs.none")}</TableCell>
+                    <TableCell>{item.result.reason ?? message("runs.none")}</TableCell>
+                    <TableCell>
+                      {item.result.evaluationError === null
+                        ? message("runs.none")
+                        : `${item.result.evaluationError.code}：${evaluationErrorMessage(item.result.evaluationError.code)}`}
+                    </TableCell>
+                    <TableCell>
+                      {item.result.metrics.map((metric) => (
+                        <div key={metric.metric}>
+                          {metric.metric} · {message(`runs.metricStatus.${metric.status}`)}
+                        </div>
+                      ))}
+                    </TableCell>
+                    <TableCell>
+                      {item.result.assertions.map((assertion) => (
+                        <div key={assertion.index}>
+                          <div>
+                            {assertion.metric} · {assertion.type} ·{" "}
+                            {message(`runs.assertionStatus.${assertion.status}`)}
+                          </div>
+                          <div>
+                            {message("runs.weight")} {assertion.weight} · {message("runs.score")}{" "}
+                            {assertion.score ?? message("runs.none")} · {message("runs.reason")}{" "}
+                            {assertion.reason ?? message("runs.none")}
+                          </div>
+                        </div>
+                      ))}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {evaluations.data === undefined ? null : (
+            <div className="pagination-controls run-pagination">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={evaluationHistory.length === 0}
+                onClick={() => {
+                  setEvaluationCursor(evaluationHistory.at(-1) ?? null);
+                  setEvaluationHistory(evaluationHistory.slice(0, -1));
+                }}
+              >
+                {message("common.previous")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={evaluations.data.nextCursor === null}
+                onClick={() => {
+                  setEvaluationHistory([...evaluationHistory, evaluationCursor]);
+                  setEvaluationCursor(evaluations.data.nextCursor);
+                }}
+              >
+                {message("common.next")}
+              </Button>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="run-frozen-grid" aria-label={message("runs.frozenInputs")}>
         <article>

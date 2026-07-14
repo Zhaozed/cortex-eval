@@ -7,9 +7,22 @@ import {
   type EndpointValidator,
   type LlmValidator
 } from "@cortex-eval/application/src/features/configurations/configuration-service.ts";
-import { PlatformRunService } from "@cortex-eval/application/src/features/runs/platform-run-service.ts";
+import {
+  PlatformRunService,
+  type PlatformRunBusinessEvent
+} from "@cortex-eval/application/src/features/runs/platform-run-service.ts";
+import {
+  PlatformEvaluationService,
+  type PlatformEvaluationBusinessEvent
+} from "@cortex-eval/application/src/features/evaluation/platform-evaluation-service.ts";
 import zhCnMessages from "@cortex-eval/contracts/messages/zh-CN.json" with { type: "json" };
 import { FetchRestExecutor } from "@cortex-eval/evaluation-adapters/src/fetch-rest-executor.ts";
+import { PlatformPromptfooEvaluationEngine } from "@cortex-eval/evaluation-adapters/src/platform-promptfoo-evaluation-engine.ts";
+import { PromptfooRuntimePreflight } from "@cortex-eval/evaluation-adapters/src/promptfoo-runtime-preflight.ts";
+import {
+  PROMPTFOO_CAPABILITY_MATRIX_HASH,
+  promptfooAssertionRequiresEvaluator
+} from "@cortex-eval/evaluation-adapters/src/promptfoo-capability-projection.ts";
 import {
   initializeSqliteStorage,
   type SqliteStorage
@@ -60,6 +73,7 @@ export class LocalServerRuntime {
   readonly #storage: SqliteStorage;
   readonly #businessLogger: ResilientBusinessLogger;
   readonly #runs: PlatformRunService;
+  readonly #evaluations: PlatformEvaluationService;
   #closed = false;
 
   /** Bind one Fastify instance and its owned storage. */
@@ -67,13 +81,15 @@ export class LocalServerRuntime {
     server: FastifyInstance,
     storage: SqliteStorage,
     businessLogger: ResilientBusinessLogger,
-    runs: PlatformRunService
+    runs: PlatformRunService,
+    evaluations: PlatformEvaluationService
   ) {
     this.server = server;
     this.databasePath = storage.databasePath;
     this.#storage = storage;
     this.#businessLogger = businessLogger;
     this.#runs = runs;
+    this.#evaluations = evaluations;
   }
 
   /** Listen on the fixed current loopback address and default port. */
@@ -87,6 +103,7 @@ export class LocalServerRuntime {
     this.#closed = true;
     await this.server.close();
     await this.#runs.shutdown();
+    await this.#evaluations.shutdown();
     await this.#businessLogger.flush();
     await this.#storage.close();
   }
@@ -154,8 +171,43 @@ export async function createLocalServerRuntime(
       await applyDevelopmentSeed({ testSuites, cases, configurations });
     }
     const artifactStore = await LocalRunArtifactStore.create({ projectRoot: options.projectRoot });
+    const runTransactionManager = storage.createRunTransactionManager();
+    const lifecycleEventSink = {
+      record: (event: PlatformRunBusinessEvent | PlatformEvaluationBusinessEvent): Promise<void> =>
+        businessLogger.record({
+          event: event.event,
+          timestamp: event.timestamp,
+          resourceId: event.runId
+        })
+    };
+    const promptfooBinary = join(process.cwd(), "node_modules", ".bin", "promptfoo");
+    const promptfooTemporaryParent = join(options.projectRoot, ".cortex-eval", "tmp", "promptfoo");
+    const evaluations = new PlatformEvaluationService({
+      runTransactionManager,
+      evalTransactionManager: storage.createEvalTransactionManager(),
+      engine: new PlatformPromptfooEvaluationEngine({
+        promptfooBinary,
+        temporaryContainmentRoot: options.projectRoot,
+        temporaryParent: promptfooTemporaryParent,
+        promptfooTimeoutMs: 10 * 60 * 1_000,
+        capabilityMatrixHash: PROMPTFOO_CAPABILITY_MATRIX_HASH,
+        requiresEvaluator: promptfooAssertionRequiresEvaluator,
+        readSecret: (key): string | undefined => process.env[key],
+        createCallId: (): string => uuidV7()
+      }),
+      runtimePreflight: new PromptfooRuntimePreflight({
+        promptfooBinary,
+        temporaryContainmentRoot: options.projectRoot,
+        temporaryParent: promptfooTemporaryParent,
+        timeoutMs: 30_000
+      }),
+      artifactStore,
+      clock,
+      messageResolver: { message: runMessage },
+      eventSink: lifecycleEventSink
+    });
     const runs = new PlatformRunService({
-      transactionManager: storage.createRunTransactionManager(),
+      transactionManager: runTransactionManager,
       restExecutor: new FetchRestExecutor({
         readSecret: (key): string | undefined => process.env[key]
       }),
@@ -163,14 +215,8 @@ export async function createLocalServerRuntime(
       clock,
       idGenerator,
       messageResolver: { message: runMessage },
-      eventSink: {
-        record: (event): Promise<void> =>
-          businessLogger.record({
-            event: event.event,
-            timestamp: event.timestamp,
-            resourceId: event.runId
-          })
-      }
+      eventSink: lifecycleEventSink,
+      pipelineEvaluationStarter: evaluations
     });
     await runs.initialize();
     const resourceHandlers = createApplicationResourceHandlers({
@@ -181,14 +227,29 @@ export async function createLocalServerRuntime(
       caseExportBodies,
       caseImports: new StreamingCaseImportService({ ...common, stagingFactory })
     });
+    const runApplication = {
+      preflight: runs.preflight.bind(runs),
+      create: runs.create.bind(runs),
+      queryRuns: runs.queryRuns.bind(runs),
+      get: runs.get.bind(runs),
+      getProgress: runs.getProgress.bind(runs),
+      inspectArtifacts: runs.inspectArtifacts.bind(runs),
+      queryRestResults: runs.queryRestResults.bind(runs),
+      getRestResult: runs.getRestResult.bind(runs),
+      start: runs.start.bind(runs),
+      cancel: runs.cancel.bind(runs),
+      startEvaluation: evaluations.start.bind(evaluations),
+      cancelEvaluation: evaluations.cancel.bind(evaluations),
+      queryEvalResults: evaluations.queryResults.bind(evaluations)
+    };
     const server = buildLocalServer({
       requestIdGenerator: idGenerator,
       resourceHandlers,
-      runHandlers: createApplicationRunHandlers(runs),
+      runHandlers: createApplicationRunHandlers(runApplication),
       businessLogger,
       ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot })
     });
-    return new LocalServerRuntime(server, storage, businessLogger, runs);
+    return new LocalServerRuntime(server, storage, businessLogger, runs, evaluations);
   } catch (error) {
     await storage.close();
     throw error;

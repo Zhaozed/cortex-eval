@@ -1,4 +1,15 @@
 import type {
+  PlatformEvalCaseResult,
+  PlatformEvalResultPage,
+  PlatformEvalResultQuery
+} from "../src/features/evaluation/platform-eval-models.ts";
+import type {
+  PlatformEvalRepository,
+  PlatformEvalTransactionManager
+} from "../src/features/evaluation/platform-eval-ports.ts";
+import type {
+  PlatformNormalizedEvalArtifactInput,
+  PlatformRawPromptfooArtifactInput,
   PlatformRestArtifactInput,
   PlatformRestArtifactWriteResult,
   RunArtifactAvailability,
@@ -11,6 +22,7 @@ import type {
   RunArtifactManifest
 } from "../src/features/runs/platform-run-models.ts";
 import type {
+  RestExecutionErrorType,
   RestExecutionInput,
   RestExecutionSummary,
   RestExecutor
@@ -18,6 +30,96 @@ import type {
 import { hashRestResultSet } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 
 import { MemoryPlatformRunStore } from "./in-memory-platform-run-store.ts";
+
+/** In-memory Evaluation repository that advances the backing Run atomically. */
+export class MemoryPlatformEvalRepository implements PlatformEvalRepository {
+  /** Last complete-stage input. */
+  completeInput: Parameters<PlatformEvalRepository["completeStage"]>[0] | null = null;
+  /** Source Evaluation rows available to rerun planning. */
+  queryItems: readonly PlatformEvalCaseResult[] = [];
+  /** Backing Run store advanced by the fake commit. */
+  readonly #runs: MemoryPlatformRunStore;
+
+  /** Bind one backing Run store. */
+  public constructor(runs: MemoryPlatformRunStore) {
+    this.#runs = runs;
+  }
+
+  /** Capture and atomically advance the fake Run. */
+  public completeStage(
+    input: Parameters<PlatformEvalRepository["completeStage"]>[0]
+  ): ReturnType<PlatformEvalRepository["completeStage"]> {
+    this.completeInput = input;
+    const run = this.#runs.values.get(input.runId);
+    if (run === undefined) return Promise.resolve({ ok: false, reason: "STATE_OR_REVISION" });
+    const evalPassCount = input.results.filter((item) => item.status === "PASS").length;
+    const evalFailCount = input.results.filter((item) => item.status === "FAIL").length;
+    const evalErrorCount = input.results.filter(
+      (item) => item.status === "EVALUATION_ERROR"
+    ).length;
+    const evalNotEvaluatedCount = input.results.filter(
+      (item) => item.status === "NOT_EVALUATED"
+    ).length;
+    this.#runs.values.set(run.id, {
+      ...run,
+      status: "READY",
+      stage: "REPORT",
+      lockRevision: run.lockRevision + 1,
+      evalCompletedCount: input.expectedTotal,
+      evalPassCount,
+      evalFailCount,
+      evalErrorCount,
+      evalNotEvaluatedCount,
+      resultSetHash: input.resultSetHash,
+      artifactManifest: {
+        ...run.artifactManifest,
+        artifacts: [...run.artifactManifest.artifacts, ...input.artifactManifest.artifacts]
+      },
+      updatedAt: input.updatedAt
+    });
+    return Promise.resolve({
+      ok: true,
+      progress: {
+        runId: run.id,
+        status: "READY",
+        stage: "REPORT",
+        lockRevision: run.lockRevision + 1,
+        evalCompletedCount: input.expectedTotal,
+        evalPassCount,
+        evalFailCount,
+        evalErrorCount,
+        evalNotEvaluatedCount,
+        resultSetHash: input.resultSetHash
+      }
+    });
+  }
+
+  /** Return matching queried rows in frozen order. */
+  public queryResults(query: PlatformEvalResultQuery): Promise<PlatformEvalResultPage> {
+    return Promise.resolve({
+      items: this.queryItems.filter(
+        (item) => item.runId === query.runId && item.ordinal > (query.afterOrdinal ?? -1)
+      ),
+      nextCursor: null
+    });
+  }
+}
+
+/** In-memory Evaluation transaction boundary. */
+export class MemoryPlatformEvalTransactions implements PlatformEvalTransactionManager {
+  /** Evaluation repository. */
+  readonly repository: PlatformEvalRepository;
+
+  /** Bind one repository. */
+  public constructor(repository: PlatformEvalRepository) {
+    this.repository = repository;
+  }
+
+  /** Execute one fake short Evaluation transaction. */
+  public execute<T>(work: Parameters<PlatformEvalTransactionManager["execute"]>[0]): Promise<T> {
+    return work({ evaluations: this.repository }) as Promise<T>;
+  }
+}
 
 /** In-memory safe Run business-event sink. */
 export class MemoryRunEvents {
@@ -79,6 +181,36 @@ export class MemoryArtifacts implements RunArtifactStore {
     };
   }
 
+  /** Return deterministic raw Promptfoo integrity facts. */
+  public writeRawPromptfooEvidence(
+    input: PlatformRawPromptfooArtifactInput
+  ): Promise<RunArtifactDescriptor> {
+    return Promise.resolve({
+      kind: "RAW_PROMPTFOO_EVIDENCE",
+      path: `runs/${input.runId}/promptfoo-raw.json`,
+      expectedSha256: "c".repeat(64),
+      expectedSizeBytes: 80,
+      contractVersion: "cortex.platform-raw-promptfoo-evidence.v1"
+    });
+  }
+
+  /** Consume and return deterministic normalized Evaluation integrity facts. */
+  public async writeNormalizedEvalResults(
+    input: PlatformNormalizedEvalArtifactInput
+  ): Promise<RunArtifactDescriptor> {
+    for await (const item of input.cases) {
+      // Consume the single-use stream exactly once.
+      void item;
+    }
+    return {
+      kind: "NORMALIZED_EVAL_RESULTS",
+      path: `runs/${input.runId}/normalized-eval.json`,
+      expectedSha256: "d".repeat(64),
+      expectedSizeBytes: 120,
+      contractVersion: "cortex.platform-normalized-eval.v1"
+    };
+  }
+
   /** Record one uncommitted Artifact removal. */
   public removeUncommitted(artifact: RunArtifactDescriptor): Promise<void> {
     this.removed.push(artifact);
@@ -94,6 +226,85 @@ export class MemoryArtifacts implements RunArtifactStore {
   public cleanupOrphans(manifests: readonly RunArtifactManifest[]): Promise<void> {
     this.cleanupInputs.push(manifests);
     return Promise.resolve();
+  }
+}
+
+/** REST executor emitting one successful normalized result. */
+export class SuccessfulRestExecutor implements RestExecutor {
+  /** Concurrency value observed by the Adapter boundary. */
+  concurrency = 0;
+
+  /** Emit one valid result. */
+  public async execute(input: RestExecutionInput): Promise<RestExecutionSummary> {
+    this.concurrency = input.concurrency;
+    await input.onResult({
+      caseKey: "case-1",
+      ordinal: 0,
+      status: "SUCCEEDED",
+      httpStatus: 200,
+      providerOutput: { ok: false, errorMessage: "business" },
+      errorType: undefined,
+      durationMs: 12
+    });
+    return { dispatchedCount: 1 };
+  }
+}
+
+/** REST executor emitting one selected normalized failure. */
+export class ErrorRestExecutor implements RestExecutor {
+  /** Stable REST failure emitted for the single frozen Case. */
+  readonly #errorType: RestExecutionErrorType;
+
+  /** Bind one error classification. */
+  public constructor(errorType: RestExecutionErrorType) {
+    this.#errorType = errorType;
+  }
+
+  /** Emit the configured normalized error. */
+  public async execute(input: RestExecutionInput): Promise<RestExecutionSummary> {
+    await input.onResult({
+      caseKey: "case-1",
+      ordinal: 0,
+      status: "ERROR",
+      httpStatus: this.#errorType === "HTTP_STATUS" ? 503 : null,
+      providerOutput: undefined,
+      errorType: this.#errorType,
+      durationMs: 9
+    });
+    return { dispatchedCount: 1 };
+  }
+}
+
+/** REST executor completing without the required Case result. */
+export class SilentRestExecutor implements RestExecutor {
+  /** Finish without emitting a result. */
+  public execute(): Promise<RestExecutionSummary> {
+    return Promise.resolve({ dispatchedCount: 0 });
+  }
+}
+
+/** REST executor emitting a Case identity that is not frozen in the Run. */
+export class MisalignedRestExecutor implements RestExecutor {
+  /** Emit one invalid Case identity. */
+  public async execute(input: RestExecutionInput): Promise<RestExecutionSummary> {
+    await input.onResult({
+      caseKey: "wrong-case",
+      ordinal: 0,
+      status: "ERROR",
+      httpStatus: null,
+      providerOutput: undefined,
+      errorType: "NETWORK",
+      durationMs: 1
+    });
+    return { dispatchedCount: 1 };
+  }
+}
+
+/** REST executor rejecting before any normalized result. */
+export class ThrowingRestExecutor implements RestExecutor {
+  /** Reject the external Adapter call. */
+  public execute(): Promise<RestExecutionSummary> {
+    return Promise.reject(new Error("ADAPTER_FAILED"));
   }
 }
 

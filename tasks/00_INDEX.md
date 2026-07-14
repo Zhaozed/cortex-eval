@@ -31,8 +31,8 @@
 - [x] [P3：Local API 与资源管理](P3_LOCAL_API_AND_RESOURCES.md) — `COMPLETED`
 - [x] [P4：Web 资源管理界面](P4_WEB_RESOURCE_UI.md) — `COMPLETED`
 - [x] [P5：Run 与 REST 闭环](P5_RUN_AND_REST.md) — `COMPLETED`
-- [ ] [P6：Promptfoo Evaluation 闭环](P6_PROMPTFOO_EVALUATION.md) — `PENDING`
-- [ ] [P7：Work Package、CLI、重跑与导入基础](P7_WORK_PACKAGE_AND_CLI.md) — `PENDING`
+- [x] [P6：Promptfoo Evaluation 闭环](P6_PROMPTFOO_EVALUATION.md) — `COMPLETED`
+- [ ] [P7：Work Package、CLI、重跑与导入基础](P7_WORK_PACKAGE_AND_CLI.md) — `IN_PROGRESS`
 - [ ] [P8：Reporting 闭环](P8_REPORTING.md) — `PENDING`
 - [ ] [P9：Case Analysis 闭环](P9_CASE_ANALYSIS.md) — `PENDING`
 - [ ] [P10：Canonical Export 与最终硬化](P10_FINAL_HARDENING.md) — `PENDING`

@@ -13,7 +13,7 @@
 
 - 实现整体有效通过率、已评估通过率、覆盖率、Error/Not Evaluated 和 By Metric 聚合。
 - 一条 Case 对同名 Metric 最多贡献一次；空分母保持空值。
-- 使用 Ajv JSON Schema 2020-12 生成解释性 Diff，不改变 Promptfoo Pass/Fail 事实。
+- 复用 P6 已生成并纳入 Eval Result Hash 的 Ajv JSON Schema 2020-12 Diff；P8 只映射、统计和展示，不重新计算或改写。
 - 生成 Report JSON、Result Set Hash 和单向 Markdown。
 - 注册 Report API、Web、CLI 和 Work Package Artifact Writer；Pipeline 扩展到 Report。
 - 完成 Execution Import 的 Report 明细重算与对账，并注册 `result import` CLI/API；P9 再扩展可选 Analysis Import 分支。

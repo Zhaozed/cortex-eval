@@ -4,7 +4,9 @@ import {
   CreatePlatformRunRequestV1Schema,
   PlatformRunDetailV1Schema,
   RunCasePageV1Schema,
+  RunEvalPageV1Schema,
   RunPreflightV1Schema,
+  RunStreamEventTypeV1Schema,
   RunStreamEnvelopeV1Schema
 } from "../src/run-api-contracts.ts";
 
@@ -14,6 +16,12 @@ const HASH = "b".repeat(64);
 const TIME = "2026-07-13T01:02:03.004Z";
 
 describe("平台 Run API v1", () => {
+  it("SSE 不暴露没有持久进度事实支撑的 Evaluation Progress 事件", () => {
+    expect(() => RunStreamEventTypeV1Schema.parse("EVALUATION_PROGRESS")).toThrow();
+    expect(RunStreamEventTypeV1Schema.parse("EVALUATION_STARTED")).toBe("EVALUATION_STARTED");
+    expect(RunStreamEventTypeV1Schema.parse("EVALUATION_COMPLETED")).toBe("EVALUATION_COMPLETED");
+  });
+
   it("创建请求接受省略默认限制或完整版本化限制", () => {
     const selection = {
       suiteId: RUN_ID,
@@ -119,6 +127,14 @@ describe("平台 Run API v1", () => {
       lockRevision: 0,
       cancelRequestedAt: null,
       rest: { total: 1, completed: 0, succeeded: 0, error: 0 },
+      evaluation: {
+        total: 1,
+        completed: 0,
+        passed: 0,
+        failed: 0,
+        error: 0,
+        notEvaluated: 0
+      },
       artifactManifest: {
         contractVersion: "cortex.artifact-manifest.v1",
         owner: { kind: "RUN", id: RUN_ID },
@@ -171,9 +187,81 @@ describe("平台 Run API v1", () => {
           lockRevision: 2,
           cancelRequestedAt: null,
           rest: { total: 1, completed: 1, succeeded: 0, error: 1 },
+          evaluation: {
+            total: 1,
+            completed: 0,
+            passed: 0,
+            failed: 0,
+            error: 0,
+            notEvaluated: 0
+          },
           updatedAt: TIME
         }
       }).sequence
     ).toBe(2);
+    expect(
+      RunStreamEnvelopeV1Schema.safeParse({
+        type: "EVENT",
+        sequence: 3,
+        event: "EVALUATION_COMPLETED",
+        progress: {
+          runId: RUN_ID,
+          status: "READY",
+          stage: "REPORT",
+          lockRevision: 3,
+          cancelRequestedAt: null,
+          rest: { total: 1, completed: 1, succeeded: 1, error: 0 },
+          evaluation: {
+            total: 1,
+            completed: 1,
+            passed: 0,
+            failed: 0,
+            error: 0,
+            notEvaluated: 0
+          },
+          updatedAt: TIME
+        }
+      }).success
+    ).toBe(false);
+  });
+
+  it("Evaluation Page 返回版本化完整规范化结果，不暴露 Raw 正文", () => {
+    const page = {
+      items: [
+        {
+          runId: RUN_ID,
+          createdAt: TIME,
+          updatedAt: TIME,
+          result: {
+            caseKey: "case-1",
+            ordinal: 0,
+            status: "NOT_EVALUATED",
+            promptfooSuccess: null,
+            score: null,
+            reason: null,
+            evaluationError: null,
+            assertions: [],
+            diffs: [],
+            metrics: [{ metric: "quality", status: "NOT_EVALUATED" }],
+            latencyMs: null,
+            tokenUsage: null,
+            cost: null,
+            rawEvidence: null,
+            evalResultHash: HASH,
+            finalCaseResultHash: HASH,
+            provenance: null
+          }
+        }
+      ],
+      nextCursor: null
+    };
+
+    expect(RunEvalPageV1Schema.parse(page).items).toHaveLength(1);
+    expect(
+      RunEvalPageV1Schema.safeParse({
+        ...page,
+        items: [{ ...page.items[0], raw: { secret: true } }]
+      }).success
+    ).toBe(false);
   });
 });
