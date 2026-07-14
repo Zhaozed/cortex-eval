@@ -2,15 +2,15 @@
 
 ## 当前实现边界
 
-当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST 与 Evaluation、查看两阶段逐 Case 结果和进度、取消及刷新恢复。`PIPELINE` 在 REST 提交后自动进入 Evaluation；`STAGED` 可按 Stage 显式启动。提交的 OpenAPI 与 Web 只暴露已闭环的 Evaluation 能力。Report、Analysis、Retry/Force、Work Package 文件运行时和目标 CLI 不存在占位入口。
+当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST 与 Evaluation、查看两阶段逐 Case 结果和进度、取消及刷新恢复。`PIPELINE` 在 REST 提交后自动进入 Evaluation；`STAGED` 可按 Stage 显式启动。Local Server 另提供已闭环的 Work Package v1 流式导出 API；CLI 已注册包导出/校验、离线 REST、Evaluation 和当前 REST→Evaluation Pipeline，并支持 `--retry-failed` 与 `--force` 创建新 Execution。Report、Analysis、对外平台 Retry/Force、完整结果导入入口和 Canonical Export 尚未暴露。
 
 ## 使用方式
 
-本地平台允许用户通过 Web 管理资源、执行 REST、评估和报告阶段，并对失败结果发起分析。平台 CLI 通过本地 HTTP API 导出工作包和导入结果。
+本地平台当前允许用户通过 Web 管理资源并执行 REST 与 Evaluation；目标中的 Report、Analysis 和完整结果导入由后续阶段闭环。平台 CLI 当前通过本地 HTTP API 导出工作包，尚不注册结果导入命令。
 
-离线 CLI 工作包冻结全部非秘密输入。阶段命令可以独立执行，也可以按 REST、Evaluation、Report、Analysis 顺序执行完整管线。
+离线 CLI 工作包冻结全部非秘密输入。当前阶段命令可以独立执行 REST、Evaluation，也可以执行 REST→Evaluation Pipeline；Report 与 Analysis 命令尚未注册。
 
-Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式选择满足依赖的阶段。Analysis 只有显式选择失败范围时执行。失败重跑和 `--force` 都创建新的 Run/Execution，不覆盖来源。
+当前 Pipeline 固定执行 REST 与 Evaluation。后续阶段闭环后才扩展 Report 和显式 Analysis。失败重跑和 `--force` 都创建新的 Execution，不覆盖来源。
 
 ## 资源行为
 
@@ -91,10 +91,10 @@ UI 和 CLI 对同一规范化输入生成相同统计。错误返回稳定 Error
 - 当前 REST Adapter：[packages/evaluation-adapters/src](../packages/evaluation-adapters/src)
 - 当前测试集样例：[test_suite/current/cases/loona_promptfoo_tests.json](../test_suite/current/cases/loona_promptfoo_tests.json)
 - 当前 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
-- 当前 P5 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
-- 当前 P5 Web：[apps/web/src](../apps/web/src)
+- 当前 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
+- 当前 Web：[apps/web/src](../apps/web/src)
 - 当前 P4–P5 生产 E2E：[apps/web/e2e](../apps/web/e2e)
-- 工作包 CLI 入口尚未落地。
+- 当前工作包 CLI：[apps/cli/src](../apps/cli/src)
 - [ENTRYPOINTS/LOCAL_SERVER.md](ENTRYPOINTS/LOCAL_SERVER.md)
 - [ENTRYPOINTS/CLI.md](ENTRYPOINTS/CLI.md)
 - [WEB/OVERVIEW.md](WEB/OVERVIEW.md)

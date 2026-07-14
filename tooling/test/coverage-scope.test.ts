@@ -9,4 +9,10 @@ describe("核心包覆盖率范围", () => {
     expect(config).toContain('"packages/application/src/**/*.ts"');
     expect(config).toContain('"packages/storage-sqlite/src/**/*.ts"');
   });
+
+  it("显式纳入 P7 CLI 与 Work Package 生产源码", async () => {
+    const config = await readFile(resolve(process.cwd(), "vitest.config.ts"), "utf8");
+    expect(config).toContain('"apps/cli/src/**/*.ts"');
+    expect(config).toContain('"packages/work-package/src/**/*.ts"');
+  });
 });

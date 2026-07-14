@@ -55,7 +55,14 @@ function cloneState(state: StoreState): StoreState {
     configurationResources: state.configurationResources.map((item) => ({ ...item })),
     rubricReferences: [...state.rubricReferences],
     activeResourceReferences: [...state.activeResourceReferences],
-    importedExecutions: state.importedExecutions.map((item) => ({ ...item }))
+    importedExecutions: state.importedExecutions.map((item) => ({
+      ...item,
+      artifactManifest: {
+        ...item.artifactManifest,
+        owner: { ...item.artifactManifest.owner },
+        artifacts: item.artifactManifest.artifacts.map((artifact) => ({ ...artifact }))
+      }
+    }))
   };
 }
 
@@ -456,6 +463,16 @@ export class InMemoryApplicationStore implements TransactionManager, Clock, IdGe
     this.#state.suites.push(value);
   }
 
+  /** Seed one already-clean current Case for cross-feature tests. */
+  public seedCase(value: StoredTestCase): void {
+    this.#state.cases.push(value);
+  }
+
+  /** Seed one already-clean current Configuration for cross-feature tests. */
+  public seedConfiguration(value: ConfigurationResource): void {
+    this.#state.configurationResources.push(value);
+  }
+
   /** Seed one Rubric Prompt key. */
   public seedRubricPrompt(promptKey: string): void {
     this.#state.rubricPromptKeys.push(promptKey);
@@ -523,7 +540,19 @@ export class InMemoryApplicationStore implements TransactionManager, Clock, IdGe
           return Promise.resolve(
             existing === undefined
               ? null
-              : { runId: existing.runId, resultSetHash: existing.resultSetHash }
+              : {
+                  runId: existing.runId,
+                  sourceType: "OFFLINE_IMPORT",
+                  packageId: existing.packageId,
+                  resultSetHash: existing.resultSetHash,
+                  artifactManifest: {
+                    ...existing.artifactManifest,
+                    owner: { ...existing.artifactManifest.owner },
+                    artifacts: existing.artifactManifest.artifacts.map((artifact) => ({
+                      ...artifact
+                    }))
+                  }
+                }
           );
         },
         insertImportedExecution: (value: ImportedExecutionRecord): Promise<void> => {

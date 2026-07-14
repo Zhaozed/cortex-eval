@@ -20,12 +20,8 @@ import type {
   StoredRestCaseResult
 } from "./platform-run-models.ts";
 import type { RunArtifactAvailability, RunArtifactStore } from "./run-artifact-port.ts";
-import type {
-  FrozenRunCase,
-  RestCaseExecutionResult,
-  RestExecutionErrorType,
-  RestExecutor
-} from "./run-rest-models.ts";
+import type { FrozenRunCase, RestCaseExecutionResult, RestExecutor } from "./run-rest-models.ts";
+import { restExecutionMessageCode } from "./run-rest-models.ts";
 
 /** Shared current-resource selection for preflight and Run creation. */
 export interface PlatformRunSelection {
@@ -181,17 +177,6 @@ interface FrozenRunPreparation {
   readonly restEnvKeys: readonly string[];
   /** Sorted Evaluation Secret references. */
   readonly evaluationEnvKeys: readonly string[];
-}
-
-// Map one REST failure classification to its stable user-message code.
-function restMessageCode(errorType: RestExecutionErrorType): string {
-  if (errorType === "TIMEOUT") return "REST_TIMEOUT";
-  if (errorType === "NETWORK") return "REST_NETWORK";
-  if (errorType === "HTTP_STATUS") return "REST_HTTP_STATUS";
-  if (errorType === "RESPONSE_PARSE") return "REST_RESPONSE_PARSE";
-  if (errorType === "PROVIDER_OUTPUT_INVALID") return "REST_PROVIDER_OUTPUT_INVALID";
-  if (errorType === "CANCELLED") return "REST_CANCELLED";
-  return "TEMPLATE_INPUT";
 }
 
 // Validate one caller-supplied limit object without depending on transport schemas.
@@ -667,7 +652,7 @@ export class PlatformRunService {
       });
       const { descriptor, resultSetHash } = written;
       if (this.#interrupting.has(run.id)) {
-        await this.#artifactStore.removeUncommitted(descriptor);
+        await this.#artifactStore.removeUncommitted(written);
         await this.#interrupt(current);
         return;
       }
@@ -707,7 +692,7 @@ export class PlatformRunService {
         }
         return;
       }
-      await this.#artifactStore.removeUncommitted(descriptor);
+      await this.#artifactStore.removeUncommitted(written);
       const raced = await this.getProgress(run.id);
       if (raced?.status === "RUNNING" && raced.cancelRequestedAt !== null) {
         await this.#commitCancellation(raced);
@@ -806,7 +791,7 @@ export class PlatformRunService {
       httpStatus: result.httpStatus,
       providerOutput: null,
       errorType: result.errorType,
-      errorMessage: this.#messageResolver.message(restMessageCode(result.errorType)),
+      errorMessage: this.#messageResolver.message(restExecutionMessageCode(result.errorType)),
       durationMs: result.durationMs,
       completedAt,
       resultHash,

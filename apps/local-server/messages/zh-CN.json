@@ -5,6 +5,8 @@
   "TEMP_OWNER_CHANGED": "临时资源 owner 已变化",
   "TEMP_CONTAINMENT_REJECTED": "临时资源路径边界校验失败",
   "TEMP_CLEANUP_FAILED": "临时资源清理失败",
+  "RUN_EVALUATION_RAW_CLEANUP_FAILED": "评估原始临时资源清理失败",
+  "RUN_ARTIFACT_CLEANUP_FAILED": "运行产物清理失败",
   "RUN_INPUT_FROZEN": "运行输入已冻结",
   "RUN_REST_STARTED": "REST 阶段已开始",
   "RUN_REST_COMPLETED": "REST 阶段已完成",

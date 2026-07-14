@@ -15,24 +15,36 @@ import type {
   StoredRestCaseResult
 } from "../runs/platform-run-models.ts";
 import type { PlatformRunTransactionManager } from "../runs/platform-run-ports.ts";
-import type { RunArtifactDescriptor } from "../runs/platform-run-models.ts";
-import type { RunArtifactStore } from "../runs/run-artifact-port.ts";
+import type { PublishedRunArtifact, RunArtifactStore } from "../runs/run-artifact-port.ts";
 import type {
   PlatformEvalCaseResult,
   PlatformEvalResultPage,
   PlatformEvalResultQuery
 } from "./platform-eval-models.ts";
 import type { PlatformEvalTransactionManager } from "./platform-eval-ports.ts";
+import {
+  disposeFrozenEvaluationRaw,
+  isFrozenEvaluationRawSource,
+  type FrozenEvaluationRaw
+} from "./frozen-evaluation-engine.ts";
 import type {
   PlatformEvaluationEngine,
   PlatformEvaluationRuntimePreflight
 } from "./platform-evaluation-engine.ts";
-import { importPartialPromptfooResults } from "./promptfoo-result-importer.ts";
+import {
+  importPartialPromptfooResults,
+  type PromptfooImportCase
+} from "./promptfoo-result-importer.ts";
+import { importPartialPromptfooResultRows } from "./promptfoo-row-stream-importer.ts";
 import { readArtifactBackedEvaluationResults } from "./platform-evaluation-reuse-reader.ts";
 
 /** Safe Evaluation lifecycle event names. */
 export type PlatformEvaluationBusinessEventName =
-  "RUN_EVALUATION_STARTED" | "RUN_EVALUATION_COMPLETED" | "RUN_CANCEL_REQUESTED" | "RUN_CANCELLED";
+  | "RUN_EVALUATION_STARTED"
+  | "RUN_EVALUATION_COMPLETED"
+  | "RUN_EVALUATION_RAW_CLEANUP_FAILED"
+  | "RUN_CANCEL_REQUESTED"
+  | "RUN_CANCELLED";
 
 /** Safe Evaluation lifecycle event without prompts, outputs or Secrets. */
 export interface PlatformEvaluationBusinessEvent {
@@ -176,7 +188,10 @@ export class PlatformEvaluationService {
       const frozen = candidate.suite.cases[result.ordinal];
       return frozen?.caseKey === result.caseKey ? [frozen] : [];
     });
-    const preflight = await this.#runtimePreflight.check(preflightCases);
+    const preflight = await this.#runtimePreflight.check(
+      preflightCases,
+      new AbortController().signal
+    );
     if (!preflight.ok) {
       return { ok: false, error: { code: "VALIDATION_FAILED", path: preflight.path } };
     }
@@ -286,7 +301,8 @@ export class PlatformEvaluationService {
         controller.abort();
       }
     );
-    const uncommitted: RunArtifactDescriptor[] = [];
+    const uncommitted: PublishedRunArtifact[] = [];
+    let rawToDispose: FrozenEvaluationRaw | undefined;
     try {
       const restResults = await this.#loadRestResults(run);
       const reusedByOrdinal = await this.#loadReusableEvaluationResults(run, restResults);
@@ -299,7 +315,8 @@ export class PlatformEvaluationService {
         restResultSetHash: run.resultSetHash,
         signal: controller.signal
       });
-      const rawDescriptor = await this.#artifacts.writeRawPromptfooEvidence({
+      rawToDispose = executed.raw;
+      const rawPublication = await this.#artifacts.writeRawPromptfooEvidence({
         runId: run.id,
         runContextHash: run.runContextHash,
         evaluationContextHash: executed.evaluationContextHash,
@@ -308,36 +325,40 @@ export class PlatformEvaluationService {
         durationMs: executed.durationMs,
         raw: executed.raw
       });
-      uncommitted.push(rawDescriptor);
-      const imported = importPartialPromptfooResults({
+      uncommitted.push(rawPublication);
+      const rawDescriptor = rawPublication.descriptor;
+      const importCases: PromptfooImportCase[] = pendingRestResults.map((result) => {
+        const frozen = run.suite.cases[result.ordinal];
+        if (frozen?.caseKey !== result.caseKey) throw new Error("RUN_EVALUATION_CASE_ALIGNMENT");
+        return {
+          caseKey: result.caseKey,
+          ordinal: result.ordinal,
+          caseDefinitionHash: result.caseDefinitionHash,
+          definition: frozen.definition,
+          restResult:
+            result.status === "SUCCEEDED"
+              ? {
+                  status: "SUCCEEDED" as const,
+                  resultHash: result.resultHash,
+                  providerOutput: providerOutputJson(result.providerOutput)
+                }
+              : { status: "ERROR" as const, resultHash: result.resultHash }
+        };
+      });
+      const importInput = {
         promptfooVersion: executed.promptfooVersion,
-        raw: executed.raw,
-        cases: pendingRestResults.map((result) => {
-          const frozen = run.suite.cases[result.ordinal];
-          if (frozen?.caseKey !== result.caseKey) throw new Error("RUN_EVALUATION_CASE_ALIGNMENT");
-          return {
-            caseKey: result.caseKey,
-            ordinal: result.ordinal,
-            caseDefinitionHash: result.caseDefinitionHash,
-            definition: frozen.definition,
-            restResult:
-              result.status === "SUCCEEDED"
-                ? {
-                    status: "SUCCEEDED" as const,
-                    resultHash: result.resultHash,
-                    providerOutput: providerOutputJson(result.providerOutput)
-                  }
-                : { status: "ERROR" as const, resultHash: result.resultHash }
-          };
-        }),
+        cases: importCases,
         rawEvidence: {
-          present: true,
+          present: true as const,
           path: rawDescriptor.path,
           expectedSha256: rawDescriptor.expectedSha256,
           expectedSizeBytes: rawDescriptor.expectedSizeBytes
         },
         rubricPromptMaterializations: executed.rubricPromptMaterializations
-      });
+      };
+      const imported = isFrozenEvaluationRawSource(executed.raw)
+        ? await importPartialPromptfooResultRows({ ...importInput, rows: executed.raw.openRows() })
+        : importPartialPromptfooResults({ ...importInput, raw: executed.raw });
       const completedAt = this.#clock.now();
       const importedByOrdinal = new Map(imported.map((item) => [item.ordinal, item]));
       const results = run.suite.cases.map((frozen) => {
@@ -377,7 +398,7 @@ export class PlatformEvaluationService {
           evalResultHash: item.evalResultHash
         }))
       });
-      const normalizedDescriptor = await this.#artifacts.writeNormalizedEvalResults({
+      const normalizedPublication = await this.#artifacts.writeNormalizedEvalResults({
         runId: run.id,
         runContextHash: run.runContextHash,
         evaluationContextHash: executed.evaluationContextHash,
@@ -386,7 +407,8 @@ export class PlatformEvaluationService {
         resultSetHash,
         cases: evalResultStream(results)
       });
-      uncommitted.push(normalizedDescriptor);
+      uncommitted.push(normalizedPublication);
+      const normalizedDescriptor = normalizedPublication.descriptor;
       pollController.abort();
       await poll;
       if (pollFailure !== undefined) throw pollFailure;
@@ -428,6 +450,11 @@ export class PlatformEvaluationService {
       uncommitted.length = 0;
       await this.#recordEvent("RUN_EVALUATION_COMPLETED", run.id, completedAt);
     } finally {
+      if (rawToDispose !== undefined) {
+        await disposeFrozenEvaluationRaw(rawToDispose).catch(async () => {
+          await this.#recordEvent("RUN_EVALUATION_RAW_CLEANUP_FAILED", run.id, this.#clock.now());
+        });
+      }
       pollController.abort();
       await poll.catch(() => undefined);
       await this.#removeUncommitted(uncommitted);
@@ -520,7 +547,7 @@ export class PlatformEvaluationService {
   }
 
   // Delete only files not yet referenced by a durable Manifest.
-  async #removeUncommitted(artifacts: readonly RunArtifactDescriptor[]): Promise<void> {
+  async #removeUncommitted(artifacts: readonly PublishedRunArtifact[]): Promise<void> {
     for (const artifact of [...artifacts].reverse()) {
       await this.#artifacts.removeUncommitted(artifact).catch(() => undefined);
     }

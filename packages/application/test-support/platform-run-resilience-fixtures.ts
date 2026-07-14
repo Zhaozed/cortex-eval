@@ -12,6 +12,7 @@ import type {
   PlatformRawPromptfooArtifactInput,
   PlatformRestArtifactInput,
   PlatformRestArtifactWriteResult,
+  PublishedRunArtifact,
   RunArtifactAvailability,
   RunArtifactStore
 } from "../src/features/runs/run-artifact-port.ts";
@@ -170,6 +171,7 @@ export class MemoryArtifacts implements RunArtifactStore {
         expectedSizeBytes: 100,
         contractVersion: "cortex.platform-rest-results.v1"
       },
+      publicationIdentity: `memory:${input.runId}:rest`,
       resultSetHash: hashRestResultSet({
         contractVersion: "cortex.rest-result-set.v1",
         cases: cases.map((item) => ({
@@ -184,36 +186,42 @@ export class MemoryArtifacts implements RunArtifactStore {
   /** Return deterministic raw Promptfoo integrity facts. */
   public writeRawPromptfooEvidence(
     input: PlatformRawPromptfooArtifactInput
-  ): Promise<RunArtifactDescriptor> {
+  ): Promise<PublishedRunArtifact> {
     return Promise.resolve({
-      kind: "RAW_PROMPTFOO_EVIDENCE",
-      path: `runs/${input.runId}/promptfoo-raw.json`,
-      expectedSha256: "c".repeat(64),
-      expectedSizeBytes: 80,
-      contractVersion: "cortex.platform-raw-promptfoo-evidence.v1"
+      descriptor: {
+        kind: "RAW_PROMPTFOO_EVIDENCE",
+        path: `runs/${input.runId}/promptfoo-raw.json`,
+        expectedSha256: "c".repeat(64),
+        expectedSizeBytes: 80,
+        contractVersion: "cortex.platform-raw-promptfoo-evidence.v1"
+      },
+      publicationIdentity: `memory:${input.runId}:raw`
     });
   }
 
   /** Consume and return deterministic normalized Evaluation integrity facts. */
   public async writeNormalizedEvalResults(
     input: PlatformNormalizedEvalArtifactInput
-  ): Promise<RunArtifactDescriptor> {
+  ): Promise<PublishedRunArtifact> {
     for await (const item of input.cases) {
       // Consume the single-use stream exactly once.
       void item;
     }
     return {
-      kind: "NORMALIZED_EVAL_RESULTS",
-      path: `runs/${input.runId}/normalized-eval.json`,
-      expectedSha256: "d".repeat(64),
-      expectedSizeBytes: 120,
-      contractVersion: "cortex.platform-normalized-eval.v1"
+      descriptor: {
+        kind: "NORMALIZED_EVAL_RESULTS",
+        path: `runs/${input.runId}/normalized-eval.json`,
+        expectedSha256: "d".repeat(64),
+        expectedSizeBytes: 120,
+        contractVersion: "cortex.platform-normalized-eval.v1"
+      },
+      publicationIdentity: `memory:${input.runId}:normalized`
     };
   }
 
   /** Record one uncommitted Artifact removal. */
-  public removeUncommitted(artifact: RunArtifactDescriptor): Promise<void> {
-    this.removed.push(artifact);
+  public removeUncommitted(artifact: PublishedRunArtifact): Promise<void> {
+    this.removed.push(artifact.descriptor);
     return Promise.resolve();
   }
 

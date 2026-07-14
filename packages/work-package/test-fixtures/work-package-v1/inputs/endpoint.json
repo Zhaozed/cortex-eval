@@ -1,0 +1,1 @@
+{"contractVersion":"cortex.endpoint-config.v1","urlTemplate":"https://example.com/evaluate","method":"POST","headers":{"Content-Type":{"kind":"LITERAL","value":"application/json"}},"bodySelector":"/request_body","timeoutMs":60000,"defaultConcurrency":4}

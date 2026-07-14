@@ -9,6 +9,7 @@
     "@cortex-eval/domain": "workspace:*",
     "@cortex-eval/evaluation-adapters": "workspace:*",
     "@cortex-eval/storage-sqlite": "workspace:*",
+    "@cortex-eval/work-package": "workspace:*",
     "@fastify/fast-json-stringify-compiler": "5.1.0",
     "@fastify/multipart": "10.1.0",
     "@fastify/static": "10.1.0",

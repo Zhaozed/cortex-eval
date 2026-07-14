@@ -43,6 +43,7 @@ import {
   RunProgressV1Schema,
   RunRevisionRequestV1Schema
 } from "@cortex-eval/contracts/src/run-api-contracts.ts";
+import { WorkPackageExportRequestV1Schema } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
 import type { FastifySchema } from "fastify";
 import type { z } from "zod";
 
@@ -58,6 +59,14 @@ const IdentifierParamsSchema = {
     configurationId: { type: "string", minLength: 1 }
   }
 } as const;
+
+// Bind one response schema to its exact OpenAPI and Fastify media type.
+function mediaTypeResponse(
+  mediaType: string,
+  schema: Record<string, unknown>
+): Record<string, unknown> {
+  return { content: { [mediaType]: { schema } } };
+}
 
 // Return the strict body contract for one closed operation.
 function operationBodySchema(operationId: string): Record<string, unknown> | undefined {
@@ -82,7 +91,8 @@ function operationBodySchema(operationId: string): Record<string, unknown> | und
     preflightRun: RunPreflightRequestV1Schema,
     createRun: CreatePlatformRunRequestV1Schema,
     startRun: RunRevisionRequestV1Schema,
-    cancelRun: RunRevisionRequestV1Schema
+    cancelRun: RunRevisionRequestV1Schema,
+    exportWorkPackage: WorkPackageExportRequestV1Schema
   };
   const schema = schemas[operationId];
   return schema === undefined ? undefined : projectRuntimeSchema(schema);
@@ -90,6 +100,7 @@ function operationBodySchema(operationId: string): Record<string, unknown> | und
 
 // Return the exact success response contract for one closed operation.
 function operationResponseSchema(operationId: string): Record<string, unknown> {
+  if (operationId === "exportWorkPackage") return { type: "string" };
   const schemas: Readonly<Record<string, z.ZodType>> = {
     listTestSuites: TestSuitePageV1Schema,
     createTestSuite: TestSuiteDetailV1Schema,
@@ -215,6 +226,15 @@ export function localOperationSchema(
         : method === "DELETE"
           ? 204
           : 200;
+  const apiErrorSchema = projectRuntimeSchema(ApiErrorResponseV1Schema);
+  const successResponse =
+    operationId === "exportWorkPackage"
+      ? mediaTypeResponse("application/x-ndjson", operationResponseSchema(operationId))
+      : operationResponseSchema(operationId);
+  const errorResponse =
+    operationId === "exportWorkPackage"
+      ? mediaTypeResponse("application/json", apiErrorSchema)
+      : apiErrorSchema;
   return {
     operationId,
     ...(body === undefined ? {} : { body }),
@@ -231,17 +251,18 @@ export function localOperationSchema(
           }
         }),
     response: {
-      [successStatus]: operationResponseSchema(operationId),
-      400: projectRuntimeSchema(ApiErrorResponseV1Schema),
-      403: projectRuntimeSchema(ApiErrorResponseV1Schema),
-      404: projectRuntimeSchema(ApiErrorResponseV1Schema),
-      409: projectRuntimeSchema(ApiErrorResponseV1Schema),
-      413: projectRuntimeSchema(ApiErrorResponseV1Schema),
-      422: projectRuntimeSchema(ApiErrorResponseV1Schema),
+      [successStatus]: successResponse,
+      400: errorResponse,
+      403: errorResponse,
+      404: errorResponse,
+      409: errorResponse,
+      413: errorResponse,
+      422: errorResponse,
+      ...(operationId === "exportWorkPackage" ? { 499: errorResponse } : {}),
       ...(operationId === "validateEndpointConfig" || operationId === "validateLlmConfig"
-        ? { 502: projectRuntimeSchema(ApiErrorResponseV1Schema) }
+        ? { 502: apiErrorSchema }
         : {}),
-      500: projectRuntimeSchema(ApiErrorResponseV1Schema)
+      500: errorResponse
     }
   };
 }

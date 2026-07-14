@@ -1,4 +1,5 @@
 import type { PlatformEvaluationRuntimePreflight } from "@cortex-eval/application/src/features/evaluation/platform-evaluation-engine.ts";
+import { disposeFrozenEvaluationRaw } from "@cortex-eval/application/src/features/evaluation/frozen-evaluation-engine.ts";
 import type { FrozenRunCase } from "@cortex-eval/application/src/features/runs/run-rest-models.ts";
 
 import {
@@ -6,7 +7,10 @@ import {
   type PromptfooAssertionRuntimeDependency
 } from "./promptfoo-capability-projection.ts";
 import type { MaterializedPromptfooConfigV1 } from "./promptfoo-config-materializer.ts";
-import { runPromptfooEvaluationProcess } from "./promptfoo-evaluation-process.ts";
+import {
+  preflightPromptfooEvaluationProcessVersion,
+  runPromptfooEvaluationProcess
+} from "./promptfoo-evaluation-process.ts";
 
 /** Explicit runtime preflight process dependencies. */
 export interface PromptfooRuntimePreflightDependencies {
@@ -39,6 +43,13 @@ export function requiredPromptfooAssertionRuntimes(
 ): readonly Exclude<PromptfooAssertionRuntimeDependency, null>[] {
   const runtimes = new Set<Exclude<PromptfooAssertionRuntimeDependency, null>>();
   for (const testCase of cases) collectAssertionRuntimes(testCase.definition.assertions, runtimes);
+  return orderedRuntimes(runtimes);
+}
+
+// Keep interpreter probe order stable without retaining the Case collection.
+function orderedRuntimes(
+  runtimes: ReadonlySet<Exclude<PromptfooAssertionRuntimeDependency, null>>
+): readonly Exclude<PromptfooAssertionRuntimeDependency, null>[] {
   const ordered: ("PYTHON" | "RUBY")[] = [];
   if (runtimes.has("PYTHON")) ordered.push("PYTHON");
   if (runtimes.has("RUBY")) ordered.push("RUBY");
@@ -105,11 +116,38 @@ export class PromptfooRuntimePreflight implements PlatformEvaluationRuntimePrefl
 
   /** Execute each frozen interpreter dependency before Run state changes. */
   public async check(
-    cases: readonly FrozenRunCase[]
+    cases: AsyncIterable<FrozenRunCase> | Iterable<FrozenRunCase>,
+    signal: AbortSignal
   ): Promise<
-    { readonly ok: true } | { readonly ok: false; readonly path: "runtime.python" | "runtime.ruby" }
+    | { readonly ok: true }
+    | {
+        readonly ok: false;
+        readonly path: "runtime.promptfoo" | "runtime.python" | "runtime.ruby";
+      }
   > {
-    const runtimes = requiredPromptfooAssertionRuntimes(cases);
+    try {
+      await preflightPromptfooEvaluationProcessVersion({
+        promptfooBinary: this.#binary,
+        temporaryContainmentRoot: this.#temporaryContainmentRoot,
+        temporaryParent: this.#temporaryParent,
+        timeoutMs: this.#timeoutMs,
+        signal
+      });
+    } catch (error) {
+      if (
+        signal.aborted ||
+        (error instanceof Error && error.message === "PROMPTFOO_PROCESS_CANCELLED")
+      ) {
+        throw new Error("REQUEST_ABORTED", { cause: error });
+      }
+      return { ok: false, path: "runtime.promptfoo" };
+    }
+    const requiredRuntimes = new Set<Exclude<PromptfooAssertionRuntimeDependency, null>>();
+    for await (const testCase of cases) {
+      if (signal.aborted) throw new Error("REQUEST_ABORTED");
+      collectAssertionRuntimes(testCase.definition.assertions, requiredRuntimes);
+    }
+    const runtimes = orderedRuntimes(requiredRuntimes);
     for (const runtime of runtimes) {
       const path = runtime === "PYTHON" ? "runtime.python" : "runtime.ruby";
       try {
@@ -121,10 +159,20 @@ export class PromptfooRuntimePreflight implements PlatformEvaluationRuntimePrefl
           temporaryContainmentRoot: this.#temporaryContainmentRoot,
           temporaryParent: this.#temporaryParent,
           timeoutMs: this.#timeoutMs,
-          signal: new AbortController().signal
+          signal
         });
-        if (result.exitCode !== 0) return { ok: false, path };
-      } catch {
+        try {
+          if (result.exitCode !== 0) return { ok: false, path };
+        } finally {
+          await disposeFrozenEvaluationRaw(result.raw);
+        }
+      } catch (error) {
+        if (
+          signal.aborted ||
+          (error instanceof Error && error.message === "PROMPTFOO_PROCESS_CANCELLED")
+        ) {
+          throw new Error("REQUEST_ABORTED", { cause: error });
+        }
         return { ok: false, path };
       }
     }

@@ -141,6 +141,8 @@ export interface LocalServerOptions {
   readonly resourceHandlers: LocalResourceHandlers;
   /** Closed P5 Run handlers, absent until the full capability is composed. */
   readonly runHandlers?: LocalRunHandlers | undefined;
+  /** Closed P7 Work Package export handler, absent until fully composed. */
+  readonly workPackageExportHandler?: LocalApiHandler | undefined;
   /** Exact loopback authorities accepted by Host validation. */
   readonly allowedHosts?: readonly string[] | undefined;
   /** Optional resilient request business logger. */
@@ -372,6 +374,15 @@ async function registerResourceRoutes(
 
   if (options.runHandlers !== undefined)
     registerRunRoutes(server, controllers, options.runHandlers);
+  registerHandlerRoute(
+    server,
+    controllers,
+    "POST",
+    "/api/v1/work-packages/export",
+    "exportWorkPackage",
+    options.workPackageExportHandler,
+    64 * 1024
+  );
   registerConfigurationRoutes(
     server,
     controllers,
@@ -665,6 +676,7 @@ export function buildLocalServer(options: LocalServerOptions): FastifyInstance {
   );
   const server = Fastify({
     logger: false,
+    ajv: { customOptions: { removeAdditional: false } },
     genReqId: () => options.requestIdGenerator.nextId(),
     requestIdHeader: false,
     bodyLimit: 200 * 1024 * 1024 + 64 * 1024,

@@ -4,7 +4,7 @@
 
 `spec/` 是 Cortex Eval 目标系统的稳定事实入口，服务人类工程师和 AI coding agent。产品行为以 [REQ.md](../REQ.md) 为来源，技术架构以 [TECH.md](../TECH.md) 为来源，文档组织规则以 [SPEC_DOC.md](../SPEC_DOC.md) 为来源。
 
-当前仓库已完成 P0–P6，P7 正在实现 Work Package、CLI、重跑与导入基础。平台 REST→Evaluation Pipeline、Eval API/Web/SSE、Raw/Normalized Artifact、规范化 Hash、Ajv Diff、严格 Importer、SQLite 原子提交、受控 Promptfoo/Bridge/官方 SDK 链和内部 Retry/Force Use Case 已闭环。Case Assert 构建不设类型白名单，平台不复现或限制 Assert 执行；Bridge 只执行冻结 Evaluator 调用，不识别 Assertion/Metric。`REQ.md` 和 `TECH.md` 描述完整目标，不代表 Report、Analysis、对外 Retry/Force、Work Package 文件运行时或目标 CLI 已实现。当前状态由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
+当前仓库已完成 P0–P7，P8 尚未开始。平台与离线 REST→Evaluation、Work Package v1 导出/校验、安全文件运行时、Retry/Force、连续 Evidence 追溯、Pipeline 写前完整 Evaluation 输入/Prompt/Runtime 预检、固定 Promptfoo 版本、真实取消到 CLI 130、Promptfoo Raw 有界流式 Source、Raw/Normalized Artifact、严格读取、完整 Artifact Manifest 导入身份、发布后同步失败的可见性补偿、当前命令未登记 Artifact 清理、Ajv Diff、SQLite 原子提交和受控 Promptfoo/Bridge/官方 SDK 链已闭环。Case Assert 构建不设类型白名单，平台不复现或限制 Assert 执行；Bridge 只执行冻结 Evaluator 调用，不识别 Assertion/Metric。Report、Analysis、对外平台 Retry/Force、完整结果导入入口和 Canonical Export 尚未闭环。当前状态由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
 
 Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入口。每个阶段必须同步更新本索引和直接相关 spec，未落地能力不得提前改写为代码事实。
 
@@ -115,13 +115,14 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 - [apps/local-server/src](../apps/local-server/src)：Fastify、资源/Run REST/Evaluation Route、Run SSE、生产 Web 静态入口、协议 Mapper、安全入口、日志与装配。
 - [apps/local-server/openapi.json](../apps/local-server/openapi.json)：由真实当前 Route 与 Schema 确定生成的 OpenAPI。
 - [apps/local-server/test](../apps/local-server/test)：HTTP、OpenAPI、安全、流式边界、Run/REST/Evaluation、生命周期与真实 SQLite 集成测试。
+- [apps/cli/src](../apps/cli/src)：P7 Work Package 导出/校验、离线 REST/Evaluation/Pipeline、Retry/Force 和机器协议入口。
+- [apps/cli/test](../apps/cli/test)：P7 命令注册、Help、Secret、真实阶段执行、重跑和 Pipeline 测试。
 - [apps/web/src](../apps/web/src)：资源与 Run REST/Evaluation Web、API Client、路由、Feature 注册和 shadcn/ui Primitive。
 - [apps/web/test](../apps/web/test)：组件、表单映射、Run、错误定位、冲突、URL 状态和缓存失效测试。
 - [apps/web/e2e](../apps/web/e2e)：P4 生产构建上的完整资源流程、键盘、无障碍、CSP、Reduced Motion 和目标尺寸测试。
-- [data_scripts/run_promptfoo_rest_types.ts](../data_scripts/run_promptfoo_rest_types.ts)：当前 REST 运行器公开类型。
-- [data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)：当前 REST 请求、并发、续跑和原子输出实现。
-- [data_scripts/run_promptfoo_rest_cli.ts](../data_scripts/run_promptfoo_rest_cli.ts)：当前 REST 运行器 CLI 入口。
-- [data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)：当前 REST 运行器测试族。
+- [packages/work-package/src](../packages/work-package/src)：P7 Manifest/Execution、安全文件运行时、Artifact、Retry 证据和严格 Evaluation Result Reader。
+- [packages/work-package/test](../packages/work-package/test)：P7 文件安全、大小、并发、恢复、Artifact、Retry 和导入读取测试。
+- [packages/work-package/test-fixtures/work-package-v1](../packages/work-package/test-fixtures/work-package-v1)：P7 固定 Manifest Hash、无 Secret 的 Golden Work Package v1。
 - [data_scripts/convert_loona_to_promptfoo.py](../data_scripts/convert_loona_to_promptfoo.py)：当前原始数据转换入口。
 - [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：当前转换测试族。
 - [package.json](../package.json)：Node 24 下的格式、Lint、架构、类型、测试、覆盖率、文档和构建门禁。

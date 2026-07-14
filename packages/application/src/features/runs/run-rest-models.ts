@@ -29,6 +29,29 @@ export type RestExecutionErrorType =
   | "TEMPLATE_INPUT"
   | "CANCELLED";
 
+/** Stable public message code for one REST failure classification. */
+export type RestExecutionMessageCode =
+  | "REST_TIMEOUT"
+  | "REST_NETWORK"
+  | "REST_HTTP_STATUS"
+  | "REST_RESPONSE_PARSE"
+  | "REST_PROVIDER_OUTPUT_INVALID"
+  | "REST_CANCELLED"
+  | "TEMPLATE_INPUT";
+
+/** Map one REST failure classification to its shared public message code. */
+export function restExecutionMessageCode(
+  errorType: RestExecutionErrorType
+): RestExecutionMessageCode {
+  if (errorType === "TIMEOUT") return "REST_TIMEOUT";
+  if (errorType === "NETWORK") return "REST_NETWORK";
+  if (errorType === "HTTP_STATUS") return "REST_HTTP_STATUS";
+  if (errorType === "RESPONSE_PARSE") return "REST_RESPONSE_PARSE";
+  if (errorType === "PROVIDER_OUTPUT_INVALID") return "REST_PROVIDER_OUTPUT_INVALID";
+  if (errorType === "CANCELLED") return "REST_CANCELLED";
+  return "TEMPLATE_INPUT";
+}
+
 /** Successful normalized REST Case result. */
 export interface RestExecutionSuccess {
   /** Frozen Case key. */

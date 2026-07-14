@@ -137,6 +137,12 @@ export const LlmConfigV1Schema = z.discriminatedUnion("providerType", [
   OpenAiCompatibleLlmConfigV1Schema
 ]);
 
+/** Endpoint configuration DTO. */
+export type EndpointConfigV1 = z.infer<typeof EndpointConfigV1Schema>;
+
+/** Unified LLM configuration DTO. */
+export type LlmConfigV1 = z.infer<typeof LlmConfigV1Schema>;
+
 /** Provider Output business-success branch. */
 export const ProviderOutputSuccessV1Schema = z.strictObject({
   ok: z.literal(true),

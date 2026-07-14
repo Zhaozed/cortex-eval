@@ -200,6 +200,46 @@ describe("Execution v1", () => {
         runExecutionLimits: { ...value.runExecutionLimits, restConcurrency: 65 }
       }).success
     ).toBe(false);
+    const restArtifact = {
+      kind: "REST_RESULTS",
+      path: `executions/${ID}/rest-results.json`,
+      sha256: HASH,
+      sizeBytes: 1,
+      contractVersion: "cortex.rest-results.v1"
+    } as const;
+    expect(
+      ExecutionV1Schema.safeParse({
+        ...value,
+        startedAt: TIME,
+        stages: {
+          ...value.stages,
+          REST: {
+            status: "RUNNING",
+            startedAt: TIME,
+            completedAt: null,
+            errorCode: null,
+            artifacts: [restArtifact]
+          }
+        }
+      }).success
+    ).toBe(false);
+    expect(
+      ExecutionV1Schema.safeParse({
+        ...value,
+        startedAt: TIME,
+        completedAt: TIME,
+        stages: {
+          ...value.stages,
+          REST: {
+            status: "ERROR",
+            startedAt: TIME,
+            completedAt: TIME,
+            errorCode: "REST_REQUEST_FAILED",
+            artifacts: [restArtifact]
+          }
+        }
+      }).success
+    ).toBe(false);
     expect(
       ExecutionV1Schema.safeParse({
         ...value,

@@ -123,6 +123,36 @@ export function mapAnalysisPromptDefinitionFromV1(
   return definition;
 }
 
+/** Add the Endpoint transport version to one clean Domain definition. */
+export function mapEndpointDefinitionToV1(value: EndpointConfigDefinition): EndpointConfigV1 {
+  return { contractVersion: "cortex.endpoint-config.v1", ...value };
+}
+
+/** Add the LLM transport version to one clean Domain definition. */
+export function mapLlmDefinitionToV1(value: LlmConfigDefinition): LlmConfigV1 {
+  return { contractVersion: "cortex.llm-config.v1", ...value };
+}
+
+/** Add the shared Prompt transport version to one Rubric Prompt definition. */
+export function mapPromptDefinitionToV1(value: PromptDefinition): PromptDefinitionV1 {
+  return {
+    contractVersion: "cortex.prompt.v1",
+    ...value,
+    messages: value.messages.map((message) => ({ ...message }))
+  };
+}
+
+/** Add the shared Prompt transport version to one Analysis Prompt definition. */
+export function mapAnalysisPromptDefinitionToV1(
+  value: AnalysisPromptDefinition
+): AnalysisPromptDefinitionV1 {
+  return {
+    contractVersion: "cortex.prompt.v1",
+    ...value,
+    messages: value.messages.map((message) => ({ ...message }))
+  };
+}
+
 /** Map one clean Configuration resource into its versioned public detail DTO. */
 export function mapConfigurationResourceToV1(
   value: ConfigurationResource

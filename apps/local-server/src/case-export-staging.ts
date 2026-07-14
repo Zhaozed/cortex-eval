@@ -16,7 +16,7 @@ export interface CaseExportBodyPreparer {
 }
 
 /** Backpressure-aware prepared file body that waits for owner-safe cleanup on every destroy path. */
-class OwnedCaseExportReadable extends PassThrough {
+export class OwnedWorkspaceFileReadable extends PassThrough {
   /** Underlying owner-only prepared file stream. */
   readonly #source: ReadStream;
   /** Owned workspace removed exactly once. */
@@ -92,7 +92,7 @@ export class FileCaseExportBodyPreparer implements CaseExportBodyPreparer {
         createWriteStream(path, { flags: "wx", mode: 0o600 })
       );
       await chmod(path, 0o600);
-      return new OwnedCaseExportReadable(path, workspace, this.#workspaceManager);
+      return new OwnedWorkspaceFileReadable(path, workspace, this.#workspaceManager);
     } catch (error) {
       await this.#workspaceManager.cleanupOwned(workspace).catch(() => undefined);
       throw error;

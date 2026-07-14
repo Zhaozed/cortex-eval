@@ -63,12 +63,13 @@ function stableObject(value: unknown): unknown {
   );
 }
 
-/** Generate the exact stable P5 OpenAPI JSON from real Route registration. */
+/** Generate the exact stable OpenAPI JSON from current closed Route registration. */
 export async function generateLocalOpenApiJson(): Promise<string> {
   const server = buildLocalServer({
     requestIdGenerator: { nextId: () => "018f0c8e-9f79-7abc-8def-0123456789ab" },
     resourceHandlers: CAPABILITY_HANDLERS,
-    runHandlers: RUN_CAPABILITY_HANDLERS
+    runHandlers: RUN_CAPABILITY_HANDLERS,
+    workPackageExportHandler: notExecutable
   });
   try {
     const response = await server.inject({

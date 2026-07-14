@@ -206,14 +206,20 @@ const ExecutionStageStateV1Schema = z
       stage.errorCode === null &&
       stage.artifacts.length === 0;
     const runningShape =
-      stage.startedAt !== null && stage.completedAt === null && stage.errorCode === null;
+      stage.startedAt !== null &&
+      stage.completedAt === null &&
+      stage.errorCode === null &&
+      stage.artifacts.length === 0;
     const succeededShape =
       stage.startedAt !== null &&
       stage.completedAt !== null &&
       stage.errorCode === null &&
       stage.artifacts.length > 0;
     const errorShape =
-      stage.startedAt !== null && stage.completedAt !== null && stage.errorCode !== null;
+      stage.startedAt !== null &&
+      stage.completedAt !== null &&
+      stage.errorCode !== null &&
+      stage.artifacts.length === 0;
     const skippedShape =
       stage.startedAt === null &&
       stage.completedAt !== null &&

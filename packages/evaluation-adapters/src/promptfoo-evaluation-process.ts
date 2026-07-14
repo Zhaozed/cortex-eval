@@ -1,9 +1,13 @@
 import { spawn } from "node:child_process";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { open, realpath, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { MaterializedPromptfooConfigV1 } from "./promptfoo-config-materializer.ts";
 import { createPromptfooTemporaryDirectory } from "./promptfoo-temporary-directory.ts";
+import { validatePromptfooOutputRuntimeLimits } from "./promptfoo-output-runtime-limits.ts";
+import { PromptfooRawFileSource } from "./promptfoo-raw-file-source.ts";
+import { streamPromptfooResultRows } from "./promptfoo-raw-result-stream.ts";
 
 /** Fixed Promptfoo version owned by the current evaluation contract. */
 export const PROMPTFOO_EVALUATION_VERSION = "0.121.18" as const;
@@ -17,12 +21,39 @@ export const PROMPTFOO_PROCESS_TERMINATION_GRACE_MS = 5_000;
 /** Maximum wait for a killed POSIX process group to disappear. */
 export const PROMPTFOO_PROCESS_GROUP_REAP_TIMEOUT_MS = 5_000;
 
+/** Maximum handoff window from explicit preflight to the immediately following execution. */
+export const PROMPTFOO_VERSION_ATTESTATION_TTL_MS = 30_000;
+
+interface PromptfooBinaryIdentity {
+  /** Canonical executable target. */
+  readonly path: string;
+  /** Device identity. */
+  readonly device: bigint;
+  /** Inode identity. */
+  readonly inode: bigint;
+  /** Exact target size. */
+  readonly sizeBytes: bigint;
+  /** Nanosecond modification time. */
+  readonly modifiedAtNanoseconds: bigint;
+  /** Nanosecond metadata-change time. */
+  readonly changedAtNanoseconds: bigint;
+}
+
+interface PromptfooVersionAttestation {
+  /** Exact executable identity observed by the successful version process. */
+  readonly identity: PromptfooBinaryIdentity;
+  /** Short monotonic handoff deadline. */
+  readonly expiresAt: number;
+}
+
+const promptfooVersionAttestations = new Map<string, PromptfooVersionAttestation>();
+
 /** Controlled fixed-version Promptfoo process input. */
 export interface RunPromptfooEvaluationProcessInput {
   /** Absolute local Promptfoo binary path. */
   readonly promptfooBinary: string;
-  /** Secret-free generated configuration. */
-  readonly config: MaterializedPromptfooConfigV1;
+  /** Secret-free generated configuration or bounded replay stream. */
+  readonly config: MaterializedPromptfooConfigV1 | PromptfooConfigByteSource;
   /** Environment key referenced by the generated HTTP Provider. */
   readonly capabilityEnvKey: string;
   /** Raw capability injected only into the child environment. */
@@ -37,14 +68,36 @@ export interface RunPromptfooEvaluationProcessInput {
   readonly signal: AbortSignal;
 }
 
+/** Replayable secret-free Promptfoo configuration bytes. */
+export interface PromptfooConfigByteSource {
+  /** Stable source discriminator. */
+  readonly kind: "PROMPTFOO_CONFIG_BYTE_SOURCE";
+  /** Open a fresh bounded byte pass. */
+  readonly openBytes: () => AsyncIterable<Uint8Array>;
+}
+
 /** Stable Promptfoo process output ready for strict Importer validation. */
 export interface PromptfooEvaluationProcessResult {
   /** Verified exact package version. */
   readonly promptfooVersion: typeof PROMPTFOO_EVALUATION_VERSION;
-  /** Raw fixed-version JSON output. */
-  readonly raw: unknown;
+  /** Replayable bounded Raw output source. */
+  readonly raw: PromptfooRawFileSource;
   /** Native Promptfoo exit code, including Assertion Fail code 100. */
   readonly exitCode: 0 | 100;
+}
+
+/** Fixed-version executable preflight input without an Evaluation payload. */
+export interface PromptfooEvaluationProcessVersionPreflightInput {
+  /** Absolute local Promptfoo binary path. */
+  readonly promptfooBinary: string;
+  /** Controlled parent for disposable process files. */
+  readonly temporaryParent: string;
+  /** Explicit real root containing every disposable process path. */
+  readonly temporaryContainmentRoot: string;
+  /** Bounded version-process timeout. */
+  readonly timeoutMs: number;
+  /** Caller cancellation signal. */
+  readonly signal: AbortSignal;
 }
 
 interface ChildResult {
@@ -56,6 +109,99 @@ interface ChildResult {
   readonly stderr: string;
   /** Cancellation source if the child was terminated. */
   readonly terminatedBy: "CANCELLED" | "TIMEOUT" | null;
+}
+
+// Capture the canonical executable identity without following a mutable lexical alias twice.
+async function promptfooBinaryIdentity(binary: string): Promise<PromptfooBinaryIdentity> {
+  const path = await realpath(binary);
+  const facts = await stat(path, { bigint: true });
+  return {
+    path,
+    device: facts.dev,
+    inode: facts.ino,
+    sizeBytes: facts.size,
+    modifiedAtNanoseconds: facts.mtimeNs,
+    changedAtNanoseconds: facts.ctimeNs
+  };
+}
+
+// Compare every stable filesystem identity field observed around the preflight handoff.
+function samePromptfooBinary(
+  left: PromptfooBinaryIdentity,
+  right: PromptfooBinaryIdentity
+): boolean {
+  return (
+    left.path === right.path &&
+    left.device === right.device &&
+    left.inode === right.inode &&
+    left.sizeBytes === right.sizeBytes &&
+    left.modifiedAtNanoseconds === right.modifiedAtNanoseconds &&
+    left.changedAtNanoseconds === right.changedAtNanoseconds
+  );
+}
+
+// Record only a successful explicit preflight; ordinary process calls never self-attest.
+async function attestPromptfooVersion(binary: string): Promise<void> {
+  const identity = await promptfooBinaryIdentity(binary);
+  promptfooVersionAttestations.set(identity.path, {
+    identity,
+    expiresAt: performance.now() + PROMPTFOO_VERSION_ATTESTATION_TTL_MS
+  });
+}
+
+// Reuse one short-lived attestation only while the exact executable identity remains unchanged.
+async function hasPromptfooVersionAttestation(binary: string): Promise<boolean> {
+  const identity = await promptfooBinaryIdentity(binary);
+  const attestation = promptfooVersionAttestations.get(identity.path);
+  if (attestation === undefined) return false;
+  const valid =
+    attestation.expiresAt >= performance.now() &&
+    samePromptfooBinary(attestation.identity, identity);
+  if (!valid) promptfooVersionAttestations.delete(identity.path);
+  return valid;
+}
+
+// Narrow the explicit config union without trusting arbitrary transport values.
+function isPromptfooConfigByteSource(
+  value: MaterializedPromptfooConfigV1 | PromptfooConfigByteSource
+): value is PromptfooConfigByteSource {
+  return "openBytes" in value;
+}
+
+// Publish one owner-only config while rejecting any accidental raw capability materialization.
+async function writePromptfooConfig(
+  path: string,
+  config: MaterializedPromptfooConfigV1 | PromptfooConfigByteSource,
+  rawCapability: string
+): Promise<void> {
+  const handle = await open(path, "wx", 0o600);
+  let tail = "";
+  let wroteBytes = false;
+  try {
+    const chunks: AsyncIterable<Uint8Array> = isPromptfooConfigByteSource(config)
+      ? config.openBytes()
+      : {
+          async *[Symbol.asyncIterator](): AsyncGenerator<Uint8Array> {
+            yield await Promise.resolve(
+              Buffer.from(`${JSON.stringify(config, null, 2)}\n`, "utf8")
+            );
+          }
+        };
+    for await (const chunk of chunks) {
+      const bytes = Buffer.from(chunk);
+      const inspected = `${tail}${bytes.toString("utf8")}`;
+      if (inspected.includes(rawCapability)) throw new Error("PROMPTFOO_CONFIG_SECRET_EXPOSED");
+      tail = inspected.slice(-Math.max(0, rawCapability.length - 1));
+      await handle.write(bytes);
+      wroteBytes ||= bytes.byteLength > 0;
+    }
+    if (!wroteBytes) throw new Error("PROMPTFOO_CONFIG_INVALID");
+  } catch (error) {
+    await handle.close().catch(() => undefined);
+    await rm(path, { force: true }).catch(() => undefined);
+    throw error;
+  }
+  await handle.close();
 }
 
 // Return whether a POSIX process group still owns at least one process.
@@ -90,18 +236,6 @@ async function waitForProcessGroupExit(processGroupId: number): Promise<void> {
     PROMPTFOO_PROCESS_GROUP_REAP_TIMEOUT_MS
   );
   if (!exited) throw new Error("PROMPTFOO_PROCESS_GROUP_NOT_REAPED");
-}
-
-// Reject a Capability copied anywhere into Promptfoo's JSON evidence, including object keys.
-function containsCapability(value: unknown, rawCapability: string): boolean {
-  if (typeof value === "string") return value.includes(rawCapability);
-  if (Array.isArray(value)) {
-    return value.some((item) => containsCapability(item, rawCapability));
-  }
-  if (value === null || typeof value !== "object") return false;
-  return Object.entries(value as Record<string, unknown>).some(
-    ([key, item]) => key.includes(rawCapability) || containsCapability(item, rawCapability)
-  );
 }
 
 // Promptfoo runs trusted inline code, so inherit only runtime necessities and interpreter selectors.
@@ -254,6 +388,37 @@ async function verifyPromptfooVersion(
   }
 }
 
+/** Verify the exact Promptfoo executable version and reclaim all temporary state. */
+export async function preflightPromptfooEvaluationProcessVersion(
+  input: PromptfooEvaluationProcessVersionPreflightInput
+): Promise<void> {
+  if (!Number.isInteger(input.timeoutMs) || input.timeoutMs < 100) {
+    throw new Error("PROMPTFOO_PROCESS_TIMEOUT_INVALID");
+  }
+  if (await hasPromptfooVersionAttestation(input.promptfooBinary).catch(() => false)) return;
+  const directory = await createPromptfooTemporaryDirectory(
+    input.temporaryContainmentRoot,
+    input.temporaryParent
+  );
+  const environment = createPromptfooChildEnvironment(
+    "CORTEX_RUNTIME_PREFLIGHT_CAPABILITY",
+    "runtime-preflight-capability",
+    directory
+  );
+  try {
+    await verifyPromptfooVersion(
+      input.promptfooBinary,
+      directory,
+      environment,
+      Math.min(15_000, input.timeoutMs),
+      input.signal
+    );
+    await attestPromptfooVersion(input.promptfooBinary);
+  } finally {
+    await rm(directory, { force: true, recursive: true });
+  }
+}
+
 /** Execute Promptfoo in a disposable directory and always reclaim process files. */
 export async function runPromptfooEvaluationProcess(
   input: RunPromptfooEvaluationProcessInput
@@ -265,9 +430,6 @@ export async function runPromptfooEvaluationProcess(
   if (!Number.isInteger(input.timeoutMs) || input.timeoutMs < 100) {
     throw new Error("PROMPTFOO_PROCESS_TIMEOUT_INVALID");
   }
-  const configText = `${JSON.stringify(input.config, null, 2)}\n`;
-  if (configText.includes(input.rawCapability)) throw new Error("PROMPTFOO_CONFIG_SECRET_EXPOSED");
-
   const directory = await createPromptfooTemporaryDirectory(
     input.temporaryContainmentRoot,
     input.temporaryParent
@@ -284,16 +446,22 @@ export async function runPromptfooEvaluationProcess(
     if (remaining < 1) throw new Error("PROMPTFOO_PROCESS_TIMEOUT");
     return remaining;
   };
+  let outputTransferred = false;
 
   try {
-    await verifyPromptfooVersion(
-      input.promptfooBinary,
-      directory,
-      environment,
-      Math.min(15_000, remainingTimeout()),
-      input.signal
+    const versionAttested = await hasPromptfooVersionAttestation(input.promptfooBinary).catch(
+      () => false
     );
-    await writeFile(configPath, configText, { encoding: "utf8", mode: 0o600, flag: "wx" });
+    if (!versionAttested) {
+      await verifyPromptfooVersion(
+        input.promptfooBinary,
+        directory,
+        environment,
+        Math.min(15_000, remainingTimeout()),
+        input.signal
+      );
+    }
+    await writePromptfooConfig(configPath, input.config, input.rawCapability);
     const result = await runChild(
       input.promptfooBinary,
       [
@@ -316,21 +484,21 @@ export async function runPromptfooEvaluationProcess(
     if (result.exitCode !== 0 && result.exitCode !== 100) {
       throw new Error(`PROMPTFOO_PROCESS_EXIT:${result.exitCode}`);
     }
-    let raw: unknown;
-    try {
-      raw = JSON.parse(await readFile(outputPath, "utf8"));
-    } catch {
-      throw new Error("PROMPTFOO_PROCESS_OUTPUT_INVALID");
+    await validatePromptfooOutputRuntimeLimits(createReadStream(outputPath), input.rawCapability);
+    const rows = streamPromptfooResultRows(createReadStream(outputPath));
+    // Drain before transfer so malformed trailing JSON cannot escape the Adapter boundary.
+    for (;;) {
+      const step = await rows.next();
+      if (step.done) break;
     }
-    if (containsCapability(raw, input.rawCapability)) {
-      throw new Error("PROMPTFOO_CAPABILITY_EXPOSED");
-    }
+    const raw = new PromptfooRawFileSource(directory, outputPath);
+    outputTransferred = true;
     return {
       promptfooVersion: PROMPTFOO_EVALUATION_VERSION,
       raw,
       exitCode: result.exitCode
     };
   } finally {
-    await rm(directory, { force: true, recursive: true });
+    if (!outputTransferred) await rm(directory, { force: true, recursive: true });
   }
 }

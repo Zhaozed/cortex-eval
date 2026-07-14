@@ -6,7 +6,6 @@
 
 ## 当前测试入口
 
-- [data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)：REST 模板、并发、续跑、超时和失败隔离。
 - [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：原始数据到 Promptfoo Case 的转换规则。
 - [packages/contracts/test](../packages/contracts/test)：P1 Schema、版本、Secret、Work Package、Bridge、Snapshot、Artifact、Canonical Export、137 条能力映射和真实 Fixture。
 - [packages/domain/test](../packages/domain/test)：P1 纯 Case/Result、状态、Revision、统计、Proposal 和专用哈希输入。
@@ -15,6 +14,8 @@
 - [packages/evaluation-adapters/test](../packages/evaluation-adapters/test)：P5 REST 模板、Selector、大小、HTTP、超时、并发和取消；P6 配置物化、固定 Promptfoo 进程、Bridge v2 和双官方 SDK Adapter。
 - [packages/reporting/test](../packages/reporting/test)：P6 Ajv 2020-12 Diff、Missing、非法 Schema 和 Validator 差异。
 - [apps/local-server/test](../apps/local-server/test)：资源与 Run REST/Evaluation API、真实 SQLite 装配、安全入口、OpenAPI、配置 Probe、日志、SSE、Artifact 和流式导入边界。
+- [apps/cli/test](../apps/cli/test)：P7 命令注册、机器输出、Secret Snapshot、真实 REST/Evaluation/Pipeline、Retry 和 Force。
+- [packages/work-package/test](../packages/work-package/test)：P7 原生安全目录、导出、Execution、Artifact、大小边界、锁、恢复、Retry、严格读取和 Golden Fixture。
 
 Vitest、V8 覆盖率和架构测试已在 P0 落地。P2 已把 Application 与 Storage SQLite 纳入覆盖率范围，P3 纳入 Local Server。当前全仓门禁为语句/行 90%、函数 90%、分支 85%；最终门禁仍以本 Goal 全局要求为准。
 
@@ -40,7 +41,7 @@ P2 千级门禁固定生成 1,000 Case；导入同时覆盖全量校验、Hash �
 
 ## Work Package 测试
 
-覆盖 Manifest 不可变、文件 Hash、Execution 状态、分阶段 Env 校验、原子写入、路径与符号链接逃逸、同包双进程锁、遗留锁恢复、已完成阶段不可覆盖和不同工作包并行。
+P7 当前覆盖 Manifest 不可变、文件 Hash、Execution 状态、分阶段 Env 校验、原子写入、路径与符号链接逃逸、同包双进程锁、遗留锁恢复、已完成阶段不可覆盖、不同工作包并行、固定项级大小门禁、Retry 证据和严格 Evaluation Result 双遍读取。补充回归证明连续 Retry 的普通严格 Reader 能沿祖先 Raw Evidence 链重新导入；Pipeline 在完整 Evaluation 输入、Prompt 引用或 Runtime 失败时 REST 调用数和 Execution 数均为零；普通 Assert 仍验证固定 Promptfoo 版本；Promptfoo Row 在剩余 Raw 文档尚未到达时即可交付且不聚合完整文件；真实子进程取消映射为 `EVALUATOR_CANCELLED`、CLI 130 且无部分 Artifact；导入幂等比较完整 Artifact Manifest；导出请求前死亡/存活/PID 复用/ownerless staging 恢复；畸形或取消导出流主动取消未读 Body；复用与导入结果的 128 项提交边界和当前批次回滚；Normalized Manifest 身份对齐且无全量 Key Set；Link/Rename 后目录同步失败只撤销身份匹配目标，并发替换对象不被误删；REST 在返回后和发布后取消均收敛为 `REST_CANCELLED`，阶段登记失败或发布后取消在当前命令删除未登记 Artifact；工作包私有码完整归一且不泄漏。
 
 每个测试使用独立临时目录，结束后验证受控资源回收。
 
@@ -80,7 +81,7 @@ Markdown 断言关注结构和事实，不对无关排版做脆弱快照。
 
 ## API、CLI 与 Web 测试
 
-API 覆盖 Cursor 分页、字段路径、稳定错误、Host、Origin 和脱敏。CLI 覆盖分阶段、Pipeline、机器输出、导出和导入。Web 覆盖资源管理、搜索过滤、分页、运行刷新恢复、取消、报告和分析修改闭环。
+API 覆盖 Cursor 分页、字段路径、稳定错误、Host、Origin 和脱敏。P7 CLI 当前覆盖 Work Package 导出/校验、REST、Evaluation、REST→Evaluation Pipeline、机器输出、Retry 和 Force；Report、Analysis、完整导入和 Canonical Export 测试按后续阶段注册。Web 覆盖当前资源管理和 Run/Evaluation；报告和分析修改闭环等待 P8/P9。
 
 P3 API 当前额外覆盖严格成功响应 DTO、六项 Analysis Prompt 变量、OpenAPI 精确 allowlist/漂移与所有 Route 403、真实 SQLite CRUD、Revision/唯一冲突、无未来 Route、服务关闭 Abort、Case 导入固定 200 MiB 边界与合法数组尾随空白超限不提交、低于 192 MiB RSS 增量、导出响应前冲突及临时文件正常/失败/取消清理。Endpoint/LLM Probe 以 Stub SDK 验证无凭据、无 Redirect、无自动重试、配置超时、双 Provider Thinking/结构输出映射和安全失败分类；真实回环 HTTP 验证 `NONE` 不发送 Authorization。Storage/Runtime 额外覆盖状态根 symlink 启动前不污染外部目录、临时根 symlink 不改动外部条目、未过 TTL 的 owner 初始化窗口，以及 owner/writer 故障注入后的句柄和工作区回收。
 
@@ -92,7 +93,9 @@ P4 把 `apps/web/src` 纳入全仓 V8 覆盖率。组件测试覆盖 API Client�
 
 P5 确定性阶段回归通过 100 个 Vitest 文件、541 项测试；完整 `pnpm verify` 的 V8 覆盖率为 Statements 90.33%、Branches 85.06%、Functions 91.81%、Lines 93.14%。回归覆盖有界 Run 投影、逐 Case 写入不读取完整快照、Artifact 单遍流式写入与等价 Hash、Worker 持久化失败后的 Owner 收口、Shutdown/阶段提交竞态、取消轮询拒绝、闭合业务日志、SSE 成功/错误媒体类型与 Hijack 后读取/异步写错误收口、Web 预检 Abort/A→B→A 迟到响应拒绝、同选择重新预检失败门禁及创建响应身份。生产 Playwright E2E 通过 7 项测试，并通过真实 SQLite、Application、Local Server 与生产 Vite 产物覆盖 REST Run 创建、启动、刷新恢复、Case 明细、Dashboard 和 Suite 聚合；完整 `pnpm verify` 已通过。
 
-P6 确定性阶段回归通过 112 个 Vitest 文件、679 项测试；完整 `pnpm verify` 的 V8 覆盖率为 Statements 90.22%（6794/7530）、Branches 85.23%（4568/5359）、Functions 91.83%（1619/1763）、Lines 93.32%（6303/6754）。回归新增 REST→Evaluation Pipeline、Eval API/Web/SSE、受控 Promptfoo/Bridge/双官方 SDK、严格 Importer、不可变 Raw/Normalized Artifact、原子提交/回滚、取消/Shutdown、内部 Retry/Force 与来源复用对账，并覆盖子进程 Secret/Capability 隔离、Assertion config 紧凑组合敏感键及大小写/前导空白外部引用绕过拒绝、主进程提前退出时后代保留 TERM 剩余宽限期、Raw Artifact 原生退出码 `0 | 100`、单 Case Eval Hash 排除执行观测与 Artifact 完整性、Root 外路径与临时符号链接拒绝、函数返回前完整进程组回收、Normalized Case 乱序/重复 Key 原子拒绝、解释器阶段前 Smoke、来源 Artifact `MISSING/CORRUPTED`、Evaluation 原子分类计数、冻结完整 Schema Hash 的 P5 002→P6 003 数据库升级、Pipeline Starter 返回失败与拒绝 Promise 的自动收口、Bridge 精确 Host、排队后 TTL 复核、非协作上游真实并发占槽及超时/关闭、Promptfoo 版本探测与执行共享总时限、有界诊断输出、固定 Row Error 闭合字段和矛盾字段拒绝、持久 Evaluation Error 仅保存 Code 并在 Web 边界映射消息、缺失 Token Usage、Raw/Normalized Artifact Context Hash、全复用 Retry 的新执行版本 Hash、Web Case/Assertion Reason/Score/Weight、DONE 阶段计数选择和无虚假 Evaluation Progress 事件；生产 Playwright E2E 7 项、Python 7 项和旧 TypeScript 5 项回归通过。
+P6 确定性阶段回归通过 112 个 Vitest 文件、679 项测试；完整 `pnpm verify` 的 V8 覆盖率为 Statements 90.22%（6794/7530）、Branches 85.23%（4568/5359）、Functions 91.83%（1619/1763）、Lines 93.32%（6303/6754）。回归新增 REST→Evaluation Pipeline、Eval API/Web/SSE、受控 Promptfoo/Bridge/双官方 SDK、严格 Importer、不可变 Raw/Normalized Artifact、原子提交/回滚、取消/Shutdown、内部 Retry/Force 与来源复用对账，并覆盖子进程 Secret/Capability 隔离、Assertion config 紧凑组合敏感键及大小写/前导空白外部引用绕过拒绝、主进程提前退出时后代保留 TERM 剩余宽限期、Raw Artifact 原生退出码 `0 | 100`、单 Case Eval Hash 排除执行观测与 Artifact 完整性、Root 外路径与临时符号链接拒绝、函数返回前完整进程组回收、Normalized Case 乱序/重复 Key 原子拒绝、解释器阶段前 Smoke、来源 Artifact `MISSING/CORRUPTED`、Evaluation 原子分类计数、冻结完整 Schema Hash 的 P5 002→P6 003 数据库升级、Pipeline Starter 返回失败与拒绝 Promise 的自动收口、Bridge 精确 Host、排队后 TTL 复核、非协作上游真实并发占槽及超时/关闭、Promptfoo 版本探测与执行共享总时限、有界诊断输出、固定 Row Error 闭合字段和矛盾字段拒绝、持久 Evaluation Error 仅保存 Code 并在 Web 边界映射消息、缺失 Token Usage、Raw/Normalized Artifact Context Hash、全复用 Retry 的新执行版本 Hash、Web Case/Assertion Reason/Score/Weight、DONE 阶段计数选择和无虚假 Evaluation Progress 事件；生产 Playwright E2E 7 项和 Python 7 项回归通过。P7 完成等价离线闭环后删除了旧 TypeScript REST 运行器及其独立测试入口。
+
+P7 覆盖率门禁通过 160 个 Vitest 文件、943 项测试；V8 覆盖率为 Statements 90.06%（9728/10801）、Branches 85.25%（6239/7318）、Functions 92.30%（2100/2275）、Lines 93.31%（9028/9675）。P7 将 `apps/cli/src` 与 `packages/work-package/src` 全量纳入覆盖率，新增 Work Package 导出/接收/校验、原生安全目录、Execution/Artifact、普通/Retry/Force REST 与 Evaluation、REST→Evaluation Pipeline、严格双遍结果读取、多祖先 Raw 证据链、Golden Package、CLI 机器协议、Raw Row 流式 Source/Importer、完整 Evaluation 写前预检、Manifest 幂等身份、真实取消到 CLI 130、命令私有磁盘 staging、版本身份证明、生产导出崩溃恢复、正式目标保留前缀拒绝、配置消费时 Hash 复核、128 Case 事务边界、Manifest Ordinal 身份校验、有界 Result Set Hasher、完整序列终止校验、并发替换保护、发布后同步失败补偿、未登记 REST/Evaluation Artifact 同命令按完整 Descriptor 清理、替换文件保留、REST 最终提交取消、导出 Body 回收、主错误保真、JSON 参数错误与 SDK 禁用重试契约回归。覆盖率运行固定最多 3 个 Vitest Worker，隔离真实 Promptfoo、SQLite 与 HTTP 集成负载；真实 Run API 的 3 秒窗口、测试超时、覆盖率阈值和性能阈值不变。
 
 ## 性能测试
 

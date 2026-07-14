@@ -6,10 +6,20 @@ import type {
   PlatformRun,
   StoredRestCaseResult
 } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
-import { hashRestResultSet } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
+import {
+  disposeFrozenEvaluationRaw,
+  isFrozenEvaluationRawSource
+} from "@cortex-eval/application/src/features/evaluation/frozen-evaluation-engine.ts";
+import {
+  hashEvaluationContext,
+  hashRestResultSet
+} from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 import { describe, expect, it } from "vitest";
 
-import { PlatformPromptfooEvaluationEngine } from "../src/platform-promptfoo-evaluation-engine.ts";
+import {
+  FrozenPromptfooEvaluationEngine,
+  PlatformPromptfooEvaluationEngine
+} from "../src/platform-promptfoo-evaluation-engine.ts";
 import { PromptfooRuntimePreflight } from "../src/promptfoo-runtime-preflight.ts";
 import type { EvaluatorModelClient, EvaluatorModelResult } from "../src/evaluator-bridge-v2.ts";
 
@@ -134,6 +144,49 @@ function run(): PlatformRun {
 }
 
 describe("平台 Promptfoo Evaluation Engine", () => {
+  it("即使 Case 不依赖脚本运行时也先拒绝不可用的固定 Promptfoo", async () => {
+    const parent = join(
+      tmpdir(),
+      `cortex-eval-promptfoo-version-preflight-${process.pid}-${Date.now()}`
+    );
+    const base = run();
+    const sourceCase = base.suite.cases[0];
+    if (sourceCase === undefined) throw new Error("TEST_RUNTIME_CASE_MISSING");
+    const preflight = new PromptfooRuntimePreflight({
+      promptfooBinary: join(parent, "missing-promptfoo"),
+      temporaryContainmentRoot: tmpdir(),
+      temporaryParent: parent,
+      timeoutMs: 10_000
+    });
+
+    await expect(preflight.check([sourceCase], new AbortController().signal)).resolves.toEqual({
+      ok: false,
+      path: "runtime.promptfoo"
+    });
+  });
+
+  it("固定版本预检使用调用方取消信号并保持取消语义", async () => {
+    const parent = join(
+      tmpdir(),
+      `cortex-eval-promptfoo-cancel-preflight-${process.pid}-${Date.now()}`
+    );
+    const base = run();
+    const sourceCase = base.suite.cases[0];
+    if (sourceCase === undefined) throw new Error("TEST_RUNTIME_CASE_MISSING");
+    const controller = new AbortController();
+    controller.abort();
+    const preflight = new PromptfooRuntimePreflight({
+      promptfooBinary: resolve("node_modules/.bin/promptfoo"),
+      temporaryContainmentRoot: tmpdir(),
+      temporaryParent: parent,
+      timeoutMs: 10_000
+    });
+
+    await expect(preflight.check([sourceCase], controller.signal)).rejects.toThrow(
+      "REQUEST_ABORTED"
+    );
+  });
+
   it("阶段前能力探测通过真实 Promptfoo 执行 Python 与 Ruby 内联 Assertion", async () => {
     const parent = join(tmpdir(), `cortex-eval-runtime-preflight-${process.pid}-${Date.now()}`);
     const base = run();
@@ -164,7 +217,9 @@ describe("平台 Promptfoo Evaluation Engine", () => {
       timeoutMs: 10_000
     });
 
-    await expect(preflight.check(runtimeRun.suite.cases)).resolves.toEqual({ ok: true });
+    await expect(
+      preflight.check(runtimeRun.suite.cases, new AbortController().signal)
+    ).resolves.toEqual({ ok: true });
     expect(await readdir(parent)).toEqual([]);
   }, 30_000);
 
@@ -233,15 +288,76 @@ describe("平台 Promptfoo Evaluation Engine", () => {
       signal: new AbortController().signal
     });
 
-    expect(result).toMatchObject({
-      promptfooVersion: "0.121.18",
-      exitCode: 100,
-      raw: { results: { version: 3 } }
-    });
-    expect(JSON.stringify(result.raw)).toContain('"reason":"failed"');
-    expect(JSON.stringify(result.raw)).not.toContain("Cannot read properties of null");
-    expect(result.evaluationContextHash).toMatch(/^[0-9a-f]{64}$/);
-    expect(calls).toBe(1);
+    try {
+      expect(result).toMatchObject({
+        promptfooVersion: "0.121.18",
+        exitCode: 100,
+        raw: { kind: "PROMPTFOO_RAW_SOURCE" }
+      });
+      if (!isFrozenEvaluationRawSource(result.raw)) throw new Error("TEST_RAW_SOURCE_MISSING");
+      const rows: unknown[] = [];
+      for await (const row of result.raw.openRows()) rows.push(row);
+      expect(JSON.stringify(rows)).toContain('"reason":"failed"');
+      expect(JSON.stringify(rows)).not.toContain("Cannot read properties of null");
+      expect(result.evaluationContextHash).toMatch(/^[0-9a-f]{64}$/);
+      expect(calls).toBe(1);
+    } finally {
+      await disposeFrozenEvaluationRaw(result.raw);
+    }
     expect(await readdir(parent)).toEqual([]);
   }, 30_000);
+
+  it("离线 Execution 绑定独立计算 Evaluation Context 并在全 REST 错误时跳过进程", async () => {
+    const engine = new FrozenPromptfooEvaluationEngine({
+      promptfooBinary: resolve("node_modules/.bin/promptfoo"),
+      temporaryContainmentRoot: tmpdir(),
+      temporaryParent: tmpdir(),
+      promptfooTimeoutMs: 10_000,
+      capabilityMatrixHash: "d".repeat(64),
+      requiresEvaluator: (): boolean => false,
+      readSecret: (): undefined => undefined,
+      createCallId: (): string => CALL_ID
+    });
+    const base = run();
+    const result = await engine.execute({
+      binding: { kind: "EXECUTION", id: RUN_ID },
+      executionContextHash: base.runContextHash,
+      caseSource: {
+        open: async function* () {
+          const testCase = base.suite.cases[0];
+          if (testCase === undefined) throw new Error("TEST_RUNTIME_CASE_MISSING");
+          yield await Promise.resolve({
+            testCase,
+            restResult: {
+              caseKey: restResult.caseKey,
+              ordinal: restResult.ordinal,
+              caseDefinitionHash: restResult.caseDefinitionHash,
+              status: "ERROR" as const,
+              providerOutput: null
+            }
+          });
+        }
+      },
+      evaluator: base.evaluator,
+      rubricPrompts: base.rubricPrompts,
+      promptfooVersion: base.promptfooVersion,
+      evalConcurrency: base.runExecutionLimits.evalConcurrency,
+      restResultSetHash,
+      signal: new AbortController().signal
+    });
+    expect(result.raw).toEqual({ results: { version: 3, results: [] } });
+    expect(result.evaluationContextHash).toBe(
+      hashEvaluationContext({
+        contractVersion: "cortex.evaluation-context.v1",
+        executionBinding: { kind: "EXECUTION", id: RUN_ID },
+        runContextHash: base.runContextHash,
+        restResultSetHash,
+        evaluatorConfigHash: base.evaluator.configHash,
+        promptfooVersion: "0.121.18",
+        configContractVersion: "cortex.promptfoo-config.v1",
+        capabilityMatrixHash: "d".repeat(64),
+        evaluatorCallBudget: 0
+      })
+    );
+  });
 });

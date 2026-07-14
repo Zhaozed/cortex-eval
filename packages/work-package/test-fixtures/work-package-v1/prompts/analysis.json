@@ -1,0 +1,1 @@
+{"contractVersion":"cortex.prompt.v1","kind":"CASE_ANALYSIS","promptKey":"analysis","messages":[{"role":"USER","content":"Analyze failures."}]}

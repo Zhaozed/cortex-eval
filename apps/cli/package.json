@@ -1,0 +1,19 @@
+{
+  "name": "@cortex-eval/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "cortex-eval": "src/cli-entry.ts"
+  },
+  "dependencies": {
+    "@cortex-eval/application": "workspace:*",
+    "@cortex-eval/contracts": "workspace:*",
+    "@cortex-eval/domain": "workspace:*",
+    "@cortex-eval/evaluation-adapters": "workspace:*",
+    "@cortex-eval/work-package": "workspace:*",
+    "commander": "14.0.3",
+    "dotenv": "17.4.2",
+    "uuid": "13.0.2"
+  }
+}

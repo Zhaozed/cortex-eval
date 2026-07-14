@@ -4,7 +4,8 @@
 
 - 目标产品决策来源：[REQ.md](../REQ.md)
 - 目标技术决策来源：[TECH.md](../TECH.md)
-- 当前 REST 模块入口：[data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)
+- 当前离线 CLI 入口：[apps/cli/src](../apps/cli/src)
+- 当前 Work Package 入口：[packages/work-package/src](../packages/work-package/src)
 - 当前转换模块入口：[data_scripts/convert_loona_to_promptfoo.py](../data_scripts/convert_loona_to_promptfoo.py)
 - Goal 分阶段方案：[tasks/00_INDEX.md](../tasks/00_INDEX.md)
 - P1 Contracts 入口：[packages/contracts/src](../packages/contracts/src)
@@ -13,7 +14,7 @@
 - P2 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
 - P3 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
 - P4 Web 入口：[apps/web/src](../apps/web/src)
-- CLI、Work Package 文件运行时与 Reporting 入口尚未落地。
+- P7 CLI 与 Work Package 已落地；Reporting 完整入口等待 P8。
 
 ## 单文件 SQLite
 
@@ -49,7 +50,7 @@ Case Assert 构建不设置类型白名单。Promptfoo `0.121.18` 能力矩阵�
 
 Bridge v2 只在一次 Evaluation 调用期内把 Provider-dependent Assert 的模型请求转交给冻结 Evaluator。Capability 绑定 Run/Execution、Evaluation Context Hash、Evaluator Config Hash、TTL、并发和确定性总调用预算。Bridge 不接收 Case、Assertion、Metric 或组件身份，不参与评分和聚合。
 
-每个 Run ID 或离线 Execution ID 表示独立执行版本。Retry 和 Force 创建新身份，不覆盖来源。单 Case Eval Result Hash 表示允许 Provenance 复用的语义事实，排除延迟、Token Usage、Cost 和 Raw Artifact Hash/大小等执行观测与完整性；Result Set Hash 显式输入 Run/Execution Owner 和 Evaluation Context Hash。Raw/Normalized Eval Artifact 显式保存同一 Context Hash，与 Result Set Hash 一起表示绑定执行身份、冻结 Evaluator和契约版本的评估版本；当前不建立 Attempt 历史。
+每个 Run ID 或离线 Execution ID 表示独立执行版本。Retry 和 Force 创建新身份，不覆盖来源。单 Case Eval Result Hash 表示允许 Provenance 复用的语义事实，排除延迟、Token Usage、Cost 和 Raw Artifact Hash/大小等执行观测与完整性；Result Set Hash 显式输入 Run/Execution Owner 和 Evaluation Context Hash。Raw/Normalized Eval Artifact 显式保存同一 Context Hash，与 Result Set Hash 一起表示绑定执行身份、冻结 Evaluator 和契约版本的评估版本；当前不建立 Attempt 历史。
 
 ### 原因
 
@@ -57,7 +58,7 @@ Bridge v2 只在一次 Evaluation 调用期内把 Provider-dependent Assert 的�
 
 ### 代码影响
 
-配置物化器不按 Assert 类型拒绝输入，但 Contracts 与物化器使用同一递归安全判定拒绝 Assertion `config` 中的 Provider/OAuth/认证/Secret、模块/依赖字段、紧凑组合敏感键和外部引用。外部引用先忽略前导空白并转小写，覆盖文件、模块、包及 npm/pip 依赖协议。Bridge v2 使用调用期授权、精确回环 Host、FIFO 并发和总预算，排队请求出队后复验关闭状态与 TTL；非空 Token Usage 映射回 Promptfoo 原生计数字段，`null` 保持缺失而不伪造零计数。Bridge 对 Evaluator Promise 与超时/关闭做受控竞速，即使上游忽略 Abort 也先收口 HTTP 与 Owner，并处理迟到 Promise；真实上游 Promise 未结束前继续占用并发槽，关闭监听器后统计仍保留该无法强杀的实际在途调用。Engine 从同一整体预算派生 Bridge TTL 和 Promptfoo 剩余时间，版本检查与 Eval 共享单调截止时间。Importer 负责 Assertion/Metric/组件对齐，只在固定 Row Error 形状闭合后将其与内联解释器执行错误清洗为 `EVALUATION_ERROR`；持久事实只保存进入 Hash 的 Error Code，展示文案由 Web 消息资源解析。Promptfoo 子进程采用最小环境白名单、单次触发的有界诊断闩锁和独立进程组，防止可信内联代码读取父进程无关 Secret、超限后继续累积输出或在取消后遗留解释器；主进程先退出时继续等待解释器后代，并把从首次 TERM 起算的剩余宽限期留给后代清理，耗尽后才 KILL。临时路径绑定显式项目 Root 并逐级拒绝路径/符号链接逃逸，终止返回前确认进程组消失，输出离开临时目录前递归拒绝完整 Capability，污染 Raw 不进入 Application。Normalized Artifact Writer 强制连续 Ordinal 与唯一 Case Key，避免排序校验 Hash 后写出乱序事实。Evaluation 在抢占 Stage 前只对 REST 成功、未复用且将进入 Promptfoo 的 Case 运行解释器 Smoke。内部 Retry/Force Use Case 创建新 Run，在规划和实际 Evaluation 两处沿 Provenance 验证 Normalized 与真正祖先 Raw Artifact，再按逐 Case Hash 决定复用并重新生成目标完整结果集合；全复用时也用目标 Owner 与本次 Context 生成不同 Result Set Hash。Evaluation 分类计数与完整明细在同一事务原子提交，P6 Migration 不改写 P5 001，只从 002 增量新增分类列与 Provenance 单一来源身份触发器；Pipeline Starter 返回失败或直接拒绝 Promise 时，都只在未变化的交接 Revision 上提交稳定阶段错误。SSE 不暴露没有逐 Case持久事实支撑的 Evaluation Progress，一次轮询跨越多个 Revision/Stage 时，可从同一最新 Revision 按流水线顺序补发全部可证明事件。Web 终态根据已提交 Evaluation 完成事实选择 Evaluation 或 REST 计数，不把 REST 失败伪装成全零 Evaluation。
+配置物化器不按 Assert 类型拒绝输入，但 Contracts 与物化器使用同一递归安全判定拒绝 Assertion `config` 中的 Provider/OAuth/认证/Secret、模块/依赖字段、紧凑组合敏感键和外部引用。外部引用先忽略前导空白并转小写，覆盖文件、模块、包及 npm/pip 依赖协议。Bridge v2 使用调用期授权、精确回环 Host、FIFO 并发和总预算，排队请求出队后复验关闭状态与 TTL；非空 Token Usage 映射回 Promptfoo 原生计数字段，`null` 保持缺失而不伪造零计数。Bridge 对 Evaluator Promise 与超时/关闭做受控竞速，即使上游忽略 Abort 也先收口 HTTP 与 Owner，并处理迟到 Promise；真实上游 Promise 未结束前继续占用并发槽，关闭监听器后统计仍保留该无法强杀的实际在途调用。Engine 从同一整体预算派生 Bridge TTL 和 Promptfoo 剩余时间，版本检查与 Eval 共享单调截止时间。Importer 负责 Assertion/Metric/组件对齐，只在固定 Row Error 形状闭合后将其与内联解释器执行错误清洗为 `EVALUATION_ERROR`；持久事实只保存进入 Hash 的 Error Code，展示文案由 Web 消息资源解析。Promptfoo 子进程采用最小环境白名单、单次触发的有界诊断闩锁和独立进程组，防止可信内联代码读取父进程无关 Secret、超限后继续累积输出或在取消后遗留解释器；主进程先退出时继续等待解释器后代，并把从首次 TERM 起算的剩余宽限期留给后代清理，耗尽后才 KILL。临时路径绑定显式项目 Root 并逐级拒绝路径/符号链接逃逸，终止返回前确认进程组消失，输出离开临时目录前递归拒绝完整 Capability，污染 Raw 不进入 Application。Normalized Artifact Writer 强制连续 Ordinal，并按已验证 Manifest 的 ordinal→Case Key 身份逐项对齐；唯一性由 Manifest Schema 和 staging `UNIQUE` 共同保证，不再建立随 Case 数增长的第二份内存集合。Evaluation 在抢占 Stage 前只对 REST 成功、未复用且将进入 Promptfoo 的 Case 运行解释器 Smoke。内部 Retry/Force Use Case 创建新 Run，在规划和实际 Evaluation 两处沿 Provenance 验证 Normalized 与真正祖先 Raw Artifact，再按逐 Case Hash 决定复用并重新生成目标完整结果集合；全复用时也用目标 Owner 与本次 Context 生成不同 Result Set Hash。Evaluation 分类计数与完整明细在同一事务原子提交，P6 Migration 不改写 P5 001，只从 002 增量新增分类列与 Provenance 单一来源身份触发器；Pipeline Starter 返回失败或直接拒绝 Promise 时，都只在未变化的交接 Revision 上提交稳定阶段错误。SSE 不暴露没有逐 Case持久事实支撑的 Evaluation Progress，一次轮询跨越多个 Revision/Stage 时，可从同一最新 Revision 按流水线顺序补发全部可证明事件。Web 终态根据已提交 Evaluation 完成事实选择 Evaluation 或 REST 计数，不把 REST 失败伪装成全零 Evaluation。
 
 ### 测试影响
 
@@ -70,6 +71,42 @@ Assert 结果错位先检查 Raw Result 的 Metric、Definition 和组件顺序�
 ### 状态
 
 生效；取代 P6 早期关于 Bridge 必须识别 Assertion 以及 `select-best`/`max-score` 构成阻塞的判断。
+
+## P7 Work Package、执行版本与离线 Pipeline
+
+### 决策
+
+Work Package v1 保持 P1 已冻结的完整 Manifest，P8/P9 只能填充既有 Report/Analysis 槽位，不能修改 v1。P7 提交固定 Manifest Hash、无 Secret 的 Golden Fixture，并以该 Fixture 约束后续兼容性。
+
+Work Package 按 UTF-8 原始字节执行固定门禁：Manifest 256 MiB、Execution 4 MiB、每个配置/Prompt/`.env.example` 8 MiB、Canonical Tests 1.25 GiB；单个 Canonical Case、REST Case、Normalized Eval Case、Promptfoo Raw Row 分别为 16/32/32/64 MiB，解码后的 JSON String Token 为 16 MiB。REST、Normalized、Raw 不增加总文件上限，保持流式 Hash/复制/存在性；真实 Promptfoo Raw 在私有目录预校验后以显式可回收 Source 向 Artifact Writer 重放字节、向 Importer 重放 Row，不向 Application 暴露文件路径或完整对象；Raw Retry 只复核登记 Descriptor、Hash 和大小，不重新解析正文。
+
+Run/Execution ID 是每次运行的执行版本；Retry 和 Force 创建新身份。Raw/Normalized Artifact 与 Result Set Hash 是绑定该执行身份和 Evaluation Context 的评估版本。平台导入幂等绑定 Package ID、Execution ID、Result Set Hash 与规范化 Artifact Manifest；Manifest 比较覆盖版本、Owner、Kind、路径、Hash、大小和 Payload Contract Version，不能只用 `select max` 或其他查询推断唯一事实。
+
+P7 `pipeline run` 只注册已经闭环的 REST→Evaluation。Pipeline 在 REST 外部调用和任何 Execution 变更前同时预检两个阶段的 Env、冻结 Case、完整 Evaluator/Rubric Prompt、Case Prompt 引用、固定 Promptfoo 精确版本和实际需要的 Python/Ruby Runtime，并在后续阶段复用同一个冻结 Secret Snapshot；Evaluation 开始前针对实际待评估 Case 再次校验。P8 闭合 Report 后才扩展默认 Pipeline；未来命令在闭环前不出现在 Help 或 OpenAPI。真实 Promptfoo 子进程取消统一收敛为 `EVALUATOR_CANCELLED` 和 CLI 130，阶段不登记部分 Artifact。
+
+Work Package Evaluation 使用命令私有 owner-only SQLite 按 128 Case 批次暂存 Case、REST、可复用 Eval 和新导入 Eval。Engine 只接收可重放 Source，以两遍标量一致性检查和流式配置替代完整 Promptfoo Tests 数组；Raw 逐 Row 导入，最终结果按 Ordinal 直接写出。取消信号贯穿所有阶段边界；已发布但未登记的 Raw/Normalized 固定槽位由当前 Session 立即删除，避免把恢复推迟到下一次启动。Raw Source、staging、未登记 Artifact 或导出 staging 清理失败经脱敏旁路观察器报告，不覆盖主结果或目标冲突。已识别 JSON 命令的参数解析失败仍输出命令级 `COMMAND_ERROR`，文件模块私有错误在 CLI 边界显式归一为公开 Work Package 错误。
+
+固定 Promptfoo 版本探测形成最长 30 秒的进程内证明。只有规范真实路径、设备、inode、大小、纳秒修改时间和纳秒变更时间全部未变时才复用；Local Server 组装期预热证明，Run 前仍重新核对身份。该证明只消除同一已验证二进制的重复 `--version` 进程，不干预 Promptfoo Assert 执行。
+
+### 原因
+
+Manifest 是离线协议身份，随实现阶段变化会让已导出的包失去可验证性。项级门禁可以在物化前拒绝单项资源耗尽，同时保留大集合流式处理；磁盘 staging 避免合法 1.25 GiB Package 因多个全量数组/Map 产生 OOM。执行身份和评估结果身份分离，才能表达每次运行不同、语义事实可复用但集合版本不可覆盖。全 Pipeline 预检避免 REST 已写入后才发现 Evaluation 配置、Prompt、固定 Promptfoo 或解释器不可用；完整 Manifest 身份比较避免同一结果 Hash 掩盖证据文件漂移。短期版本证明把不可变二进制身份与重复进程成本分离，同时保证文件一旦变化就重新验证。
+
+### 代码影响
+
+`packages/work-package` 使用 macOS `openat(O_NOFOLLOW)` 原生边界、0700 目录、0600 文件、稳定 Lock inode、原子发布和 Owner/TTL 恢复。每次 CLI 导出在发起平台请求前扫描目标父目录，只删除超过 TTL 且 Owner 消失、PID 启动身份变化或持续 ownerless 的 staging；存活 Owner 与身份变化中的目录不动，正式目标拒绝 `.cortex-export-*` 恢复保留前缀。导出使用 Manifest-first NDJSON；Execution 只原子追加固定阶段产物。Endpoint、Evaluator 和 Rubric Prompt 在实际消费时重新校验 Manifest 文件 Hash 与大小。Evaluation Result Reader 先完整预检，再在消费时第二次校验 REST/Normalized 语义和 Raw 描述符，复用事实沿 Execution Provenance 追溯最终祖先 Raw，每遍按执行版本只验证一次并缓存最小身份字段，同时重算 Eval、Final Case 与 Owner/Context Result Set Hash。CLI Evaluation staging 使用 Node 内置 SQLite 与受控临时目录；Case/REST、复用结果和 Raw 导入结果都以 128 项事务批次写入，异常只回滚当前批次，命令失败后删除完整 staging。REST/Normalized Writer 与 Result Set Hasher 都通过 Manifest Ordinal 解析身份，结束时确认不存在下一 Case，不保留全量 Case Key Set。不可变 Writer 把可持久 Descriptor 与非持久发布身份分开；未登记 Artifact 只有在固定槽位、Descriptor Hash/大小、发布时设备/inode 和清理时稳定身份均匹配时删除，相同内容的新 inode 也保留。异常退出后身份丢失的孤儿由启动恢复保留并报告。REST 在 Execution 创建前完成输入预检。Promptfoo 进程边界保存并复核短期版本证明，Local Runtime 只做无副作用预热。CLI 当前只注册 package、rest、eval 和 pipeline 命令；旧 TypeScript REST 运行器在等价能力闭合后删除。
+
+### 测试影响
+
+测试覆盖字节边界精确值与加一拒绝、路径/符号链接逃逸、权限、半写、同包多进程单写、不同包并行、锁恢复、阶段不可覆盖、完整 REST/Evaluation 输入与 Runtime 预检先于外部调用和 Execution、普通 Assert 固定 Promptfoo 版本、精确文件身份版本证明、真实 REST Adapter、真实 Promptfoo 取消到 CLI 130、REST 返回后与 Artifact 发布后取消到 `REST_CANCELLED`、取消贯穿预检/Raw/导入/Normalized、清理失败不覆盖主结果、导出请求前死亡/存活/PID 复用/ownerless staging 恢复、畸形或取消响应的未读 Body 回收、正式目标保留前缀拒绝、配置消费时同 inode/同尺寸篡改拒绝、2,048 Case 多批次 staging 重放、128 项提交与当前批次回滚、Raw Row 背压、Manifest Case 身份逐项对齐、有界且拒绝截断前缀的 Result Set Hasher/Normalized Writer、同尺寸不同 inode 替换 Artifact 保留、Retry/Force、连续 Retry 严格读取、新执行 Result Set Hash、Raw 缺失/损坏、双遍严格读取、Package/完整 Manifest 冲突、SQLite 并发幂等和 Golden Manifest Hash。
+
+### 排障影响
+
+文件错误先检查受控路径、Owner、Descriptor、Hash、大小和阶段状态；重跑复用异常再检查来源 Provenance 与 Raw/Normalized 完整性。Pipeline 在写入前失败时检查统一预检；阶段已进入 `ERROR` 时检查对应外部执行或 Artifact 错误，不把两者混为环境输入错误。
+
+### 状态
+
+生效。Golden Manifest Hash 为 `e840ce500481b6f92393b1efe6d9022c1ceebd9fbbeaf713d03c9e2f6ee54178`。
 
 ## P4 资源 Web、冲突 Draft 与严格同源静态边界
 
@@ -621,6 +658,60 @@ P9 必须使用 P7 Golden Package 完成 Report/Analysis 和导入，不得重�
 
 生效。
 
+## P7 覆盖率范围与集成测试资源隔离
+
+### 决策
+
+P7 起把 `apps/cli/src` 与 `packages/work-package/src` 全量纳入全仓 V8 覆盖率，不按文件规避门禁。Vitest 同时运行的 Worker 上限固定为 3；覆盖率、测试超时和性能阈值保持原值。
+
+### 原因
+
+CLI 与 Work Package 是当前交付能力，必须和既有平台代码接受同一覆盖率约束。默认按 12 个逻辑核并行时，多个真实 Promptfoo 子进程、SQLite 和 HTTP 集成测试争用 CPU/IO，单测稳定、全量运行却会发生调度饥饿。4 Worker 覆盖率运行曾让真实 Run API 在固定 3 秒窗口内停留于 `EVALUATION`；相同用例独立连续三次通过，完整覆盖率集改为 3 Worker 后 160 个文件、943 项测试全部通过且不提高轮询窗口。限制测试 Worker 是资源隔离，不改变产品行为或验收阈值。
+
+### 代码影响
+
+`vitest.config.ts` 显式纳入两类源码并限制 `maxWorkers`。生产并发、执行限制、Promptfoo 超时、测试超时和发布性能阈值均不受影响。
+
+### 测试影响
+
+P7 覆盖率门禁通过 160 个测试文件、943 项测试；Statements 90.06%（9728/10801）、Branches 85.25%（6239/7318）、Functions 92.30%（2100/2275）、Lines 93.31%（9028/9675）。真实 Run API、完整 Evaluation 写前预检、Manifest 幂等身份、真实取消、Raw Row 流式边界、命令私有磁盘 staging、版本身份证明、生产导出崩溃恢复、正式目标保留前缀拒绝、配置消费时 Hash 复核、128 Case 事务边界、Manifest Ordinal 身份校验、有界 Result Set Hasher、完整序列终止校验、并发替换保护、发布后同步失败补偿、未登记 Artifact 当前命令按完整 Descriptor 清理、替换文件保留、REST 最终提交取消、导出 Body 回收和错误保真在同一覆盖率总门禁内稳定完成，不提高轮询窗口。
+
+### 排障影响
+
+覆盖率集成测试超时时先检查 Worker 数、Promptfoo 子进程和 SQLite/HTTP 资源争用，不通过提高业务超时、删除测试或缩小覆盖范围绕过。
+
+### 状态
+
+生效。
+
+## P7 文件可见性提交与当前命令补偿
+
+### 决策
+
+不可变普通文件的提交点是“不可覆盖 Link 成功且父目录同步成功”，完整 Work Package 目录的提交点是“staging Rename 成功且父目录同步成功”。若目标名称已经可见而目录同步失败，写入方按设备与 inode 身份撤销刚发布的目标并再次同步。REST、Raw 或 Normalized Artifact 文件已提交但阶段描述符登记失败时，当前命令使用 Writer 返回的非持久发布身份立即补偿；完整 Descriptor 相同但 inode 不同也拒绝删除。启动恢复已没有该发布身份，因此保留并报告未登记文件，绝不按固定路径或 Manifest 差集删除。所有清理失败和清理观察器失败均旁路记录，不覆盖首次业务、冲突、取消或写入错误。
+
+CLI 维护闭合的 Work Package 私有码映射：输入、Hash、路径、目标冲突、导出流和内部不变量分别归一为稳定公开 Error Code 与退出码。私有码不得进入 NDJSON、普通 stdout、stderr 或公开消息。
+
+### 原因
+
+Link/Rename 只改变目录项，不能证明目录项已经持久化；返回失败却保留可见目标会让重试误判为冲突，也会产生没有 Execution/数据库描述符的孤儿。把补偿推迟到下次启动，会使同一命令的失败结果与磁盘事实暂时不一致。私有码直接穿透则会把文件实现细节变成不稳定的外部契约。
+
+### 代码影响
+
+安全目录、Work Package 发布器和平台 Run Artifact Store 都把父目录同步作为发布边界，并在发布后同步失败时仅对设备号/inode 仍匹配刚发布对象的目标执行撤销；并发替换后的路径不移动、不删除，只报告补偿失败。离线 REST/Evaluation Session 与平台 REST 阶段保留已提交 Artifact 描述符，在阶段登记失败路径中执行当前命令清理。CLI 的单一边界表覆盖当前所有可抛出的非公开 Work Package 错误。
+
+### 测试影响
+
+故障注入覆盖文件 Link 后目录同步失败、目录 Rename 后同步失败、平台 Run Artifact Link 后同步失败、同步失败窗口并发替换目标不被误删、离线 REST `completeStage` 失败，以及输入/Hash/路径/冲突/导出流/内部不变量私有码的公开映射与不泄漏。
+
+### 排障影响
+
+发布失败先检查目标是否已被身份受限补偿删除、父目录同步是否成功和旁路清理事件；阶段登记失败同时检查 Execution/Run 描述符与固定 Artifact 槽位。不得通过保留孤儿、依赖下一次启动或暴露私有码规避补偿。
+
+### 状态
+
+生效。
+
 ## 版本化执行限制
 
 ### 决策
@@ -873,7 +964,7 @@ P5 平台 Run 创建在一个短事务中冻结 Suite、Cases、Endpoint、Evalu
 
 ### 代码影响
 
-Application 通过专用 Run Transaction Manager、Rest Executor 和 Run Artifact Store Port 编排。SQLite 部分唯一索引保证全库最多一条 `RUNNING`；阶段抢占、取消、逐 Case计数、完成、失败和恢复均使用条件写。REST Artifact 先写 Run ID 专属路径；数据库提交失败时删除未提交文件，启动时只删除未被任何持久平台 Run Manifest 引用的受控文件。
+Application 通过专用 Run Transaction Manager、Rest Executor 和 Run Artifact Store Port 编排。SQLite 部分唯一索引保证全库最多一条 `RUNNING`；阶段抢占、取消、逐 Case计数、完成、失败和恢复均使用条件写。REST Artifact 先写 Run ID 专属路径；数据库提交失败时使用 Store 返回的非持久发布身份删除未提交文件。启动时发布身份已丢失，只保留并报告未被任何持久平台 Run Manifest 引用的受控文件。
 
 ### 测试影响
 

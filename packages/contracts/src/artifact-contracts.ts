@@ -152,6 +152,9 @@ export const RestArtifactCaseV1Schema = z.discriminatedUnion("status", [
   RestFailureV1Schema
 ]);
 
+/** One strict REST Artifact Case transport fact. */
+export type RestArtifactCaseV1 = z.infer<typeof RestArtifactCaseV1Schema>;
+
 /** Immutable REST stage results. */
 export const RestResultsArtifactV1Schema = z
   .strictObject({
@@ -297,6 +300,9 @@ export const EvalCaseV1Schema = z.discriminatedUnion("status", [
   EvalErrorV1Schema,
   NotEvaluatedV1Schema
 ]);
+
+/** One strict normalized Evaluation Case transport fact. */
+export type EvalCaseV1 = z.infer<typeof EvalCaseV1Schema>;
 
 /** Normalized Promptfoo facts used by Reporting and import. */
 export const NormalizedEvalArtifactV1Schema = z

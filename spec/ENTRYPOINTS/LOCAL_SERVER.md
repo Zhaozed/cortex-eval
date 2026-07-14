@@ -14,7 +14,7 @@ Local Server 依赖 Contracts、Application 和具体 Infrastructure 实现。Ro
 
 ## 实现状态
 
-Fastify Local Server 已装配真实 SQLite、资源与 Run REST/Evaluation Route、严格请求/响应 Schema、OpenAPI、生产 Web 静态入口、安全边界、中文业务日志和有限期 Run SSE。当前不注册 Execution、Report、Analysis、Work Package、Retry/Force 或目标 CLI 能力。
+Fastify Local Server 已装配真实 SQLite、资源与 Run REST/Evaluation Route、Work Package v1 流式导出 Route、严格请求/响应 Schema、OpenAPI、生产 Web 静态入口、安全边界、中文业务日志和有限期 Run SSE。当前不注册 Execution、Report、Analysis、平台 Retry/Force、完整结果导入或 Canonical Export；CLI 是独立进程入口，不属于 Local Server Route。
 
 ## 当前代码事实入口
 
@@ -25,6 +25,8 @@ Fastify Local Server 已装配真实 SQLite、资源与 Run REST/Evaluation Rout
 - [run-api-routes.ts](../../apps/local-server/src/run-api-routes.ts)：Run REST/Evaluation Route 和 Snapshot-first SSE。
 - [run-artifact-store.ts](../../apps/local-server/src/run-artifact-store.ts)：Run 专属不可变 Artifact 与孤儿清理。
 - [case-export-staging.ts](../../apps/local-server/src/case-export-staging.ts)：响应前一致性校验、0600 导出文件和取消清理。
+- [work-package-export-handler.ts](../../apps/local-server/src/work-package-export-handler.ts)：Work Package 导出请求/响应协议边界。
+- [work-package-export-service.ts](../../apps/local-server/src/work-package-export-service.ts)：冻结快照、受控目录发布、NDJSON 导出与清理。
 - [local-server-runtime.ts](../../apps/local-server/src/local-server-runtime.ts)：SQLite、Application、Adapter 和生命周期装配。
 - [configuration-probe-adapters.ts](../../apps/local-server/src/configuration-probe-adapters.ts)：Endpoint 与 LLM 可用性验证。
 - [local-logger.ts](../../apps/local-server/src/local-logger.ts)：安全字段、中文单行日志、轮转与 stderr 降级。
@@ -33,17 +35,17 @@ Fastify Local Server 已装配真实 SQLite、资源与 Run REST/Evaluation Rout
 
 ## 当前样例与测试入口
 
-[local-server tests](../../apps/local-server/test) 覆盖真实 SQLite 资源与 Run/REST 闭环、安全入口、OpenAPI、流式导入边界、配置探针、日志、Run Artifact、SSE、生命周期和能力隔离。
+[local-server tests](../../apps/local-server/test) 覆盖真实 SQLite 资源与 Run/REST 闭环、安全入口、OpenAPI、流式导入边界、配置探针、日志、Run Artifact、Work Package 导出、SSE、生命周期和能力隔离。
 
 ## 对外接口
 
-当前 `/api/v1` 包含 Test Suites、Suite-local Cases、Endpoint Configs、LLM Configs、Rubric Prompts、Analysis Prompts 和平台 Runs。资源能力覆盖 CRUD、Suite 影响查询、Case 搜索/组合过滤/Cursor 分页、全量导入导出、配置验证、Prompt 预览与引用查询；Run 能力覆盖预检、创建、倒序分页、详情、REST/Evaluation 启动、取消、进度流和两阶段逐 Case 结果。Route 按完成阶段注册，未闭环能力不出现在 OpenAPI。
+当前 `/api/v1` 包含 Test Suites、Suite-local Cases、Endpoint Configs、LLM Configs、Rubric Prompts、Analysis Prompts、平台 Runs 和 `POST /work-packages/export`。资源能力覆盖 CRUD、Suite 影响查询、Case 搜索/组合过滤/Cursor 分页、全量导入导出、配置验证、Prompt 预览与引用查询；Run 能力覆盖预检、创建、倒序分页、详情、REST/Evaluation 启动、取消、进度流和两阶段逐 Case 结果；Work Package Route 只返回冻结、校验后的 v1 NDJSON 导出流。Route 按完成阶段注册，未闭环能力不出现在 OpenAPI。
 
 列表使用 Cursor 分页，大 JSON 只在详情返回。写请求返回稳定 Error Code 和必要字段路径。
 
 ## 核心流程
 
-启动时先对项目状态根、db 目录和既有 SQLite/WAL/SHM 做无副作用 symlink/canonical containment 预检，通过后才 mkdir、chmod 或打开数据库；随后验证临时根，清理可确认失活的导入/导出 staging 和未被持久 Manifest 引用的 Run Artifact，恢复遗留 `RUNNING`，再注册已闭环 Route。临时根或父级为符号链接时在 chmod/扫描前拒绝；未过 TTL 的无 owner 目录不作为损坏条目隔离。请求先校验原始 Host；非安全方法再校验同源 Origin。服务端生成 UUIDv7 Request ID，严格 Schema 清洗脏数据后才调用 Application。Host/Origin 的 403 是所有操作的公开响应事实。关闭时先停止 HTTP，再让 Run Owner Abort 并等待中断收敛；即使 Artifact 或阶段提交与 Shutdown 竞争，也必须修正为 `INTERRUPTED/DONE`，随后 Flush 日志并关闭 SQLite。
+启动时先对项目状态根、db 目录和既有 SQLite/WAL/SHM 做无副作用 symlink/canonical containment 预检，通过后才 mkdir、chmod 或打开数据库；随后验证临时根，清理具有 Owner/PID 启动身份的失活导入/导出 staging，恢复遗留 `RUNNING`，并扫描未被持久 Manifest 引用的 Run Artifact。启动扫描没有发布时 device/inode 句柄，因此保留并报告这些文件，不按路径或 Manifest 差集删除，再注册已闭环 Route。临时根或父级为符号链接时在 chmod/扫描前拒绝；未过 TTL 的无 owner 目录不作为损坏条目隔离。请求先校验原始 Host；非安全方法再校验同源 Origin。服务端生成 UUIDv7 Request ID，严格 Schema 清洗脏数据后才调用 Application。Host/Origin 的 403 是所有操作的公开响应事实。关闭时先停止 HTTP，再让 Run Owner Abort 并等待中断收敛；即使 Artifact 或阶段提交与 Shutdown 竞争，也必须修正为 `INTERRUPTED/DONE`，随后 Flush 日志并关闭 SQLite。
 
 ## 状态、事务与幂等
 
@@ -59,4 +61,4 @@ Route 不持有业务事务。Application 决定事务边界和幂等语义。Ca
 
 ## 相关测试
 
-当前测试覆盖生命周期、真实 SQLite 装配、Host、Origin、Request ID、分页/过滤、错误映射、脱敏、取消、OpenAPI 精确路径与所有操作 403、生产静态资源、CSP、未注册未来 Route、流式大小/RSS 门禁、临时资源清理，以及 Run 预检、创建、REST→Evaluation、Artifact、两阶段逐 Case 结果、SSE 和启动恢复。
+当前测试覆盖生命周期、真实 SQLite 装配、Host、Origin、Request ID、分页/过滤、错误映射、脱敏、取消、OpenAPI 精确路径与所有操作 403、生产静态资源、CSP、未注册未来 Route、流式大小/RSS 门禁、临时资源清理、Work Package 导出，以及 Run 预检、创建、REST→Evaluation、Artifact、两阶段逐 Case 结果、SSE 和启动恢复。

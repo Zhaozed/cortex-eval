@@ -2,4 +2,5 @@ coverage/
 node_modules/
 *.md
 test_suite/current/
+packages/work-package/test-fixtures/work-package-v1/
 pnpm-lock.yaml

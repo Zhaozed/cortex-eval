@@ -5,6 +5,7 @@ export default defineConfig({
     coverage: {
       exclude: ["**/*.test.ts", "**/test-support/**"],
       include: [
+        "apps/cli/src/**/*.ts",
         "apps/local-server/src/**/*.ts",
         "apps/web/src/**/*.ts",
         "apps/web/src/**/*.tsx",
@@ -12,6 +13,7 @@ export default defineConfig({
         "packages/contracts/src/**/*.ts",
         "packages/domain/src/**/*.ts",
         "packages/storage-sqlite/src/**/*.ts",
+        "packages/work-package/src/**/*.ts",
         "tooling/src/architecture-boundaries.ts",
         "tooling/src/benchmark-harness.ts",
         "tooling/src/deterministic-cases.ts",
@@ -37,6 +39,8 @@ export default defineConfig({
       "packages/*/test/**/*.test.ts",
       "tooling/test/**/*.test.ts"
     ],
+    // Keep real Promptfoo/SQLite/HTTP integration workers from starving one another under coverage.
+    maxWorkers: 3,
     setupFiles: ["apps/web/test/setup.ts"],
     testTimeout: 30_000
   }

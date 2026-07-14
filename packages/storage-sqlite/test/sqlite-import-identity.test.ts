@@ -56,12 +56,44 @@ describe("SQLite Execution 导入身份", () => {
     const inserted = await useCase.execute(command);
     const idempotent = await useCase.execute(command);
     const conflict = await useCase.execute({ ...command, resultSetHash: HASH_B });
+    const packageConflict = await useCase.execute({ ...command, packageId: "package-2" });
+    const artifactConflict = await useCase.execute({
+      ...command,
+      artifactManifest: {
+        ...command.artifactManifest,
+        artifacts: command.artifactManifest.artifacts.map((artifact) => ({
+          ...artifact,
+          expectedSha256: HASH_B
+        }))
+      }
+    });
+    const ownerConflict = await useCase.execute({ ...command, executionId: "execution-2" });
 
     expect(inserted).toEqual({ ok: true, runId: "run-1", idempotent: false });
     expect(idempotent).toEqual({ ok: true, runId: "run-1", idempotent: true });
     expect(conflict).toEqual({
       ok: false,
       error: { code: "EXECUTION_RESULT_CONFLICT", executionId: "execution-1" }
+    });
+    expect(packageConflict).toEqual({
+      ok: false,
+      error: { code: "EXECUTION_RESULT_CONFLICT", executionId: "execution-1" }
+    });
+    expect(artifactConflict).toEqual({
+      ok: false,
+      error: { code: "EXECUTION_RESULT_CONFLICT", executionId: "execution-1" }
+    });
+    expect(ownerConflict).toEqual({
+      ok: false,
+      error: { code: "EXECUTION_RESULT_CONFLICT", executionId: "execution-2" }
+    });
+    const importedQuery = await storage
+      .createTransactionManager()
+      .execute((transaction) => transaction.runs.getImportedExecution("execution-1"));
+    expect(importedQuery).toMatchObject({
+      sourceType: "OFFLINE_IMPORT",
+      packageId: "package-1",
+      resultSetHash: HASH_A
     });
     const database = new Database(storage.databasePath, { readonly: true });
     const manifestRow: unknown = database
@@ -77,7 +109,7 @@ describe("SQLite Execution 导入身份", () => {
     const manifestJson: unknown = manifestRow.artifact_manifest_json;
     if (typeof manifestJson !== "string") throw new Error("Artifact Manifest 不是 JSON 文本");
     expect(JSON.parse(manifestJson) as unknown).toEqual(command.artifactManifest);
-    expect(id).toBe(3);
+    expect(id).toBe(5);
     await storage.close();
   });
 

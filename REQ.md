@@ -4,7 +4,7 @@
 
 本文档定义 Cortex Eval 本地版的产品目标、使用方式、业务对象、用户流程、UI 与 CLI 能力、报告口径、异常行为和验收标准。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P6 已完成，P7 正在实现 Work Package、CLI、重跑与导入基础。平台 REST→Evaluation Pipeline、Eval API/Web/SSE、不可变 Raw/Normalized Artifact、规范化 Hash、JSON Schema Diff、严格 Importer、SQLite 原子提交、受控 Promptfoo 进程、Bridge v2、官方 SDK Adapter及内部 Retry/Force Use Case 已闭环。Report、Analysis、对外 Retry/Force、Execution Import、Work Package 文件运行时和目标 CLI 尚未闭合。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P7 已完成，P8 尚未开始。平台与离线 REST→Evaluation、Work Package v1 导出/校验、安全文件运行时、REST/Eval/Pipeline CLI、离线 Retry/Force、Raw/Normalized Artifact 及 Execution Import 严格读取与幂等冲突基础已经闭环。文件或目录发布只有在父目录同步后成功；发布后同步失败撤销可见目标。阶段登记失败只凭当前命令持有的非持久发布身份补偿未登记 Artifact；身份已丢失的启动恢复保留文件并报告，不按路径猜测删除。Report、Analysis、对外平台 Retry/Force、完整 Execution Result Import 入口和 Canonical Export 尚未闭合。
 
 技术选型、项目架构、模块边界、数据字段、工作包协议、事务、并发和测试设计以 `TECH.md` 为准。本文档不包含具体实现代码。
 
@@ -373,6 +373,10 @@ Case 创建、复制、删除或导入在用户显式使用最新 Revision 重�
 
 工作包不得包含任何 API Key、Authorization 值或其他 Secret 展开值。
 
+Work Package v1 运行时按 UTF-8 原始字节执行固定上限：Manifest 256 MiB、单个 Execution 4 MiB、每个配置/Prompt/`.env.example` 8 MiB、Canonical Tests 总计 1.25 GiB、单个 Canonical Test Case 16 MiB、单个 REST Result Case 32 MiB、单个 Normalized Eval Case 32 MiB、单个 Promptfoo Raw Result Row 64 MiB、解码后的单个 JSON String Token 16 MiB。REST、Normalized 和 Raw Artifact 不新增总文件上限，必须流式计算 Hash、复制和存在性；REST/Normalized 按 Case 流式解析，真实 Promptfoo Raw 在私有临时目录中完成版本、JSON、逐 Row、字符串和 Capability 校验后，以可回收流分别写入 Artifact 和逐 Row 导入，不得再次整文件 `readFile + JSON.parse`；Raw Retry 只校验已登记的 Hash、大小和 Descriptor，不重新整文件解析。Case 超限收敛为 `WORK_PACKAGE_INVALID`，REST 超限为 `ARTIFACT_WRITE_FAILED`，Raw 超限为 `PROMPTFOO_PROCESS_ERROR`，Normalized 超限为 `EVALUATION_STAGE_FAILED`。
+
+离线 Evaluation 不得把最大 1.25 GiB 的 Case、REST、复用结果、Promptfoo 导入结果或最终结果聚合为数组/Map。命令在 owner-only 私有 SQLite 中按 128 Case 批次暂存强类型投影，以 Ordinal 顺序提供可重放 Case Source；Promptfoo 配置使用两遍输入并流式写入，Raw 逐 Row 导入，最终 Normalized 结果按 Ordinal 直接流式提交。内存只允许保留一个大 Case/结果及必要的紧凑身份证据。
+
 ### 8.2 工作包身份
 
 每个导出包有唯一 `package_id`，代表一次不可变输入快照。
@@ -393,14 +397,14 @@ CLI 从当前进程环境或用户显式指定的 Env 文件读取 Secret。Env 
 
 使用 Python/Ruby Assertion 时，运行前必须能解析对应解释器。Python 通过 `PROMPTFOO_PYTHON` 或 `python3` 选择，最低为 Promptfoo 文档要求的 Python 3.7；Ruby 通过 `PROMPTFOO_RUBY` 或 `ruby` 选择，并必须通过内联 Assertion Doctor Smoke。系统不自动安装解释器、Gem 或 Python Package。
 
-平台 Evaluation 在改变 Run 状态前，只对 REST `SUCCEEDED`、未复用且实际会进入 Promptfoo 的 Case 所依赖的 Python/Ruby 运行真实内联 Smoke；REST Error 和完整复用 Case 不要求解释器。失败不得抢占 Stage 或启动评估子进程。Promptfoo 子进程只继承 `PATH`、用户/临时目录、Locale、`PROMPTFOO_PYTHON`、`PROMPTFOO_RUBY`、当前调用期 Capability 和固定 Promptfoo 开关，不继承无关 Secret；进程边界必须在 Raw 离开临时目录前递归拒绝任何包含完整 Capability 的输出，污染证据不得写入 Artifact、SQLite 或 API。取消或超时必须先 TERM 完整进程组；即使主进程先退出，也要把剩余宽限期留给解释器后代清理，宽限期耗尽后才 KILL，并等待完整进程组退出。
+平台 Evaluation 在改变 Run 状态前必须先验证固定 Promptfoo 可执行文件及精确版本，不因 Case 使用普通 Assert、REST Error 或完整复用而跳过。成功校验可以短期复用，但每次使用前必须重新核对规范真实路径、设备、inode、大小及纳秒修改/变更时间；任一身份变化或证明过期都必须重新执行版本进程。只对 REST `SUCCEEDED`、未复用且实际会进入 Promptfoo 的 Case 所依赖的 Python/Ruby 运行真实内联 Smoke；REST Error 和完整复用 Case 不要求解释器。任一 Runtime 失败不得抢占 Stage 或启动评估子进程。Promptfoo 子进程只继承 `PATH`、用户/临时目录、Locale、`PROMPTFOO_PYTHON`、`PROMPTFOO_RUBY`、当前调用期 Capability 和固定 Promptfoo 开关，不继承无关 Secret；进程边界必须在 Raw 离开临时目录前递归拒绝任何包含完整 Capability 的输出，污染证据不得写入 Artifact、SQLite 或 API。取消或超时必须先 TERM 完整进程组；即使主进程先退出，也要把剩余宽限期留给解释器后代清理，宽限期耗尽后才 KILL，并等待完整进程组退出。
 
 环境依赖按阶段校验：
 
 - REST 阶段只校验 Endpoint 所需变量。
 - Eval 阶段只校验 Evaluator 所需变量。
 - Analyze 阶段只校验 Analyzer 所需变量。
-- Pipeline 启动前一次校验全部阶段变量。
+- Pipeline 启动前一次校验全部阶段变量、完整 Evaluation 配置、Rubric Prompt 及其 Case 引用关系、固定 Promptfoo 版本和实际需要的 Python/Ruby Runtime；任何可预测失败都必须发生在 REST 调用和 Execution 变更前。
 
 ### 8.4 阶段命令
 
@@ -417,6 +421,8 @@ CLI 从当前进程环境或用户显式指定的 Env 文件读取 Secret。Env 
 
 Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式设置阶段列表。Analysis 只有显式选择并指定 Case 范围时执行。阶段列表必须满足 Artifact 依赖，系统不自动补跑未选择阶段。
 
+P7 当前注册的离线 `pipeline run` 只执行已经闭环的 REST 和 Evaluation；P8 在 Report Writer 与对账闭环后把默认 Pipeline 扩展到 Report。CLI Help 不提前展示 `report build`、`analyze run`、`result import` 或 `data export`。
+
 离线 Pipeline 包含 Analysis 时必须已有或同时选择 Report，并提供 Analyzer、Analysis Prompt 和 `failed | errors | all` Selector。Analysis 失败使 CLI 返回阶段系统错误，但不改变已完成 Report JSON、Markdown 或导入事实。无可分析 Case 时 Analysis 以零结果成功结束。
 
 每个阶段可以独立执行。后续阶段通过 `execution_id` 读取同一执行的既有产物。已完成阶段不可覆盖；重建、失败重跑或强制重跑都必须创建新的 Execution。正在执行的工作包锁不能绕过。
@@ -425,7 +431,7 @@ Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式设置阶段
 
 平台只接受与输入快照匹配的规范化结果。原始 Promptfoo 文件只作为排障证据，不作为直接入库事实。
 
-相同 `execution_id` 且结果集合哈希相同的重复导入必须幂等；相同 ID 但结果哈希不同必须拒绝为冲突。不同 `execution_id` 即使输入相同，也保存为不同运行。
+相同 Package ID、`execution_id` 和结果集合哈希的重复导入必须幂等；相同 `execution_id` 对应不同 Package、结果集合、Artifact Owner 或受控路径必须拒绝为冲突。不同 `execution_id` 即使输入相同，也保存为不同运行。
 
 平台导入时重新校验：
 
@@ -749,6 +755,9 @@ Proposal 使用判别联合明确动作和目标：
 - 重启能把遗留运行收敛为 Interrupted。
 - 工作包半写、Hash 错误和路径逃逸被稳定拒绝。
 - Secret 不出现在数据库、工作包、日志、快照或 API 响应中。
+- CLI 取消信号贯穿 REST 执行与最终发布、Runtime 预检、Engine、Raw 复制、逐 Row 导入、Normalized 写入和最终提交。REST 阶段开始后取消统一为 `REST_CANCELLED`；Evaluation 阶段开始前取消保持 `PENDING`，开始后统一为 `EVALUATOR_CANCELLED`。取消不得登记部分 Artifact。
+- REST/Raw/Normalized 文件已经原子发布、但阶段描述符尚未登记时，失败或取消必须在当前命令返回前使用发布时返回的非持久补偿句柄删除这些固定槽位文件；删除前同时匹配固定槽位、Descriptor Hash/大小、发布时 device/inode 和清理时稳定身份。同路径即使替换为相同字节也必须保留并报告。不能依赖下一次打开工作包才恢复；异常退出导致发布身份丢失时，启动恢复保留未登记文件并报告稳定清理错误，不按路径删除。Execution 的 `RUNNING`、`ERROR`、`PENDING` 与 `SKIPPED` 阶段 Artifact 集合必须为空。
+- Raw Source、Evaluation staging、未登记 Artifact 或工作包导出 staging 清理失败记录脱敏安全事件或外化警告，但不能把已经确定的成功、业务失败、目标冲突或取消改写为另一终态。工作包导出响应在完整消费前失败或取消时必须取消未读 Response Body；Body 回收失败不得覆盖主错误。
 - Promptfoo `0.121.18` 能力矩阵中的每个 Assertion 类型都可通过同一开放 Case Assert 契约进入受控配置，不按类型设置白名单；真实进程只固定可信内联 JavaScript、Python、Ruby、Transform、Context Transform 和嵌套 Assertion Set 等跨执行边界代表路径，不要求平台逐类型复现 Promptfoo 原生执行。
 - `pnpm verify:release` 在 macOS ARM64 上通过，并包含一次真实 Gemini `llm-rubric` 和一次真实 Analyzer 结构输出；任何层不得自动重试。
 

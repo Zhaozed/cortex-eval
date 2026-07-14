@@ -32,9 +32,9 @@ Domain 不执行副作用、不接收 `unknown`，也不依赖 Contracts 或 Zod
 ## 当前样例与测试入口
 
 - [loona_promptfoo_tests.json](../../test_suite/current/cases/loona_promptfoo_tests.json)
-- [run_promptfoo_rest.test.ts](../../data_scripts/run_promptfoo_rest.test.ts)
 - [test_convert_loona_to_promptfoo.py](../../data_scripts/test_convert_loona_to_promptfoo.py)
 - [domain tests](../../packages/domain/test)：纯规则、错误路径、边界、Revision 竞争、Hash 和联合动作测试。
+- [Work Package tests](../../packages/work-package/test)：离线 REST/Eval 对齐与执行版本哈希边界测试。
 
 ## 对外接口
 

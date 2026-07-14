@@ -8,6 +8,7 @@ import type {
 } from "../src/features/evaluation/platform-evaluation-engine.ts";
 import {
   PlatformEvaluationService,
+  type PlatformEvaluationBusinessEvent,
   type PlatformEvaluationServiceDependencies
 } from "../src/features/evaluation/platform-evaluation-service.ts";
 import type {
@@ -18,20 +19,16 @@ import type {
   PlatformNormalizedEvalArtifactInput,
   PlatformRawPromptfooArtifactInput,
   PlatformRestArtifactWriteResult,
+  PublishedRunArtifact,
   RunArtifactAvailability,
   RunArtifactStore
 } from "../src/features/runs/run-artifact-port.ts";
 import type {
-  PlatformRun,
   PlatformRunProgress,
   RunArtifactDescriptor,
-  RunArtifactManifest,
-  StoredRestCaseResult
+  RunArtifactManifest
 } from "../src/features/runs/platform-run-models.ts";
-import {
-  hashEvalResultSet,
-  hashRestResultSet
-} from "@cortex-eval/domain/src/domain-hash-inputs.ts";
+import { hashEvalResultSet } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -42,171 +39,15 @@ import {
   MemoryPlatformEvalRepository as EvalRepository,
   MemoryPlatformEvalTransactions as EvalTransactions
 } from "../test-support/platform-run-resilience-fixtures.ts";
-
-const RUN_ID = "01900000-0000-7000-8000-000000000001";
-const SOURCE_RUN_ID = "01900000-0000-7000-8000-000000000002";
-const NOW = "2026-07-14T00:00:00.000Z";
-const HASH = "a".repeat(64);
-
-const definition = {
-  caseKey: "case-1",
-  description: "Case",
-  threshold: 1,
-  task: "route",
-  requestBody: { input: "hello" },
-  metadata: {
-    requestId: "request-1",
-    taskId: "task-1",
-    businessModule: "chat",
-    scenarioTag: "smoke"
-  },
-  assertions: [{ type: "equals", metric: "quality", weight: 1, value: "expected" }]
-} as const;
-
-const restResult: StoredRestCaseResult = {
-  runId: RUN_ID,
-  caseKey: "case-1",
-  ordinal: 0,
-  definition,
-  caseDefinitionHash: "b".repeat(64),
-  status: "SUCCEEDED",
-  httpStatus: 200,
-  providerOutput: { ok: false, errorMessage: "business" },
-  errorType: null,
-  errorMessage: null,
-  durationMs: 4,
-  completedAt: NOW,
-  resultHash: "c".repeat(64),
-  provenance: null
-};
-
-const restResultSetHash = hashRestResultSet({
-  contractVersion: "cortex.rest-result-set.v1",
-  cases: [{ caseKey: "case-1", ordinal: 0, resultHash: restResult.resultHash }]
-});
-
-function evaluationRun(): PlatformRun {
-  return {
-    id: RUN_ID,
-    sourceType: "PLATFORM",
-    sourceRunId: null,
-    rerunMode: "NONE",
-    suite: {
-      id: "01900000-0000-7000-8000-000000000100",
-      name: "Suite",
-      suiteHash: HASH,
-      cases: [{ caseKey: "case-1", ordinal: 0, definitionHash: "b".repeat(64), definition }]
-    },
-    endpoint: {
-      sourceId: null,
-      name: "Endpoint",
-      configHash: HASH,
-      definition: {
-        urlTemplate: "https://example.test/{{vars.task}}",
-        method: "POST",
-        headers: {},
-        bodySelector: "/request_body",
-        timeoutMs: 1_000,
-        defaultConcurrency: 4
-      }
-    },
-    evaluator: {
-      sourceId: null,
-      name: "Evaluator",
-      configHash: HASH,
-      definition: {
-        providerType: "GOOGLE_GEMINI",
-        apiKey: { kind: "ENV_SECRET", envKey: "GEMINI_API_KEY" },
-        model: "gemini-test",
-        thinkingLevel: "OFF",
-        temperature: 0,
-        topP: 1,
-        maxOutputTokens: 256,
-        timeoutMs: 1_000,
-        structuredOutput: "JSON_OBJECT"
-      }
-    },
-    rubricPrompts: [],
-    runContextHash: HASH,
-    promptfooVersion: "0.121.18",
-    contractVersions: {
-      runSnapshot: "cortex.run-snapshot.v1",
-      caseDefinition: "cortex.case-definition.v1",
-      platformRestResults: "cortex.platform-rest-results.v1"
-    },
-    runExecutionLimits: {
-      contractVersion: "cortex.run-execution-limits.v1",
-      restConcurrency: 4,
-      evalConcurrency: 2
-    },
-    runMode: "STAGED",
-    status: "READY",
-    stage: "EVALUATION",
-    lockRevision: 2,
-    cancelRequestedAt: null,
-    restCompletedCount: 1,
-    restErrorCount: 0,
-    evalCompletedCount: 0,
-    evalPassCount: 0,
-    evalFailCount: 0,
-    evalErrorCount: 0,
-    evalNotEvaluatedCount: 0,
-    resultSetHash: restResultSetHash,
-    artifactManifest: {
-      contractVersion: "cortex.artifact-manifest.v1",
-      owner: { kind: "RUN", id: RUN_ID },
-      artifacts: [
-        {
-          kind: "REST_RESULTS",
-          path: `runs/${RUN_ID}/rest-results.json`,
-          expectedSha256: HASH,
-          expectedSizeBytes: 10,
-          contractVersion: "cortex.platform-rest-results.v1"
-        }
-      ]
-    },
-    errorCode: null,
-    errorMessage: null,
-    startedAt: NOW,
-    completedAt: null,
-    createdAt: NOW,
-    updatedAt: NOW
-  };
-}
-
-function reusableSourceRun(): PlatformRun {
-  return {
-    ...evaluationRun(),
-    id: SOURCE_RUN_ID,
-    artifactManifest: {
-      contractVersion: "cortex.artifact-manifest.v1",
-      owner: { kind: "RUN", id: SOURCE_RUN_ID },
-      artifacts: [
-        {
-          kind: "REST_RESULTS",
-          path: `runs/${SOURCE_RUN_ID}/rest-results.json`,
-          expectedSha256: HASH,
-          expectedSizeBytes: 10,
-          contractVersion: "cortex.platform-rest-results.v1"
-        },
-        {
-          kind: "RAW_PROMPTFOO_EVIDENCE",
-          path: `runs/${SOURCE_RUN_ID}/promptfoo-raw.json`,
-          expectedSha256: "d".repeat(64),
-          expectedSizeBytes: 50,
-          contractVersion: "cortex.platform-raw-promptfoo-evidence.v1"
-        },
-        {
-          kind: "NORMALIZED_EVAL_RESULTS",
-          path: `runs/${SOURCE_RUN_ID}/normalized-eval.json`,
-          expectedSha256: "e".repeat(64),
-          expectedSizeBytes: 80,
-          contractVersion: "cortex.platform-normalized-eval.v1"
-        }
-      ]
-    }
-  };
-}
+import {
+  evaluationRun,
+  HASH,
+  NOW,
+  restResult,
+  reusableSourceRun,
+  RUN_ID,
+  SOURCE_RUN_ID
+} from "../test-support/platform-evaluation-service-fixtures.ts";
 
 class RunTransactions implements PlatformRunTransactionManager {
   /** Whether one short transaction callback is active. */
@@ -257,38 +98,44 @@ class EvaluationArtifacts implements RunArtifactStore {
   /** Capture raw evidence. */
   public writeRawPromptfooEvidence(
     input: PlatformRawPromptfooArtifactInput
-  ): Promise<RunArtifactDescriptor> {
+  ): Promise<PublishedRunArtifact> {
     this.rawInput = input;
     return Promise.resolve({
-      kind: "RAW_PROMPTFOO_EVIDENCE",
-      path: `runs/${RUN_ID}/promptfoo-raw.json`,
-      expectedSha256: "d".repeat(64),
-      expectedSizeBytes: 50,
-      contractVersion: "cortex.platform-raw-promptfoo-evidence.v1"
+      descriptor: {
+        kind: "RAW_PROMPTFOO_EVIDENCE",
+        path: `runs/${RUN_ID}/promptfoo-raw.json`,
+        expectedSha256: "d".repeat(64),
+        expectedSizeBytes: 50,
+        contractVersion: "cortex.platform-raw-promptfoo-evidence.v1"
+      },
+      publicationIdentity: "memory:raw"
     });
   }
 
   /** Capture and consume normalized results. */
   public async writeNormalizedEvalResults(
     input: PlatformNormalizedEvalArtifactInput
-  ): Promise<RunArtifactDescriptor> {
+  ): Promise<PublishedRunArtifact> {
     this.normalizedInput = input;
     for await (const item of input.cases) {
       // Consume once like the real streaming writer.
       void item;
     }
     return {
-      kind: "NORMALIZED_EVAL_RESULTS",
-      path: `runs/${RUN_ID}/normalized-eval.json`,
-      expectedSha256: "e".repeat(64),
-      expectedSizeBytes: 80,
-      contractVersion: "cortex.platform-normalized-eval.v1"
+      descriptor: {
+        kind: "NORMALIZED_EVAL_RESULTS",
+        path: `runs/${RUN_ID}/normalized-eval.json`,
+        expectedSha256: "e".repeat(64),
+        expectedSizeBytes: 80,
+        contractVersion: "cortex.platform-normalized-eval.v1"
+      },
+      publicationIdentity: "memory:normalized"
     };
   }
 
   /** Capture rollback removals. */
-  public removeUncommitted(artifact: RunArtifactDescriptor): Promise<void> {
-    this.removed.push(artifact);
+  public removeUncommitted(artifact: PublishedRunArtifact): Promise<void> {
+    this.removed.push(artifact.descriptor);
     return Promise.resolve();
   }
 
@@ -423,7 +270,7 @@ class FailingNormalizedArtifacts extends EvaluationArtifacts {
   /** Fail after raw evidence has already been created. */
   public override writeNormalizedEvalResults(
     input: PlatformNormalizedEvalArtifactInput
-  ): Promise<RunArtifactDescriptor> {
+  ): Promise<PublishedRunArtifact> {
     this.normalizedInput = input;
     return Promise.reject(new Error("NORMALIZED_WRITE_FAILED"));
   }
@@ -474,9 +321,13 @@ describe("Platform Evaluation Application 编排", () => {
     });
     let observedCases = -1;
     const runtimePreflight: PlatformEvaluationRuntimePreflight = {
-      check: (cases) => {
-        observedCases = cases.length;
-        return Promise.resolve({ ok: true });
+      check: async (cases) => {
+        observedCases = 0;
+        for await (const testCase of cases) {
+          void testCase;
+          observedCases += 1;
+        }
+        return { ok: true };
       }
     };
     const service = new PlatformEvaluationService({
@@ -800,6 +651,62 @@ describe("Platform Evaluation Application 编排", () => {
       lockRevision: 4
     });
     expect(artifacts.removed).toEqual([]);
+  });
+
+  it("Raw Source 清理失败不回滚已提交结果并记录安全事件", async () => {
+    const runs = new MemoryPlatformRunStore();
+    runs.values.set(RUN_ID, evaluationRun());
+    runs.results.set(`${RUN_ID}:case-1`, restResult);
+    const transactions = new RunTransactions(runs);
+    const source = await new SuccessfulEvaluationEngine(transactions).execute();
+    if (typeof source.raw !== "object" || "kind" in source.raw) {
+      throw new Error("TEST_RAW_OBJECT_MISSING");
+    }
+    const rawResults = source.raw.results;
+    if (
+      rawResults === null ||
+      typeof rawResults !== "object" ||
+      Array.isArray(rawResults) ||
+      !Array.isArray(rawResults.results)
+    ) {
+      throw new Error("TEST_RAW_ROWS_MISSING");
+    }
+    const rows = rawResults.results;
+    const events: PlatformEvaluationBusinessEvent[] = [];
+    const engine: PlatformEvaluationEngine = {
+      execute: (): Promise<PlatformEvaluationEngineResult> =>
+        Promise.resolve({
+          ...source,
+          raw: {
+            kind: "PROMPTFOO_RAW_SOURCE",
+            openBytes: async function* () {
+              yield await Promise.resolve(Buffer.from(JSON.stringify(source.raw), "utf8"));
+            },
+            openRows: async function* () {
+              for (const row of rows) yield await Promise.resolve(row);
+            },
+            dispose: (): Promise<never> => Promise.reject(new Error("TEST_RAW_CLEANUP_FAILED"))
+          }
+        })
+    };
+    const service = new PlatformEvaluationService({
+      ...evaluationDependencies(runs, engine),
+      eventSink: {
+        record: (event): Promise<void> => {
+          events.push(event);
+          return Promise.resolve();
+        }
+      }
+    });
+
+    await service.start({ runId: RUN_ID, expectedRevision: 2 });
+    await service.waitForIdle();
+
+    await expect(runs.getPlatformRunProgress(RUN_ID)).resolves.toMatchObject({
+      status: "READY",
+      stage: "REPORT"
+    });
+    expect(events.map((event) => event.event)).toContain("RUN_EVALUATION_RAW_CLEANUP_FAILED");
   });
 
   it("轮询读取失败会中止外部执行、失败收口且不悬挂 owner", async () => {

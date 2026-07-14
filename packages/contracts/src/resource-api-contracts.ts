@@ -169,6 +169,12 @@ export const AnalysisPromptDefinitionV1Schema = z.strictObject({
   kind: z.literal("CASE_ANALYSIS")
 });
 
+/** LLM Rubric Prompt definition DTO. */
+export type PromptDefinitionV1 = z.infer<typeof PromptDefinitionV1Schema>;
+
+/** Case Analysis Prompt definition DTO. */
+export type AnalysisPromptDefinitionV1 = z.infer<typeof AnalysisPromptDefinitionV1Schema>;
+
 /** Create one current LLM Rubric Prompt. */
 export const CreateRubricPromptRequestV1Schema = z.strictObject({
   name: DisplayNameSchema,
@@ -463,6 +469,7 @@ const PlainErrorSchema = z.strictObject({
     "RUN_NOT_FOUND",
     "RUN_SUITE_EMPTY",
     "RUN_CASE_RESULT_NOT_FOUND",
+    "WORK_PACKAGE_INVALID",
     "CONFIGURATION_NOT_FOUND",
     "CONFIGURATION_KIND_CONFLICT",
     "RESOURCE_IN_ACTIVE_RUN",

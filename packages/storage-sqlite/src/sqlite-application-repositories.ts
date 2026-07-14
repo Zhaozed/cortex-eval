@@ -35,6 +35,7 @@ import {
   mapLlmResource,
   mapRubricPromptResource
 } from "./sqlite-configuration-mappers.ts";
+import { SqliteImportedExecutionStore } from "./sqlite-imported-execution-store.ts";
 import { mapStoredTestCase, SqliteRowInvalidError } from "./sqlite-row-mappers.ts";
 import type { SqliteDatabaseSchema } from "./sqlite-schema.ts";
 
@@ -433,10 +434,13 @@ export class SqliteTestSuiteRepository implements TestSuiteRepository {
 /** SQLite lookup for READY/RUNNING current-resource references. */
 export class SqliteRunReferenceRepository implements RunReferenceRepository {
   readonly #database: Kysely<SqliteDatabaseSchema>;
+  /** Isolated offline-import identity persistence. */
+  readonly #importedExecutions: SqliteImportedExecutionStore;
 
   /** Bind lookup operations to one managed transaction. */
   public constructor(database: Kysely<SqliteDatabaseSchema>) {
     this.#database = database;
+    this.#importedExecutions = new SqliteImportedExecutionStore(database);
   }
 
   /** Check one supported resource reference without dynamic SQL identifiers. */
@@ -463,41 +467,12 @@ export class SqliteRunReferenceRepository implements RunReferenceRepository {
   public async getImportedExecution(
     executionId: string
   ): Promise<ExistingImportedExecution | null> {
-    const result = await sql<{ readonly id: string; readonly result_set_hash: string }>`
-      SELECT id, result_set_hash
-      FROM run_log
-      WHERE execution_id = ${executionId}
-      LIMIT 1
-    `.execute(this.#database);
-    const row = result.rows[0];
-    return row === undefined ? null : { runId: row.id, resultSetHash: row.result_set_hash };
+    return await this.#importedExecutions.get(executionId);
   }
 
   /** Insert one normalized minimal imported Run registration. */
   public async insertImportedExecution(value: ImportedExecutionRecord): Promise<void> {
-    const status = value.hasErrors ? "COMPLETED_WITH_ERRORS" : "COMPLETED";
-    await sql`
-      INSERT INTO run_log (
-        id, source_type, source_package_id, execution_id, source_run_id, rerun_mode,
-        suite_snapshot_json, endpoint_snapshot_json, evaluator_snapshot_json,
-        rubric_prompts_snapshot_json, run_context_hash, promptfoo_version,
-        contract_versions_json, run_execution_limits_json, run_mode, status, stage,
-        lock_revision, summary_json, result_set_hash, artifact_manifest_json,
-        completed_at, created_at, updated_at
-      ) VALUES (
-        ${value.runId}, 'OFFLINE_IMPORT', ${value.packageId}, ${value.executionId}, NULL, 'NONE',
-        ${canonicalJson(value.suiteSnapshot)}, ${canonicalJson(value.endpointSnapshot)},
-        ${canonicalJson(value.evaluatorSnapshot)}, ${canonicalJson([...value.rubricPromptsSnapshot])},
-        ${value.runContextHash}, '0.121.18', ${canonicalJson(value.contractVersions)},
-        ${canonicalJson(value.runExecutionLimits)}, 'STAGED', ${status}, 'DONE', 0,
-        NULL, ${value.resultSetHash}, ${canonicalJson({
-          contractVersion: value.artifactManifest.contractVersion,
-          owner: { ...value.artifactManifest.owner },
-          artifacts: value.artifactManifest.artifacts.map((artifact) => ({ ...artifact }))
-        })},
-        ${value.createdAt}, ${value.createdAt}, ${value.createdAt}
-      )
-    `.execute(this.#database);
+    await this.#importedExecutions.insert(value);
   }
 }
 

@@ -466,6 +466,69 @@ export function hashEvalResultSet(input: EvalResultSetHashInput): string {
   });
 }
 
+/** Incremental semantic hasher for an already ordered complete Eval result set. */
+export class OrderedEvalResultSetHasher {
+  /** Incremental SHA-256 state over the exact canonical result-set JSON. */
+  readonly #hash: Hash;
+  /** Frozen Manifest identity resolver owned by the caller. */
+  readonly #expectedCaseKey: (ordinal: number) => string | null;
+  /** Next required zero-based Ordinal. */
+  #nextOrdinal = 0;
+  /** Whether the digest has already been finalized. */
+  #finished = false;
+
+  /** Start one canonical result-set object before its trailing owner facts are known. */
+  public constructor(expectedCaseKey: (ordinal: number) => string | null) {
+    this.#hash = createHash("sha256");
+    this.#expectedCaseKey = expectedCaseKey;
+    this.#hash.update('{"cases":[', "utf8");
+  }
+
+  /** Add one validated identity in exact frozen order. */
+  public add(value: EvalResultSetCaseHashInput): void {
+    if (
+      this.#finished ||
+      value.ordinal !== this.#nextOrdinal ||
+      value.caseKey.trim() === "" ||
+      !/^[0-9a-f]{64}$/.test(value.evalResultHash) ||
+      this.#expectedCaseKey(value.ordinal) !== value.caseKey
+    ) {
+      throw new Error("EVAL_RESULT_SET_ALIGNMENT");
+    }
+    if (this.#nextOrdinal > 0) this.#hash.update(",", "utf8");
+    this.#hash.update(
+      canonicalJson({
+        caseKey: value.caseKey,
+        ordinal: value.ordinal,
+        evalResultHash: value.evalResultHash
+      }),
+      "utf8"
+    );
+    this.#nextOrdinal += 1;
+  }
+
+  /** Finalize one nonempty aligned result set exactly once. */
+  public finish(owner: EvalResultSetHashInput["owner"], evaluationContextHash: string): string {
+    if (
+      this.#finished ||
+      this.#nextOrdinal === 0 ||
+      this.#expectedCaseKey(this.#nextOrdinal) !== null ||
+      owner.id.trim() === "" ||
+      !/^[0-9a-f]{64}$/.test(evaluationContextHash)
+    ) {
+      throw new Error("EVAL_RESULT_SET_ALIGNMENT");
+    }
+    this.#finished = true;
+    this.#hash.update(
+      `],"contractVersion":"cortex.eval-result-set.v1",` +
+        `"evaluationContextHash":${JSON.stringify(evaluationContextHash)},` +
+        `"owner":${canonicalJson(owner)}}`,
+      "utf8"
+    );
+    return this.#hash.digest("hex");
+  }
+}
+
 /** Incremental semantic hasher for an already ordered complete REST result set. */
 export class OrderedRestResultSetHasher {
   /** Incremental SHA-256 state over the exact canonical result-set JSON. */

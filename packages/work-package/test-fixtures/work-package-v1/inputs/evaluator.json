@@ -1,0 +1,1 @@
+{"contractVersion":"cortex.llm-config.v1","providerType":"GOOGLE_GEMINI","model":"gemini-2.5-flash","apiKey":{"kind":"ENV_SECRET","envKey":"GEMINI_API_KEY"},"thinkingLevel":"OFF","temperature":0,"topP":1,"maxOutputTokens":1024,"timeoutMs":60000,"structuredOutput":"JSON_SCHEMA"}

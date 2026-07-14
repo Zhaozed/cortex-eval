@@ -153,6 +153,16 @@ function evaluatorCallBudget(
   return total;
 }
 
+/** Count Evaluator calls for one already aligned materialization Case. */
+export function countPromptfooCaseEvaluatorCalls(
+  item: PromptfooMaterializationCase,
+  requiresEvaluator: (assertionType: string) => boolean
+): number {
+  return item.restResult.status === "ERROR"
+    ? 0
+    : evaluatorCallBudget(item.testCase.definition.assertions, requiresEvaluator);
+}
+
 /** Count the exact generated Evaluator calls without restricting Assertion types. */
 export function countPromptfooEvaluatorCalls(
   cases: readonly PromptfooMaterializationCase[],
@@ -160,8 +170,7 @@ export function countPromptfooEvaluatorCalls(
 ): number {
   let total = 0;
   for (const item of cases) {
-    if (item.restResult.status !== "SUCCEEDED") continue;
-    total += evaluatorCallBudget(item.testCase.definition.assertions, requiresEvaluator);
+    total += countPromptfooCaseEvaluatorCalls(item, requiresEvaluator);
   }
   return total;
 }
@@ -215,6 +224,44 @@ function materializeAssertion(
   return result;
 }
 
+/** Materialize one REST-success Case without retaining the complete test collection. */
+function materializePromptfooTestWithPrompts(
+  item: PromptfooMaterializationCase,
+  prompts: ReadonlyMap<string, string>
+): MaterializedPromptfooTest | null {
+  if (item.restResult.status === "ERROR") return null;
+  return {
+    description: item.testCase.definition.description,
+    vars: {
+      task: item.testCase.definition.task,
+      request_body: item.testCase.definition.requestBody
+    },
+    metadata: {
+      case_id: item.testCase.caseKey,
+      req_id: item.testCase.definition.metadata.requestId,
+      task_id: item.testCase.definition.metadata.taskId,
+      business_module: item.testCase.definition.metadata.businessModule,
+      scenario_tag: item.testCase.definition.metadata.scenarioTag
+    },
+    providerOutput: item.restResult.providerOutput,
+    assert: item.testCase.definition.assertions.map((assertion) =>
+      materializeAssertion(assertion, prompts)
+    ),
+    threshold: item.testCase.definition.threshold
+  };
+}
+
+/** Materialize one REST-success Case from already frozen prompt materializations. */
+export function materializePromptfooTest(
+  item: PromptfooMaterializationCase,
+  rubricPromptMaterializations: Readonly<Record<string, string>>
+): MaterializedPromptfooTest | null {
+  return materializePromptfooTestWithPrompts(
+    item,
+    new Map(Object.entries(rubricPromptMaterializations))
+  );
+}
+
 /** Materialize one secret-free, fixed-version Promptfoo configuration. */
 export function materializePromptfooConfigV1(
   input: MaterializePromptfooConfigV1Input
@@ -241,26 +288,8 @@ export function materializePromptfooConfigV1(
   const callBudget = countPromptfooEvaluatorCalls(input.cases, input.requiresEvaluator);
   const tests: MaterializedPromptfooTest[] = [];
   for (const item of input.cases) {
-    if (item.restResult.status === "ERROR") continue;
-    tests.push({
-      description: item.testCase.definition.description,
-      vars: {
-        task: item.testCase.definition.task,
-        request_body: item.testCase.definition.requestBody
-      },
-      metadata: {
-        case_id: item.testCase.caseKey,
-        req_id: item.testCase.definition.metadata.requestId,
-        task_id: item.testCase.definition.metadata.taskId,
-        business_module: item.testCase.definition.metadata.businessModule,
-        scenario_tag: item.testCase.definition.metadata.scenarioTag
-      },
-      providerOutput: item.restResult.providerOutput,
-      assert: item.testCase.definition.assertions.map((assertion) =>
-        materializeAssertion(assertion, prompts)
-      ),
-      threshold: item.testCase.definition.threshold
-    });
+    const test = materializePromptfooTestWithPrompts(item, prompts);
+    if (test !== null) tests.push(test);
   }
 
   return {

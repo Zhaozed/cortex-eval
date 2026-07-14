@@ -48,7 +48,15 @@ Markdown 渲染错误不改变已经验证的 Report JSON 事实。Markdown 只�
 
 Raw Artifact 缺失或损坏时保留数据库规范化事实，API、CLI 和 UI 显示 Evidence Missing/Corrupted；报告不得重新依赖 Raw 文件。
 
-相同 Execution ID 对应不同 Result Set Hash 返回 `EXECUTION_RESULT_CONFLICT`。平台从明细重算统计，不信任工作包 Summary；任一身份或对账失败时不提交导入事务。
+相同 Execution ID 对应不同 Package ID、Result Set Hash 或规范化 Artifact Manifest 返回 `EXECUTION_RESULT_CONFLICT`。Manifest 身份包含 Contract Version、Owner，以及每个 Artifact 的 Kind、受控路径、Hash、大小和 Payload Contract Version；不能只比较 Owner/路径。平台从明细重算统计，不信任工作包 Summary；任一身份或对账失败时不提交导入事务。
+
+离线 CLI 在参数、环境和运行时预检失败时不开始阶段，Execution 阶段保持 `PENDING`；阶段开始后的外部执行或 Artifact 失败才提交 `ERROR`。当前 Pipeline 在 REST 外部调用和任何 Execution 变更前同时预检 REST/Evaluation 环境、Case、完整 Evaluation 输入、Prompt 引用与 Runtime，并复用同一个 Secret Snapshot。Assertion Fail 是 Eval 事实，CLI 返回 1；系统或外部阶段失败返回 3，锁冲突返回 4。真实 Promptfoo 子进程取消统一映射为 `EVALUATOR_CANCELLED`，不登记部分 Artifact，CLI 返回 130。
+
+REST 单阶段命令同样必须在创建 Execution 前完整读取 Endpoint、全部 Case 和 Retry 来源，任何输入错误都不留下 Execution；阶段开始后在 REST 返回与 Artifact 发布边界观察到取消时返回 `REST_CANCELLED`。Evaluation 的取消信号贯穿 Runtime Preflight、Engine、Raw 字节复制、逐 Row 导入、Normalized 写入和最终提交；抢占阶段前取消返回 `REQUEST_ABORTED` 并保持 `PENDING`，抢占后返回 `EVALUATOR_CANCELLED`。REST、Raw 或 Normalized Artifact 已发布但未登记时，当前 Session 先持久化空 Artifact 的 `ERROR`，再凭当前命令持有的发布时 device/inode 句柄，连同固定槽位、Descriptor Hash/大小和清理时稳定身份一起匹配后删除；相同字节的新 inode 也不得删除。登记失败或发布后取消的当前命令必须尝试即时补偿；若异常退出使发布身份丢失，后续启动只保留并报告孤儿，不按路径猜测所有权。工作包导出提前失败或取消时取消未读 Response Body；Body、Raw Source、Evaluation staging、未登记 Artifact 或导出 staging 清理失败记录脱敏安全事件或 CLI 外化警告，但不能覆盖主流程已经确定的成功、失败、目标冲突或取消。
+
+CLI 对能够从参数前缀识别的命令，在 Commander 参数解析失败时仍按相应机器协议输出 `VALIDATION_FAILED`；未知命令不伪造命令身份。工作包内部错误使用闭合映射：未知文件、孤儿 Artifact、布局/大小和非法文件/锁归一为公开输入错误；文件变化归一为 Hash 错误；路径/Containment 归一为路径错误；已存在目标或 staging 归一为导出冲突；导出流损坏归一为外部失败；仅代表调用方或运行时不变量破坏的私有码归一为 `INTERNAL_ERROR`。任何私有码都不得出现在 stdout、stderr 或公开消息中。
+
+不可变文件采用临时文件 Flush 后同目录 Link/Publish，并在目标目录同步后才算提交。若 Link 或 Rename 已成功而目录同步失败，写入方必须在返回主错误前按文件身份撤销新目标并再次同步；清理或旁路观察器失败只记录安全事件，不得覆盖原始写入失败。
 
 ## 并发、取消与恢复
 
@@ -72,8 +80,9 @@ P5 的部分或全部 REST Error 都按完整 REST 阶段提交为 `READY/EVALUA
 - Work Package Manifest、Execution 状态和文件 Hash。
 - Raw Promptfoo Evidence 的存在性与 Hash。
 - 目标错误语义来源：[REQ.md](../REQ.md) 与 [TECH.md](../TECH.md)
-- 当前脚本错误处理：[data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)
-- 当前脚本错误行为测试：[data_scripts/run_promptfoo_rest.test.ts](../data_scripts/run_promptfoo_rest.test.ts)
+- 当前 CLI 错误映射：[apps/cli/src/cli-program.ts](../apps/cli/src/cli-program.ts)
+- 当前 Work Package 错误边界：[packages/work-package/src](../packages/work-package/src)
+- 当前 CLI 与 Work Package 错误测试：[apps/cli/test](../apps/cli/test) 与 [packages/work-package/test](../packages/work-package/test)
 - 当前稳定 Error Code：[packages/contracts/src/error-contracts.ts](../packages/contracts/src/error-contracts.ts)
 - 当前中文消息资源：[packages/contracts/messages/zh-CN.json](../packages/contracts/messages/zh-CN.json)
 - 当前资源 Application 错误入口：[packages/application/src](../packages/application/src)

@@ -1,4 +1,5 @@
 import { CaseDefinitionWriter } from "@cortex-eval/application/src/features/test-suites/case-definition-writer.ts";
+import { WorkPackageExportSnapshotService } from "@cortex-eval/application/src/features/work-packages/work-package-export-snapshot-service.ts";
 import { CaseExportService } from "@cortex-eval/application/src/features/test-suites/case-export-service.ts";
 import { StreamingCaseImportService } from "@cortex-eval/application/src/features/test-suites/streaming-case-import-service.ts";
 import { TestSuiteService } from "@cortex-eval/application/src/features/test-suites/test-suite-service.ts";
@@ -47,6 +48,8 @@ import {
 import { applyDevelopmentSeed } from "./development-seed.ts";
 import { FileCaseExportBodyPreparer } from "./case-export-staging.ts";
 import { LocalRunArtifactStore } from "./run-artifact-store.ts";
+import { WorkPackageExportService } from "./work-package-export-service.ts";
+import { createWorkPackageExportHandler } from "./work-package-export-handler.ts";
 
 /** Local Server composition options. */
 export interface LocalServerRuntimeOptions {
@@ -138,6 +141,7 @@ export async function createLocalServerRuntime(
   const storage = await initializeSqliteStorage({ projectRoot: options.projectRoot });
   try {
     const transactionManager = storage.createTransactionManager();
+    const processLiveness = new PsProcessLiveness();
     const stagingFactory = storage.createCaseImportStagingFactory((event) =>
       businessLogger.record({ event, timestamp: new Date().toISOString() })
     );
@@ -145,7 +149,7 @@ export async function createLocalServerRuntime(
       new CaseImportWorkspaceManager({
         containmentRoot: options.projectRoot,
         temporaryRoot: join(options.projectRoot, ".cortex-eval", "tmp"),
-        processLiveness: new PsProcessLiveness(),
+        processLiveness,
         now: Date.now,
         nonce: randomUUID,
         pid: process.pid,
@@ -157,6 +161,19 @@ export async function createLocalServerRuntime(
     );
     await stagingFactory.cleanupStale();
     await caseExportBodies.cleanupStale();
+    const workPackageExportWorkspaces = new CaseImportWorkspaceManager({
+      containmentRoot: options.projectRoot,
+      temporaryRoot: join(options.projectRoot, ".cortex-eval", "tmp"),
+      processLiveness,
+      now: Date.now,
+      nonce: randomUUID,
+      pid: process.pid,
+      ttlMs: 24 * 60 * 60 * 1000,
+      workspacePrefix: "work-package-export-",
+      onSecurityEvent: (event): Promise<void> =>
+        businessLogger.record({ event, timestamp: new Date().toISOString() })
+    });
+    await workPackageExportWorkspaces.cleanupStale();
     const clock = { now: (): string => new Date().toISOString() };
     const idGenerator = { nextId: (): string => uuidV7() };
     const common = { transactionManager, clock, idGenerator };
@@ -170,7 +187,11 @@ export async function createLocalServerRuntime(
     if (options.developmentSeed === true) {
       await applyDevelopmentSeed({ testSuites, cases, configurations });
     }
-    const artifactStore = await LocalRunArtifactStore.create({ projectRoot: options.projectRoot });
+    const artifactStore = await LocalRunArtifactStore.create({
+      projectRoot: options.projectRoot,
+      onCleanupFailure: (event): Promise<void> =>
+        businessLogger.record({ event, timestamp: new Date().toISOString() })
+    });
     const runTransactionManager = storage.createRunTransactionManager();
     const lifecycleEventSink = {
       record: (event: PlatformRunBusinessEvent | PlatformEvaluationBusinessEvent): Promise<void> =>
@@ -182,6 +203,15 @@ export async function createLocalServerRuntime(
     };
     const promptfooBinary = join(process.cwd(), "node_modules", ".bin", "promptfoo");
     const promptfooTemporaryParent = join(options.projectRoot, ".cortex-eval", "tmp", "promptfoo");
+    const runtimePreflight = new PromptfooRuntimePreflight({
+      promptfooBinary,
+      temporaryContainmentRoot: options.projectRoot,
+      temporaryParent: promptfooTemporaryParent,
+      timeoutMs: 30_000
+    });
+    // Warm only the fixed Promptfoo version attestation. Each Run still rechecks the exact binary
+    // identity before trusting it, while an unavailable runtime remains a Run preflight failure.
+    await runtimePreflight.check([], new AbortController().signal);
     const evaluations = new PlatformEvaluationService({
       runTransactionManager,
       evalTransactionManager: storage.createEvalTransactionManager(),
@@ -195,12 +225,7 @@ export async function createLocalServerRuntime(
         readSecret: (key): string | undefined => process.env[key],
         createCallId: (): string => uuidV7()
       }),
-      runtimePreflight: new PromptfooRuntimePreflight({
-        promptfooBinary,
-        temporaryContainmentRoot: options.projectRoot,
-        temporaryParent: promptfooTemporaryParent,
-        timeoutMs: 30_000
-      }),
+      runtimePreflight,
       artifactStore,
       clock,
       messageResolver: { message: runMessage },
@@ -246,6 +271,14 @@ export async function createLocalServerRuntime(
       requestIdGenerator: idGenerator,
       resourceHandlers,
       runHandlers: createApplicationRunHandlers(runApplication),
+      workPackageExportHandler: createWorkPackageExportHandler(
+        new WorkPackageExportService({
+          snapshots: new WorkPackageExportSnapshotService({ transactionManager }),
+          workspaces: workPackageExportWorkspaces,
+          nextId: idGenerator.nextId,
+          now: clock.now
+        })
+      ),
       businessLogger,
       ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot })
     });

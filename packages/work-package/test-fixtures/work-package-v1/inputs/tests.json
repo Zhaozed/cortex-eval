@@ -1,0 +1,1 @@
+[{"contractVersion":"cortex.case-definition.v1","description":"fixture","threshold":1,"vars":{"task":"reply","request_body":{"text":"hello"}},"metadata":{"case_id":"case-1","req_id":"req-1","task_id":"task-1","business_module":"fixture","scenario_tag":"fixture"},"assert":[{"type":"equals","metric":"exact","weight":1,"value":"hello"}]}]

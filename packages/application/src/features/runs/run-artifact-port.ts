@@ -4,7 +4,7 @@ import type {
   StoredRestCaseResult
 } from "./platform-run-models.ts";
 import type { PlatformEvalCaseResult } from "../evaluation/platform-eval-models.ts";
-import type { DomainJsonObject } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
+import type { FrozenEvaluationRaw } from "../evaluation/frozen-evaluation-engine.ts";
 
 /** Complete immutable platform REST Artifact input. */
 export interface PlatformRestArtifactInput {
@@ -21,9 +21,15 @@ export interface PlatformRestArtifactInput {
 }
 
 /** Immutable Artifact write facts produced in one streaming pass. */
-export interface PlatformRestArtifactWriteResult {
+export interface PublishedRunArtifact {
   /** Immutable file descriptor. */
   readonly descriptor: RunArtifactDescriptor;
+  /** Store-issued non-persisted identity of the exact published file object. */
+  readonly publicationIdentity: string;
+}
+
+/** REST Artifact publication plus its complete semantic set identity. */
+export interface PlatformRestArtifactWriteResult extends PublishedRunArtifact {
   /** Complete semantic result-set hash. */
   readonly resultSetHash: string;
 }
@@ -42,8 +48,8 @@ export interface PlatformRawPromptfooArtifactInput {
   readonly exitCode: 0 | 100;
   /** Whole Promptfoo process duration. */
   readonly durationMs: number;
-  /** Validated JSON raw output. */
-  readonly raw: DomainJsonObject;
+  /** Validated bounded Raw output source. */
+  readonly raw: FrozenEvaluationRaw;
 }
 
 /** Immutable normalized Evaluation Artifact input. */
@@ -79,13 +85,13 @@ export interface RunArtifactStore {
   /** Atomically write raw Promptfoo evidence without replacing an existing file. */
   writeRawPromptfooEvidence(
     input: PlatformRawPromptfooArtifactInput
-  ): Promise<RunArtifactDescriptor>;
+  ): Promise<PublishedRunArtifact>;
   /** Atomically write normalized Evaluation results without replacing an existing file. */
   writeNormalizedEvalResults(
     input: PlatformNormalizedEvalArtifactInput
-  ): Promise<RunArtifactDescriptor>;
+  ): Promise<PublishedRunArtifact>;
   /** Remove only one uncommitted owner artifact after a failed database CAS. */
-  removeUncommitted(artifact: RunArtifactDescriptor): Promise<void>;
+  removeUncommitted(artifact: PublishedRunArtifact): Promise<void>;
   /** Inspect expected immutable files without changing database facts. */
   inspect(manifest: RunArtifactManifest): Promise<readonly RunArtifactAvailability[]>;
   /** Remove only owner artifacts that are absent from all durable manifests. */

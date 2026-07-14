@@ -1,17 +1,6 @@
 import { createHash, randomUUID, type Hash } from "node:crypto";
-import { createReadStream } from "node:fs";
-import {
-  chmod,
-  link,
-  lstat,
-  mkdir,
-  open,
-  readdir,
-  realpath,
-  rmdir,
-  stat,
-  unlink
-} from "node:fs/promises";
+import { createReadStream, type Stats } from "node:fs";
+import { chmod, link, lstat, mkdir, open, readdir, realpath, stat, unlink } from "node:fs/promises";
 import { isAbsolute, join, relative, sep } from "node:path";
 
 import type {
@@ -19,12 +8,13 @@ import type {
   PlatformRawPromptfooArtifactInput,
   PlatformRestArtifactInput,
   PlatformRestArtifactWriteResult,
+  PublishedRunArtifact,
   RunArtifactAvailability,
   RunArtifactStore
 } from "@cortex-eval/application/src/features/runs/run-artifact-port.ts";
+import { isFrozenEvaluationRawSource } from "@cortex-eval/application/src/features/evaluation/frozen-evaluation-engine.ts";
 import type { PlatformEvalCaseResult } from "@cortex-eval/application/src/features/evaluation/platform-eval-models.ts";
 import type {
-  RunArtifactDescriptor,
   RunArtifactManifest,
   StoredRestCaseResult
 } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
@@ -47,12 +37,21 @@ const RUN_ARTIFACT_PATH =
   /^runs\/([0-9a-f-]+)\/(rest-results|promptfoo-raw|normalized-eval)\.json$/;
 const TEMP_ARTIFACT = /^\.(rest-results|promptfoo-raw|normalized-eval)\.[A-Za-z0-9-]+\.tmp$/;
 
+function sameFileIdentity(left: Stats, right: Stats): boolean {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
 /** Local Run Artifact Store construction options. */
 export interface LocalRunArtifactStoreOptions {
   /** Absolute project root owning `.cortex-eval`. */
   readonly projectRoot: string;
   /** Injectable collision-resistant temporary identity. */
   readonly nonce?: (() => string) | undefined;
+  /** Flush one Artifact directory after a visible entry mutation. */
+  readonly syncDirectory?: ((path: string) => Promise<void>) | undefined;
+  /** Receive one sanitized cleanup failure code without Artifact content. */
+  readonly onCleanupFailure?:
+    ((code: "RUN_ARTIFACT_CLEANUP_FAILED") => void | Promise<void>) | undefined;
 }
 
 /** Stable owner-safe Artifact file failure. */
@@ -185,6 +184,15 @@ async function writeChunk(
   value: string
 ): Promise<number> {
   const bytes = Buffer.from(value, "utf8");
+  return await writeBytes(handle, hash, bytes);
+}
+
+// Write one complete binary chunk while updating exact integrity facts.
+async function writeBytes(
+  handle: Awaited<ReturnType<typeof open>>,
+  hash: Hash,
+  bytes: Uint8Array
+): Promise<number> {
   let offset = 0;
   while (offset < bytes.byteLength) {
     const result = await handle.write(bytes, offset, bytes.byteLength - offset, null);
@@ -208,9 +216,9 @@ async function syncDirectory(path: string): Promise<void> {
 // Hash one regular file with bounded memory and return its exact size.
 async function inspectFile(
   path: string
-): Promise<{ readonly sha256: string; readonly sizeBytes: number } | null> {
-  const facts = await lstat(path).catch(() => null);
-  if (facts === null || !facts.isFile() || facts.isSymbolicLink()) return null;
+): Promise<{ readonly sha256: string; readonly sizeBytes: number; readonly facts: Stats } | null> {
+  const before = await lstat(path).catch(() => null);
+  if (before === null || !before.isFile() || before.isSymbolicLink()) return null;
   const hash = createHash("sha256");
   let sizeBytes = 0;
   for await (const chunk of createReadStream(path)) {
@@ -218,7 +226,16 @@ async function inspectFile(
     sizeBytes += chunk.byteLength;
     hash.update(chunk);
   }
-  return { sha256: hash.digest("hex"), sizeBytes };
+  const after = await lstat(path).catch(() => null);
+  if (after === null || !sameFileIdentity(before, after) || after.size !== before.size) return null;
+  return { sha256: hash.digest("hex"), sizeBytes, facts: after };
+}
+
+// Encode exact bigint device/inode facts as one opaque non-persisted publication token.
+async function exactPublicationIdentity(path: string): Promise<string | null> {
+  const facts = await lstat(path, { bigint: true }).catch(() => null);
+  if (facts === null || !facts.isFile() || facts.isSymbolicLink()) return null;
+  return `${facts.dev.toString()}:${facts.ino.toString()}`;
 }
 
 // Resolve only the one closed P5 Artifact path shape.
@@ -236,12 +253,25 @@ export class LocalRunArtifactStore implements RunArtifactStore {
   readonly #runsRoot: string;
   /** Temporary name source. */
   readonly #nonce: () => string;
+  /** Directory durability boundary. */
+  readonly #syncDirectory: (path: string) => Promise<void>;
+  /** Resilient post-failure cleanup observer. */
+  readonly #onCleanupFailure:
+    ((code: "RUN_ARTIFACT_CLEANUP_FAILED") => void | Promise<void>) | undefined;
 
   /** Construct only after every containment directory has been validated. */
-  private constructor(artifactRoot: string, runsRoot: string, nonce: () => string) {
+  private constructor(
+    artifactRoot: string,
+    runsRoot: string,
+    nonce: () => string,
+    directorySync: (path: string) => Promise<void>,
+    onCleanupFailure: ((code: "RUN_ARTIFACT_CLEANUP_FAILED") => void | Promise<void>) | undefined
+  ) {
     this.#artifactRoot = artifactRoot;
     this.#runsRoot = runsRoot;
     this.#nonce = nonce;
+    this.#syncDirectory = directorySync;
+    this.#onCleanupFailure = onCleanupFailure;
   }
 
   /** Validate and initialize the complete owner-only Artifact root. */
@@ -255,7 +285,13 @@ export class LocalRunArtifactStore implements RunArtifactStore {
       const stateRoot = await ensureDirectory(projectRoot, join(projectRoot, ".cortex-eval"));
       const artifactRoot = await ensureDirectory(stateRoot, join(stateRoot, "artifacts"));
       const runsRoot = await ensureDirectory(artifactRoot, join(artifactRoot, "runs"));
-      return new LocalRunArtifactStore(artifactRoot, runsRoot, options.nonce ?? randomUUID);
+      return new LocalRunArtifactStore(
+        artifactRoot,
+        runsRoot,
+        options.nonce ?? randomUUID,
+        options.syncDirectory ?? syncDirectory,
+        options.onCleanupFailure
+      );
     } catch (error) {
       if (error instanceof RunArtifactStoreError) throw error;
       throw new RunArtifactStoreError();
@@ -317,8 +353,7 @@ export class LocalRunArtifactStore implements RunArtifactStore {
       await handle.close();
       handle = null;
       await chmod(tempPath, 0o600);
-      await link(tempPath, targetPath);
-      await syncDirectory(runRoot);
+      const publicationIdentity = await this.#linkAndSync(runRoot, tempPath, targetPath);
       await unlink(tempPath);
       tempPath = null;
       return {
@@ -329,6 +364,7 @@ export class LocalRunArtifactStore implements RunArtifactStore {
           expectedSizeBytes: sizeBytes,
           contractVersion: "cortex.platform-rest-results.v1"
         },
+        publicationIdentity,
         resultSetHash
       };
     } catch {
@@ -342,18 +378,25 @@ export class LocalRunArtifactStore implements RunArtifactStore {
   /** Atomically write one immutable raw Promptfoo evidence Artifact. */
   public async writeRawPromptfooEvidence(
     input: PlatformRawPromptfooArtifactInput
-  ): Promise<RunArtifactDescriptor> {
-    const artifact = {
+  ): Promise<PublishedRunArtifact> {
+    const envelope = {
       contractVersion: "cortex.platform-raw-promptfoo-evidence.v1" as const,
       runId: input.runId,
       runContextHash: input.runContextHash,
       evaluationContextHash: input.evaluationContextHash,
       promptfooVersion: input.promptfooVersion,
       exitCode: input.exitCode,
-      durationMs: input.durationMs,
-      raw: input.raw
+      durationMs: input.durationMs
     };
-    if (!PlatformRawPromptfooEvidenceArtifactV1Schema.safeParse(artifact).success) {
+    const validationRaw = isFrozenEvaluationRawSource(input.raw)
+      ? { results: { version: 3, results: [] } }
+      : input.raw;
+    if (
+      !PlatformRawPromptfooEvidenceArtifactV1Schema.safeParse({
+        ...envelope,
+        raw: validationRaw
+      }).success
+    ) {
       throw new RunArtifactStoreError();
     }
     const relativePath = `runs/${input.runId}/promptfoo-raw.json`;
@@ -365,21 +408,39 @@ export class LocalRunArtifactStore implements RunArtifactStore {
       const targetPath = join(runRoot, "promptfoo-raw.json");
       handle = await open(tempPath, "wx", 0o600);
       const fileHash = createHash("sha256");
-      const sizeBytes = await writeChunk(handle, fileHash, `${canonicalJson(artifact)}\n`);
+      let sizeBytes = 0;
+      if (isFrozenEvaluationRawSource(input.raw)) {
+        const serialized = canonicalJson({ ...envelope, raw: null });
+        const marker = '"raw":null';
+        const markerIndex = serialized.indexOf(marker);
+        if (markerIndex < 0) throw new RunArtifactStoreError();
+        const prefix = `${serialized.slice(0, markerIndex)}"raw":`;
+        const suffix = serialized.slice(markerIndex + marker.length);
+        sizeBytes += await writeChunk(handle, fileHash, prefix);
+        for await (const chunk of input.raw.openBytes()) {
+          sizeBytes += await writeBytes(handle, fileHash, chunk);
+        }
+        sizeBytes += await writeChunk(handle, fileHash, `${suffix}\n`);
+      } else {
+        const artifact = { ...envelope, raw: input.raw };
+        sizeBytes = await writeChunk(handle, fileHash, `${canonicalJson(artifact)}\n`);
+      }
       await handle.sync();
       await handle.close();
       handle = null;
       await chmod(tempPath, 0o600);
-      await link(tempPath, targetPath);
-      await syncDirectory(runRoot);
+      const publicationIdentity = await this.#linkAndSync(runRoot, tempPath, targetPath);
       await unlink(tempPath);
       tempPath = null;
       return {
-        kind: "RAW_PROMPTFOO_EVIDENCE",
-        path: relativePath,
-        expectedSha256: fileHash.digest("hex"),
-        expectedSizeBytes: sizeBytes,
-        contractVersion: "cortex.platform-raw-promptfoo-evidence.v1"
+        descriptor: {
+          kind: "RAW_PROMPTFOO_EVIDENCE",
+          path: relativePath,
+          expectedSha256: fileHash.digest("hex"),
+          expectedSizeBytes: sizeBytes,
+          contractVersion: "cortex.platform-raw-promptfoo-evidence.v1"
+        },
+        publicationIdentity
       };
     } catch {
       throw new RunArtifactStoreError();
@@ -392,7 +453,7 @@ export class LocalRunArtifactStore implements RunArtifactStore {
   /** Atomically stream one immutable normalized Evaluation Artifact. */
   public async writeNormalizedEvalResults(
     input: PlatformNormalizedEvalArtifactInput
-  ): Promise<RunArtifactDescriptor> {
+  ): Promise<PublishedRunArtifact> {
     if (
       !RUN_ID.test(input.runId) ||
       !/^[0-9a-f]{64}$/.test(input.runContextHash) ||
@@ -458,16 +519,18 @@ export class LocalRunArtifactStore implements RunArtifactStore {
       await handle.close();
       handle = null;
       await chmod(tempPath, 0o600);
-      await link(tempPath, targetPath);
-      await syncDirectory(runRoot);
+      const publicationIdentity = await this.#linkAndSync(runRoot, tempPath, targetPath);
       await unlink(tempPath);
       tempPath = null;
       return {
-        kind: "NORMALIZED_EVAL_RESULTS",
-        path: relativePath,
-        expectedSha256: fileHash.digest("hex"),
-        expectedSizeBytes: sizeBytes,
-        contractVersion: "cortex.platform-normalized-eval.v1"
+        descriptor: {
+          kind: "NORMALIZED_EVAL_RESULTS",
+          path: relativePath,
+          expectedSha256: fileHash.digest("hex"),
+          expectedSizeBytes: sizeBytes,
+          contractVersion: "cortex.platform-normalized-eval.v1"
+        },
+        publicationIdentity
       };
     } catch {
       throw new RunArtifactStoreError();
@@ -478,7 +541,8 @@ export class LocalRunArtifactStore implements RunArtifactStore {
   }
 
   /** Remove only one controlled uncommitted immutable file. */
-  public async removeUncommitted(artifact: RunArtifactDescriptor): Promise<void> {
+  public async removeUncommitted(published: PublishedRunArtifact): Promise<void> {
+    const artifact = published.descriptor;
     const runId = artifactRunId(artifact.path);
     if (runId === null) throw new RunArtifactStoreError();
     const fileName = artifact.path.split("/").at(-1);
@@ -494,9 +558,65 @@ export class LocalRunArtifactStore implements RunArtifactStore {
     const path = join(this.#artifactRoot, artifact.path);
     const facts = await lstat(path).catch(() => null);
     if (facts === null) return;
-    if (!facts.isFile() || facts.isSymbolicLink()) throw new RunArtifactStoreError();
+    const observed = await inspectFile(path);
+    const current = await lstat(path).catch(() => null);
+    const currentPublicationIdentity = await exactPublicationIdentity(path);
+    if (
+      observed === null ||
+      current === null ||
+      !sameFileIdentity(observed.facts, current) ||
+      observed.sha256 !== artifact.expectedSha256 ||
+      observed.sizeBytes !== artifact.expectedSizeBytes ||
+      currentPublicationIdentity !== published.publicationIdentity
+    ) {
+      await Promise.resolve(this.#onCleanupFailure?.("RUN_ARTIFACT_CLEANUP_FAILED")).catch(
+        () => undefined
+      );
+      throw new RunArtifactStoreError();
+    }
     await unlink(path);
     await syncDirectory(join(this.#runsRoot, runId));
+  }
+
+  // Publish one link and compensate it if the following directory durability step fails.
+  async #linkAndSync(runRoot: string, temporaryPath: string, targetPath: string): Promise<string> {
+    const temporaryFacts = await lstat(temporaryPath);
+    await link(temporaryPath, targetPath);
+    const publishedFacts = await lstat(targetPath);
+    const temporaryIdentity = await exactPublicationIdentity(temporaryPath);
+    const publicationIdentity = await exactPublicationIdentity(targetPath);
+    if (
+      !sameFileIdentity(temporaryFacts, publishedFacts) ||
+      temporaryIdentity === null ||
+      publicationIdentity === null ||
+      temporaryIdentity !== publicationIdentity
+    ) {
+      await Promise.resolve(this.#onCleanupFailure?.("RUN_ARTIFACT_CLEANUP_FAILED")).catch(
+        () => undefined
+      );
+      throw new Error("RUN_ARTIFACT_CLEANUP_FAILED");
+    }
+    try {
+      await this.#syncDirectory(runRoot);
+    } catch (error) {
+      try {
+        const currentFacts = await lstat(targetPath).catch(() => null);
+        if (currentFacts === null) {
+          await this.#syncDirectory(runRoot);
+        } else if (!sameFileIdentity(currentFacts, publishedFacts)) {
+          throw new Error("RUN_ARTIFACT_CLEANUP_FAILED", { cause: error });
+        } else {
+          await unlink(targetPath);
+          await this.#syncDirectory(runRoot);
+        }
+      } catch {
+        await Promise.resolve(this.#onCleanupFailure?.("RUN_ARTIFACT_CLEANUP_FAILED")).catch(
+          () => undefined
+        );
+      }
+      throw error;
+    }
+    return publicationIdentity;
   }
 
   /** Inspect immutable file integrity without mutating Manifest or database facts. */
@@ -521,7 +641,7 @@ export class LocalRunArtifactStore implements RunArtifactStore {
     return results;
   }
 
-  /** Remove only regular controlled files absent from every durable Manifest. */
+  /** Preserve and report files absent from durable Manifests when publication identity is gone. */
   public async cleanupOrphans(manifests: readonly RunArtifactManifest[]): Promise<void> {
     const durablePaths = new Set(
       manifests.flatMap((manifest) => manifest.artifacts.map((artifact) => artifact.path))
@@ -539,12 +659,14 @@ export class LocalRunArtifactStore implements RunArtifactStore {
           file.name === "rest-results.json" ||
           file.name === "promptfoo-raw.json" ||
           file.name === "normalized-eval.json";
-        const removable =
+        const orphaned =
           (controlled && !durablePaths.has(relativePath)) || TEMP_ARTIFACT.test(file.name);
-        if (removable) await unlink(join(runRoot, file.name));
+        if (orphaned) {
+          await Promise.resolve(this.#onCleanupFailure?.("RUN_ARTIFACT_CLEANUP_FAILED")).catch(
+            () => undefined
+          );
+        }
       }
-      if ((await readdir(runRoot)).length === 0) await rmdir(runRoot);
     }
-    await syncDirectory(this.#runsRoot);
   }
 }

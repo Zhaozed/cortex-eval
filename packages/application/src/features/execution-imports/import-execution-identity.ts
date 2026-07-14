@@ -1,10 +1,14 @@
-import type { DomainJsonObject } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
+import {
+  canonicalJson,
+  type DomainJsonObject
+} from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 
 import type { Clock, IdGenerator, TransactionManager } from "../../application-ports.ts";
 import type {
   ImportedExecutionArtifactManifest,
   ImportedExecutionRecord
 } from "./execution-import-models.ts";
+import { importedExecutionArtifactManifestJson } from "./execution-import-models.ts";
 
 /** Minimal P2 Execution import registration command. */
 export interface ImportExecutionIdentityCommand {
@@ -61,6 +65,21 @@ export class ImportExecutionIdentity {
 
   /** Register or idempotently resolve one validated Execution identity. */
   public execute(command: ImportExecutionIdentityCommand): Promise<ImportExecutionIdentityResult> {
+    const artifactKinds = new Set<string>();
+    const artifactPaths = new Set<string>();
+    const artifactPrefix = `executions/${command.executionId}/`;
+    const artifactIdentityInvalid = command.artifactManifest.artifacts.some((artifact) => {
+      const duplicate = artifactKinds.has(artifact.kind) || artifactPaths.has(artifact.path);
+      artifactKinds.add(artifact.kind);
+      artifactPaths.add(artifact.path);
+      return duplicate || !artifact.path.startsWith(artifactPrefix);
+    });
+    if (command.artifactManifest.owner.id !== command.executionId || artifactIdentityInvalid) {
+      return Promise.resolve({
+        ok: false,
+        error: { code: "EXECUTION_RESULT_CONFLICT", executionId: command.executionId }
+      });
+    }
     const value: ImportedExecutionRecord = {
       ...command,
       runId: this.#idGenerator.nextId(),
@@ -69,7 +88,10 @@ export class ImportExecutionIdentity {
     return this.#transactionManager.execute(async (transaction) => {
       const existing = await transaction.runs.getImportedExecution(command.executionId);
       if (existing !== null) {
-        return existing.resultSetHash === command.resultSetHash
+        return existing.packageId === command.packageId &&
+          existing.resultSetHash === command.resultSetHash &&
+          canonicalJson(importedExecutionArtifactManifestJson(existing.artifactManifest)) ===
+            canonicalJson(importedExecutionArtifactManifestJson(command.artifactManifest))
           ? { ok: true, runId: existing.runId, idempotent: true }
           : {
               ok: false,

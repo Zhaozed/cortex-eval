@@ -61,6 +61,7 @@ async function waitForEvaluationCommit(
   runId: string
 ): Promise<Readonly<Record<string, unknown>>> {
   const deadline = Date.now() + 3_000;
+  let latest: Readonly<Record<string, unknown>> = {};
   while (Date.now() < deadline) {
     const response = await server.inject({
       method: "GET",
@@ -68,10 +69,11 @@ async function waitForEvaluationCommit(
       headers: host
     });
     const body = parseJsonObject(response);
+    latest = body;
     if (body.stage === "REPORT") return body;
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
-  throw new Error("TEST_RUN_TIMEOUT");
+  throw new Error(`TEST_RUN_TIMEOUT:${JSON.stringify(latest)}`);
 }
 
 describe("P6 real Run API", () => {

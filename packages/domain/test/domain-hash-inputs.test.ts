@@ -9,7 +9,8 @@ import {
   hashEvalResult,
   hashEvalResultSet,
   hashFinalCaseResult,
-  hashRunContext
+  hashRunContext,
+  OrderedEvalResultSetHasher
 } from "../src/domain-hash-inputs.ts";
 
 const HASH = "f".repeat(64);
@@ -233,5 +234,38 @@ describe("Domain 专用哈希输入", () => {
     });
 
     expect(retry).not.toBe(source);
+  });
+
+  it("增量 Eval Result Set Hasher 与完整哈希一致并拒绝乱序", () => {
+    const owner = {
+      kind: "EXECUTION" as const,
+      id: "01900000-0000-7000-8000-000000000001"
+    };
+    const cases = [
+      { caseKey: "case-1", ordinal: 0, evalResultHash: "1".repeat(64) },
+      { caseKey: "case-2", ordinal: 1, evalResultHash: "2".repeat(64) }
+    ];
+    const expectedCaseKey = (ordinal: number): string | null => cases[ordinal]?.caseKey ?? null;
+    const hasher = new OrderedEvalResultSetHasher(expectedCaseKey);
+    for (const item of cases) hasher.add(item);
+    expect(hasher.finish(owner, HASH)).toBe(
+      hashEvalResultSet({
+        contractVersion: "cortex.eval-result-set.v1",
+        owner,
+        evaluationContextHash: HASH,
+        cases
+      })
+    );
+    const invalid = new OrderedEvalResultSetHasher(expectedCaseKey);
+    const second = cases[1];
+    if (second === undefined) throw new Error("TEST_EVAL_CASE_MISSING");
+    expect(() => invalid.add(second)).toThrow("EVAL_RESULT_SET_ALIGNMENT");
+    const first = cases[0];
+    if (first === undefined) throw new Error("TEST_EVAL_CASE_MISSING");
+    const mismatched = new OrderedEvalResultSetHasher(() => "different-case");
+    expect(() => mismatched.add(first)).toThrow("EVAL_RESULT_SET_ALIGNMENT");
+    const truncated = new OrderedEvalResultSetHasher((ordinal) => cases[ordinal]?.caseKey ?? null);
+    truncated.add(first);
+    expect(() => truncated.finish(owner, HASH)).toThrow("EVAL_RESULT_SET_ALIGNMENT");
   });
 });

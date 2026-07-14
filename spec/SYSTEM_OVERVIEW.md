@@ -10,9 +10,9 @@ Cortex Eval 是面向本地单用户的测试集管理、REST 结果获取、Pro
 
 ## 实现状态
 
-当前仓库已完成 P0–P6，P7 正在实现 Work Package、CLI、重跑与导入基础。Node 24 工具链、137 条 Assertion 能力契约、十表 SQLite、资源/API/Web、平台 REST→Evaluation Pipeline、Eval API/Web/SSE、不可变 Eval Artifact、规范化 Hash、Case Metric、Ajv 2020-12 Diff、严格 Importer、SQLite 原子提交、受控 Promptfoo/Bridge/官方 SDK 链及内部 Retry/Force Use Case 已生效。
+当前仓库已完成 P0–P7，P8 尚未开始。Node 24 工具链、137 条 Assertion 能力契约、十表 SQLite、资源/API/Web、平台 REST→Evaluation Pipeline、Eval API/Web/SSE、不可变 Eval Artifact、规范化 Hash、Case Metric、Ajv 2020-12 Diff、严格 Importer、SQLite 原子提交、受控 Promptfoo/Bridge/官方 SDK 链、Work Package v1 导出与安全文件运行时、离线 REST/Eval/Pipeline CLI、Retry/Force、连续 Retry Evidence 追溯、Pipeline 写前完整 Evaluation 输入/Prompt/Runtime 预检、固定 Promptfoo 版本、真实取消到 CLI 130、Promptfoo Raw 有界流式 Source 和完整 Artifact Manifest 导入身份已生效。
 
-当前 OpenAPI 与 Web 包含资源、平台 REST 与 Evaluation 闭环。Bridge v2 只绑定一次 Evaluation 调用期，以确定性总预算和并发限制保护冻结 Evaluator，不识别 Assertion、Metric 或组件身份；结果身份由 Promptfoo Raw Result 的 Metric、完整 Definition 和组件结构承担。Case 构建不按类型拒绝 `select-best`、`max-score` 或其他 Assertion，平台也不复现或预判其执行流程。Report、Analysis、对外 Retry/Force、Work Package、Execution Import、Canonical Export 和目标 CLI 尚未闭合。
+当前 OpenAPI 与 Web 包含资源、平台 REST 与 Evaluation 闭环；Work Package 导出 API 已注册。Bridge v2 只绑定一次 Evaluation 调用期，以确定性总预算和并发限制保护冻结 Evaluator，不识别 Assertion、Metric 或组件身份；结果身份由 Promptfoo Raw Result 的 Metric、完整 Definition 和组件结构承担。Case 构建不按类型拒绝 `select-best`、`max-score` 或其他 Assertion，平台也不复现或预判其执行流程。Report、Analysis、对外平台 Retry/Force、完整 Execution Result Import、Canonical Export 及其 API/CLI/Web 能力尚未闭合。
 
 本文档描述 [REQ.md](../REQ.md) 和 [TECH.md](../TECH.md) 已确认的目标系统。未落地路径统一称为目标代码落点，不视为当前代码事实。
 
@@ -36,7 +36,7 @@ Infrastructure 实现 SQLite、文件、REST、Promptfoo、分析模型、Clock 
 
 - `apps/local-server`：本地 HTTP Server、资源与 Run/Evaluation Route、Run SSE、生产 Web 静态入口、Mapper、安全入口、日志、OpenAPI、依赖装配和生命周期。
 - `apps/web`：Dashboard、测试集/Case、四类配置管理和平台 Run/REST/Evaluation；后续 Feature 按报告和分析组织。
-- `apps/cli`：平台 API 命令和离线工作包命令。
+- `apps/cli`：P7 已落地 Work Package 导出/校验、REST、Evaluation 和当前 REST→Evaluation Pipeline 命令；后续命令按阶段注册。
 - `packages/domain`：纯业务类型和规则，P1 已落地。
 - `packages/application`：资源 Use Case、Port、流式导入导出、平台 Run/REST/Evaluation 编排、严格 Importer 和内部 Retry/Force Use Case。
 - `packages/contracts`：DTO、Schema、Contract Version 和 Error Code，P1 已落地。
@@ -44,7 +44,7 @@ Infrastructure 实现 SQLite、文件、REST、Promptfoo、分析模型、Clock 
 - `packages/evaluation-adapters`：REST Adapter、受控 Promptfoo 配置/进程、Bridge v2 和 Gemini/OpenAI-compatible Evaluator SDK Adapter。
 - `packages/application/src/features/evaluation`：Evaluation 编排、严格 Promptfoo Importer、Eval 模型与持久化 Port。
 - `packages/reporting`：P6 已落地锁定 Ajv 2020-12 的纯 Diff；报告聚合和 Markdown Renderer 等待 P8。
-- `packages/work-package`：Manifest、Execution、路径安全、文件锁和 Artifact Store。
+- `packages/work-package`：P7 已落地 Manifest、Execution、原生安全目录、文件锁、Artifact Store、Retry 证据和严格 Evaluation Result Reader。
 
 ## 依赖边界
 
@@ -69,8 +69,9 @@ Evaluator 与 Analyzer 只支持统一接口下的 Gemini 和 OpenAI-compatible 
 
 - 目标产品行为：[REQ.md](../REQ.md)
 - 目标技术架构：[TECH.md](../TECH.md)
-- 当前 REST 类型：[data_scripts/run_promptfoo_rest_types.ts](../data_scripts/run_promptfoo_rest_types.ts)
-- 当前 REST 实现：[data_scripts/run_promptfoo_rest.ts](../data_scripts/run_promptfoo_rest.ts)
+- 当前离线 CLI：[apps/cli/src](../apps/cli/src)
+- 当前 Work Package 文件运行时：[packages/work-package/src](../packages/work-package/src)
+- 当前 Work Package Golden Fixture：[packages/work-package/test-fixtures/work-package-v1](../packages/work-package/test-fixtures/work-package-v1)
 - 当前转换实现：[data_scripts/convert_loona_to_promptfoo.py](../data_scripts/convert_loona_to_promptfoo.py)
 - Goal 执行入口：[tasks/00_INDEX.md](../tasks/00_INDEX.md)
 - P0 工具链入口：[package.json](../package.json)
@@ -83,9 +84,11 @@ Evaluator 与 Analyzer 只支持统一接口下的 Gemini 和 OpenAI-compatible 
 - P2–P5 Application 入口：[packages/application/src](../packages/application/src)
 - P2–P5 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
 - P5 REST Adapter 入口：[packages/evaluation-adapters/src](../packages/evaluation-adapters/src)
-- P3–P5 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
-- P5 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
-- P3–P5 测试入口：[apps/local-server/test](../apps/local-server/test)
+- P3–P7 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
+- 当前 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
+- P3–P7 测试入口：[apps/local-server/test](../apps/local-server/test)
 - P4–P5 Web 入口：[apps/web/src](../apps/web/src)
 - P4–P5 组件与协议测试：[apps/web/test](../apps/web/test)
 - P4–P5 生产 E2E：[apps/web/e2e](../apps/web/e2e)
+- P7 CLI 测试入口：[apps/cli/test](../apps/cli/test)
+- P7 Work Package 测试入口：[packages/work-package/test](../packages/work-package/test)

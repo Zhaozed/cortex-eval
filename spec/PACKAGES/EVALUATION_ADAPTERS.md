@@ -26,6 +26,8 @@ P5 已建立 `packages/evaluation-adapters` 并落地 Fetch REST Executor。当�
 - [fetch-rest-executor.ts](../../packages/evaluation-adapters/src/fetch-rest-executor.ts)：受控 Fetch、并发、取消、10 MiB 响应和结果映射。
 - [promptfoo-config-materializer.ts](../../packages/evaluation-adapters/src/promptfoo-config-materializer.ts)：无类型白名单的 Case Assertion 物化、Rubric Prompt 映射和确定性调用预算。
 - [promptfoo-evaluation-process.ts](../../packages/evaluation-adapters/src/promptfoo-evaluation-process.ts)：固定版本、无 Shell、无缓存/分享、退出码、独立进程组和完整后代回收。
+- [promptfoo-raw-result-stream.ts](../../packages/evaluation-adapters/src/promptfoo-raw-result-stream.ts)：固定版本 JSON Token 校验与逐 Raw Row 背压解析。
+- [promptfoo-raw-file-source.ts](../../packages/evaluation-adapters/src/promptfoo-raw-file-source.ts)：不暴露路径的可重放字节/Row Source 与显式目录回收。
 - [promptfoo-temporary-directory.ts](../../packages/evaluation-adapters/src/promptfoo-temporary-directory.ts)：显式项目 Root、逐级 `lstat + realpath` containment、符号链接拒绝和 owner-only 临时目录。
 - [promptfoo-runtime-preflight.ts](../../packages/evaluation-adapters/src/promptfoo-runtime-preflight.ts)：冻结 Assertion 解释器依赖投影和阶段前真实内联 Smoke。
 - [evaluator-bridge-v2.ts](../../packages/evaluation-adapters/src/evaluator-bridge-v2.ts)：Evaluation 调用期 Capability、预算、FIFO 并发、TTL、超时和取消。
@@ -50,7 +52,9 @@ REST Adapter 解析受控模板语法和 RFC 6901 Selector，展开 EnvSecretRef
 
 Promptfoo 的物化不按 Assertion 类型设置平台白名单。锁定版本真实进程探针证明默认 Grading HTTP Provider 请求不携带 Assertion 身份，因此 Bridge v2 不接收 Case、Assertion、Metric 或组件身份，而以 Evaluation 调用期总预算和 FIFO 并发限制保护冻结 Evaluator。Metric、完整 Definition 和组件结构只在 Raw Result/Importer 中对齐。`select-best`、`max-score` 等类型可进入配置；平台不复现、替代或限制其执行流程。排队请求取得并发槽后必须重新校验 TTL；过期时不调用 Evaluator，并释放槽位。官方 SDK 未提供完整 Token Usage 时保持 `null`，Promptfoo HTTP Provider 省略 Usage 映射；Bridge 对调用与超时/关闭信号做受控竞速，上游忽略 Abort 时仍能结束 HTTP 与 Owner，并为迟到 Promise 安装终态处理。
 
-可信内联 Assertion 能读取子进程环境。进程 Adapter 因此只透传运行必需的 `PATH`、用户/临时目录、Locale 与 Python/Ruby 解释器选择器，再注入当前 Capability 和固定关闭开关；父进程其他 Secret 不可见。Contracts 与物化器共享外部引用和配置安全判定；引用协议忽略前导空白与大小写，配置键同时拒绝 Provider/OAuth/认证/Secret、模块和依赖入口。Promptfoo JSON 输出在离开临时目录前递归检查字符串值和对象键；若包含完整 Capability，则以稳定系统错误拒绝整次输出，Application 不会收到或持久化污染 Raw。临时父目录必须是显式项目 Root 的 lexical/canonical 子路径；逐级拒绝符号链接和非目录后才允许创建或改权限。Engine 的整体预算同时派生 Bridge TTL 和进程剩余预算；版本检查与 Eval 共享同一单调截止时间。取消与超时作用于独立 POSIX 进程组；主进程提前关闭时继续等待后代，并保留从首次 TERM 起算的剩余宽限期，耗尽后才 KILL，确认进程组消失后才返回、关闭 Bridge 和回收目录。Evaluation Stage 抢占前通过同一固定 Promptfoo 进程，只对 REST 成功、未复用、实际进入 Promptfoo 的 Case 所需 Python/Ruby 各运行一个内联 Assertion Smoke。
+可信内联 Assertion 能读取子进程环境。进程 Adapter 因此只透传运行必需的 `PATH`、用户/临时目录、Locale 与 Python/Ruby 解释器选择器，再注入当前 Capability 和固定关闭开关；父进程其他 Secret 不可见。Contracts 与物化器共享外部引用和配置安全判定；引用协议忽略前导空白与大小写，配置键同时拒绝 Provider/OAuth/认证/Secret、模块和依赖入口。Promptfoo JSON 输出在离开 Adapter 边界前以 Token/Row 流检查固定版本、完整语法、字符串、对象键、逐 Row 大小和完整 Capability；通过后由私有文件 Source 向 Artifact Writer 重放原始字节、向 Importer 逐 Row 重放，不执行整文件 `readFile + JSON.parse`。任何检查失败都拒绝整次输出，Application 不会收到路径或污染 Raw；消费完成、导入失败、Artifact 失败和 Bridge 关闭失败都回收 Source。临时父目录必须是显式项目 Root 的 lexical/canonical 子路径；逐级拒绝符号链接和非目录后才允许创建或改权限。Engine 的整体预算同时派生 Bridge TTL 和进程剩余预算；版本检查与 Eval 共享同一单调截止时间。取消与超时作用于独立 POSIX 进程组；主进程提前关闭时继续等待后代，并保留从首次 TERM 起算的剩余宽限期，耗尽后才 KILL，确认进程组消失后才返回、关闭 Bridge 和回收目录。Evaluation Stage 抢占前始终先用只读子进程校验固定 Promptfoo 精确版本，再只对 REST 成功、未复用、实际进入 Promptfoo 的 Case 所需 Python/Ruby 各运行一个内联 Assertion Smoke；离线 Pipeline 还会在 REST 外部调用前读取完整 Evaluation 输入、验证 Prompt 引用并对完整冻结 Case 集合执行同一预检。
+
+成功的固定版本探测只形成最长 30 秒的进程内证明。复用前重新 `realpath + stat` 并精确比较路径、设备、inode、大小、纳秒修改时间和纳秒变更时间；身份变化或证明过期立即重新运行版本子进程。Local Server 在组装时预热证明，Evaluation Runtime Preflight 仍在 Run 改变前复核身份。离线 Engine 对可重放 Case Source 执行两遍：首遍验证身份、顺序和预算，次遍流式写配置，并以标量计数拒绝两遍漂移。
 
 ## 状态、事务与幂等
 
@@ -66,4 +70,4 @@ REST 错误闭合为 `TIMEOUT`、`NETWORK`、`HTTP_STATUS`、`RESPONSE_PARSE`、
 
 ## 相关测试
 
-当前测试覆盖 REST HTTP、网络、状态码、解析、Provider Output、模板、Selector、Secret、合法 `ok=false`、请求/响应大小边界、超时、取消、并发和 Worker 收口。P6 已覆盖无类型白名单的矩阵 Assert 构建、递归 config 安全边界、紧凑组合敏感键及大小写/前导空白外部引用绕过拒绝、Bridge Capability/绑定/预算/FIFO 并发/精确 Host/排队 TTL 复验/非协作上游的超时与关闭、Provider 400/422、双官方 SDK 无重试与无认证 Header、固定 Promptfoo 真实进程、版本检查共享整体截止时间、有界诊断输出、Root 外路径与临时父目录符号链接拒绝、主进程提前退出时后代保留剩余 TERM 宽限期、函数返回前完整进程组回收、非零及缺失 Token Usage、内联执行错误清洗、Rubric Prompt 身份恢复和严格 Importer。Evaluator Promise 在超时或关闭后若忽略 Abort，HTTP 与 Owner 可以先收口，但真实并发槽持续占用到该 Promise 自身结束；关闭后的统计仍反映无法强制终止的实际在途调用，且监听器关闭后不再接收新调用。平台不逐类复现或限制 Promptfoo Assert 执行；Analysis 测试属于后续阶段。
+当前测试覆盖 REST HTTP、网络、状态码、解析、Provider Output、模板、Selector、Secret、合法 `ok=false`、请求/响应大小边界、超时、取消、并发和 Worker 收口。P6/P7 已覆盖无类型白名单的矩阵 Assert 构建、递归 config 安全边界、紧凑组合敏感键及大小写/前导空白外部引用绕过拒绝、Bridge Capability/绑定/预算/FIFO 并发/精确 Host/排队 TTL 复验/非协作上游的超时与关闭、Provider 400/422、双官方 SDK 无重试与无认证 Header、固定 Promptfoo 真实进程、普通 Assert 前的固定版本预检、Raw Row 在完整文档到达前背压交付、固定版本拒绝、版本检查共享整体截止时间、有界诊断输出、Root 外路径与临时父目录符号链接拒绝、主进程提前退出时后代保留剩余 TERM 宽限期、函数返回前完整进程组回收、真实子进程取消到 CLI 130、非零及缺失 Token Usage、内联执行错误清洗、Rubric Prompt 身份恢复和严格 Importer。Evaluator Promise 在超时或关闭后若忽略 Abort，HTTP 与 Owner 可以先收口，但真实并发槽持续占用到该 Promise 自身结束；关闭后的统计仍反映无法强制终止的实际在途调用，且监听器关闭后不再接收新调用。平台不逐类复现或限制 Promptfoo Assert 执行；Analysis 测试属于后续阶段。

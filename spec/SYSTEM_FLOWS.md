@@ -6,7 +6,7 @@
 
 ## 资源写入
 
-P3–P4 已把当前资源用例注册为严格 HTTP API 和 Web；目标 CLI 仍未落地。所有当前资源更新使用独立 Revision；Case 创建、编辑、复制、删除、全量替换与未来建议接受入口共用 CaseDefinitionWriter。
+P3–P4 已把当前资源用例注册为严格 HTTP API 和 Web；P7 CLI 只新增 Work Package 导出和离线阶段命令，不复制资源写入。所有当前资源更新使用独立 Revision；Case 创建、编辑、复制、删除、全量替换与未来建议接受入口共用 CaseDefinitionWriter。
 
 1. Entrypoint 校验外部协议并映射为 Application 输入。
 2. Application 调用统一 Case Definition Writer 或配置用例。
@@ -78,13 +78,16 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 
 ## 离线工作包
 
-1. 平台从当前资源生成不可变 Manifest、输入文件、哈希和 `.env.example`。
-2. 每次离线执行创建新的 Execution ID 和独立输出目录。
-3. CLI 按阶段校验环境变量、读取冻结输入并原子追加阶段产物。
-4. 同一工作包由跨进程锁限制为单写者；不同工作包可以并行。
-5. 平台导入规范化事实，重新校验身份、结构、明细、顺序和哈希，并从明细重算统计。
+1. 平台在短读事务中冻结当前资源，通过 Manifest-first NDJSON 导出不可变输入、Hash 和 `.env.example`。
+2. 本地接收器在受控 staging 中校验路径、大小、顺序和 Hash，完整成功后原子发布 0700 目录与 0600 文件。
+3. 每次离线执行创建新的 Execution ID 和独立输出目录；Retry/Force 只读取来源，不覆盖来源。
+4. 单阶段 CLI 校验自身环境；REST 在创建 Execution 前完整读取 Endpoint、全部 Case 和 Retry 来源。当前 Pipeline 在 REST 外部调用和任何 Execution 变更前，同时预检 REST/Evaluation 环境、冻结 Case、完整 Evaluator/Rubric Prompt、Case Prompt 引用、固定 Promptfoo 精确版本与实际需要的 Python/Ruby Runtime，并用同一个冻结 Secret Snapshot 顺序执行。
+5. Evaluation 的 Case、REST、复用与导入结果按 128 项写入 owner-only SQLite；Engine 两遍重放并流式生成配置，Raw 逐 Row 导入，最终按 Ordinal 直接写 Normalized，不聚合随 Case 数线性增长的大对象数组或 Map。
+6. 同一工作包由跨进程锁限制为单写者；不同工作包可以并行。阶段成功产物不可覆盖。
+7. P7 当前 Pipeline 只执行 REST→Evaluation。P8 闭合 Report 后再扩展默认 Pipeline；P9 再注册 Analysis。
+8. Work Package Reader 对 REST/Raw/Normalized 执行两遍严格校验并重算 Eval、Final 和 Result Set Hash；复用结果沿 Execution Provenance 追溯到真正持有 Raw 的祖先，每遍按执行版本验证一次并只缓存最小 Evidence 身份。取消贯穿预检、Engine、Raw/Normalized 与最终提交；清理失败只报告，不覆盖主终态。P8 在此基础上完成 Report 对账与平台事务导入。
 
-相同 Execution ID 与相同结果哈希重复导入幂等成功；相同 ID 对应不同结果返回冲突。报告和分析允许分两次导入。
+相同 Package ID、Execution ID、Result Set Hash 与规范化 Artifact Manifest 重复登记幂等成功；相同 Execution ID 对应不同 Package、结果，或 Manifest 的版本、Owner、Kind、路径、Hash、大小、Payload Contract Version 任一不同均返回冲突。报告和分析允许分两次导入。
 
 平台 Retry 与离线 `--retry-failed` 使用来源冻结输入创建新 Run/Execution：复制 REST `SUCCEEDED`，重新请求 REST `ERROR`；只复制对齐且 Raw/Normalized 来源 Artifact 在规划和 Evaluation 时均实际校验为 `PRESENT` 的 Eval `PASS/FAIL`；文件缺失/损坏、`EVALUATION_ERROR`、缺失 Eval 事实和新 REST 成功后的 `NOT_EVALUATED` 都重新评估。Force 在新身份下重新执行全部 REST/Eval。P6 内部 Use Case 已创建新 Run、跳过复用 Case 的外部调用并重新生成完整 Artifact/Result Set；来源事实不得覆盖。对外入口等待 Report 终态闭环后注册。
 
@@ -96,7 +99,7 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 - Runtime Shutdown 在 Artifact 写入和阶段提交后重查中断门禁，最终把仍未 `DONE` 的本地 Owner 修正为 `INTERRUPTED/DONE`。
 - 进程启动时把遗留 `RUNNING` 收敛为 `INTERRUPTED/DONE`，不自动续跑或推测未知副作用。
 - 外部进程、临时文件和临时目录由 Adapter 在资源回收路径中清理。
-- REST、Evaluator 和 Analyzer 不自动重试。Promptfoo 取消先发送 `SIGTERM`，5 秒未退出再发送 `SIGKILL`。
+- REST、Evaluator 和 Analyzer 不自动重试。Promptfoo 取消先发送 `SIGTERM`，5 秒未退出再发送 `SIGKILL`；离线阶段收敛为 `EVALUATOR_CANCELLED`，不登记部分 Artifact，CLI 返回 130。
 
 ## 相关事实入口
 
@@ -108,7 +111,9 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 - 当前重跑选择器：[packages/application/src/features/runs/platform-rerun-planner.ts](../packages/application/src/features/runs/platform-rerun-planner.ts)
 - 当前 P3–P5 Local API：[apps/local-server/src](../apps/local-server/src)
 - 当前 P4–P5 Web：[apps/web/src](../apps/web/src)
-- Promptfoo 外部链、Eval 原子持久化、内部重跑用例与 Reporting Ajv Diff 基础已落地；报告聚合和 Work Package 文件运行时仍未落地。
+- 当前 Work Package 文件运行时：[packages/work-package/src](../packages/work-package/src)
+- 当前离线 CLI：[apps/cli/src](../apps/cli/src)
+- Promptfoo 外部链、Eval 原子持久化、内部重跑、Work Package REST→Evaluation 和 Reporting Ajv Diff 基础已落地；报告聚合与完整结果导入等待 P8。
 - [APPLICATION/RUNS.md](APPLICATION/RUNS.md)
 - [APPLICATION/EXECUTION_IMPORTS.md](APPLICATION/EXECUTION_IMPORTS.md)
 - [PACKAGES/EVALUATION_ADAPTERS.md](PACKAGES/EVALUATION_ADAPTERS.md)

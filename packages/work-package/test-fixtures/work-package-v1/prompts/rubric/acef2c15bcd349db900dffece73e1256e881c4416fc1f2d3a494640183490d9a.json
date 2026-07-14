@@ -1,0 +1,1 @@
+{"contractVersion":"cortex.prompt.v1","kind":"LLM_RUBRIC","promptKey":"quality","messages":[{"role":"USER","content":"Evaluate exactness."}]}

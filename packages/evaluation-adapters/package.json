@@ -8,6 +8,7 @@
     "@cortex-eval/application": "workspace:*",
     "@cortex-eval/contracts": "workspace:*",
     "@cortex-eval/domain": "workspace:*",
-    "openai": "6.46.0"
+    "openai": "6.46.0",
+    "stream-json": "3.5.0"
   }
 }

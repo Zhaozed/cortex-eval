@@ -1,0 +1,14 @@
+{
+  "name": "@cortex-eval/work-package",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:native": "node-gyp rebuild --directory native"
+  },
+  "dependencies": {
+    "@cortex-eval/application": "workspace:*",
+    "@cortex-eval/contracts": "workspace:*",
+    "zod": "4.4.3"
+  }
+}

@@ -4,18 +4,63 @@ import { join, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { importPartialPromptfooResults } from "@cortex-eval/application/src/features/evaluation/promptfoo-result-importer.ts";
+import type { ImportedEvalCase } from "@cortex-eval/application/src/features/evaluation/promptfoo-result-importer.ts";
+import { importPartialPromptfooResultRows } from "@cortex-eval/application/src/features/evaluation/promptfoo-row-stream-importer.ts";
 import type { FrozenRunCase } from "@cortex-eval/application/src/features/runs/run-rest-models.ts";
 
 import { startEvaluatorBridgeV2 } from "../src/evaluator-bridge-v2.ts";
 import { materializePromptfooConfigV1 } from "../src/promptfoo-config-materializer.ts";
-import { runPromptfooEvaluationProcess } from "../src/promptfoo-evaluation-process.ts";
+import {
+  preflightPromptfooEvaluationProcessVersion,
+  runPromptfooEvaluationProcess
+} from "../src/promptfoo-evaluation-process.ts";
 
 const ID = "018f1e2d-3c4b-7abc-8def-0123456789ab";
 const HASH = "a".repeat(64);
 const TOKEN = "A".repeat(43);
 
 describe("Promptfoo Evaluation 子进程", () => {
+  it("只复用精确二进制身份的短期版本证明", async () => {
+    const root = await mkdtemp(join(tmpdir(), "cortex-eval-version-attestation-"));
+    const binary = join(root, "fake-promptfoo");
+    const counterPath = join(root, "version-calls.txt");
+    const source = (suffix: string): string => `#!/usr/bin/env node
+const { appendFileSync } = require("node:fs");
+appendFileSync(${JSON.stringify(counterPath)}, "x");
+if (process.argv.includes("--version")) {
+  process.stdout.write("0.121.18\\n");
+  process.exit(0);
+}
+process.exit(1);
+// ${suffix}
+`;
+    await writeFile(binary, source("first"), { encoding: "utf8", mode: 0o700 });
+    await chmod(binary, 0o700);
+    const input = {
+      promptfooBinary: binary,
+      temporaryContainmentRoot: root,
+      temporaryParent: join(root, "temporary"),
+      timeoutMs: 5_000,
+      signal: new AbortController().signal
+    };
+
+    try {
+      await preflightPromptfooEvaluationProcessVersion(input);
+      await preflightPromptfooEvaluationProcessVersion(input);
+      expect(await readFile(counterPath, "utf8")).toBe("x");
+
+      await writeFile(binary, source("second-and-different-size"), {
+        encoding: "utf8",
+        mode: 0o700
+      });
+      await chmod(binary, 0o700);
+      await preflightPromptfooEvaluationProcessVersion(input);
+      expect(await readFile(counterPath, "utf8")).toBe("xx");
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
   it("在任何目录变更前拒绝临时父目录逃出显式受控根", async () => {
     const root = await mkdtemp(join(tmpdir(), "cortex-eval-contained-root-"));
     const external = await mkdtemp(join(tmpdir(), "cortex-eval-contained-external-"));
@@ -198,26 +243,31 @@ describe("Promptfoo Evaluation 子进程", () => {
       timeoutMs: 10_000,
       signal: new AbortController().signal
     });
-    const [normalized] = importPartialPromptfooResults({
-      promptfooVersion: processResult.promptfooVersion,
-      raw: processResult.raw,
-      cases: [
-        {
-          caseKey: testCase.caseKey,
-          ordinal: testCase.ordinal,
-          caseDefinitionHash: testCase.definitionHash,
-          definition: testCase.definition,
-          restResult: { status: "SUCCEEDED", resultHash: HASH, providerOutput }
-        }
-      ],
-      rawEvidence: {
-        present: true,
-        path: `runs/${ID}/promptfoo-raw.json`,
-        expectedSha256: HASH,
-        expectedSizeBytes: 1
-      },
-      rubricPromptMaterializations: {}
-    });
+    let normalized: ImportedEvalCase | undefined;
+    try {
+      [normalized] = await importPartialPromptfooResultRows({
+        promptfooVersion: processResult.promptfooVersion,
+        rows: processResult.raw.openRows(),
+        cases: [
+          {
+            caseKey: testCase.caseKey,
+            ordinal: testCase.ordinal,
+            caseDefinitionHash: testCase.definitionHash,
+            definition: testCase.definition,
+            restResult: { status: "SUCCEEDED", resultHash: HASH, providerOutput }
+          }
+        ],
+        rawEvidence: {
+          present: true,
+          path: `runs/${ID}/promptfoo-raw.json`,
+          expectedSha256: HASH,
+          expectedSizeBytes: 1
+        },
+        rubricPromptMaterializations: {}
+      });
+    } finally {
+      await processResult.raw.dispose();
+    }
 
     expect(normalized).toMatchObject({
       status: "EVALUATION_ERROR",
@@ -517,7 +567,11 @@ if (process.argv.includes("--version")) {
         signal: new AbortController().signal
       });
 
-      expect(result.exitCode, JSON.stringify(result.raw)).toBe(0);
+      try {
+        expect(result.exitCode).toBe(0);
+      } finally {
+        await result.raw.dispose();
+      }
       expect(await readdir(parent)).toEqual([]);
     } finally {
       if (previous === undefined) delete process.env.CORTEX_UNRELATED_PROCESS_SECRET;
@@ -605,14 +659,18 @@ if (process.argv.includes("--version")) {
         signal: new AbortController().signal
       });
 
-      expect(result.promptfooVersion).toBe("0.121.18");
-      expect(result.exitCode).toBe(100);
-      expect(result.raw).toMatchObject({ results: { version: 3 } });
-      expect(prompts, JSON.stringify(result.raw)).toHaveLength(1);
-      const rawRows = (result.raw as { results: { results: unknown[] } }).results.results;
-      expect(rawRows).toMatchObject([
-        { gradingResult: { tokensUsed: { prompt: 11, completion: 7, total: 18 } } }
-      ]);
+      const rawRows: unknown[] = [];
+      try {
+        expect(result.promptfooVersion).toBe("0.121.18");
+        expect(result.exitCode).toBe(100);
+        for await (const row of result.raw.openRows()) rawRows.push(row);
+        expect(prompts).toHaveLength(1);
+        expect(rawRows).toMatchObject([
+          { gradingResult: { tokensUsed: { prompt: 11, completion: 7, total: 18 } } }
+        ]);
+      } finally {
+        await result.raw.dispose();
+      }
       expect((await lstat(parent)).mode & 0o777).toBe(0o700);
       expect(await readdir(parent)).toEqual([]);
     } finally {

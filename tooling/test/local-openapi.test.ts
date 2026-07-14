@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { generateLocalOpenApiJson } from "../src/local-openapi.ts";
 
 describe("Local API OpenAPI drift", () => {
-  it("提交的 OpenAPI JSON 与真实 P5 Route/Schema 字节级一致", async () => {
+  it("提交的 OpenAPI JSON 与当前已闭环 Route/Schema 字节级一致", async () => {
     const generated = await generateLocalOpenApiJson();
     const committed = await readFile(
       new URL("../../apps/local-server/openapi.json", import.meta.url),
@@ -20,7 +20,8 @@ describe("Local API OpenAPI drift", () => {
       "/api/v1/runs/{runId}/cases/{caseKey}",
       "/api/v1/runs/{runId}/start",
       "/api/v1/runs/{runId}/cancel",
-      "/api/v1/runs/{runId}/events"
+      "/api/v1/runs/{runId}/events",
+      "/api/v1/work-packages/export"
     ]) {
       expect(generated).toContain(`"${path}"`);
     }

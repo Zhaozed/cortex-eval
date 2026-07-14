@@ -1,4 +1,4 @@
-import { chmod, lstat, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -127,11 +127,99 @@ function artifactInput(): PlatformRestArtifactInput {
 }
 
 describe("LocalRunArtifactStore", () => {
+  it("补偿 post-link 同步失败且不留下未登记目标文件", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-artifact-post-link-"));
+    roots.push(projectRoot);
+    let syncCalls = 0;
+    const cleanupFailures: string[] = [];
+    const store = await LocalRunArtifactStore.create({
+      projectRoot,
+      nonce: (): string => "post-link",
+      syncDirectory: (): Promise<void> => {
+        syncCalls += 1;
+        return syncCalls === 1
+          ? Promise.reject(new Error("TEST_POST_LINK_SYNC_FAILED"))
+          : Promise.resolve();
+      },
+      onCleanupFailure: (code): void => {
+        cleanupFailures.push(code);
+      }
+    });
+
+    await expect(store.writeRestResults(artifactInput())).rejects.toMatchObject({
+      code: "ARTIFACT_WRITE_FAILED"
+    });
+    const runRoot = join(projectRoot, ".cortex-eval", "artifacts", "runs", RUN_ID);
+    await expect(lstat(join(runRoot, "rest-results.json"))).rejects.toMatchObject({
+      code: "ENOENT"
+    });
+    expect(cleanupFailures).toEqual([]);
+  });
+
+  it("补偿同步和清理观察器都失败时仍保留首次 Artifact 错误", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-artifact-cleanup-report-"));
+    roots.push(projectRoot);
+    const cleanupFailures: string[] = [];
+    const store = await LocalRunArtifactStore.create({
+      projectRoot,
+      nonce: (): string => "cleanup-report",
+      syncDirectory: (): Promise<never> => Promise.reject(new Error("TEST_DIRECTORY_SYNC_FAILED")),
+      onCleanupFailure: (code): Promise<void> => {
+        cleanupFailures.push(code);
+        return Promise.reject(new Error("TEST_CLEANUP_REPORT_FAILED"));
+      }
+    });
+
+    await expect(store.writeRestResults(artifactInput())).rejects.toMatchObject({
+      code: "ARTIFACT_WRITE_FAILED"
+    });
+    const runRoot = join(projectRoot, ".cortex-eval", "artifacts", "runs", RUN_ID);
+    await expect(lstat(join(runRoot, "rest-results.json"))).rejects.toMatchObject({
+      code: "ENOENT"
+    });
+    expect(cleanupFailures).toEqual(["RUN_ARTIFACT_CLEANUP_FAILED"]);
+  });
+
+  it("post-link 同步失败补偿不会删除并发替换后的目标文件", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-artifact-replacement-"));
+    roots.push(projectRoot);
+    const target = join(
+      projectRoot,
+      ".cortex-eval",
+      "artifacts",
+      "runs",
+      RUN_ID,
+      "rest-results.json"
+    );
+    const cleanupFailures: string[] = [];
+    let syncCalls = 0;
+    const store = await LocalRunArtifactStore.create({
+      projectRoot,
+      nonce: (): string => "replacement",
+      syncDirectory: async (): Promise<void> => {
+        syncCalls += 1;
+        if (syncCalls !== 1) return;
+        await rm(target);
+        await writeFile(target, "replacement\n", { encoding: "utf8", mode: 0o600 });
+        throw new Error("TEST_POST_LINK_SYNC_FAILED");
+      },
+      onCleanupFailure: (code): void => {
+        cleanupFailures.push(code);
+      }
+    });
+
+    await expect(store.writeRestResults(artifactInput())).rejects.toMatchObject({
+      code: "ARTIFACT_WRITE_FAILED"
+    });
+    await expect(readFile(target, "utf8")).resolves.toBe("replacement\n");
+    expect(cleanupFailures).toEqual(["RUN_ARTIFACT_CLEANUP_FAILED"]);
+  });
+
   it("原子写入 Raw 与 Normalized Evaluation Artifact 并保持固定顺序", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-eval-artifacts-"));
     roots.push(projectRoot);
     const store = await LocalRunArtifactStore.create({ projectRoot });
-    const raw = await store.writeRawPromptfooEvidence({
+    const rawPublication = await store.writeRawPromptfooEvidence({
       runId: RUN_ID,
       runContextHash: "a".repeat(64),
       evaluationContextHash: EVALUATION_CONTEXT_HASH,
@@ -161,7 +249,9 @@ describe("LocalRunArtifactStore", () => {
       resultSetHash: evalResultSetHash,
       cases: streamEvalCases([EVAL_RESULT])
     };
-    const normalized = await store.writeNormalizedEvalResults(normalizedInput);
+    const normalizedPublication = await store.writeNormalizedEvalResults(normalizedInput);
+    const raw = rawPublication.descriptor;
+    const normalized = normalizedPublication.descriptor;
 
     expect([raw.kind, normalized.kind]).toEqual([
       "RAW_PROMPTFOO_EVIDENCE",
@@ -371,7 +461,8 @@ describe("LocalRunArtifactStore", () => {
       projectRoot,
       nonce: () => "nonce-1"
     });
-    const { descriptor } = await store.writeRestResults(artifactInput());
+    const written = await store.writeRestResults(artifactInput());
+    const { descriptor } = written;
     const path = join(projectRoot, ".cortex-eval", "artifacts", descriptor.path);
     const bytes = await readFile(path);
     expect(bytes.toString("utf8")).toMatch(/^\{"cases":.+\}\n$/);
@@ -395,28 +486,86 @@ describe("LocalRunArtifactStore", () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-artifacts-"));
     roots.push(projectRoot);
     const store = await LocalRunArtifactStore.create({ projectRoot });
-    const { descriptor } = await store.writeRestResults(artifactInput());
+    const written = await store.writeRestResults(artifactInput());
+    const { descriptor } = written;
     const manifest = {
       contractVersion: "cortex.artifact-manifest.v1" as const,
       owner: { kind: "RUN" as const, id: RUN_ID },
       artifacts: [descriptor]
     };
     await expect(store.inspect(manifest)).resolves.toMatchObject([{ status: "PRESENT" }]);
+    await expect(
+      store.inspect({
+        ...manifest,
+        owner: { kind: "RUN", id: "01900000-0000-7000-8000-000000000002" }
+      })
+    ).resolves.toMatchObject([{ status: "CORRUPTED" }]);
     const path = join(projectRoot, ".cortex-eval", "artifacts", descriptor.path);
-    await chmod(path, 0o600);
-    await writeFile(path, "corrupted\n", { encoding: "utf8", mode: 0o600 });
-    await expect(store.inspect(manifest)).resolves.toMatchObject([{ status: "CORRUPTED" }]);
-    await store.removeUncommitted(descriptor);
-    await expect(store.inspect(manifest)).resolves.toMatchObject([{ status: "MISSING" }]);
+    const original = await readFile(path);
+    const replacement = Buffer.from(original);
+    await unlink(path);
+    await writeFile(path, replacement, { mode: 0o600 });
+    await expect(store.inspect(manifest)).resolves.toMatchObject([{ status: "PRESENT" }]);
+    await expect(store.removeUncommitted(written)).rejects.toMatchObject({
+      code: "ARTIFACT_WRITE_FAILED"
+    });
+    await expect(readFile(path)).resolves.toEqual(replacement);
   });
 
-  it("启动清理只删除未被任何 durable Manifest 引用的受控 Artifact", async () => {
+  it("只按完整 Descriptor 删除未提交 Artifact，并对缺失文件幂等", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-artifacts-"));
     roots.push(projectRoot);
     const store = await LocalRunArtifactStore.create({ projectRoot });
+    const written = await store.writeRestResults(artifactInput());
+    const { descriptor } = written;
+    const path = join(projectRoot, ".cortex-eval", "artifacts", descriptor.path);
+
+    await expect(store.removeUncommitted(written)).resolves.toBeUndefined();
+    await expect(lstat(path)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(store.removeUncommitted(written)).resolves.toBeUndefined();
+  });
+
+  it("拒绝清理不属于对应 Artifact kind 固定槽位的 Descriptor", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-artifacts-"));
+    roots.push(projectRoot);
+    const store = await LocalRunArtifactStore.create({ projectRoot });
+    const written = await store.writeRestResults(artifactInput());
+    const { descriptor } = written;
+
+    await expect(
+      store.removeUncommitted({
+        ...written,
+        descriptor: {
+          ...descriptor,
+          path: `runs/${RUN_ID}/promptfoo-raw.json`
+        }
+      })
+    ).rejects.toMatchObject({ code: "ARTIFACT_WRITE_FAILED" });
+    await expect(
+      store.removeUncommitted({
+        ...written,
+        descriptor: {
+          ...descriptor,
+          path: "outside/rest-results.json"
+        }
+      })
+    ).rejects.toMatchObject({ code: "ARTIFACT_WRITE_FAILED" });
+  });
+
+  it("启动发现缺少发布身份的 orphan 时保留文件并报告", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-artifacts-"));
+    roots.push(projectRoot);
+    const cleanupFailures: string[] = [];
+    const store = await LocalRunArtifactStore.create({
+      projectRoot,
+      onCleanupFailure: (code): void => {
+        cleanupFailures.push(code);
+      }
+    });
     const { descriptor } = await store.writeRestResults(artifactInput());
     await store.cleanupOrphans([]);
     const path = join(projectRoot, ".cortex-eval", "artifacts", descriptor.path);
-    await expect(lstat(path)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(lstat(path)).resolves.toMatchObject({ size: descriptor.expectedSizeBytes });
+    expect(cleanupFailures).toEqual(["RUN_ARTIFACT_CLEANUP_FAILED"]);
   });
 });

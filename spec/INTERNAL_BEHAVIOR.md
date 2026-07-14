@@ -35,7 +35,7 @@ Case 业务身份使用测试集内唯一的 `metadata.case_id`，内部 ID 与�
 
 离线 Execution Context 使用独立 `cortex.execution-context.v1` 哈希输入。输入包含 Package ID、Manifest Hash、Run Execution Limits 和 Analysis Execution Limits；任一限制变化都形成不同 Execution Context Hash。
 
-相同 Execution ID 与相同 Result Set Hash 的导入幂等；相同 Execution ID 对应不同结果冲突。相同 Analysis Input Hash 的分析导入幂等，不同输入按当前分析 Revision 条件更新。
+相同 Package ID、Execution ID、Result Set Hash 与规范化 Artifact Manifest 的导入幂等；相同 Execution ID 对应不同 Package、结果，或 Manifest 的版本、Owner、Kind、路径、Hash、大小、Payload Contract Version 任一不同均冲突。相同 Analysis Input Hash 的分析导入幂等，不同输入按当前分析 Revision 条件更新。
 
 失败重跑和 `--force` 都创建新的 Run/Execution。新身份可以记录来源和复用结果 Hash，但不得修改来源 Run/Execution 或已完成 Artifact。
 
@@ -57,7 +57,13 @@ Case 业务身份使用测试集内唯一的 `metadata.case_id`，内部 ID 与�
 
 Artifact 预期 Kind、相对路径、Hash、大小和 Contract Version 保存在 Run Artifact Manifest。文件存在性按需校验；Raw 文件缺失或损坏不改变已经落库的规范化结果和报告事实。
 
-Run 与离线 Execution 使用同一 `cortex.artifact-manifest.v1` 对象，Owner 联合显式区分 `RUN` 和 `EXECUTION`。P5 REST Artifact 位于 Run ID 专属相对路径；只有数据库提交后的 Manifest 才是引用事实，启动清理只删除不在任何持久平台 Run Manifest 中的受控文件。
+真实 Promptfoo Raw 在 Adapter 私有目录中保持文件形态。Adapter 先流式验证版本、完整 JSON、逐 Row/字符串上限和 Capability，再把显式 `openBytes/openRows/dispose` Source 交给 Application；Artifact Store 与 Importer 顺序消费，Application 不接收路径，所有成功与失败路径最终回收 Source。
+
+离线 Evaluation 把 Case/REST、复用 Eval 和新导入 Eval 都按 128 项事务批次写入 owner-only 命令私有 SQLite；异常回滚当前批次，失败命令删除整个 staging。Engine 通过可重放 Source 执行两遍一致性校验并流式生成配置；Raw、缺失结果和最终 Normalized 都逐项处理，Writer 与 Result Set Hasher 从已验证 Manifest 按 Ordinal 查询预期 Case Key，并在结束时确认不存在下一 Case，不保留与 Case 数等长的大对象数组、Map 或 Set。Endpoint、Evaluator 和 Rubric Prompt 在消费时重算文件 Hash 与大小。CLI Abort Signal 在 REST 返回、Artifact 发布及每次 Evaluation 边界消费和最终提交前复核；导出响应提前结束时取消未读 Body。
+
+Run 与离线 Execution 使用同一 `cortex.artifact-manifest.v1` 对象，Owner 联合显式区分 `RUN` 和 `EXECUTION`。P5 REST Artifact 位于 Run ID 专属相对路径；只有数据库或 Execution 状态提交后的 Manifest 才是引用事实。平台与离线 Writer 返回可持久 Descriptor 和非持久发布身份；阶段提交失败只在当前命令同时匹配固定槽位、Descriptor Hash/大小、发布时 device/inode 和清理时稳定身份后删除未登记 Artifact。若目标被替换为不同或相同字节的新 inode，都保留替换对象并报告。启动时发布身份已经丢失，因而只发现、保留并报告未被持久 Manifest 引用的受控文件，不能按路径删除或代替当前命令补偿。
+
+文件可见性提交包含两个事实：目标名称发布成功、父目录同步成功。Link 或 Rename 已发生但目录同步失败时，边界层只撤销设备号/inode 仍匹配刚发布对象的目标；若路径已被并发替换则保留替换对象并报告补偿失败。清理失败通过旁路观察，不改写主错误。
 
 当前资源不保存版本历史。重新分析覆盖同一 Run/Case 当前分析，Revision 只用于并发控制和当前记录演进，不表示可查询历史。
 
@@ -85,7 +91,8 @@ Secret 统一使用 EnvSecretRef，只在外部调用前从环境展开。数据
 - 当前 Run 竞争与恢复测试：[packages/storage-sqlite/test/sqlite-platform-run-repository.test.ts](../packages/storage-sqlite/test/sqlite-platform-run-repository.test.ts)
 - 当前 Application 资源入口：[packages/application/src](../packages/application/src)
 - 当前 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
-- Work Package 文件运行时入口尚未落地。
+- 当前 Work Package 文件运行时：[packages/work-package/src](../packages/work-package/src)
+- 当前离线 CLI：[apps/cli/src](../apps/cli/src)
 - [PACKAGES/DOMAIN.md](PACKAGES/DOMAIN.md)
 - [APPLICATION/OVERVIEW.md](APPLICATION/OVERVIEW.md)
 - [PACKAGES/STORAGE_SQLITE.md](PACKAGES/STORAGE_SQLITE.md)

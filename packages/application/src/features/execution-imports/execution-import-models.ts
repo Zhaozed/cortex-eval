@@ -33,6 +33,23 @@ export interface ImportedExecutionArtifactManifest {
   readonly artifacts: readonly ImportedExecutionArtifactDescriptor[];
 }
 
+/** Project one cleaned import Manifest into canonical JSON facts. */
+export function importedExecutionArtifactManifestJson(
+  value: ImportedExecutionArtifactManifest
+): DomainJsonObject {
+  return {
+    contractVersion: value.contractVersion,
+    owner: { kind: value.owner.kind, id: value.owner.id },
+    artifacts: value.artifacts.map((artifact) => ({
+      kind: artifact.kind,
+      path: artifact.path,
+      expectedSha256: artifact.expectedSha256,
+      expectedSizeBytes: artifact.expectedSizeBytes,
+      contractVersion: artifact.contractVersion
+    }))
+  };
+}
+
 /** Minimal normalized imported Run fact registered in P2. */
 export interface ImportedExecutionRecord {
   /** New platform Run identity. */
@@ -69,6 +86,12 @@ export interface ImportedExecutionRecord {
 export interface ExistingImportedExecution {
   /** Platform Run identity. */
   readonly runId: string;
+  /** Strict persisted source discriminator. */
+  readonly sourceType: "OFFLINE_IMPORT";
+  /** Immutable Work Package identity. */
+  readonly packageId: string;
   /** Stored result set hash. */
   readonly resultSetHash: string;
+  /** Exact cleaned Artifact identity stored with the imported Run. */
+  readonly artifactManifest: ImportedExecutionArtifactManifest;
 }
