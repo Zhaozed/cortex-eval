@@ -225,6 +225,8 @@ export interface RunLogTable {
   report_result_set_hash: string | null;
   /** Complete Artifact manifest JSON. */
   artifact_manifest_json: string;
+  /** Latest offline Analysis Artifact import identity, preserved across platform reanalysis. */
+  analysis_import_identity_json: Generated<string | null>;
   /** Stable terminal system error. */
   error_code: string | null;
   /** Safe externalized terminal error message. */
@@ -236,6 +238,79 @@ export interface RunLogTable {
   /** Creation time. */
   created_at: string;
   /** Last update time. */
+  updated_at: string;
+}
+
+/** SQLite row for one Run/Case current Analysis and decision. */
+export interface CaseAnalysisTable {
+  /** Current Analysis instance identity, replaced by reanalysis. */
+  id: string;
+  /** Owning immutable Run version. */
+  run_id: string;
+  /** Frozen Suite-local Case key. */
+  case_key: string;
+  /** Bound final Case result identity. */
+  final_case_result_hash: string;
+  /** Optimistic current Analysis revision. */
+  analysis_revision: number;
+  /** Frozen Analysis Prompt business key. */
+  analysis_prompt_key: string;
+  /** Frozen Analysis Prompt semantic hash. */
+  analysis_prompt_hash: string;
+  /** Frozen redacted Analysis Prompt snapshot JSON. */
+  analysis_prompt_snapshot_json: string;
+  /** Current Prompt resource identity when started on the platform. */
+  analysis_prompt_id: Generated<string | null>;
+  /** Frozen Analyzer semantic hash. */
+  analyzer_config_hash: string;
+  /** Current Analyzer resource identity when started on the platform. */
+  analyzer_config_id: Generated<string | null>;
+  /** Frozen Analyzer provider. */
+  analyzer_provider: "GOOGLE_GEMINI" | "OPENAI_COMPATIBLE";
+  /** Frozen Analyzer model. */
+  analyzer_model: string;
+  /** Frozen redacted Analyzer snapshot JSON. */
+  analyzer_snapshot_json: string;
+  /** Analysis Input contract identity. */
+  analysis_input_contract_version: string;
+  /** Analysis Output contract identity. */
+  analysis_output_contract_version: string;
+  /** Complete Analysis Input identity. */
+  analysis_input_hash: string;
+  /** Frozen Analysis execution limits JSON. */
+  analysis_execution_limits_json: string;
+  /** Current Analysis lifecycle status. */
+  analysis_status: "PENDING" | "RUNNING" | "SUCCEEDED" | "ERROR";
+  /** Successful Analysis classification. */
+  classification:
+    "LABEL_ERROR" | "ADDITIONAL_VALID_RESULT" | "NORMAL_FAILURE" | "PARAMETER_VARIANCE" | null;
+  /** Model self-assessed confidence. */
+  confidence: number | null;
+  /** Structured Evidence JSON. */
+  evidence_json: string | null;
+  /** Successful Analysis explanation. */
+  explanation: string | null;
+  /** Successful Analysis recommended action. */
+  recommended_action: string | null;
+  /** Optional single Proposal JSON. */
+  proposal_json: string | null;
+  /** Current user decision. */
+  decision: "NO_PROPOSAL" | "PENDING" | "ACCEPTED" | "REJECTED" | "EDITED_AND_ACCEPTED";
+  /** Current Proposal application result. */
+  apply_status: "NOT_APPLICABLE" | "NOT_APPLIED" | "APPLIED" | "CONFLICT";
+  /** Proposal base Case Definition identity. */
+  base_definition_hash: string | null;
+  /** Applied Case Definition identity. */
+  applied_definition_hash: string | null;
+  /** Complete semantic Analysis result identity. */
+  analysis_result_hash: Generated<string | null>;
+  /** Stable current Analysis error code. */
+  error_code: string | null;
+  /** Safe externalized current Analysis error message. */
+  error_message: string | null;
+  /** Current Analysis creation time. */
+  created_at: string;
+  /** Latest current Analysis update time. */
   updated_at: string;
 }
 
@@ -321,16 +396,10 @@ export interface EvalResultTable {
   updated_at: string;
 }
 
-/** Placeholder row for tables whose repositories land later in P2. */
-export interface DeferredTable {
-  /** Prevent accidental query construction before the table mapper exists. */
-  readonly __not_queryable_yet: never;
-}
-
 /** Complete current SQLite database type map. */
 export interface SqliteDatabaseSchema {
   /** Current analyses. */
-  case_analysis: DeferredTable;
+  case_analysis: CaseAnalysisTable;
   /** Current Analysis Prompts. */
   case_analysis_prompt: CaseAnalysisPromptTable;
   /** Frozen REST Case results. */

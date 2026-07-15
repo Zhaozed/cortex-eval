@@ -9,7 +9,7 @@
 - [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：原始数据到 Promptfoo Case 的转换规则。
 - [packages/contracts/test](../packages/contracts/test)：P1 Schema、版本、Secret、Work Package、Bridge、Snapshot、Artifact、Canonical Export、137 条能力映射和真实 Fixture。
 - [packages/domain/test](../packages/domain/test)：P1 纯 Case/Result、状态、Revision、统计、Proposal 和专用哈希输入。
-- [packages/application/test](../packages/application/test)：资源用例、统一 Case Writer、Revision、引用、Cursor、导出、Run 冻结/REST/Evaluation/Report/取消、Pipeline、严格 Promptfoo Result Importer、对外 Retry/Force 和完整 Execution Report Import。
+- [packages/application/test](../packages/application/test)：资源用例、统一 Case Writer、Revision、引用、Cursor、导出、Run 冻结/REST/Evaluation/Report/Analysis/取消、Pipeline、严格 Promptfoo Result Importer、对外 Retry/Force 和完整 Execution Report/Analysis Import。
 - [packages/storage-sqlite/test](../packages/storage-sqlite/test)：十表、严格行映射与 Hash 对账、约束、权限、资源/Run 双连接和双进程竞争、Eval/Report 原子提交、完整离线导入、Execution 幂等、统一最近运行、回滚、分页、复用 Provenance 和千级性能。
 - [packages/evaluation-adapters/test](../packages/evaluation-adapters/test)：P5 REST 模板、Selector、大小、HTTP、超时、并发和取消；P6 配置物化、固定 Promptfoo 进程、Bridge v2 和双官方 SDK Adapter。
 - [packages/reporting/test](../packages/reporting/test)：Ajv 2020-12 Diff、Missing、非法 Schema、Validator 差异、Rate、By Metric、Result Set Hash、对账和 Markdown。
@@ -75,13 +75,13 @@ Markdown 断言关注结构和事实，不对无关排版做脆弱快照。
 
 ## Analysis 测试
 
-覆盖变量白名单、模型错误、输出 Schema、Analysis Input Hash、Revision、四种分类、Proposal 判别联合、当前 Case 漂移和应用冲突。
+覆盖变量白名单、模型错误、输出 Schema、Analysis Input Hash、Revision、四种分类、Proposal 判别联合、当前 Case 漂移和应用冲突。Evidence 覆盖六种固定来源、RFC 6901 路径、`null` 整体来源、空数组/空结论/未知来源/字符串拒绝、Hash 与 Artifact 往返。Analyzer Adapter 覆盖双 Provider 的 `JSON_SCHEMA | JSON_OBJECT` 精确请求映射和统一响应校验。并发覆盖默认/范围/最大在途、平台同 Case 抢占冲突只恢复自身记录、离线一致性和逐 Case 错误隔离。取消覆盖认领前不修改阶段、认领后 `ANALYSIS_CANCELLED/ERROR` 与 CLI 130；Runtime 覆盖开放请求前把遗留 Analysis 恢复为 `ANALYSIS_INTERRUPTED`。导入覆盖双遍替换、精确 Execution/Artifact/Final/Result Set 身份、幂等和事务回滚；Web 覆盖 Case、Analyzer 与 Analysis Prompt 的完整 Cursor 遍历、Cursor 循环停止，以及并发重新分析产生新 ID 时 Draft 仍按 Case 保留。
 
 不测试 Prompt 具体文本和模型生成措辞。模型调用使用结构化 Stub，业务规则不依赖真实模型概率。
 
 ## API、CLI 与 Web 测试
 
-API 覆盖 Cursor 分页、字段路径、稳定错误、Host、Origin 和脱敏。CLI 当前覆盖 Work Package 导出/校验、REST、Evaluation、Report、REST→Evaluation→Report Pipeline、完整结果导入、机器输出、Retry 和 Force；Analysis 和 Canonical Export 测试按后续阶段注册。Web 覆盖资源管理、Run/Evaluation/Report、Dashboard、平台重跑和离线导入报告；Analysis 等待 P9。
+API 覆盖 Cursor 分页、字段路径、稳定错误、Host、Origin 和脱敏。CLI 当前覆盖 Work Package 导出/校验、REST、Evaluation、Report、Analyze、默认 REST→Evaluation→Report 与显式 Analysis Pipeline、Report/Analysis 结果导入、机器输出、Retry 和 Force；Canonical Export 测试按 P10 注册。Web 覆盖资源管理、Run/Evaluation/Report/Analysis、Dashboard、平台重跑、离线导入报告和结构化 Evidence 决策闭环。
 
 P3 API 当前额外覆盖严格成功响应 DTO、六项 Analysis Prompt 变量、OpenAPI 精确 allowlist/漂移与所有 Route 403、真实 SQLite CRUD、Revision/唯一冲突、无未来 Route、服务关闭 Abort、Case 导入固定 200 MiB 边界与合法数组尾随空白超限不提交、低于 192 MiB RSS 增量、导出响应前冲突及临时文件正常/失败/取消清理。Endpoint/LLM Probe 以 Stub SDK 验证无凭据、无 Redirect、无自动重试、配置超时、双 Provider Thinking/结构输出映射和安全失败分类；真实回环 HTTP 验证 `NONE` 不发送 Authorization。Storage/Runtime 额外覆盖状态根 symlink 启动前不污染外部目录、临时根 symlink 不改动外部条目、未过 TTL 的 owner 初始化窗口，以及 owner/writer 故障注入后的句柄和工作区回收。
 

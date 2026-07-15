@@ -28,6 +28,11 @@ export const Sha256Schema = HashSha256Schema;
 /** Non-empty stable business key. */
 export const BusinessKeySchema = z.string().trim().min(1).max(256);
 
+/** RFC 6901 JSON Pointer, including the empty document-root pointer. */
+export const JsonPointerSchema = z
+  .string()
+  .regex(/^(?:\/(?:[^~/]|~[01])*)*$/, "JSON_POINTER_INVALID");
+
 /** Controlled relative POSIX path without traversal or absolute roots. */
 export const RelativePathSchema = z
   .string()

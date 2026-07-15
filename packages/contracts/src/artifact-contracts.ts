@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { AnalysisProposalV1Schema } from "./analysis-contracts.ts";
+import {
+  AnalysisEvidenceV1Schema,
+  AnalysisProposalV1Schema,
+  AnalyzerCaseErrorCodeV1Schema
+} from "./analysis-contracts.ts";
 import { CaseDefinitionV1Schema } from "./case-contracts.ts";
 import {
   BusinessKeySchema,
@@ -35,6 +39,22 @@ function validateCaseSequence(
       context.addIssue({ code: "custom", path: ["cases", index], message: "CASE_ALIGNMENT" });
     }
     caseKeys.add(item.caseKey);
+  }
+}
+
+// Analysis retains sparse original Case ordinals while requiring stable increasing order.
+function validateSparseCaseSequence(
+  cases: readonly { caseKey: string; ordinal: number }[],
+  context: z.RefinementCtx
+): void {
+  const caseKeys = new Set<string>();
+  let previousOrdinal = -1;
+  for (const [index, item] of cases.entries()) {
+    if (caseKeys.has(item.caseKey) || item.ordinal <= previousOrdinal) {
+      context.addIssue({ code: "custom", path: ["cases", index], message: "CASE_ALIGNMENT" });
+    }
+    caseKeys.add(item.caseKey);
+    previousOrdinal = item.ordinal;
   }
 }
 
@@ -482,6 +502,7 @@ const AnalysisSuccessV1Schema = z.strictObject({
   ordinal: z.number().int().nonnegative(),
   finalCaseResultHash: Sha256Schema,
   analysisInputHash: Sha256Schema,
+  analysisResultHash: Sha256Schema,
   status: z.literal("SUCCEEDED"),
   classification: z.enum([
     "LABEL_ERROR",
@@ -490,7 +511,7 @@ const AnalysisSuccessV1Schema = z.strictObject({
     "PARAMETER_VARIANCE"
   ]),
   confidence: z.number().min(0).max(1),
-  evidence: z.array(z.string().trim().min(1)).min(1),
+  evidence: z.array(AnalysisEvidenceV1Schema).min(1),
   explanation: z.string().trim().min(1),
   recommendedAction: z.string().trim().min(1),
   proposal: AnalysisProposalV1Schema.nullable(),
@@ -502,15 +523,28 @@ const AnalysisErrorV1Schema = z.strictObject({
   ordinal: z.number().int().nonnegative(),
   finalCaseResultHash: Sha256Schema,
   analysisInputHash: Sha256Schema,
+  analysisResultHash: Sha256Schema,
   status: z.literal("ERROR"),
   classification: z.null(),
   confidence: z.null(),
-  evidence: z.array(z.string()).length(0),
+  evidence: z.array(AnalysisEvidenceV1Schema).length(0),
   explanation: z.null(),
   recommendedAction: z.null(),
   proposal: z.null(),
-  error: z.strictObject({ code: z.string().trim().min(1), message: z.string().trim().min(1) })
+  error: z.strictObject({
+    code: AnalyzerCaseErrorCodeV1Schema,
+    message: z.string().trim().min(1).max(1_000)
+  })
 });
+
+/** One strict selected Analysis Case result retained at its original sparse Ordinal. */
+export const AnalysisResultCaseV1Schema = z.discriminatedUnion("status", [
+  AnalysisSuccessV1Schema,
+  AnalysisErrorV1Schema
+]);
+
+/** One strict selected Analysis Case result DTO. */
+export type AnalysisResultCaseV1 = z.infer<typeof AnalysisResultCaseV1Schema>;
 
 /** Analysis stage Artifact. */
 export const AnalysisResultsArtifactV1Schema = z
@@ -518,12 +552,15 @@ export const AnalysisResultsArtifactV1Schema = z
     contractVersion: z.literal("cortex.analysis-results.v1"),
     ...ArtifactIdentityV1Schema.shape,
     completedAt: UtcDateTimeSchema,
-    cases: z.array(
-      z.discriminatedUnion("status", [AnalysisSuccessV1Schema, AnalysisErrorV1Schema])
-    ),
+    selector: z.enum(["failed", "errors", "all"]),
+    finalCaseResultSetHash: Sha256Schema,
+    cases: z.array(AnalysisResultCaseV1Schema),
     analysisResultSetHash: Sha256Schema
   })
-  .superRefine((artifact, context) => validateCaseSequence(artifact.cases, context));
+  .superRefine((artifact, context) => validateSparseCaseSequence(artifact.cases, context));
+
+/** Complete Analysis stage Artifact DTO. */
+export type AnalysisResultsArtifactV1 = z.infer<typeof AnalysisResultsArtifactV1Schema>;
 
 const PromptfooNativeExitCodeSchema = z.union([z.literal(0), z.literal(100)]);
 

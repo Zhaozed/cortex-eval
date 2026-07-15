@@ -48,7 +48,7 @@ Assertion 支持 Promptfoo `0.121.18` 能力矩阵中的全部内置类型。每
 
 REST 合法 Provider Output 包含业务成功或业务失败联合。HTTP 2xx 且结构合法统一为 REST `SUCCEEDED`；传输或结构错误为 `ERROR`。
 
-Eval Status 为 `PASS`、`FAIL`、`EVALUATION_ERROR` 和 `NOT_EVALUATED`。Run Status、Run Stage、Analysis Status、Decision、Apply Status 和四种分析分类使用穷尽联合类型。
+Eval Status 为 `PASS`、`FAIL`、`EVALUATION_ERROR` 和 `NOT_EVALUATED`。Run Status、Run Stage、Analysis Status、Decision、Apply Status 和四种分析分类使用穷尽联合类型。Analysis Evidence 是非空结构化值：固定来源、RFC 6901 字段路径或 `null`、非空结论；Domain 不接收字符串兼容格式。
 
 ## 状态、事务与幂等
 
@@ -66,4 +66,4 @@ Domain 规则必须确定、可穷尽测试且不访问时钟、随机数或环�
 
 ## 相关测试
 
-当前测试覆盖 Case、Assertion、Provider Output、Run/Analysis 状态机、取消请求、REST/Eval Result Hash、执行版本化 Eval Result Set Hash、Metric、Rate、Canonical Hash、四种分析分类、Proposal 联合、Revision 竞争和非法状态。
+当前测试覆盖 Case、Assertion、Provider Output、Run/Analysis 状态机、取消请求、REST/Eval/Analysis Result Hash、执行版本化 Result Set Hash、Metric、Rate、Canonical Hash、结构化 Evidence、四种分析分类、Proposal 联合、Revision 竞争和非法状态。

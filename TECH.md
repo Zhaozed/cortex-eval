@@ -6,7 +6,7 @@
 
 产品行为和验收口径以 `REQ.md` 为准。本文档不包含具体实现代码。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P8 已完成，P9 尚未开始。Work Package v1 安全文件运行时、导出 API、REST/Eval/Report/Pipeline CLI、平台与离线 Retry/Force、严格 Raw/Normalized/Report 读取，以及完整 Execution Report Import 已闭环。Analysis、Analysis Import 和 Canonical Export 尚未闭合。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P9 已完成。Work Package v1 安全文件运行时、导出 API、REST/Eval/Report/显式 Analysis Pipeline CLI、平台与离线 Retry/Force、严格 Raw/Normalized/Report/Analysis 读取、Analysis Artifact 和完整 Execution Report/Analysis Import 已闭环。Canonical Export 尚未闭合。
 
 ## 2. 总体结论
 
@@ -280,7 +280,7 @@ Case Analysis 是独立事实。应用建议时由 Application 协调：
 
 相同 Package ID、Execution ID、Evaluation/Report Result Set Hash 和完整 Artifact Manifest 视为幂等成功；相同 Execution ID 对应不同 Package、任一结果哈希、Artifact Owner、受控路径或版本返回 `EXECUTION_RESULT_CONFLICT`。身份由显式版本事实确定，不使用最大 ID、最大时间或 `select max` 推断。
 
-分析可以在报告之后单独导入。分析导入先通过 Execution ID 定位 Run，再校验 Final Case Result Hash 和 Analysis Input Hash；相同 Analysis Input Hash 幂等，不同输入按 Case Analysis Revision 条件更新当前分析。
+分析可以在报告之后单独导入。分析导入先通过 Execution ID 定位 Run，再校验 Final Case Result Hash 和 Analysis Input Hash；相同 Analysis Input Hash 幂等，不同输入按 Case Analysis Revision 条件更新当前分析。完整 Analysis Case 文件流在主库写事务外消费、校验并写入 owner-only SQLite staging；最终 `BEGIN IMMEDIATE` 只执行确定性依赖/冲突校验、`INSERT ... SELECT` 集合写入和导入身份提交。Busy 重试复用同一份已完成 staging，不重新读取外部文件。
 
 工作包解析与平台数据提交是两个独立职责。
 
@@ -463,7 +463,7 @@ Revision 独立于 Config Hash。Config Hash 包含 Provider、Model、统一 Op
 
 Options JSON 使用 Provider 白名单 Schema，并在读取时拒绝未知字段、非法枚举与认证联合不匹配的 Secret 形状。任意层级出现 `apiKey`、`token`、`secret`、`password`、`credential`、`authorization` 或同义字段时拒绝保存，Secret 只能通过独立 EnvSecretRef 字段提供。四类配置的持久化行都必须重新计算语义 Hash 并与存储值一致。
 
-Provider Type 只允许 `GOOGLE_GEMINI` 和 `OPENAI_COMPATIBLE`。两者统一公开 `model`、`thinkingLevel`、`temperature`、`topP`、`maxOutputTokens` 和 `timeoutMs`。OpenAI-compatible 只实现 Chat Completions，把 `OFF | LOW | MEDIUM | HIGH` 映射为 `reasoning_effort: none | low | medium | high`；Provider 以 400/422 拒绝统一能力参数时返回 `PROVIDER_CAPABILITY_UNSUPPORTED`，不得静默忽略。远程 Base URL 必须使用 HTTPS 与 Bearer EnvSecretRef；本地回环可显式选择无认证，此时 SDK 请求必须显式移除 `Authorization`。Analyzer 结构输出能力显式为 `JSON_SCHEMA | JSON_OBJECT`。
+Provider Type 只允许 `GOOGLE_GEMINI` 和 `OPENAI_COMPATIBLE`。两者统一公开 `model`、`thinkingLevel`、`temperature`、`topP`、`maxOutputTokens` 和 `timeoutMs`。OpenAI-compatible 只实现 Chat Completions，把 `OFF | LOW | MEDIUM | HIGH` 映射为 `reasoning_effort: none | low | medium | high`；Provider 以 400/422 拒绝统一能力参数时返回 `PROVIDER_CAPABILITY_UNSUPPORTED`，不得静默忽略。远程 Base URL 必须使用 HTTPS 与 Bearer EnvSecretRef；本地回环可显式选择无认证，此时 SDK 请求必须显式移除 `Authorization`。Analyzer 结构输出能力显式为 `JSON_SCHEMA | JSON_OBJECT`；两个 Provider 只有选择 `JSON_SCHEMA` 时才传入 JSON Schema，`JSON_OBJECT` 只要求 JSON 对象并仍在响应边界执行统一 Schema 校验。
 
 ### 7.5 llm_rubric_prompt
 
@@ -638,7 +638,7 @@ Manifest 创建后不可修改。阶段状态不能写回 Manifest，避免自�
 
 输入包括 Tests、Endpoint、Evaluator、Analyzer、Rubric Prompts、Case Analysis Prompt 和 `.env.example`。
 
-运行时限制按 UTF-8 原始字节计算：Manifest 256 MiB、Execution 4 MiB、每个配置/Prompt/`.env.example` 8 MiB、Canonical Tests 1.25 GiB；单个 Canonical Case、REST Case、Normalized Eval Case、Promptfoo Raw Row 分别为 16/32/32/64 MiB，解码后的单个 JSON String Token 为 16 MiB。Canonical Tests、REST 和 Normalized 按项流式解析，Raw 按 Row 流式清洗；REST/Normalized/Raw 不设置新的总文件上限。真实 Promptfoo 进程返回显式可回收的 Raw Source，只暴露重放字节流、逐 Row 流和 Dispose；Application 不接收文件路径，Artifact Store 与 Importer 分别有界消费，任何路径都不得聚合完整 Raw。Retry 复用 Raw 时只流式复核登记 Hash、大小和 Descriptor，不做整对象 Zod 解析。各上限在 JSON 物化前检查原始项字节，错误分别收敛到 `WORK_PACKAGE_INVALID`、`ARTIFACT_WRITE_FAILED`、`EVALUATION_STAGE_FAILED` 和 `PROMPTFOO_PROCESS_ERROR`。
+运行时限制按 UTF-8 原始字节计算：Manifest 256 MiB、Execution 4 MiB、每个配置/Prompt/`.env.example` 8 MiB、Canonical Tests 1.25 GiB；单个 Canonical Case、REST Case、Normalized Eval Case、Report Case、Analysis Result Case、Promptfoo Raw Row 分别为 16/32/32/80/80/64 MiB，解码后的单个 JSON String Token 为 16 MiB。Canonical Tests、REST、Normalized、Report 和 Analysis 按项流式解析，Raw 按 Row 流式清洗；这些 Artifact 不设置新的总文件上限。真实 Promptfoo 进程返回显式可回收的 Raw Source，只暴露重放字节流、逐 Row 流和 Dispose；Application 不接收文件路径，Artifact Store 与 Importer 分别有界消费，任何路径都不得聚合完整 Raw。Retry 复用 Raw 时只流式复核登记 Hash、大小和 Descriptor，不做整对象 Zod 解析。各上限在 JSON 物化前检查原始项字节，错误分别收敛到稳定阶段或工作包错误。
 
 离线 Evaluation 在命令私有的 owner-only SQLite 中暂存 Case/REST、可复用 Eval 和新导入 Eval，三类写入固定每 128 项提交一次；异常回滚当前批次，命令失败删除完整 staging。Engine 接收可重放 `FrozenEvaluationCaseSource`：第一遍验证顺序、引用和调用预算，第二遍按字节流写 Promptfoo 配置，并对两遍 Case/可评估数/预算做一致性复核。Raw 逐 Row 通过 SQLite 身份查找导入，缺失结果逐项补齐，最终结果按 Ordinal 直接流式写 Normalized Artifact；REST/Normalized Writer 与 Result Set Hasher 都按已验证 Manifest 的 ordinal→Case Key 对齐，并在提交时确认下一 Ordinal 已无 Manifest Case，禁止发布未知 Case 或非空但截断的结果前缀；内存不保存与 Case 数等长的大对象数组、Map 或 Set。Endpoint、Evaluator 和 Rubric Prompt 在实际消费边界重新计算文件 Hash 与大小，不能只依赖 Session 打开时的完整扫描。
 
@@ -867,7 +867,7 @@ Analyzer LLM 和 Case Analysis Prompt 在发起分析时选择。分析发生在
 
 `PARAMETER_VARIANCE` 表示工具参数存在语义等价表达，不代表重复执行或统计波动。
 
-输出必须包含 Classification、Confidence、Evidence、Explanation 和 Recommended Action，可选包含一个 Proposal。
+输出必须包含 Classification、Confidence、非空结构化 Evidence、Explanation 和 Recommended Action，可选包含一个 Proposal。每项 Evidence 的 `source` 只能指向六个完整 Analysis Input 变量之一，`fieldPath` 是必填的 RFC 6901 Pointer 或 `null`，`conclusion` 非空。字符串 Evidence 不属于当前契约，Contracts、Adapter、Domain、Artifact 与持久化层均不兼容、不转换、不猜测。Analysis Artifact 的错误码是闭合联合，错误文案长度受限；平台导入只信任错误码，并用同时覆盖 Analyzer Case 错误与平台 Analysis 错误的消息解析器重建展示文案。
 
 Proposal 是判别联合：
 
@@ -918,8 +918,14 @@ Analysis Status 为 `PENDING | RUNNING | SUCCEEDED | ERROR`。Decision 为 `NO_P
 - `/runs/:id/report/cases/:caseKey`
 - `/runs/:id/report/export`
 - `/runs/:id/reruns`
+- `/runs/:id/analyses`
+- `/runs/:id/analyses/:caseKey`
+- `/runs/:id/analyses/:caseKey/reject`
+- `/runs/:id/analyses/:caseKey/accept`
+- `/runs/:id/analyses/:caseKey/edit-and-accept`
 - `/work-packages/export`
 - `/execution-results/import`
+- `/execution-results/analysis/import`
 
 列表使用不透明版本化 Cursor 分页，默认 50、最大 200。稳定排序必须包含内部 ID Tie-breaker；Case 默认使用 Ordinal。字段间过滤为 AND，同字段多值为 OR，文本搜索使用转义后的大小写不敏感字面子串，其他筛选使用精确成员。大 JSON 只在详情返回。写请求返回稳定 Error Code 和字段路径。
 
@@ -927,7 +933,7 @@ API 固定前缀为 `/api/v1`，同源默认地址为 `127.0.0.1:4310`。Fastify
 
 P3 当前只注册 Test Suite、Case、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 的资源 CRUD、Case 导入导出、配置验证与 Prompt 预览/引用查询。请求与成功响应均由严格 Zod DTO 投影为 Runtime/OpenAPI Schema；Host/Origin 拒绝可能发生在所有 Route，因此所有操作均声明闭合 403 响应。Case 导入逐项流式校验并写入独立 SQLite staging 文件，multipart 截断事实作为定义流结束条件参与最终提交，随后才在主库同一连接的短事务中整体替换；staging 不是业务表，失败、取消和完成后均按 owner 身份清理。Case 导出先把固定 Suite Revision 的 JSON 流写入 owner-only `0600` 临时文件，完整一致性校验成功后才打开 200 响应；正常完成、取消和准备失败均按 owner 身份清理，内存只保留单 Case 或流缓冲块。SQLite 在创建状态/db 目录或打开数据库前验证 `.cortex-eval`、`db` 与现有数据库/WAL/SHM 不是符号链接并保持 canonical 项目 containment；临时根执行相同约束。无 owner 的新目录未过 TTL 时视为可能仍在初始化，不隔离。
 
-P8 当前注册 Run 预检、创建、倒序分页、详情、逐 Case REST/Evaluation 结果、Report Overview/分页/详情/导出、阶段启动、取消、Retry/Force、Execution Report Import 和有限期 SSE 进度。Start/Cancel 使用 Run Revision 条件写；Run Detail 使用不含冻结 Case 数组和 Prompt 正文的有界投影。进度、列表和详情返回持久 REST/Evaluation 汇总；Report 统计只来自完整提交的规范化 DTO。`READY/REST`、`READY/EVALUATION` 与 `READY/REPORT` 可按 Revision 启动；`PIPELINE` 依次自动抢占三个阶段，交接失败只在固定 Revision 未变化时提交稳定错误。Evaluation 与 Report Case 结果使用有界 Cursor 查询；SSE 只发送有持久 Revision 事实支撑的事件。Analysis、Analysis Import 和 Canonical Export Route 仍不注册。
+P8 注册 Run 预检、创建、倒序分页、详情、逐 Case REST/Evaluation 结果、Report Overview/分页/详情/导出、阶段启动、取消、Retry/Force、Execution Report Import 和有限期 SSE 进度。P9 追加平台 Analysis 启动、当前 Case Analysis、Proposal 拒绝/接受/编辑后接受和 Execution Analysis Import。Start/Cancel 使用 Run Revision 条件写；Run Detail 使用不含冻结 Case 数组和 Prompt 正文的有界投影。进度、列表和详情返回持久 REST/Evaluation 汇总；Report 统计只来自完整提交的规范化 DTO。`READY/REST`、`READY/EVALUATION` 与 `READY/REPORT` 可按 Revision 启动；`PIPELINE` 依次自动抢占三个阶段，交接失败只在固定 Revision 未变化时提交稳定错误。Evaluation 与 Report Case 结果使用有界 Cursor 查询；SSE 只发送有持久 Revision 事实支撑的事件。Canonical Export Route 仍不注册。
 
 ### 15.2 Web
 
@@ -941,7 +947,7 @@ Web 使用简体中文、浅色本地实验室仪表台视觉和桌面优先布�
 
 P4 当前注册 Dashboard 资源数量、Test Suite/Case 管理、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 配置页面。Case 结构化编辑与完整 JSON 共享同一已校验 Draft，Assertion 保留完整闭合 JSON；默认每页 50 条，筛选和 Cursor 历史写入 URL。资源写入或删除发生 409 时先读取最新服务端 Snapshot，保留本地意图，并由用户显式选择最新 Revision 重试或采用 Snapshot；Case 编辑 Snapshot 与可见 Draft 分离，冲突待决时不重挂编辑器。若刷新得到稳定 `CASE_NOT_FOUND`，则进入显式 `REMOTE_CASE_DELETED` 状态，不构造 Case Revision：编辑流程先禁用详情 Query，再移除精确详情缓存并刷新 Suite/列表，持续只读展示本地 Draft；删除流程保留确认 Dialog。两者都没有重试动作，只能显式采用远端删除事实后关闭并解除离开门禁。该规则覆盖 Suite 元数据与删除、Case 编辑/创建/复制/删除/导入和四类配置的保存与删除，连续冲突每次重新读取事实，采用 Snapshot 后下一次写入使用其 Revision。Suite 创建/元数据、Case 非编辑写操作、Case 编辑和配置探测、预览、保存使用同步单飞锁，请求在途或冲突待决时冻结对应编辑面并阻止关闭编辑容器。页面级离开门禁同时拦截关闭按钮、Esc、侧栏、应用内返回、浏览器前进后退和页面卸载；应用 History 条目保存单调位置，受阻的已知条目遍历用 `history.go` 回到原位置，不追加条目或截断前进栈；从前进或后退进入第三方或旧版未知 State 时，以 `Navigation.currentEntry.index` 的同源绝对索引恢复原位置。只有写入结束、用户显式完成 Draft/Snapshot 决策，或互斥写入已经成功提交后，应用壳层才恢复或执行导航。配置重试在途仍保留冲突决策，操作层同时拒绝重复决策。Test Suite 删除影响预检本身单飞并占用页面写槽，期间禁用其他 Suite/Case 写入口；其他写入待决时反向禁用删除入口。Suite Snapshot 同步详情与所有已加载 Suite 列表；Case Snapshot 在显式采用前只同步 Case 列表，采用后再替换可见详情；缺少具体 Case Snapshot 时使 Case 列表失效重取。配置保存和删除冲突都同步详情与已加载的同类列表 Query，关闭重开或放弃删除不回退旧 Snapshot。Case 删除移除精确详情缓存，全量导入移除该 Suite 全部 Case 详情缓存；Test Suite 删除移除其详情和全部 Case Query，配置删除移除精确详情 Query，再刷新存活的 Dashboard 与列表。导入关闭、成功或放弃时同步清空原生文件输入，允许再次选择同一文件；导入和删除请求在途或冲突待决时取消按钮禁用。新建 Endpoint 默认 60 秒，新建 LLM 默认 `JSON_OBJECT`；Case Analysis Prompt 从 Contracts 闭合枚举展示六个允许变量。API Client 对成功与错误响应执行 Contracts 校验，取消收敛为稳定客户端错误；Case 和配置本地 Contracts 路径先映射到真实结构化字段、动态 Header、Provider 分支或 Prompt 消息控件，所有 Select 暴露焦点引用，`RUBRIC_PROMPT_IN_USE` 保留 Prompt Key 并映射到 `promptKey` 字段。探测、模板变量和其他字段失败在当前 Sheet/Dialog 内关联并聚焦最近的表单、结构化或完整 JSON 编辑器，请求锁释放后再恢复焦点；Suite 创建/编辑和批量导入错误同样保留字段路径、顺序与 Case ID。Rubric 引用读取在完成前不伪装为空集合，失败时提供显式重试；删除目标切换通过 Abort 与请求代次门禁拒绝迟到结果。
 
-P8 在 `/runs` 与 `/runs/:id` 上补充 Report 启动、三阶段 Pipeline 恢复和 Retry/Force，并注册 `/runs/:id/report` 统一展示平台或离线导入报告。详情页根据服务端 Stage 选择 REST、Evaluation 或 Report 动作；Report 页面展示规范化 Summary、By Metric、过滤分页、Assertion/Diff、Evidence 和导出。运行时仍以 SSE 和查询刷新重新读取持久事实。Analysis 动作不显示。
+P8 在 `/runs` 与 `/runs/:id` 上补充 Report 启动、三阶段 Pipeline 恢复和 Retry/Force，并注册 `/runs/:id/report` 统一展示平台或离线导入报告。P9 注册 `/runs/:id/analysis`：用户显式选择失败/错误/全部可分析 Case、Analyzer、Analysis Prompt 和并发，使用 Cursor 续页读取全部可分析 Case，并遍历 Analyzer 与 Analysis Prompt 的全部配置 Cursor 后提供选择；用户可查看当前版本、分类、模型自评 Confidence、结构化 Evidence、解释、建议与 Proposal，并执行拒绝、接受或编辑后接受。决策冲突后重新读取服务端当前 Analysis，展示其 Revision、Decision 与 Apply Status，同时保留并锁定用户编辑文本，不自动 Rebase。运行时仍以 API 查询重新读取持久事实。
 
 最近运行只包含 `report_result_set_hash` 非空、`DONE` 且状态为 `COMPLETED` 或 `COMPLETED_WITH_ERRORS` 的版本。Dashboard 的 Report Query Key 同时包含 Run ID、Status、Stage 和 Updated At，使同一 Run 的状态推进能够淘汰空结果或旧报告缓存。Report Artifact 发布后若观察到取消或中断，终态时间必须在观察该请求后重新获取；未提交 Artifact 的生成时间不能冒充取消或中断完成时间。
 
@@ -955,7 +961,7 @@ Web Client 的服务端错误码联合直接从闭合 `ApiErrorResponseV1Schema`
 
 `Navigation.currentEntry.index` 是资源 Web 启动硬能力；缺少或无效时只渲染能力错误，不创建 Query 消费者、不挂载 Feature 或写入口。相邻 Test Suite 详情以 Suite ID 作为路由状态生命周期边界，切换时卸载上一 Suite 的筛选、Cursor、编辑器、冲突和请求状态。Case 创建与更新输入直接使用 Contracts Schema 推导类型，不在 Web API 契约层退化为 `unknown`。
 
-生产页面按 Feature 动态加载，静态资源由 Local Server 同源提供。脚本 CSP 只允许 `'self'`；Zod 的 JIT 在应用模块加载前通过同源静态配置关闭，不使用 `'unsafe-eval'`。宽度小于 1024px 只显示可读提示。Report 已闭环注册，Analysis 在 P9 闭环前不注册路由、导航或 Dashboard 内容。
+生产页面按 Feature 动态加载，静态资源由 Local Server 同源提供。脚本 CSP 只允许 `'self'`；Zod 的 JIT 在应用模块加载前通过同源静态配置关闭，不使用 `'unsafe-eval'`。宽度小于 1024px 只显示可读提示。Report 与 Analysis 已按闭环能力注册；Canonical Export 仍不注册。
 
 ### 15.3 CLI
 
@@ -965,7 +971,7 @@ Web Client 的服务端错误码联合直接从闭合 `ApiErrorResponseV1Schema`
 
 CLI 用户文案从消息资源加载。`--json` 使用 NDJSON，stdout 只输出机器协议，诊断写 stderr；普通模式输出中文进度和结果路径。Commander 在已识别命令的参数解析阶段失败时也输出该命令的严格 `COMMAND_ERROR` NDJSON。Work Package 私有文件校验码在 CLI 边界显式归一为 `WORK_PACKAGE_INVALID`、`WORK_PACKAGE_HASH_MISMATCH` 或 `WORK_PACKAGE_PATH_INVALID`，不得泄漏为 `INTERNAL_ERROR`。退出码固定为 0 成功、1 Eval Fail、2 输入/配置错误、3 外部或阶段系统错误、4 冲突/锁、130 取消。
 
-当前 `pipeline run` 串行执行 REST、Evaluation 与 Report，并在 REST 外部调用和创建 Execution 前使用同一个命令期 Secret 快照一次校验外部阶段，同时读取完整 Evaluation 配置和 Rubric Prompt、验证 Case Prompt 引用、固定 Promptfoo 精确版本及实际需要的 Python/Ruby Runtime。Report 从已提交规范化结果重算并写入 JSON/Markdown，不增加外部模型依赖。未闭环命令不注册。全复用重跑即使新 Raw 的 Promptfoo 原生退出码为 0，只要目标 Normalized 仍含 FAIL，CLI 仍返回 1。真实 Promptfoo 子进程取消收敛为 `EVALUATOR_CANCELLED`，阶段不登记部分 Artifact，CLI 返回 130。
+当前 `pipeline run` 默认串行执行 REST、Evaluation 与 Report；显式提供 Analysis Selector 时才追加 Analysis，并在写入前要求 Report、Analyzer 和 Analysis Prompt 已存在。`analyze run` 可在既有完整 Report Execution 上单独追加不可变 Analysis Artifact，`result import --type analysis` 通过本地 API 导入当前 Analysis。Report 从已提交规范化结果重算并写入 JSON/Markdown；Analysis 直接调用 Analyzer 官方 SDK，不经过 Promptfoo Evaluator Bridge。未闭环的 `data export` 不注册。全复用重跑即使新 Raw 的 Promptfoo 原生退出码为 0，只要目标 Normalized 仍含 FAIL，CLI 仍返回 1。真实 Promptfoo 子进程取消收敛为 `EVALUATOR_CANCELLED`；离线 Analysis 在认领阶段前取消保持 `PENDING` 并返回 `REQUEST_ABORTED`，认领后取消收敛为 `ANALYSIS_CANCELLED/ERROR`。两类取消均不登记部分 Artifact，CLI 返回 130。
 
 Work Package REST 命令在创建 Execution 前读取并校验完整 Endpoint、全部 Case 和 Retry 来源；Evaluation/Pipeline 使用可取消、可重放的磁盘 staging 输入。`package export` 在请求 Local API 前按 Owner、PID 启动身份和 TTL 恢复目标父目录中的失活 staging；成功响应在完整消费前失败或取消时主动取消未读 Body，回收失败不覆盖主错误。命令取消信号贯穿 REST 执行、Artifact 发布与阶段登记，以及 Runtime Preflight、Engine、Raw Artifact 复制、逐 Row 导入、Normalized 写入和最终提交。REST 阶段开始后取消收敛为 `REST_CANCELLED`；Evaluation 阶段开始前取消保持 `PENDING` 并返回输入取消，开始后收敛为 `EVALUATOR_CANCELLED`。REST/Raw/Normalized Writer 在原子发布时返回可持久 Descriptor 和仅供当前命令补偿的 device/inode 发布身份；阶段登记失败或发布后取消时先把 Execution 收敛为 `ERROR`，再同时复核固定槽位、Descriptor Hash/大小、发布身份和清理时稳定身份后删除。相同字节的新 inode 也视为替换对象并保留。异常退出后若发布身份已经丢失，Work Package 与平台启动恢复都保留未登记文件并报告稳定清理错误，不按固定路径或 durable Manifest 差集删除。Raw Source、staging、临时目录、Response Body 和导出 staging 清理失败只写脱敏安全事件或 CLI 外化警告，不得覆盖已经确定的成功、失败、目标冲突或取消。
 
@@ -982,7 +988,7 @@ CLI 对工作包私有码执行闭合边界映射：输入、Hash、路径、目
 - READY 阶段不占用全局执行锁。
 - Work Package 使用跨进程文件锁。
 - 外部调用不持有 SQLite 事务。
-- 应用启动把遗留 `RUNNING` 收敛为 `INTERRUPTED`。
+- 应用启动在开放请求前把遗留 Run `RUNNING` 收敛为 `INTERRUPTED`，并把遗留 Analysis `PENDING/RUNNING` 收敛为 `ANALYSIS_INTERRUPTED/ERROR`。
 - 强制终止遗留临时目录只按固定前缀和 TTL 清理。
 - Pipeline 默认 REST、Evaluation、Report，也可显式设置满足依赖的阶段列表；Analysis 只有显式选择范围时执行。
 - 平台 Create Run API 接受 `RunExecutionLimitsV1`，默认 REST 取 Endpoint 值、Eval 为 2；平台 Analyze API 接受 `AnalysisExecutionLimitsV1`，默认 1。离线 CLI 在创建 Execution 时接受两类限制。冻结值分别控制 REST、Promptfoo/Bridge 和 Analysis 的最大在途数，平台与离线使用相同契约。
@@ -1088,6 +1094,9 @@ CLI 对工作包私有码执行闭合边界映射：输入、Hash、路径、目
 - Analysis Input Hash。
 - Parameter Variance 语义契约。
 - Current Case 漂移和建议应用冲突。
+- 结构化 Evidence 来源、RFC 6901 路径、字符串拒绝和 Artifact 往返。
+- 平台/离线并发、逐 Case 错误隔离、重新分析版本与并发状态冲突。
+- Analysis 双遍导入、显式执行身份、幂等替换和完整回滚。
 
 ### 19.9 API、CLI 和 Web
 

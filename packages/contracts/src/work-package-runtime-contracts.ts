@@ -12,6 +12,7 @@ export const WORK_PACKAGE_RUNTIME_LIMITS = {
   restResultCaseBytes: 32 * 1024 * 1024,
   normalizedEvalCaseBytes: 32 * 1024 * 1024,
   reportCaseBytes: 80 * 1024 * 1024,
+  analysisResultCaseBytes: 80 * 1024 * 1024,
   promptfooRawRowBytes: 64 * 1024 * 1024,
   decodedJsonStringBytes: 16 * 1024 * 1024,
   decodedChunkBytes: 1024 * 1024,

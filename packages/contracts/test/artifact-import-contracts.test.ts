@@ -533,21 +533,75 @@ describe("阶段 Artifact v1", () => {
           ordinal: 0,
           finalCaseResultHash: HASH,
           analysisInputHash: HASH,
+          analysisResultHash: HASH,
           status: "SUCCEEDED",
           classification: "NORMAL_FAILURE",
           confidence: 0.9,
-          evidence: ["断言失败"],
+          evidence: [
+            {
+              source: "failed_assertions",
+              fieldPath: "/0",
+              conclusion: "断言失败"
+            }
+          ],
           explanation: "结果不满足约束",
           recommendedAction: "修复系统",
           proposal: null,
           error: null
         }
       ],
+      selector: "failed",
+      finalCaseResultSetHash: HASH,
       analysisResultSetHash: HASH
     };
     expect(AnalysisResultsArtifactV1Schema.parse(analysis).cases[0]?.classification).toBe(
       "NORMAL_FAILURE"
     );
+    expect(
+      AnalysisResultsArtifactV1Schema.parse({
+        ...analysis,
+        cases: [
+          { ...analysis.cases[0], ordinal: 2 },
+          { ...analysis.cases[0], caseKey: "case-2", ordinal: 7 }
+        ]
+      }).cases.map((item) => item.ordinal)
+    ).toEqual([2, 7]);
+    expect(AnalysisResultsArtifactV1Schema.parse({ ...analysis, cases: [] }).cases).toEqual([]);
+    expect(
+      AnalysisResultsArtifactV1Schema.safeParse({
+        ...analysis,
+        cases: [
+          { ...analysis.cases[0], ordinal: 7 },
+          { ...analysis.cases[0], caseKey: "case-2", ordinal: 2 }
+        ]
+      }).success
+    ).toBe(false);
+
+    const analysisError = {
+      ...analysis.cases[0],
+      status: "ERROR",
+      classification: null,
+      confidence: null,
+      evidence: [],
+      explanation: null,
+      recommendedAction: null,
+      proposal: null,
+      error: { code: "ANALYZER_OUTPUT_INVALID", message: "Analyzer 输出结构无效" }
+    };
+    expect(
+      AnalysisResultsArtifactV1Schema.safeParse({ ...analysis, cases: [analysisError] }).success
+    ).toBe(true);
+    for (const error of [
+      { code: "FUTURE_UNKNOWN_ERROR", message: "未知错误" },
+      { code: "ANALYZER_OUTPUT_INVALID", message: "x".repeat(1_001) }
+    ]) {
+      expect(
+        AnalysisResultsArtifactV1Schema.safeParse({
+          ...analysis,
+          cases: [{ ...analysisError, error }]
+        }).success
+      ).toBe(false);
+    }
   });
 
   it("Artifact Manifest 只保存受控相对路径和预期完整性", () => {

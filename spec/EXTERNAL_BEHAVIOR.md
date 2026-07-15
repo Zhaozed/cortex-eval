@@ -2,15 +2,15 @@
 
 ## 当前实现边界
 
-当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST、Evaluation 与 Report、查看逐 Case 结果、取消、刷新恢复、创建 Retry/Force 新版本，以及查询和导出统一 Report。`PIPELINE` 自动推进到 Report；`STAGED` 可按 Stage 显式启动。Local Server 另提供 Work Package v1 流式导出与完整 Execution Report Import API；CLI 已注册包导出/校验、离线 REST、Evaluation、Report、REST→Evaluation→Report Pipeline、`result import`，并支持 `--retry-failed` 与 `--force` 创建新 Execution。Analysis、Analysis Import 和 Canonical Export 尚未暴露。
+当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST、Evaluation 与 Report、查看逐 Case 结果、取消、刷新恢复、创建 Retry/Force 新版本，以及查询和导出统一 Report。Report 完成后可以显式执行 Case Analysis、查看结构化 Evidence 并决策 Proposal。`PIPELINE` 自动推进到 Report；`STAGED` 可按 Stage 显式启动。Local Server 另提供 Work Package v1 流式导出与完整 Execution Report/Analysis Import API；CLI 已注册包导出/校验、离线 REST、Evaluation、Report、Analyze、默认三阶段且可显式追加 Analysis 的 Pipeline、两类 `result import`，并支持 `--retry-failed` 与 `--force` 创建新 Execution。Canonical Export 尚未暴露。
 
 ## 使用方式
 
 本地平台当前允许用户通过 Web 管理资源并执行 REST、Evaluation 与 Report，查看平台或离线导入报告，并对终态平台 Run 创建 Retry/Force 新版本。平台 CLI 通过本地 HTTP API 导出工作包和导入完整 Execution Report。
 
-离线 CLI 工作包冻结全部非秘密输入。当前命令可以独立执行 REST、Evaluation、Report，也可以执行 REST→Evaluation→Report Pipeline；Analysis 命令尚未注册。
+离线 CLI 工作包冻结全部非秘密输入。当前命令可以独立执行 REST、Evaluation、Report、Analysis，也可以执行默认 REST→Evaluation→Report Pipeline；只有显式提供 Analysis Selector 时才追加 Analysis。
 
-当前 Pipeline 固定执行 REST、Evaluation 与 Report。后续阶段闭环后才扩展显式 Analysis。失败重跑和 `--force` 都创建新的 Execution，不覆盖来源。
+失败重跑和 `--force` 都创建新的 Execution，不覆盖来源。每个 Run/Execution、Evaluation、Report 和 Analysis 都有独立版本身份；读取和导入只使用显式身份，不用 `select max` 推断“最新”。
 
 ## 资源行为
 
@@ -62,7 +62,9 @@ JSON Report 是导入事实，Markdown 只由规范化 JSON 派生，不能反�
 
 分析分类固定为 `LABEL_ERROR`、`ADDITIONAL_VALID_RESULT`、`NORMAL_FAILURE` 和 `PARAMETER_VARIANCE`。Confidence 是模型自评，不是校准概率。
 
-用户可以拒绝、接受或编辑后接受单个 Proposal。Case、Prompt、Analyzer 或分析输入已经变化时返回冲突，不自动 Rebase 或合并。
+用户显式选择 `failed | errors | all`、Analyzer、Case Analysis Prompt 和并发。Evidence 是非空结构化数组；每项明确固定来源、RFC 6901 字段路径或 `null` 和非空结论，字符串 Evidence 被整个拒绝。
+
+用户可以拒绝、接受或编辑后接受单个 Proposal。重新分析以新 Analysis ID/Input/Result Hash 替换当前版本并递增 Revision。Case、Prompt、Analyzer 或分析输入已经变化时返回冲突，保留用户编辑内容且不自动 Rebase 或合并。
 
 ## CLI 工作包行为
 

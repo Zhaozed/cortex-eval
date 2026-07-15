@@ -64,6 +64,11 @@ import type {
 import { mapCaseDefinitionToV1 } from "./resource-dto-mappers.ts";
 import { mapPlatformReportCaseToV1, mapRunReportContextToV1 } from "./report-dto-mappers.ts";
 import type { ExecutionReportImportService } from "./execution-report-import-service.ts";
+import {
+  createApplicationAnalysisHandlers,
+  type ApplicationAnalysisServiceBoundary,
+  type LocalAnalysisHandlers
+} from "./application-analysis-handlers.ts";
 import { openImportedReportExport } from "./imported-report-export.ts";
 
 /** Narrow Run Application surface consumed by protocol handlers. */
@@ -109,10 +114,11 @@ export type ApplicationRunServiceBoundary = Pick<
   readonly createRerun: PlatformRerunService["create"];
   /** Validate and atomically import one completed offline Report Execution. */
   readonly importExecutionReport: ExecutionReportImportService["importReport"];
-};
+  /** Validate and atomically import one completed offline Analysis Artifact. */
+} & ApplicationAnalysisServiceBoundary;
 
 /** Closed P5 Run protocol handlers. */
-export interface LocalRunHandlers {
+export interface LocalRunHandlers extends LocalAnalysisHandlers {
   /** Read current Run prerequisites. */
   readonly preflightRun: LocalApiHandler;
   /** Create one frozen platform Run. */
@@ -454,6 +460,7 @@ export function createApplicationRunHandlers(
   service: ApplicationRunServiceBoundary
 ): LocalRunHandlers {
   return {
+    ...createApplicationAnalysisHandlers(service),
     preflightRun: async (input): Promise<LocalApiHandlerResponse> => {
       const body = parse(RunPreflightRequestV1Schema, input.body, input.requestId);
       if (!body.ok) return body.response;

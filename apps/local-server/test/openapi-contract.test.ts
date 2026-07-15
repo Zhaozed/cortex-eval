@@ -50,6 +50,12 @@ const runHandlers: LocalRunHandlers = {
   getRunReportCase: success,
   exportRunReport: success,
   importExecutionReport: success,
+  importExecutionAnalysis: success,
+  startCaseAnalysis: success,
+  getCurrentCaseAnalysis: success,
+  rejectAnalysisProposal: success,
+  acceptAnalysisProposal: success,
+  editAndAcceptAnalysisProposal: success,
   startRun: success,
   cancelRun: success,
   getRunProgress: success
@@ -244,6 +250,14 @@ describe("P3 OpenAPI contract", () => {
       );
       expect(resultImport.operationId).toBe("importExecutionReport");
       expect(Object.keys(jsonObjectProperty(resultImport, "responses"))).toEqual(
+        expect.arrayContaining(["201", "409", "422", "499"])
+      );
+      const analysisImport = jsonObjectProperty(
+        jsonObjectProperty(paths, "/api/v1/execution-results/analysis/import"),
+        "post"
+      );
+      expect(analysisImport.operationId).toBe("importExecutionAnalysis");
+      expect(Object.keys(jsonObjectProperty(analysisImport, "responses"))).toEqual(
         expect.arrayContaining(["201", "409", "422", "499"])
       );
     } finally {

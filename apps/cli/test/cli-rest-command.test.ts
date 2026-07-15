@@ -58,8 +58,18 @@ function reports(): ReportCommandService {
   return { run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED")) };
 }
 
-function results(): { readonly importReport: () => Promise<never> } {
-  return { importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED")) };
+function analyses(): { readonly run: () => Promise<never> } {
+  return { run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED")) };
+}
+
+function results(): {
+  readonly importReport: () => Promise<never>;
+  readonly importAnalysis: () => Promise<never>;
+} {
+  return {
+    importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED")),
+    importAnalysis: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+  };
 }
 
 describe("P7 CLI REST command", () => {
@@ -106,6 +116,7 @@ describe("P7 CLI REST command", () => {
         restCommands,
         evaluationCommands: evaluations(),
         reportCommands: reports(),
+        analysisCommands: analyses(),
         pipelineCommands: pipelines(),
         resultCommands: results(),
         output: target.streams
@@ -133,6 +144,7 @@ describe("P7 CLI REST command", () => {
       restCommands,
       evaluationCommands: evaluations(),
       reportCommands: reports(),
+      analysisCommands: analyses(),
       pipelineCommands: pipelines(),
       resultCommands: results(),
       output: help.streams
@@ -142,7 +154,8 @@ describe("P7 CLI REST command", () => {
     expect(help.stdout.join("")).toMatch(/^\s{2}report\b/m);
     expect(help.stdout.join("")).toMatch(/^\s{2}result\b/m);
     expect(help.stdout.join("")).toMatch(/^\s{2}pipeline\b/m);
-    expect(help.stdout.join("")).not.toMatch(/^\s{2}(?:analyze|data)\b/m);
+    expect(help.stdout.join("")).toMatch(/^\s{2}analyze\b/m);
+    expect(help.stdout.join("")).not.toMatch(/^\s{2}data\b/m);
   });
 
   it("maps retry provenance and rejects retry/force ambiguity before invoking the service", async () => {
@@ -161,6 +174,7 @@ describe("P7 CLI REST command", () => {
         restCommands,
         evaluationCommands: evaluations(),
         reportCommands: reports(),
+        analysisCommands: analyses(),
         pipelineCommands: pipelines(),
         resultCommands: results(),
         output: retry.streams
@@ -184,6 +198,7 @@ describe("P7 CLI REST command", () => {
         restCommands,
         evaluationCommands: evaluations(),
         reportCommands: reports(),
+        analysisCommands: analyses(),
         pipelineCommands: pipelines(),
         resultCommands: results(),
         output: ambiguous.streams
@@ -214,6 +229,7 @@ describe("P7 CLI REST command", () => {
         restCommands,
         evaluationCommands: evaluations(),
         reportCommands: reports(),
+        analysisCommands: analyses(),
         pipelineCommands: pipelines(),
         resultCommands: results(),
         output: ordinary.streams
@@ -236,6 +252,7 @@ describe("P7 CLI REST command", () => {
           restCommands,
           evaluationCommands: evaluations(),
           reportCommands: reports(),
+          analysisCommands: analyses(),
           pipelineCommands: pipelines(),
           resultCommands: results(),
           output: output().streams
@@ -248,6 +265,7 @@ describe("P7 CLI REST command", () => {
         restCommands,
         evaluationCommands: evaluations(),
         reportCommands: reports(),
+        analysisCommands: analyses(),
         pipelineCommands: pipelines(),
         resultCommands: results(),
         output: output().streams

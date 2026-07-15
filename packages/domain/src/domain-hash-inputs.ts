@@ -7,6 +7,7 @@ import {
   type DomainJsonValue
 } from "./domain-canonical-hash.ts";
 import type { ProviderOutput } from "./domain-evaluation.ts";
+import type { AnalysisClassification, AnalysisEvidenceSource } from "./domain-analysis.ts";
 
 /** Case Definition identity input. */
 export interface CaseDefinitionHashInput {
@@ -273,6 +274,8 @@ export interface EvalResultSetHashInput {
 export interface AnalysisInputHashInput {
   /** Hash contract version. */
   readonly contractVersion: "cortex.analysis-input.v1";
+  /** Stable Suite-local Case key. */
+  readonly caseKey: string;
   /** Bound final Case result. */
   readonly finalCaseResultHash: string;
   /** Bound frozen Run context. */
@@ -292,6 +295,105 @@ export interface AnalysisInputHashInput {
     /** Analysis maximum in-flight count. */
     readonly analysisConcurrency: number;
   };
+}
+
+/** Structured evidence fact included in one Analysis result identity. */
+export interface AnalysisEvidenceHashFact {
+  /** Closed Analysis Input source. */
+  readonly source: AnalysisEvidenceSource;
+  /** RFC 6901 pointer into the source, or null for the complete source. */
+  readonly fieldPath: string | null;
+  /** Stable non-empty conclusion. */
+  readonly conclusion: string;
+}
+
+/** Successful semantic Analysis output included in one Case result identity. */
+export interface AnalysisSuccessHashFact {
+  /** Successful output discriminator. */
+  readonly status: "SUCCEEDED";
+  /** Fixed Analysis classification. */
+  readonly classification: AnalysisClassification;
+  /** Model self-assessed confidence. */
+  readonly confidence: number;
+  /** Ordered structured evidence. */
+  readonly evidence: readonly AnalysisEvidenceHashFact[];
+  /** Model explanation. */
+  readonly explanation: string;
+  /** Model recommended action. */
+  readonly recommendedAction: string;
+  /** Optional single normalized Proposal. */
+  readonly proposal: DomainJsonObject | null;
+}
+
+/** Stable failed Analysis fact included in one Case result identity. */
+export interface AnalysisErrorHashFact {
+  /** Failed output discriminator. */
+  readonly status: "ERROR";
+  /** Stable non-localized Analysis error code. */
+  readonly errorCode: string;
+}
+
+/** Complete semantic identity input for one Case Analysis result. */
+export interface AnalysisResultHashInput {
+  /** Hash contract identity. */
+  readonly contractVersion: "cortex.analysis-result.v1";
+  /** Stable Suite-local Case key. */
+  readonly caseKey: string;
+  /** Bound final Case result identity. */
+  readonly finalCaseResultHash: string;
+  /** Bound complete Analysis Input identity. */
+  readonly analysisInputHash: string;
+  /** Successful output or stable Case-level error. */
+  readonly result: AnalysisSuccessHashFact | AnalysisErrorHashFact;
+}
+
+/** Explicit selector accepted by the Analysis stage. */
+export type AnalysisSelector = "failed" | "errors" | "all";
+
+/** One selected final Case result inside an Analysis dependency set. */
+export interface AnalysisFinalCaseResultSetCaseHashInput {
+  /** Stable Suite-local Case key. */
+  readonly caseKey: string;
+  /** Original frozen Case ordinal, which may be sparse after selection. */
+  readonly ordinal: number;
+  /** Bound final Case result identity. */
+  readonly finalCaseResultHash: string;
+}
+
+/** Owner-neutral selected input set used to reconcile Report and Analysis facts. */
+export interface AnalysisFinalCaseResultSetHashInput {
+  /** Hash contract identity. */
+  readonly contractVersion: "cortex.analysis-final-case-result-set.v1";
+  /** Explicit selection rule. */
+  readonly selector: AnalysisSelector;
+  /** Selected Cases; the empty set is a valid successful Analysis input. */
+  readonly cases: readonly AnalysisFinalCaseResultSetCaseHashInput[];
+}
+
+/** One selected Case result inside an Analysis result set. */
+export interface AnalysisResultSetCaseHashInput {
+  /** Stable Suite-local Case key. */
+  readonly caseKey: string;
+  /** Original frozen Case ordinal, which may be sparse after selection. */
+  readonly ordinal: number;
+  /** Semantic single-Case Analysis result identity. */
+  readonly analysisResultHash: string;
+}
+
+/** Complete versioned Analysis result-set identity. */
+export interface AnalysisResultSetHashInput {
+  /** Hash contract identity. */
+  readonly contractVersion: "cortex.analysis-result-set.v1";
+  /** Platform Run or offline Execution version that produced the set. */
+  readonly owner:
+    | { readonly kind: "RUN"; readonly id: string }
+    | { readonly kind: "EXECUTION"; readonly id: string };
+  /** Explicit selection rule. */
+  readonly selector: AnalysisSelector;
+  /** Exact selected final Case dependency set. */
+  readonly finalCaseResultSetHash: string;
+  /** Selected Case Analysis results; the empty set is valid. */
+  readonly cases: readonly AnalysisResultSetCaseHashInput[];
 }
 
 /** Hash a complete Case Definition identity. */
@@ -585,6 +687,7 @@ export class OrderedRestResultSetHasher {
 export function hashAnalysisInput(input: AnalysisInputHashInput): string {
   return sha256CanonicalJson({
     contractVersion: input.contractVersion,
+    caseKey: input.caseKey,
     finalCaseResultHash: input.finalCaseResultHash,
     runContextHash: input.runContextHash,
     diffContractVersion: input.diffContractVersion,
@@ -593,5 +696,289 @@ export function hashAnalysisInput(input: AnalysisInputHashInput): string {
     analyzerConfigHash: input.analyzerConfigHash,
     analysisOutputContractVersion: input.analysisOutputContractVersion,
     analysisExecutionLimits: { ...input.analysisExecutionLimits }
+  });
+}
+
+const ANALYSIS_EVIDENCE_SOURCE_SET = new Set<AnalysisEvidenceSource>([
+  "case_definition",
+  "provider_output",
+  "failed_assertions",
+  "expected_actual_diffs",
+  "llm_rubric_results",
+  "run_context"
+]);
+const ANALYSIS_SELECTOR_SET = new Set<AnalysisSelector>(["failed", "errors", "all"]);
+const RFC_6901_POINTER_PATTERN = /^(?:\/(?:[^~/]|~[01])*)*$/;
+const SHA_256_PATTERN = /^[0-9a-f]{64}$/;
+
+// Return selected Cases in their original frozen order or reject dirty identities.
+function normalizedSparseAnalysisCases<Case extends { caseKey: string; ordinal: number }>(
+  cases: readonly Case[],
+  hashOf: (value: Case) => string,
+  errorCode: "ANALYSIS_FINAL_CASE_RESULT_SET_ALIGNMENT" | "ANALYSIS_RESULT_SET_ALIGNMENT"
+): readonly Case[] {
+  const normalized = [...cases].sort(
+    (left, right) => left.ordinal - right.ordinal || left.caseKey.localeCompare(right.caseKey)
+  );
+  const keys = new Set<string>();
+  let priorOrdinal = -1;
+  for (const item of normalized) {
+    if (
+      !Number.isInteger(item.ordinal) ||
+      item.ordinal < 0 ||
+      item.ordinal <= priorOrdinal ||
+      item.caseKey.trim() === "" ||
+      keys.has(item.caseKey) ||
+      !SHA_256_PATTERN.test(hashOf(item))
+    ) {
+      throw new Error(errorCode);
+    }
+    priorOrdinal = item.ordinal;
+    keys.add(item.caseKey);
+  }
+  return normalized;
+}
+
+// Return whether one Analysis success fact is complete enough to hash.
+function isValidAnalysisSuccess(value: AnalysisSuccessHashFact): boolean {
+  return (
+    Number.isFinite(value.confidence) &&
+    value.confidence >= 0 &&
+    value.confidence <= 1 &&
+    value.evidence.length > 0 &&
+    value.evidence.every(
+      (evidence) =>
+        ANALYSIS_EVIDENCE_SOURCE_SET.has(evidence.source) &&
+        (evidence.fieldPath === null || RFC_6901_POINTER_PATTERN.test(evidence.fieldPath)) &&
+        evidence.conclusion.trim() !== ""
+    ) &&
+    value.explanation.trim() !== "" &&
+    value.recommendedAction.trim() !== ""
+  );
+}
+
+/** Hash one successful or Case-level failed Analysis result. */
+export function hashAnalysisResult(input: AnalysisResultHashInput): string {
+  if (
+    input.caseKey.trim() === "" ||
+    !SHA_256_PATTERN.test(input.finalCaseResultHash) ||
+    !SHA_256_PATTERN.test(input.analysisInputHash)
+  ) {
+    throw new Error("ANALYSIS_RESULT_INVALID");
+  }
+  const result = input.result;
+  if (result.status === "ERROR") {
+    if (result.errorCode.trim() === "") throw new Error("ANALYSIS_RESULT_INVALID");
+    return sha256CanonicalJson({
+      contractVersion: input.contractVersion,
+      caseKey: input.caseKey,
+      finalCaseResultHash: input.finalCaseResultHash,
+      analysisInputHash: input.analysisInputHash,
+      result: { status: result.status, errorCode: result.errorCode }
+    });
+  }
+  if (!isValidAnalysisSuccess(result)) throw new Error("ANALYSIS_RESULT_INVALID");
+  return sha256CanonicalJson({
+    contractVersion: input.contractVersion,
+    caseKey: input.caseKey,
+    finalCaseResultHash: input.finalCaseResultHash,
+    analysisInputHash: input.analysisInputHash,
+    result: {
+      status: result.status,
+      classification: result.classification,
+      confidence: result.confidence,
+      evidence: result.evidence.map((item) => ({ ...item })),
+      explanation: result.explanation,
+      recommendedAction: result.recommendedAction,
+      proposal: result.proposal
+    }
+  });
+}
+
+/** Hash the exact owner-neutral final Case results selected for Analysis. */
+export function hashAnalysisFinalCaseResultSet(input: AnalysisFinalCaseResultSetHashInput): string {
+  if (!ANALYSIS_SELECTOR_SET.has(input.selector)) {
+    throw new Error("ANALYSIS_FINAL_CASE_RESULT_SET_ALIGNMENT");
+  }
+  const cases = normalizedSparseAnalysisCases(
+    input.cases,
+    (item) => item.finalCaseResultHash,
+    "ANALYSIS_FINAL_CASE_RESULT_SET_ALIGNMENT"
+  );
+  return sha256CanonicalJson({
+    contractVersion: input.contractVersion,
+    selector: input.selector,
+    cases: cases.map((item) => ({
+      caseKey: item.caseKey,
+      ordinal: item.ordinal,
+      finalCaseResultHash: item.finalCaseResultHash
+    }))
+  });
+}
+
+/** Incremental hasher for one ordered, possibly empty Analysis dependency set. */
+export class OrderedAnalysisFinalCaseResultSetHasher {
+  /** Incremental SHA-256 state over exact canonical JSON. */
+  readonly #hash = createHash("sha256");
+  /** Seen Case keys for uniqueness validation. */
+  readonly #caseKeys = new Set<string>();
+  /** Prior sparse frozen Ordinal. */
+  #priorOrdinal = -1;
+  /** Number of accepted selected Cases. */
+  #count = 0;
+  /** Whether the digest has already been finalized. */
+  #finished = false;
+
+  /** Start one canonical dependency-set document. */
+  public constructor() {
+    this.#hash.update('{"cases":[', "utf8");
+  }
+
+  /** Add one selected Case in strictly increasing original Ordinal order. */
+  public add(value: AnalysisFinalCaseResultSetCaseHashInput): void {
+    if (
+      this.#finished ||
+      !Number.isInteger(value.ordinal) ||
+      value.ordinal < 0 ||
+      value.ordinal <= this.#priorOrdinal ||
+      value.caseKey.trim() === "" ||
+      this.#caseKeys.has(value.caseKey) ||
+      !SHA_256_PATTERN.test(value.finalCaseResultHash)
+    ) {
+      throw new Error("ANALYSIS_FINAL_CASE_RESULT_SET_ALIGNMENT");
+    }
+    if (this.#count > 0) this.#hash.update(",", "utf8");
+    this.#hash.update(
+      canonicalJson({
+        caseKey: value.caseKey,
+        ordinal: value.ordinal,
+        finalCaseResultHash: value.finalCaseResultHash
+      }),
+      "utf8"
+    );
+    this.#caseKeys.add(value.caseKey);
+    this.#priorOrdinal = value.ordinal;
+    this.#count += 1;
+  }
+
+  /** Finalize one possibly empty set with its explicit Selector exactly once. */
+  public finish(selector: AnalysisSelector): string {
+    if (this.#finished || !ANALYSIS_SELECTOR_SET.has(selector)) {
+      throw new Error("ANALYSIS_FINAL_CASE_RESULT_SET_ALIGNMENT");
+    }
+    this.#finished = true;
+    this.#hash.update(
+      `],"contractVersion":"cortex.analysis-final-case-result-set.v1",` +
+        `"selector":${JSON.stringify(selector)}}`,
+      "utf8"
+    );
+    return this.#hash.digest("hex");
+  }
+}
+
+/** Incremental hasher for one ordered, possibly empty Analysis result version. */
+export class OrderedAnalysisResultSetHasher {
+  /** Incremental SHA-256 state over exact canonical JSON. */
+  readonly #hash = createHash("sha256");
+  /** Immutable result owner. */
+  readonly #owner: AnalysisResultSetHashInput["owner"];
+  /** Explicit selection rule. */
+  readonly #selector: AnalysisSelector;
+  /** Frozen selected final-result dependency identity. */
+  readonly #finalCaseResultSetHash: string;
+  /** Seen Case keys for uniqueness validation. */
+  readonly #caseKeys = new Set<string>();
+  /** Prior sparse frozen Ordinal. */
+  #priorOrdinal = -1;
+  /** Number of accepted selected Cases. */
+  #count = 0;
+  /** Whether the digest has already been finalized. */
+  #finished = false;
+
+  /** Start one canonical result-set document with validated immutable identities. */
+  public constructor(
+    owner: AnalysisResultSetHashInput["owner"],
+    selector: AnalysisSelector,
+    finalCaseResultSetHash: string
+  ) {
+    if (
+      owner.id.trim() === "" ||
+      !ANALYSIS_SELECTOR_SET.has(selector) ||
+      !SHA_256_PATTERN.test(finalCaseResultSetHash)
+    ) {
+      throw new Error("ANALYSIS_RESULT_SET_ALIGNMENT");
+    }
+    this.#owner = owner;
+    this.#selector = selector;
+    this.#finalCaseResultSetHash = finalCaseResultSetHash;
+    this.#hash.update('{"cases":[', "utf8");
+  }
+
+  /** Add one selected Case result in strictly increasing original Ordinal order. */
+  public add(value: AnalysisResultSetCaseHashInput): void {
+    if (
+      this.#finished ||
+      !Number.isInteger(value.ordinal) ||
+      value.ordinal < 0 ||
+      value.ordinal <= this.#priorOrdinal ||
+      value.caseKey.trim() === "" ||
+      this.#caseKeys.has(value.caseKey) ||
+      !SHA_256_PATTERN.test(value.analysisResultHash)
+    ) {
+      throw new Error("ANALYSIS_RESULT_SET_ALIGNMENT");
+    }
+    if (this.#count > 0) this.#hash.update(",", "utf8");
+    this.#hash.update(
+      canonicalJson({
+        caseKey: value.caseKey,
+        ordinal: value.ordinal,
+        analysisResultHash: value.analysisResultHash
+      }),
+      "utf8"
+    );
+    this.#caseKeys.add(value.caseKey);
+    this.#priorOrdinal = value.ordinal;
+    this.#count += 1;
+  }
+
+  /** Finalize the complete result version exactly once. */
+  public finish(): string {
+    if (this.#finished) throw new Error("ANALYSIS_RESULT_SET_ALIGNMENT");
+    this.#finished = true;
+    this.#hash.update(
+      `],"contractVersion":"cortex.analysis-result-set.v1",` +
+        `"finalCaseResultSetHash":${JSON.stringify(this.#finalCaseResultSetHash)},` +
+        `"owner":${canonicalJson({ ...this.#owner })},` +
+        `"selector":${JSON.stringify(this.#selector)}}`,
+      "utf8"
+    );
+    return this.#hash.digest("hex");
+  }
+}
+
+/** Hash the complete platform Run or offline Execution Analysis result version. */
+export function hashAnalysisResultSet(input: AnalysisResultSetHashInput): string {
+  if (
+    input.owner.id.trim() === "" ||
+    !ANALYSIS_SELECTOR_SET.has(input.selector) ||
+    !SHA_256_PATTERN.test(input.finalCaseResultSetHash)
+  ) {
+    throw new Error("ANALYSIS_RESULT_SET_ALIGNMENT");
+  }
+  const cases = normalizedSparseAnalysisCases(
+    input.cases,
+    (item) => item.analysisResultHash,
+    "ANALYSIS_RESULT_SET_ALIGNMENT"
+  );
+  return sha256CanonicalJson({
+    contractVersion: input.contractVersion,
+    owner: { ...input.owner },
+    selector: input.selector,
+    finalCaseResultSetHash: input.finalCaseResultSetHash,
+    cases: cases.map((item) => ({
+      caseKey: item.caseKey,
+      ordinal: item.ordinal,
+      analysisResultHash: item.analysisResultHash
+    }))
   });
 }

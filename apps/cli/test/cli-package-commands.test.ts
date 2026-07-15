@@ -82,20 +82,29 @@ function unusedReportService(): ReportCommandService {
   return { run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED_REPORT_COMMAND")) };
 }
 
-function unusedResultImportService(): { readonly importReport: () => Promise<never> } {
+function unusedAnalysisService(): { readonly run: () => Promise<never> } {
+  return { run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED_ANALYSIS_COMMAND")) };
+}
+
+function unusedResultImportService(): {
+  readonly importReport: () => Promise<never>;
+  readonly importAnalysis: () => Promise<never>;
+} {
   return {
-    importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED_RESULT_COMMAND"))
+    importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED_RESULT_COMMAND")),
+    importAnalysis: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED_RESULT_COMMAND"))
   };
 }
 
 describe("P8 CLI closed capabilities", () => {
-  it("exposes Report and Result Import but still hides unclosed Analysis and Data Export", async () => {
+  it("exposes closed Analysis while keeping Data Export hidden", async () => {
     const target = output();
     const exitCode = await runCli(["--help"], {
       packageCommands: service(),
       restCommands: unusedRestService(),
       evaluationCommands: unusedEvaluationService(),
       reportCommands: unusedReportService(),
+      analysisCommands: unusedAnalysisService(),
       pipelineCommands: unusedPipelineService(),
       resultCommands: unusedResultImportService(),
       output: target.streams
@@ -108,7 +117,8 @@ describe("P8 CLI closed capabilities", () => {
     expect(help).toMatch(/^\s{2}report\b/m);
     expect(help).toMatch(/^\s{2}pipeline\b/m);
     expect(help).toMatch(/^\s{2}result\b/m);
-    expect(help).not.toMatch(/^\s{2}(?:analyze|data)\b/m);
+    expect(help).toMatch(/^\s{2}analyze\b/m);
+    expect(help).not.toMatch(/^\s{2}data\b/m);
   });
 
   it("exports through the package service and emits one strict NDJSON event", async () => {
@@ -118,6 +128,7 @@ describe("P8 CLI closed capabilities", () => {
       restCommands: unusedRestService(),
       evaluationCommands: unusedEvaluationService(),
       reportCommands: unusedReportService(),
+      analysisCommands: unusedAnalysisService(),
       pipelineCommands: unusedPipelineService(),
       resultCommands: unusedResultImportService(),
       output: target.streams
@@ -140,6 +151,7 @@ describe("P8 CLI closed capabilities", () => {
       restCommands: unusedRestService(),
       evaluationCommands: unusedEvaluationService(),
       reportCommands: unusedReportService(),
+      analysisCommands: unusedAnalysisService(),
       pipelineCommands: unusedPipelineService(),
       resultCommands: unusedResultImportService(),
       output: target.streams
@@ -164,7 +176,8 @@ describe("P8 CLI closed capabilities", () => {
       ["INTERNAL_ERROR", 3],
       ["REQUEST_ABORTED", 130],
       ["REST_CANCELLED", 130],
-      ["EVALUATOR_CANCELLED", 130]
+      ["EVALUATOR_CANCELLED", 130],
+      ["ANALYSIS_CANCELLED", 130]
     ] as const;
     for (const [errorCode, expectedExitCode] of cases) {
       const target = output();
@@ -173,6 +186,7 @@ describe("P8 CLI closed capabilities", () => {
         restCommands: unusedRestService(),
         evaluationCommands: unusedEvaluationService(),
         reportCommands: unusedReportService(),
+        analysisCommands: unusedAnalysisService(),
         pipelineCommands: unusedPipelineService(),
         resultCommands: unusedResultImportService(),
         output: target.streams
@@ -197,6 +211,7 @@ describe("P8 CLI closed capabilities", () => {
       restCommands: unusedRestService(),
       evaluationCommands: unusedEvaluationService(),
       reportCommands: unusedReportService(),
+      analysisCommands: unusedAnalysisService(),
       pipelineCommands: unusedPipelineService(),
       resultCommands: unusedResultImportService(),
       output: target.streams
@@ -243,6 +258,7 @@ describe("P8 CLI closed capabilities", () => {
         restCommands: unusedRestService(),
         evaluationCommands: unusedEvaluationService(),
         reportCommands: unusedReportService(),
+        analysisCommands: unusedAnalysisService(),
         pipelineCommands: unusedPipelineService(),
         resultCommands: unusedResultImportService(),
         output: target.streams
@@ -275,6 +291,7 @@ describe("P8 CLI closed capabilities", () => {
       restCommands: unusedRestService(),
       evaluationCommands: unusedEvaluationService(),
       reportCommands: unusedReportService(),
+      analysisCommands: unusedAnalysisService(),
       pipelineCommands: unusedPipelineService(),
       resultCommands: unusedResultImportService(),
       output: target.streams,

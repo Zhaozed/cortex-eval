@@ -9,10 +9,12 @@ import { CortexMigrationProvider } from "./sqlite-initial-migration.ts";
 import { SqliteTransactionManager } from "./sqlite-transaction-manager.ts";
 import { SqlitePlatformRunTransactionManager } from "./sqlite-platform-run-repository.ts";
 import { SqlitePlatformEvalTransactionManager } from "./sqlite-platform-eval-repository.ts";
+import { SqliteCaseAnalysisTransactionManager } from "./sqlite-case-analysis-repository.ts";
 import {
   SqliteCaseImportStagingFactory,
   type SqliteCaseImportStagingFactoryOptions
 } from "./sqlite-case-import-staging.ts";
+import { SqliteAnalysisImportStagingFactory } from "./sqlite-analysis-import-staging.ts";
 import type { WorkspaceSecurityEvent } from "./case-import-workspace.ts";
 import type { SqliteDatabaseSchema } from "./sqlite-schema.ts";
 
@@ -111,6 +113,11 @@ export class SqliteStorage {
     return new SqlitePlatformEvalTransactionManager(this.#database);
   }
 
+  /** Create the dedicated current Analysis short-transaction boundary. */
+  public createAnalysisTransactionManager(): SqliteCaseAnalysisTransactionManager {
+    return new SqliteCaseAnalysisTransactionManager(this.#database);
+  }
+
   /** Create isolated external Case import staging sessions for this storage. */
   public createCaseImportStagingFactory(
     onSecurityEvent?: (event: WorkspaceSecurityEvent) => void | Promise<void>,
@@ -118,6 +125,15 @@ export class SqliteStorage {
   ): SqliteCaseImportStagingFactory {
     return new SqliteCaseImportStagingFactory(this.#database, this.#projectRoot, {
       ...options,
+      onSecurityEvent
+    });
+  }
+
+  /** Create isolated external Analysis import staging sessions for this storage. */
+  public createAnalysisImportStagingFactory(
+    onSecurityEvent?: (event: WorkspaceSecurityEvent) => void | Promise<void>
+  ): SqliteAnalysisImportStagingFactory {
+    return new SqliteAnalysisImportStagingFactory(this.#database, this.#projectRoot, {
       onSecurityEvent
     });
   }

@@ -16,6 +16,7 @@ import {
 } from "./cli-hashing.ts";
 import { runCli } from "./cli-program.ts";
 import { LocalEvaluationCommandService } from "./evaluation-command-service.ts";
+import { LocalAnalysisCommandService } from "./analysis-command-service.ts";
 import { HttpPackageCommandService, MacOsCliProcessIdentity } from "./package-command-service.ts";
 import { LocalPipelineCommandService } from "./pipeline-command-service.ts";
 import { LocalRestCommandService } from "./rest-command-service.ts";
@@ -94,6 +95,20 @@ const reportCommands = new WorkPackageReportRunService({
     }
   }
 });
+const analysisCommands = new LocalAnalysisCommandService({
+  contextHasher: cliExecutionContextHasher,
+  caseHasher: cliCaseDefinitionHasher,
+  restHashing: cliRestSemanticHashing,
+  evalHashing: cliEvalSemanticHashing,
+  nonce: randomUUID,
+  now,
+  processIdentity,
+  inheritedEnvironment: (): NodeJS.ProcessEnv => process.env,
+  errorMessage: (code): string =>
+    code in contractMessages
+      ? contractMessages[code as keyof typeof contractMessages]
+      : contractMessages.ANALYSIS_STAGE_FAILED
+});
 const pipelineCommands = new LocalPipelineCommandService({
   contextHasher: cliExecutionContextHasher,
   nonce: randomUUID,
@@ -102,7 +117,8 @@ const pipelineCommands = new LocalPipelineCommandService({
   inheritedEnvironment: (): NodeJS.ProcessEnv => process.env,
   restCommands,
   evaluationCommands,
-  reportCommands
+  reportCommands,
+  analysisCommands
 });
 const resultCommands = new HttpResultImportCommandService();
 const processArguments = process.argv.slice(2);
@@ -115,6 +131,7 @@ try {
     restCommands,
     evaluationCommands,
     reportCommands,
+    analysisCommands,
     pipelineCommands,
     resultCommands,
     output: {

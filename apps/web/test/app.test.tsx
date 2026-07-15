@@ -77,6 +77,11 @@ vi.mock("../src/features/runs/run-detail-page.tsx", () => ({
     <h1>Run Detail Mock {runId}</h1>
   )
 }));
+vi.mock("../src/features/analysis/analysis-page.tsx", () => ({
+  AnalysisPage: ({ runId }: { readonly runId: string }): ReactElement => (
+    <h1>Analysis Mock {runId}</h1>
+  )
+}));
 
 beforeEach(() => {
   Object.defineProperty(window, "scrollTo", { configurable: true, value: vi.fn() });
@@ -92,6 +97,7 @@ describe("P5 根路由", () => {
     ["/", "Dashboard Mock"],
     ["/runs", "Run List Mock"],
     [`/runs/${suiteId}`, `Run Detail Mock ${suiteId}`],
+    [`/runs/${suiteId}/analysis`, `Analysis Mock ${suiteId}`],
     ["/test-suites", "Suite List Mock"],
     [`/test-suites/${suiteId}`, `Suite Detail Mock ${suiteId}`],
     ["/endpoint-configs", "Config Mock ENDPOINT"],

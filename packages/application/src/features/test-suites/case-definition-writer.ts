@@ -1,7 +1,12 @@
 import type { CaseDefinition } from "@cortex-eval/domain/src/domain-evaluation.ts";
 import { hashSuite } from "@cortex-eval/domain/src/domain-resource-hashes.ts";
 
-import type { Clock, IdGenerator, TransactionManager } from "../../application-ports.ts";
+import type {
+  ApplicationTransaction,
+  Clock,
+  IdGenerator,
+  TransactionManager
+} from "../../application-ports.ts";
 import type {
   CaseWriteError,
   DeleteCaseResult,
@@ -241,81 +246,90 @@ export class CaseDefinitionWriter {
 
   /** Edit one current Case while preserving stable identity and order. */
   public async editCase(command: EditCaseCommand): Promise<SingleCaseWriteResult> {
+    const timestamp = this.#dependencies.clock.now();
+    return this.#dependencies.transactionManager.execute((transaction) =>
+      this.editCaseWithinTransaction(transaction, command, timestamp)
+    );
+  }
+
+  /** Reuse the complete Case edit invariants inside an already-managed short transaction. */
+  public async editCaseWithinTransaction(
+    transaction: ApplicationTransaction,
+    command: EditCaseCommand,
+    timestamp: string
+  ): Promise<SingleCaseWriteResult> {
     if (command.definition.caseKey !== command.caseKey) {
       return {
         ok: false,
         error: { code: "CASE_IDENTITY_CONFLICT", caseKey: command.caseKey }
       };
     }
-    const timestamp = this.#dependencies.clock.now();
     const prepared = prepareCase(command.definition, "", timestamp);
     if ("code" in prepared) return { ok: false, error: prepared };
-    return this.#dependencies.transactionManager.execute(async (transaction) => {
-      const suite = await transaction.testSuites.getSuite(command.suiteId);
-      if (suite === null) return { ok: false, error: { code: "SUITE_NOT_FOUND" } };
-      if (suite.revision !== command.expectedSuiteRevision) {
-        return { ok: false, error: revisionConflict(suite, command.expectedSuiteRevision) };
-      }
-      const current = await transaction.testSuites.getCase(command.suiteId, command.caseKey);
-      if (current === null) {
-        return { ok: false, error: { code: "CASE_NOT_FOUND", caseKey: command.caseKey } };
-      }
-      if (current.revision !== command.expectedCaseRevision) {
-        return {
-          ok: false,
-          error: {
-            code: "RESOURCE_REVISION_CONFLICT",
-            actualRevision: current.revision,
-            expectedRevision: command.expectedCaseRevision
-          }
-        };
-      }
-      const missingPrompt = await transaction.configurations.findMissingRubricPromptKey(
-        prepared.rubricPromptKeys
-      );
-      if (missingPrompt !== null) {
-        return {
-          ok: false,
-          error: { code: "RUBRIC_PROMPT_NOT_FOUND", promptKey: missingPrompt }
-        };
-      }
-      const candidate = storedCase(prepared, command.suiteId, current.ordinal);
-      const value: StoredTestCase = {
-        ...candidate,
-        id: current.id,
-        revision: current.revision + 1,
-        createdAt: current.createdAt
+    const suite = await transaction.testSuites.getSuite(command.suiteId);
+    if (suite === null) return { ok: false, error: { code: "SUITE_NOT_FOUND" } };
+    if (suite.revision !== command.expectedSuiteRevision) {
+      return { ok: false, error: revisionConflict(suite, command.expectedSuiteRevision) };
+    }
+    const current = await transaction.testSuites.getCase(command.suiteId, command.caseKey);
+    if (current === null) {
+      return { ok: false, error: { code: "CASE_NOT_FOUND", caseKey: command.caseKey } };
+    }
+    if (current.revision !== command.expectedCaseRevision) {
+      return {
+        ok: false,
+        error: {
+          code: "RESOURCE_REVISION_CONFLICT",
+          actualRevision: current.revision,
+          expectedRevision: command.expectedCaseRevision
+        }
       };
-      const allCases = (await transaction.testSuites.listCases(command.suiteId)).map((item) =>
-        item.caseKey === command.caseKey ? value : item
-      );
-      const suiteHash = hashSuite({
-        contractVersion: "cortex.suite.v1",
-        cases: allCases.map((item) => ({
-          caseKey: item.caseKey,
-          ordinal: item.ordinal,
-          definitionHash: item.definitionHash
-        }))
-      });
-      const updatedSuite = await transaction.testSuites.updateSuiteAggregate({
-        suiteId: command.suiteId,
-        expectedRevision: command.expectedSuiteRevision,
-        caseCount: allCases.length,
-        suiteHash,
-        updatedAt: timestamp
-      });
-      if (updatedSuite === null) {
-        const latest = await transaction.testSuites.getSuite(command.suiteId);
-        return latest === null
-          ? { ok: false, error: { code: "SUITE_NOT_FOUND" } }
-          : { ok: false, error: revisionConflict(latest, command.expectedSuiteRevision) };
-      }
-      const updated = await transaction.testSuites.updateCase(value, current.revision);
-      if (!updated) {
-        throw new Error("CASE_WRITE_CONCURRENT_UPDATE");
-      }
-      return { ok: true, case: value, suite: updatedSuite };
+    }
+    const missingPrompt = await transaction.configurations.findMissingRubricPromptKey(
+      prepared.rubricPromptKeys
+    );
+    if (missingPrompt !== null) {
+      return {
+        ok: false,
+        error: { code: "RUBRIC_PROMPT_NOT_FOUND", promptKey: missingPrompt }
+      };
+    }
+    const candidate = storedCase(prepared, command.suiteId, current.ordinal);
+    const value: StoredTestCase = {
+      ...candidate,
+      id: current.id,
+      revision: current.revision + 1,
+      createdAt: current.createdAt
+    };
+    const allCases = (await transaction.testSuites.listCases(command.suiteId)).map((item) =>
+      item.caseKey === command.caseKey ? value : item
+    );
+    const suiteHash = hashSuite({
+      contractVersion: "cortex.suite.v1",
+      cases: allCases.map((item) => ({
+        caseKey: item.caseKey,
+        ordinal: item.ordinal,
+        definitionHash: item.definitionHash
+      }))
     });
+    const updatedSuite = await transaction.testSuites.updateSuiteAggregate({
+      suiteId: command.suiteId,
+      expectedRevision: command.expectedSuiteRevision,
+      caseCount: allCases.length,
+      suiteHash,
+      updatedAt: timestamp
+    });
+    if (updatedSuite === null) {
+      const latest = await transaction.testSuites.getSuite(command.suiteId);
+      return latest === null
+        ? { ok: false, error: { code: "SUITE_NOT_FOUND" } }
+        : { ok: false, error: revisionConflict(latest, command.expectedSuiteRevision) };
+    }
+    const updated = await transaction.testSuites.updateCase(value, current.revision);
+    if (!updated) {
+      throw new Error("CASE_WRITE_CONCURRENT_UPDATE");
+    }
+    return { ok: true, case: value, suite: updatedSuite };
   }
 
   /** Copy a Case through the same create path after the caller assigns a new stable key. */

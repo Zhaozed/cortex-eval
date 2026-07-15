@@ -3,6 +3,15 @@ import type {
   CreatePlatformRunRequestV1Schema,
   RunPreflightRequestV1Schema
 } from "@cortex-eval/contracts/src/run-api-contracts.ts";
+import type {
+  AcceptAnalysisProposalRequestV1Schema,
+  AnalysisProposalDecisionTargetV1Schema,
+  StartCaseAnalysisRequestV1Schema
+} from "@cortex-eval/contracts/src/analysis-contracts.ts";
+import {
+  CurrentCaseAnalysisV1Schema,
+  StartCaseAnalysisResultV1Schema
+} from "@cortex-eval/contracts/src/analysis-contracts.ts";
 import {
   PlatformRerunCreatedV1Schema,
   PlatformRunDetailV1Schema,
@@ -47,6 +56,25 @@ export type PlatformRerunCreated = z.infer<typeof PlatformRerunCreatedV1Schema>;
 export type RunProgress = z.infer<typeof RunProgressV1Schema>;
 /** Validated snapshot-first SSE envelope. */
 export type RunStreamEnvelope = z.infer<typeof RunStreamEnvelopeV1Schema>;
+/** Validated current per-Case Analysis version. */
+export type CurrentCaseAnalysis = z.infer<typeof CurrentCaseAnalysisV1Schema>;
+/** Validated Analysis batch start input. */
+export type StartCaseAnalysisInput = z.infer<typeof StartCaseAnalysisRequestV1Schema>;
+/** Validated Analysis batch summary. */
+export type StartCaseAnalysisResult = z.infer<typeof StartCaseAnalysisResultV1Schema>;
+/** Optimistic Proposal rejection target. */
+export type RejectAnalysisInput = z.infer<typeof AnalysisProposalDecisionTargetV1Schema>;
+/** Complete Proposal acceptance input without edited payload. */
+export type AcceptAnalysisInput = Omit<
+  z.infer<typeof AcceptAnalysisProposalRequestV1Schema>,
+  "editedProposal"
+>;
+/** Complete Proposal edit-and-accept input. */
+export type EditAndAcceptAnalysisInput = z.infer<typeof AcceptAnalysisProposalRequestV1Schema> & {
+  readonly editedProposal: NonNullable<
+    z.infer<typeof AcceptAnalysisProposalRequestV1Schema>["editedProposal"]
+  >;
+};
 /** Validated platform Run creation input. */
 export type CreatePlatformRunInput = z.infer<typeof CreatePlatformRunRequestV1Schema>;
 /** Validated Retry/Force mode. */
@@ -129,6 +157,39 @@ export interface RunApi {
     caseKey: string,
     signal: AbortSignal
   ) => Promise<RunReportCase>;
+  /** Analyze the exact selected failed Report Case set. */
+  readonly startAnalysis: (
+    runId: string,
+    input: StartCaseAnalysisInput,
+    signal: AbortSignal
+  ) => Promise<StartCaseAnalysisResult>;
+  /** Read one current Run/Case Analysis version. */
+  readonly getAnalysis: (
+    runId: string,
+    caseKey: string,
+    signal: AbortSignal
+  ) => Promise<CurrentCaseAnalysis>;
+  /** Reject one current pending Proposal. */
+  readonly rejectAnalysis: (
+    runId: string,
+    caseKey: string,
+    input: RejectAnalysisInput,
+    signal: AbortSignal
+  ) => Promise<CurrentCaseAnalysis>;
+  /** Accept one current Proposal against visible Case identities. */
+  readonly acceptAnalysis: (
+    runId: string,
+    caseKey: string,
+    input: AcceptAnalysisInput,
+    signal: AbortSignal
+  ) => Promise<CurrentCaseAnalysis>;
+  /** Validate and accept a user-edited Proposal. */
+  readonly editAndAcceptAnalysis: (
+    runId: string,
+    caseKey: string,
+    input: EditAndAcceptAnalysisInput,
+    signal: AbortSignal
+  ) => Promise<CurrentCaseAnalysis>;
   /** Create one new Retry/Force Run from an immutable platform source. */
   readonly createRerun: (
     sourceRunId: string,
@@ -303,6 +364,46 @@ export function createRunApi(
         { signal },
         fetcher,
         (output) => output.caseKey === caseKey
+      ),
+    startAnalysis: (runId, input, signal) =>
+      apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(runId)}/analyses`,
+        StartCaseAnalysisResultV1Schema,
+        jsonRequest(input, signal),
+        fetcher,
+        (output) => output.runId === runId && output.selector === input.selector
+      ),
+    getAnalysis: (runId, caseKey, signal) =>
+      apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(runId)}/analyses/${encodeURIComponent(caseKey)}`,
+        CurrentCaseAnalysisV1Schema,
+        { signal },
+        fetcher,
+        (output) => output.runId === runId && output.caseKey === caseKey
+      ),
+    rejectAnalysis: (runId, caseKey, input, signal) =>
+      apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(runId)}/analyses/${encodeURIComponent(caseKey)}/reject`,
+        CurrentCaseAnalysisV1Schema,
+        jsonRequest(input, signal),
+        fetcher,
+        (output) => output.runId === runId && output.caseKey === caseKey
+      ),
+    acceptAnalysis: (runId, caseKey, input, signal) =>
+      apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(runId)}/analyses/${encodeURIComponent(caseKey)}/accept`,
+        CurrentCaseAnalysisV1Schema,
+        jsonRequest(input, signal),
+        fetcher,
+        (output) => output.runId === runId && output.caseKey === caseKey
+      ),
+    editAndAcceptAnalysis: (runId, caseKey, input, signal) =>
+      apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(runId)}/analyses/${encodeURIComponent(caseKey)}/edit-and-accept`,
+        CurrentCaseAnalysisV1Schema,
+        jsonRequest(input, signal),
+        fetcher,
+        (output) => output.runId === runId && output.caseKey === caseKey
       ),
     createRerun: (sourceRunId, mode, signal) =>
       apiRequestJson(

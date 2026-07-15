@@ -69,6 +69,12 @@ function runHandlers(getRunProgress: LocalApiHandler): LocalRunHandlers {
     getRunReportCase: inert(),
     exportRunReport: inert(),
     importExecutionReport: inert(201),
+    importExecutionAnalysis: inert(201),
+    startCaseAnalysis: inert(),
+    getCurrentCaseAnalysis: inert(),
+    rejectAnalysisProposal: inert(),
+    acceptAnalysisProposal: inert(),
+    editAndAcceptAnalysisProposal: inert(),
     startRun: inert(202),
     cancelRun: inert(202),
     getRunProgress

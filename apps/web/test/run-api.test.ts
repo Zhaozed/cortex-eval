@@ -41,6 +41,129 @@ class FakeRunEventSource implements RunEventSource {
 }
 
 describe("Run API Client", () => {
+  it("严格绑定 Analysis 发起、当前版本和三种 Proposal 决策", async () => {
+    const hash = "a".repeat(64);
+    const analysisId = "018f0f4e-7b7a-7cc0-8000-000000000010";
+    const analyzerId = "018f0f4e-7b7a-7cc0-8000-000000000011";
+    const promptId = "018f0f4e-7b7a-7cc0-8000-000000000012";
+    const current = {
+      contractVersion: "cortex.current-case-analysis.v1" as const,
+      id: analysisId,
+      runId: RUN_ID,
+      caseKey: "case-1",
+      finalCaseResultHash: hash,
+      revision: 3,
+      prompt: { sourceId: promptId, promptKey: "analysis", promptHash: hash },
+      analyzer: {
+        sourceId: analyzerId,
+        configHash: hash,
+        provider: "GOOGLE_GEMINI" as const,
+        model: "gemini-test"
+      },
+      analysisInputHash: hash,
+      analysisExecutionLimits: {
+        contractVersion: "cortex.analysis-execution-limits.v1" as const,
+        analysisConcurrency: 2
+      },
+      status: "SUCCEEDED" as const,
+      output: {
+        contractVersion: "cortex.analysis-output.v1" as const,
+        classification: "NORMAL_FAILURE" as const,
+        confidence: 0.9,
+        evidence: [
+          {
+            source: "failed_assertions" as const,
+            fieldPath: "/0",
+            conclusion: "quality 断言失败"
+          }
+        ],
+        explanation: "实际输出不满足冻结断言",
+        recommendedAction: "修复被测系统",
+        proposal: null
+      },
+      analysisResultHash: hash,
+      decision: "NO_PROPOSAL" as const,
+      applyStatus: "NOT_APPLICABLE" as const,
+      baseDefinitionHash: null,
+      appliedDefinitionHash: null,
+      errorCode: null,
+      errorMessage: null,
+      createdAt: TIME,
+      updatedAt: TIME
+    };
+    const startResult = {
+      contractVersion: "cortex.case-analysis-start-result.v1" as const,
+      runId: RUN_ID,
+      selector: "failed" as const,
+      selectedCount: 1,
+      succeededCount: 1,
+      errorCount: 0,
+      finalCaseResultSetHash: hash
+    };
+    const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url === `/api/v1/runs/${RUN_ID}/analyses`) return Promise.resolve(response(startResult));
+      return Promise.resolve(response(current));
+    });
+    const api = createRunApi(fetcher);
+    const signal = new AbortController().signal;
+    const start = {
+      analyzerConfigId: analyzerId,
+      analysisPromptId: promptId,
+      selector: "failed" as const,
+      analysisExecutionLimits: {
+        contractVersion: "cortex.analysis-execution-limits.v1" as const,
+        analysisConcurrency: 2
+      }
+    };
+    await expect(api.startAnalysis(RUN_ID, start, signal)).resolves.toEqual(startResult);
+    await expect(api.getAnalysis(RUN_ID, "case-1", signal)).resolves.toEqual(current);
+    await expect(
+      api.rejectAnalysis(RUN_ID, "case-1", { analysisId, expectedAnalysisRevision: 3 }, signal)
+    ).resolves.toEqual(current);
+    const accept = {
+      analysisId,
+      expectedAnalysisRevision: 3,
+      expectedFinalCaseResultHash: hash,
+      expectedAnalysisInputHash: hash,
+      expectedPromptHash: hash,
+      expectedAnalyzerConfigHash: hash,
+      suiteId: SUITE_ID,
+      expectedSuiteRevision: 0,
+      expectedCaseId: "018f0f4e-7b7a-7cc0-8000-000000000013",
+      expectedCaseRevision: 0
+    };
+    await expect(api.acceptAnalysis(RUN_ID, "case-1", accept, signal)).resolves.toEqual(current);
+    await expect(
+      api.editAndAcceptAnalysis(
+        RUN_ID,
+        "case-1",
+        {
+          ...accept,
+          editedProposal: {
+            action: "ADD_ASSERTION",
+            baseDefinitionHash: hash,
+            targetAssertionIndex: 0,
+            assertion: { type: "equals", metric: "quality", weight: 1, value: "ok" }
+          }
+        },
+        signal
+      )
+    ).resolves.toEqual(current);
+
+    expect(fetcher).toHaveBeenCalledWith(
+      `/api/v1/runs/${RUN_ID}/analyses/case-1/reject`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ analysisId, expectedAnalysisRevision: 3 })
+      })
+    );
+    expect(fetcher).toHaveBeenCalledWith(
+      `/api/v1/runs/${RUN_ID}/analyses/case-1/edit-and-accept`,
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
   it("严格验证预检、创建、列表和 Revision 写请求", async () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
       const url = requestUrl(input);

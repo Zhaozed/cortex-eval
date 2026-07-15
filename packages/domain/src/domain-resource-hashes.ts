@@ -123,7 +123,7 @@ function endpointHeaders(value: EndpointConfigDefinition): DomainJsonObject {
 }
 
 // Convert one supported LLM configuration into its complete canonical runtime fact.
-function llmConfig(value: LlmConfigDefinition): DomainJsonObject {
+export function llmConfigJson(value: LlmConfigDefinition): DomainJsonObject {
   const common = {
     providerType: value.providerType,
     model: value.model,
@@ -180,7 +180,7 @@ export function hashEndpointConfig(input: EndpointConfigHashInput): string {
 export function hashLlmConfig(input: LlmConfigHashInput): string {
   return sha256CanonicalJson({
     contractVersion: input.contractVersion,
-    config: llmConfig(input.config)
+    config: llmConfigJson(input.config)
   });
 }
 

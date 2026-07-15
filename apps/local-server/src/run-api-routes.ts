@@ -271,6 +271,59 @@ export function registerRunRoutes(
     server,
     controllers,
     "POST",
+    "/api/v1/runs/:runId/analyses",
+    "startCaseAnalysis",
+    handlers.startCaseAnalysis,
+    64 * 1024
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "GET",
+    "/api/v1/runs/:runId/analyses/:caseKey",
+    "getCurrentCaseAnalysis",
+    handlers.getCurrentCaseAnalysis
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "POST",
+    "/api/v1/runs/:runId/analyses/:caseKey/reject",
+    "rejectAnalysisProposal",
+    handlers.rejectAnalysisProposal,
+    16 * 1024
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "POST",
+    "/api/v1/runs/:runId/analyses/:caseKey/accept",
+    "acceptAnalysisProposal",
+    handlers.acceptAnalysisProposal,
+    64 * 1024
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "POST",
+    "/api/v1/runs/:runId/analyses/:caseKey/edit-and-accept",
+    "editAndAcceptAnalysisProposal",
+    handlers.editAndAcceptAnalysisProposal,
+    64 * 1024
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "POST",
+    "/api/v1/execution-results/analysis/import",
+    "importExecutionAnalysis",
+    handlers.importExecutionAnalysis,
+    16 * 1024
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "POST",
     "/api/v1/runs/preflight",
     "preflightRun",
     handlers.preflightRun,

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { AnalysisInputV1Schema, AnalysisOutputV1Schema } from "../src/analysis-contracts.ts";
+import {
+  AnalysisEvidenceV1Schema,
+  AnalysisInputV1Schema,
+  AnalysisOutputV1Schema
+} from "../src/analysis-contracts.ts";
 
 const HASH = "a".repeat(64);
 
@@ -36,7 +40,13 @@ describe("Analysis Input/Output v1", () => {
       contractVersion: "cortex.analysis-output.v1",
       classification: "LABEL_ERROR",
       confidence: 0.8,
-      evidence: ["标注冲突"],
+      evidence: [
+        {
+          source: "expected_actual_diffs",
+          fieldPath: "/0/actual",
+          conclusion: "实际值与冻结约束冲突"
+        }
+      ],
       explanation: "预期与约束冲突",
       recommendedAction: "替换断言",
       proposal: {
@@ -53,5 +63,31 @@ describe("Analysis Input/Output v1", () => {
         proposal: { ...output.proposal, assertion: {} }
       }).success
     ).toBe(false);
+  });
+
+  it("Evidence 固定六种输入来源、RFC 6901 路径和非空结论", () => {
+    const evidence = {
+      source: "provider_output",
+      fieldPath: "/resolved_config/tool~1name/~0value",
+      conclusion: "工具名称与 Case 约束不一致"
+    };
+    expect(AnalysisEvidenceV1Schema.parse(evidence)).toEqual(evidence);
+    expect(
+      AnalysisEvidenceV1Schema.parse({
+        source: "run_context",
+        fieldPath: null,
+        conclusion: "冻结上下文不包含所需能力"
+      }).fieldPath
+    ).toBeNull();
+
+    for (const invalid of [
+      { ...evidence, source: "raw_promptfoo" },
+      { ...evidence, fieldPath: "resolved_config/tool" },
+      { ...evidence, fieldPath: "/invalid~2escape" },
+      { ...evidence, conclusion: " " },
+      { ...evidence, raw: {} }
+    ]) {
+      expect(AnalysisEvidenceV1Schema.safeParse(invalid).success).toBe(false);
+    }
   });
 });

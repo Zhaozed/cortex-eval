@@ -14,7 +14,7 @@ UI Primitive 只负责表现、可访问性和基础交互，不负责请求、�
 
 ## 实现状态
 
-已落地资源管理与平台 Run/REST/Evaluation/Report Web。当前注册 Dashboard 资源数量、统一最近 Run 与最新完整报告指标、Test Suite/Case、Endpoint、LLM、LLM Rubric Prompt、Case Analysis Prompt、Run 创建/详情、Report 和平台 Retry/Force；Analysis 页面保持未注册。
+已落地资源管理与平台 Run/REST/Evaluation/Report/Analysis Web。当前注册 Dashboard 资源数量、统一最近 Run 与最新完整报告指标、Test Suite/Case、Endpoint、LLM、LLM Rubric Prompt、Case Analysis Prompt、Run 创建/详情、Report、Analysis 和平台 Retry/Force；Analysis 页面已完成冲突刷新、完整 Cursor 分页以及新 Proposal 与旧冲突 Draft 独立展示。
 
 ## 目标代码落点
 
@@ -72,4 +72,4 @@ Dashboard 贡献按闭环注册：P4 提供资源数量；P5 提供最近平台 
 
 ## 相关测试
 
-当前测试覆盖资源、Run 与 Report API Client、请求/响应身份、路由、缓存失效、表单错误映射、Run 刷新恢复、取消、重跑、报告过滤/详情/导出和可访问状态。真实 Playwright 覆盖离线 Report 导入后的 Dashboard、Run、Report 与 Test Suite 关联；Analysis 主路径随 P9 补充。源码架构门禁同时限制 `apps`、`packages` 与 `tooling` 的 TypeScript/TSX 文件不超过 1,000 个物理行。
+当前测试覆盖资源、Run、Report 与 Analysis API Client、请求/响应身份、路由、缓存失效、表单错误映射、Run 刷新恢复、取消、重跑、报告过滤/详情/导出、Analysis 当前版本与决策，以及可访问状态。真实 Playwright 覆盖离线 Report/Analysis 导入后的 Dashboard、Run、Report、Analysis 与 Test Suite 关联。源码架构门禁同时限制 `apps`、`packages` 与 `tooling` 的 TypeScript/TSX 文件不超过 1,000 个物理行。

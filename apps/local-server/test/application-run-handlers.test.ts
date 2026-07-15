@@ -320,6 +320,25 @@ function service(
       ok: false,
       error: { code: "EXECUTION_RESULT_CONFLICT", executionId: RUN_ID }
     }),
+    importExecutionAnalysis: vi.fn().mockResolvedValue({
+      ok: false,
+      error: { code: "EXECUTION_RESULT_CONFLICT", executionId: RUN_ID }
+    }),
+    startCaseAnalysis: vi.fn().mockResolvedValue({
+      ok: false,
+      error: { code: "RUN_NOT_FOUND" }
+    }),
+    getCurrentCaseAnalysis: vi.fn().mockResolvedValue(null),
+    rejectAnalysisProposal: vi.fn().mockResolvedValue({
+      ok: false,
+      error: { code: "ANALYSIS_NOT_FOUND" },
+      analysis: null
+    }),
+    acceptAnalysisProposal: vi.fn().mockResolvedValue({
+      ok: false,
+      error: { code: "ANALYSIS_NOT_FOUND" },
+      analysis: null
+    }),
     ...overrides
   };
 }

@@ -14,7 +14,7 @@
 - P2 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
 - P3 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
 - P4 Web 入口：[apps/web/src](../apps/web/src)
-- P8 Reporting、平台重跑和完整 Execution Report Import 已完成；P9 Analysis 尚未开始。
+- P9 Analysis、平台与离线执行、当前决策和完整 Execution Analysis Import 已完成完整门禁与独立变更复审；P10 Canonical Export 与最终硬化尚未开始。
 
 ## 单文件 SQLite
 
@@ -37,6 +37,38 @@ Storage 使用 Kysely 与 better-sqlite3，只实现 SQLite Schema、Migration �
 ### 排障影响
 
 从 SQLite 状态、Migration 和 Repository 日志进入。
+
+### 状态
+
+生效。
+
+## P9 Analysis 结构化 Evidence 与当前决策
+
+### 决策
+
+Analysis Evidence 使用非空结构化对象数组，不接受字符串格式。每项 Evidence 的 `source` 只能指向六个完整 Analysis Input 变量之一；`fieldPath` 必填，引用整个来源时为 `null`，引用内部事实时为 RFC 6901 JSON Pointer；`conclusion` 必须非空。外部模型输出在 Contracts 边界整体校验，Application 和 Domain 只接收清洗后的结构，不从文本猜测来源或路径。
+
+每次 Analysis 以独立 Analysis ID、Analysis Input Hash、Final Case Result Hash、Analysis Prompt Hash、Analyzer Config Hash、Analysis Revision 和 Analysis Result Hash 表达独立版本。平台只保存同一 Run/Case 的当前行；每次调用生成新身份并以 Revision 替换。并发调用只能恢复自己精确抢占的 ID/Revision，不能扫描或改写另一个请求的 `RUNNING` 事实。建议应用在一个短事务中按 Case Analysis、Test Suite、Test Case、相关 Prompt 的顺序校验，复用统一 `CaseDefinitionWriter`；成功记录 `APPLIED` 和新 Definition Hash，漂移记录 `CONFLICT`，不自动 Rebase。
+
+### 原因
+
+字符串只能承载人类描述，不能稳定指出结论来自哪个冻结输入事实，也无法可靠校验字段位置。结构化 Evidence 可以被 Schema、UI、导入和审计一致消费，并在输入版本变化时提供明确冲突依据。建议决策若与 Case 写入分成两个事务，会出现 Case 已改但决策未记或过期建议覆盖当前 Case。
+
+### 代码影响
+
+Contracts、Domain、Analyzer Adapter、Artifact、SQLite Mapper 和 Application DTO 统一使用结构化 Evidence。SQLite 只保存当前 Analysis；重新分析通过 Revision 覆盖当前事实并清除旧决策。Analyzer 直接使用官方 SDK，不经过只服务 Promptfoo Evaluation 的 Bridge。离线 Writer 使用 Work Package v1 已冻结的 Analysis 槽位；Importer 双遍重算 Input/Result/Result Set Hash，并只按显式 Package、Execution、Artifact、Final Case Result 身份查询，不使用 `select max`。完整 Analysis Case 流在主库事务外写入 owner-only SQLite staging，最终短事务只做确定性对账和集合提交。Artifact 错误码闭合，平台按错误码重建文案；SQLite Mapper 重算 Result Hash，并与数据库触发器共同约束状态组合。Web 决策冲突后重取当前服务端事实，保留并锁定编辑 Draft。
+
+### 测试影响
+
+测试覆盖固定来源、RFC 6901 路径、空数组与字符串拒绝、结构化往返、Hash 变化、四类 Proposal、接受/编辑后接受/拒绝、Case/Assertion/Prompt/Analyzer/Rubric 漂移、并发启动所有权、不响应 Abort 的模型取消、主库事务外 staging、Artifact 错误码与平台文案重建、持久化 Hash/状态脏行拒绝、Cursor 续页、冲突后终态刷新、离线双遍导入及原子冲突。
+
+Analysis 取消与崩溃恢复使用独立稳定事实：离线阶段认领前取消不写终态，认领后写 `ANALYSIS_CANCELLED`；Local Server 开放请求前把遗留 `PENDING/RUNNING` 写为 `ANALYSIS_INTERRUPTED`。两者不能归并为普通 `ANALYSIS_STAGE_FAILED`。平台消息解析同时覆盖闭合 Analysis Error Code 和 Analyzer Case Error Code。Analysis 页面必须遍历 Analyzer、Analysis Prompt 与 Case 的全部 Cursor，并拒绝循环 Cursor。
+
+Analyzer 的 `structuredOutput` 是冻结执行语义：Gemini 与 OpenAI-compatible 仅在 `JSON_SCHEMA` 时发送 JSON Schema，`JSON_OBJECT` 不得被 Adapter 暗中升级；两种模式的响应都进入同一严格 Analysis Output 校验。Web 的冲突 Draft 归属 Run/Case，而不归属已过期 Analysis ID，因此并发重新分析返回新 ID 时仍展示新服务端终态并锁定原 Draft。Case 分页若下一 Cursor 已经使用过则停止续读，防止循环请求。
+
+### 排障影响
+
+结构输出失败先检查 Evidence 数组、来源、路径和结论，再检查 Analyzer 的 JSON Schema/JSON Object 能力；不得增加字符串兼容分支。建议冲突先核对显式版本身份和当前 Revision，不用最大时间、最大 ID 或 `select max` 查找替代记录。
 
 ### 状态
 

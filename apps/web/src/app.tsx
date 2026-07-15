@@ -38,6 +38,10 @@ const ReportPage = lazy(async () => {
   const feature = await import("./features/reports/report-page.tsx");
   return { default: feature.ReportPage };
 });
+const AnalysisPage = lazy(async () => {
+  const feature = await import("./features/analysis/analysis-page.tsx");
+  return { default: feature.AnalysisPage };
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -126,6 +130,17 @@ function RoutePage({
   if (route.kind === "RUN_REPORT") {
     return (
       <ReportPage key={route.runId} api={runApi} runId={route.runId} onNavigate={onNavigate} />
+    );
+  }
+  if (route.kind === "RUN_ANALYSIS") {
+    return (
+      <AnalysisPage
+        key={route.runId}
+        api={runApi}
+        resourceApi={api}
+        runId={route.runId}
+        onNavigate={onNavigate}
+      />
     );
   }
   if (route.kind === "TEST_SUITE_LIST") {

@@ -213,6 +213,8 @@ describe("Report 页面", () => {
     expect(screen.getByText("损坏")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "返回运行" }));
     expect(onNavigate).toHaveBeenCalledWith("/runs");
+    await userEvent.click(screen.getByRole("button", { name: "分析失败 Case" }));
+    expect(onNavigate).toHaveBeenCalledWith(`/runs/${RUN_ID}/analysis`);
 
     await userEvent.click(await screen.findByRole("button", { name: "下一页" }));
     await waitFor(() =>

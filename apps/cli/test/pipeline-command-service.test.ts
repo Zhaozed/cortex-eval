@@ -24,6 +24,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   LocalPipelineCommandService,
+  type PreparedAnalysisStageCommand,
   type PreparedEvaluationStageCommand,
   type PreparedReportStageCommand,
   type PreparedRestStageCommand
@@ -34,6 +35,7 @@ import type { WorkPackageEvaluationRunResult } from "../src/work-package-evaluat
 import type { WorkPackageRestRunResult } from "../src/work-package-rest-run-service.ts";
 import type { WorkPackageReportRunResult } from "../src/work-package-report-run-service.ts";
 import { WorkPackageReportRunService } from "../src/work-package-report-run-service.ts";
+import type { WorkPackageAnalysisRunResult } from "../src/work-package-analysis-run-service.ts";
 
 const EXECUTION_ID = "018f22aa-33bb-7ccc-8ddd-fffffffffff1";
 const RETRY_EXECUTION_ID = "018f22aa-33bb-7ccc-8ddd-fffffffffff2";
@@ -198,11 +200,42 @@ function reportStage(onRun: () => void): PreparedReportStageCommand {
   };
 }
 
+function analysisStage(onPreflight: () => void, onRun: () => void): PreparedAnalysisStageCommand {
+  return {
+    preflightWithEnvironment: (_input, environment): Promise<void> => {
+      onPreflight();
+      expect(environment.readSecret("GEMINI_API_KEY")).toBe("pipeline-secret");
+      return Promise.resolve();
+    },
+    runWithEnvironment: (input, environment): Promise<WorkPackageAnalysisRunResult> => {
+      onRun();
+      expect(input.executionId).toBe(EXECUTION_ID);
+      expect(input.selector).toBe("all");
+      expect(environment.readSecret("GEMINI_API_KEY")).toBe("pipeline-secret");
+      return Promise.resolve({
+        packageId: "018f22aa-33bb-7ccc-8ddd-eeeeeeeeeeee",
+        executionId: EXECUTION_ID,
+        selector: "all",
+        selectedCount: 1,
+        succeededCount: 1,
+        errorCount: 0,
+        finalCaseResultSetHash: "d".repeat(64),
+        analysisResultSetHash: "e".repeat(64),
+        artifactPath: `executions/${EXECUTION_ID}/analysis-results.json`
+      });
+    }
+  };
+}
+
 function service(
   inherited: Readonly<Record<string, string | undefined>>,
   restCommands: PreparedRestStageCommand,
   evaluationCommands: PreparedEvaluationStageCommand,
-  reportCommands: PreparedReportStageCommand = reportStage(() => undefined)
+  reportCommands: PreparedReportStageCommand = reportStage(() => undefined),
+  analysisCommands: PreparedAnalysisStageCommand = analysisStage(
+    () => undefined,
+    () => undefined
+  )
 ): LocalPipelineCommandService {
   let nonce = 0;
   return new LocalPipelineCommandService({
@@ -215,7 +248,8 @@ function service(
     inheritedEnvironment: (): Readonly<Record<string, string | undefined>> => inherited,
     restCommands,
     evaluationCommands,
-    reportCommands
+    reportCommands,
+    analysisCommands
   });
 }
 
@@ -224,6 +258,33 @@ afterEach(async () => {
 });
 
 describe("P7 local REST to Evaluation Pipeline command service", () => {
+  it("显式选择 Analysis 时在 REST 前预检，并在 Report 后使用同一 Secret 快照", async () => {
+    const root = await packageRoot();
+    const order: string[] = [];
+    const pipeline = service(
+      { GEMINI_API_KEY: "pipeline-secret" },
+      restStage(() => order.push("rest")),
+      evaluationStage(() => order.push("evaluation")),
+      reportStage(() => order.push("report")),
+      analysisStage(
+        () => order.push("analysis-preflight"),
+        () => order.push("analysis")
+      )
+    );
+
+    const result = await pipeline.run({
+      packagePath: root,
+      rerun: { mode: "NEW" },
+      runLimitOverrides: {},
+      analysisLimitOverrides: {},
+      analysisSelector: "all",
+      signal: new AbortController().signal
+    });
+
+    expect(order).toEqual(["analysis-preflight", "rest", "evaluation", "report", "analysis"]);
+    expect(result.analysis).toMatchObject({ selector: "all", selectedCount: 1 });
+  });
+
   it("preflights all selected-stage Secrets before creating an Execution", async () => {
     const root = await packageRoot();
     let stageCalls = 0;
@@ -412,6 +473,10 @@ describe("P7 local REST to Evaluation Pipeline command service", () => {
       inheritedEnvironment,
       restCommands,
       evaluationCommands,
+      analysisCommands: analysisStage(
+        () => undefined,
+        () => undefined
+      ),
       reportCommands: new WorkPackageReportRunService({
         contextHasher,
         caseHasher,

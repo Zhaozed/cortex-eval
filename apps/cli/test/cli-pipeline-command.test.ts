@@ -65,8 +65,12 @@ const evaluationCommands: EvaluationCommandService = {
 const reportCommands: ReportCommandService = {
   run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
 };
+const analysisCommands = {
+  run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+};
 const resultCommands = {
-  importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+  importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED")),
+  importAnalysis: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
 };
 
 describe("P7 CLI REST to Evaluation Pipeline", () => {
@@ -115,6 +119,7 @@ describe("P7 CLI REST to Evaluation Pipeline", () => {
         restCommands,
         evaluationCommands,
         reportCommands,
+        analysisCommands,
         pipelineCommands,
         resultCommands,
         output: target.streams
@@ -173,11 +178,75 @@ describe("P7 CLI REST to Evaluation Pipeline", () => {
         restCommands,
         evaluationCommands,
         reportCommands,
+        analysisCommands,
         pipelineCommands,
         resultCommands,
         output: target.streams
       })
     ).resolves.toBe(0);
     expect(target.stdout.join("")).toContain(ID);
+  });
+
+  it("显式 Analysis Selector 进入 Pipeline 输入和机器完成事件", async () => {
+    let observed: PipelineRunCommandInput | null = null;
+    const pipelineCommands: PipelineCommandService = {
+      run: (input) => {
+        observed = input;
+        return Promise.resolve({
+          packageId: ID,
+          executionId: ID,
+          restErrorCount: 0,
+          restResultSetHash: HASH,
+          restArtifactPath: `executions/${ID}/rest-results.json`,
+          promptfooExitCode: 0,
+          evalFailCount: 0,
+          evalErrorCount: 0,
+          evaluationResultSetHash: "b".repeat(64),
+          rawArtifactPath: `executions/${ID}/promptfoo-raw.json`,
+          normalizedArtifactPath: `executions/${ID}/normalized-eval.json`,
+          reportResultSetHash: "c".repeat(64),
+          reportSummary: {
+            ...REPORT_SUMMARY,
+            evalFail: 0,
+            evalPass: 1,
+            effectivePassRate: 1,
+            evaluatedPassRate: 1
+          },
+          reportJsonPath: `executions/${ID}/report.json`,
+          reportMarkdownPath: `executions/${ID}/report.md`,
+          analysis: {
+            packageId: ID,
+            executionId: ID,
+            selector: "all",
+            selectedCount: 0,
+            succeededCount: 0,
+            errorCount: 0,
+            finalCaseResultSetHash: "d".repeat(64),
+            analysisResultSetHash: "e".repeat(64),
+            artifactPath: `executions/${ID}/analysis-results.json`
+          }
+        });
+      }
+    };
+    const target = output();
+    const exitCode = await runCli(
+      ["--json", "pipeline", "run", "/tmp/package", "--analysis-selector", "all"],
+      {
+        packageCommands,
+        restCommands,
+        evaluationCommands,
+        reportCommands,
+        analysisCommands,
+        pipelineCommands,
+        resultCommands,
+        output: target.streams
+      }
+    );
+    expect(exitCode).toBe(0);
+    expect(observed).toMatchObject({ analysisSelector: "all" });
+    expect(JSON.parse(target.stdout.join("")) as unknown).toMatchObject({
+      type: "PIPELINE_COMPLETED",
+      analysis: { selector: "all", selectedCount: 0 }
+    });
   });
 });

@@ -10,9 +10,9 @@ Cortex Eval 是面向本地单用户的测试集管理、REST 结果获取、Pro
 
 ## 实现状态
 
-当前仓库已完成 P0–P8，P9 尚未开始。Node 24 工具链、137 条 Assertion 能力契约、十表 SQLite、资源/API/Web、平台与离线 REST→Evaluation→Report Pipeline、不可变 Eval/Report Artifact、规范化 Hash、Case Metric、Ajv 2020-12 Diff、纯报告聚合与 Markdown、严格 Importer、SQLite 原子提交、受控 Promptfoo/Bridge/官方 SDK 链、Work Package v1 导出与安全文件运行时、平台与离线 Retry/Force、连续 Retry Evidence 追溯、完整 Execution Report Import、固定 Promptfoo 版本、真实取消到 CLI 130 和 Promptfoo Raw 有界流式 Source 已生效。
+当前仓库已完成 P0–P9。Node 24 工具链、137 条 Assertion 能力契约、资源/API/Web、平台与离线 REST→Evaluation→Report→显式 Analysis Pipeline、不可变 Eval/Report/Analysis Artifact、结构化 Evidence、规范化 Hash、Case Metric、Ajv 2020-12 Diff、纯报告聚合与 Markdown、严格 Importer、SQLite 原子提交、受控 Promptfoo/Bridge 链、Analyzer 官方 SDK、Work Package v1 导出与安全文件运行时、平台与离线 Retry/Force、连续 Retry Evidence 追溯、完整 Execution Report/Analysis Import、固定 Promptfoo 版本、真实取消到 CLI 130 和 Promptfoo Raw 有界流式 Source 已生效。
 
-当前 OpenAPI 与 Web 包含资源、平台 REST、Evaluation、Report、Retry/Force 和 Execution Report Import 闭环；Work Package 导出 API 已注册。Bridge v2 只绑定一次 Evaluation 调用期，以确定性总预算和并发限制保护冻结 Evaluator，不识别 Assertion、Metric 或组件身份；结果身份由 Promptfoo Raw Result 的 Metric、完整 Definition 和组件结构承担。Case 构建不按类型拒绝 `select-best`、`max-score` 或其他 Assertion，平台也不复现或预判其执行流程。Analysis、Analysis Import 和 Canonical Export 及其 API/CLI/Web 能力尚未闭合。
+当前 OpenAPI 与 Web 包含资源、平台 REST、Evaluation、Report、Analysis、Retry/Force 和 Execution Report/Analysis Import 闭环；Work Package 导出 API 已注册。Bridge v2 只绑定一次 Evaluation 调用期，以确定性总预算和并发限制保护冻结 Evaluator，不识别 Assertion、Metric 或组件身份；结果身份由 Promptfoo Raw Result 的 Metric、完整 Definition 和组件结构承担。Case 构建不按类型拒绝 `select-best`、`max-score` 或其他 Assertion，平台也不复现或预判其执行流程。Analyzer 直接使用官方 SDK，不经过 Bridge。Canonical Export 尚未闭合，未提前注册。
 
 本文档描述 [REQ.md](../REQ.md) 和 [TECH.md](../TECH.md) 已确认的目标系统。未落地路径统一称为目标代码落点，不视为当前代码事实。
 
@@ -36,7 +36,7 @@ Infrastructure 实现 SQLite、文件、REST、Promptfoo、分析模型、Clock 
 
 - `apps/local-server`：本地 HTTP Server、资源与 Run/Evaluation Route、Run SSE、生产 Web 静态入口、Mapper、安全入口、日志、OpenAPI、依赖装配和生命周期。
 - `apps/web`：Dashboard、测试集/Case、四类配置管理、平台 Run/REST/Evaluation、统一报告查询和平台 Retry/Force；后续 Feature 按分析组织。
-- `apps/cli`：Work Package 导出/校验、REST、Evaluation、Report、REST→Evaluation→Report Pipeline 和结果导入；后续命令按阶段注册。
+- `apps/cli`：Work Package 导出/校验、REST、Evaluation、Report、Analyze、默认三阶段与显式 Analysis Pipeline、Report/Analysis 结果导入；Canonical Export 按 P10 注册。
 - `packages/domain`：纯业务类型和规则，P1 已落地。
 - `packages/application`：资源 Use Case、Port、流式导入导出、平台 Run/REST/Evaluation/Report 编排、严格 Importer、对外 Retry/Force 和 Execution Report Import Use Case。
 - `packages/contracts`：DTO、Schema、Contract Version 和 Error Code，P1 已落地。

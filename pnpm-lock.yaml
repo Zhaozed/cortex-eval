@@ -132,6 +132,13 @@ importers:
       zod:
         specifier: 4.4.3
         version: 4.4.3
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: 7.6.13
+        version: 7.6.13
+      better-sqlite3:
+        specifier: 12.11.1
+        version: 12.11.1
 
   apps/web:
     dependencies:
@@ -295,6 +302,9 @@ importers:
       '@cortex-eval/application':
         specifier: workspace:*
         version: link:../application
+      '@cortex-eval/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@cortex-eval/domain':
         specifier: workspace:*
         version: link:../domain

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  hashAnalysisFinalCaseResultSet,
   hashAnalysisInput,
+  hashAnalysisResult,
+  hashAnalysisResultSet,
   hashAssertionDefinition,
   hashCaseDefinition,
   hashEvaluationContext,
@@ -10,6 +13,8 @@ import {
   hashEvalResultSet,
   hashFinalCaseResult,
   hashRunContext,
+  OrderedAnalysisFinalCaseResultSetHasher,
+  OrderedAnalysisResultSetHasher,
   OrderedEvalResultSetHasher
 } from "../src/domain-hash-inputs.ts";
 
@@ -43,6 +48,7 @@ describe("Domain 专用哈希输入", () => {
     });
     const analysisHash = hashAnalysisInput({
       contractVersion: "cortex.analysis-input.v1",
+      caseKey: "case-1",
       finalCaseResultHash: finalHash,
       runContextHash: runHash,
       diffContractVersion: "cortex.assertion-diff.v1",
@@ -58,6 +64,20 @@ describe("Domain 专用哈希输入", () => {
       )
     ).toBe(true);
     expect(new Set([assertionHash, caseHash, runHash, finalHash, analysisHash]).size).toBe(5);
+    expect(analysisHash).not.toBe(
+      hashAnalysisInput({
+        contractVersion: "cortex.analysis-input.v1",
+        caseKey: "case-2",
+        finalCaseResultHash: finalHash,
+        runContextHash: runHash,
+        diffContractVersion: "cortex.assertion-diff.v1",
+        variables: { case_definition: { task: "route" } },
+        analysisPromptHash: HASH,
+        analyzerConfigHash: HASH,
+        analysisOutputContractVersion: "cortex.analysis-output.v1",
+        analysisExecutionLimits: { analysisConcurrency: 1 }
+      })
+    );
   });
 
   it("执行限制属于对应身份哈希", () => {
@@ -267,5 +287,152 @@ describe("Domain 专用哈希输入", () => {
     const truncated = new OrderedEvalResultSetHasher((ordinal) => cases[ordinal]?.caseKey ?? null);
     truncated.add(first);
     expect(() => truncated.finish(owner, HASH)).toThrow("EVAL_RESULT_SET_ALIGNMENT");
+  });
+
+  it("Analysis Result Hash 区分成功语义与稳定 Case Error", () => {
+    const success = {
+      contractVersion: "cortex.analysis-result.v1" as const,
+      caseKey: "case-1",
+      finalCaseResultHash: "1".repeat(64),
+      analysisInputHash: "2".repeat(64),
+      result: {
+        status: "SUCCEEDED" as const,
+        classification: "NORMAL_FAILURE" as const,
+        confidence: 0.9,
+        evidence: [
+          {
+            source: "failed_assertions" as const,
+            fieldPath: "/0",
+            conclusion: "冻结断言失败"
+          }
+        ],
+        explanation: "结果违反业务约束",
+        recommendedAction: "修复被测系统",
+        proposal: null
+      }
+    };
+    const error = {
+      ...success,
+      result: { status: "ERROR" as const, errorCode: "ANALYSIS_OUTPUT_INVALID" }
+    };
+    expect(hashAnalysisResult(success)).toMatch(/^[0-9a-f]{64}$/);
+    expect(hashAnalysisResult(success)).not.toBe(hashAnalysisResult(error));
+    const localizedError = { ...error, errorMessage: "不参与语义身份的展示文案" };
+    expect(hashAnalysisResult(error)).toBe(hashAnalysisResult(localizedError));
+  });
+
+  it("Analysis Final Case Set 支持空选择并绑定 Selector、Ordinal 和最终结果", () => {
+    const empty = hashAnalysisFinalCaseResultSet({
+      contractVersion: "cortex.analysis-final-case-result-set.v1",
+      selector: "errors",
+      cases: []
+    });
+    const selected = [
+      { caseKey: "case-1", ordinal: 1, finalCaseResultHash: "1".repeat(64) },
+      { caseKey: "case-3", ordinal: 7, finalCaseResultHash: "3".repeat(64) }
+    ];
+    expect(empty).toMatch(/^[0-9a-f]{64}$/);
+    expect(empty).not.toBe(
+      hashAnalysisFinalCaseResultSet({
+        contractVersion: "cortex.analysis-final-case-result-set.v1",
+        selector: "failed",
+        cases: []
+      })
+    );
+    expect(
+      hashAnalysisFinalCaseResultSet({
+        contractVersion: "cortex.analysis-final-case-result-set.v1",
+        selector: "all",
+        cases: [...selected].reverse()
+      })
+    ).toBe(
+      hashAnalysisFinalCaseResultSet({
+        contractVersion: "cortex.analysis-final-case-result-set.v1",
+        selector: "all",
+        cases: selected
+      })
+    );
+  });
+
+  it("Analysis Result Set 绑定执行 Owner、Selector、依赖集合与逐 Case 结果", () => {
+    const input = {
+      contractVersion: "cortex.analysis-result-set.v1" as const,
+      owner: { kind: "RUN" as const, id: "01900000-0000-7000-8000-000000000001" },
+      selector: "all" as const,
+      finalCaseResultSetHash: "1".repeat(64),
+      cases: [{ caseKey: "case-1", ordinal: 2, analysisResultHash: "2".repeat(64) }]
+    };
+    const platform = hashAnalysisResultSet(input);
+    expect(platform).not.toBe(
+      hashAnalysisResultSet({
+        ...input,
+        owner: { kind: "EXECUTION", id: input.owner.id }
+      })
+    );
+    expect(
+      hashAnalysisResultSet({
+        ...input,
+        selector: "errors",
+        finalCaseResultSetHash: "3".repeat(64),
+        cases: []
+      })
+    ).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("增量 Analysis Final Case Set 与完整 Hash 一致并允许空选择", () => {
+    const cases = [
+      { caseKey: "case-1", ordinal: 1, finalCaseResultHash: "1".repeat(64) },
+      { caseKey: "case-3", ordinal: 7, finalCaseResultHash: "3".repeat(64) }
+    ];
+    const hasher = new OrderedAnalysisFinalCaseResultSetHasher();
+    for (const item of cases) hasher.add(item);
+    expect(hasher.finish("all")).toBe(
+      hashAnalysisFinalCaseResultSet({
+        contractVersion: "cortex.analysis-final-case-result-set.v1",
+        selector: "all",
+        cases
+      })
+    );
+    expect(new OrderedAnalysisFinalCaseResultSetHasher().finish("failed")).toBe(
+      hashAnalysisFinalCaseResultSet({
+        contractVersion: "cortex.analysis-final-case-result-set.v1",
+        selector: "failed",
+        cases: []
+      })
+    );
+    const invalid = new OrderedAnalysisFinalCaseResultSetHasher();
+    const first = cases[0];
+    const second = cases[1];
+    if (first === undefined || second === undefined) throw new Error("TEST_SETUP_INVALID");
+    invalid.add(second);
+    expect(() => invalid.add(first)).toThrow("ANALYSIS_FINAL_CASE_RESULT_SET_ALIGNMENT");
+  });
+
+  it("增量 Analysis Result Set 与完整 Hash 一致并保留稀疏顺序", () => {
+    const owner = { kind: "EXECUTION" as const, id: "execution-1" };
+    const cases = [
+      { caseKey: "case-1", ordinal: 1, analysisResultHash: "1".repeat(64) },
+      { caseKey: "case-3", ordinal: 7, analysisResultHash: "3".repeat(64) }
+    ];
+    const hasher = new OrderedAnalysisResultSetHasher(owner, "all", HASH);
+    for (const item of cases) hasher.add(item);
+    expect(hasher.finish()).toBe(
+      hashAnalysisResultSet({
+        contractVersion: "cortex.analysis-result-set.v1",
+        owner,
+        selector: "all",
+        finalCaseResultSetHash: HASH,
+        cases
+      })
+    );
+    expect(new OrderedAnalysisResultSetHasher(owner, "errors", HASH).finish()).toBe(
+      hashAnalysisResultSet({
+        contractVersion: "cortex.analysis-result-set.v1",
+        owner,
+        selector: "errors",
+        finalCaseResultSetHash: HASH,
+        cases: []
+      })
+    );
   });
 });

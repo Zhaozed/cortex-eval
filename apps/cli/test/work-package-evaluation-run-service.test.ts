@@ -909,11 +909,15 @@ setInterval(() => {}, 1000);
       reportCommands: {
         run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
       },
+      analysisCommands: {
+        run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+      },
       pipelineCommands: {
         run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
       },
       resultCommands: {
-        importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+        importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED")),
+        importAnalysis: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
       },
       signal: controller.signal,
       output: {

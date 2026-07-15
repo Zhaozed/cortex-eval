@@ -82,7 +82,7 @@ afterEach(async () => {
 
 describe("Work Package input reader", () => {
   it("revalidates each consumed configuration against its frozen Manifest hash", async () => {
-    const cases = ["endpoint", "evaluator", "rubric"] as const;
+    const cases = ["endpoint", "evaluator", "rubric", "analyzer", "analysis-prompt"] as const;
     for (const kind of cases) {
       const root = await mkdtemp(join(tmpdir(), `cortex-package-input-integrity-${kind}-`));
       roots.push(root);
@@ -99,7 +99,11 @@ describe("Work Package input reader", () => {
             ? manifest.inputs.endpoint.path
             : kind === "evaluator"
               ? manifest.inputs.evaluator.path
-              : manifest.inputs.rubricPrompts[0]?.path;
+              : kind === "rubric"
+                ? manifest.inputs.rubricPrompts[0]?.path
+                : kind === "analyzer"
+                  ? manifest.inputs.analyzer.path
+                  : manifest.inputs.analysisPrompt.path;
         if (relativePath === undefined) throw new Error("TEST_RUBRIC_PATH_MISSING");
         const absolutePath = join(root, relativePath);
         const original = await readFile(absolutePath, "utf8");
@@ -108,7 +112,11 @@ describe("Work Package input reader", () => {
             ? original.replace('"defaultConcurrency":4', '"defaultConcurrency":5')
             : kind === "evaluator"
               ? original.replace('"temperature":0', '"temperature":1')
-              : original.replace("exactness.", "relevance.");
+              : kind === "rubric"
+                ? original.replace("exactness.", "relevance.")
+                : kind === "analyzer"
+                  ? original.replace('"temperature":0', '"temperature":1')
+                  : original.replace("Analyze failures.", "Review  failures.");
         if (mutated === original || Buffer.byteLength(mutated) !== Buffer.byteLength(original)) {
           throw new Error("TEST_MUTATION_MUST_PRESERVE_SIZE");
         }
@@ -120,7 +128,9 @@ describe("Work Package input reader", () => {
         const consumed =
           kind === "endpoint"
             ? session.inputs.readEndpoint()
-            : session.inputs.readEvaluationInputs();
+            : kind === "evaluator" || kind === "rubric"
+              ? session.inputs.readEvaluationInputs()
+              : session.inputs.readAnalysisInputs();
         await expect(consumed).rejects.toThrow("WORK_PACKAGE_HASH_MISMATCH");
       } finally {
         await session.close();
@@ -131,7 +141,7 @@ describe("Work Package input reader", () => {
   it("streams Canonical Cases and maps the frozen Endpoint without retaining transport fields", async () => {
     const root = await mkdtemp(join(tmpdir(), "cortex-package-input-reader-"));
     roots.push(root);
-    await materializeWorkPackageFixture(root, {
+    const manifest = await materializeWorkPackageFixture(root, {
       baseDefinitionHash: hashCaseDefinition({
         contractVersion: "cortex.case-definition.v1",
         caseKey: fixtureDefinition.caseKey,
@@ -171,6 +181,17 @@ describe("Work Package input reader", () => {
       });
       expect(evaluationInputs.evaluator.configHash).toMatch(/^[a-f0-9]{64}$/);
       expect(evaluationInputs.rubricPrompts[0]?.promptHash).toMatch(/^[a-f0-9]{64}$/);
+      const analysisInputs = await session.inputs.readAnalysisInputs();
+      expect(analysisInputs).toMatchObject({
+        analyzer: {
+          definition: { providerType: "GOOGLE_GEMINI", structuredOutput: "JSON_SCHEMA" }
+        },
+        prompt: {
+          definition: { kind: "CASE_ANALYSIS", promptKey: "analysis" }
+        }
+      });
+      expect(analysisInputs.analyzer.configHash).toBe(manifest.configurationHashes.analyzer);
+      expect(analysisInputs.prompt.promptHash).toBe(manifest.configurationHashes.analysisPrompt);
       const sourceCase = cases[0];
       if (sourceCase === undefined) throw new Error("TEST_CASE_MISSING");
       await expect(

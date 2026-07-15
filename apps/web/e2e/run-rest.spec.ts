@@ -324,7 +324,8 @@ test("真实离线 Report 导入统一更新 Dashboard、Run 与测试集最近�
   await materializeCompletedOfflineReport({
     exportBody: await exportResponse.body(),
     packagePath,
-    executionId
+    executionId,
+    evaluationStatus: "FAIL"
   });
   const runId = await importedRunId(
     await request.post("/api/v1/execution-results/import", {
@@ -338,7 +339,7 @@ test("真实离线 Report 导入统一更新 Dashboard、Run 与测试集最近�
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "最近完整报告" })).toBeVisible();
-  await expect(page.getByTestId("latest-report-effective-rate")).toContainText("100.0%");
+  await expect(page.getByTestId("latest-report-effective-rate")).toContainText("0.0%");
   await expect(page.getByTestId("latest-report-coverage-rate")).toContainText("100.0%");
   await expect(page.getByTestId("latest-report-primary-metric")).toContainText("quality");
   const reportHref = `/runs/${runId}/report`;
@@ -355,6 +356,18 @@ test("真实离线 Report 导入统一更新 Dashboard、Run 与测试集最近�
   await expect(page.getByText("离线导入", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "By Metric 统计" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "quality", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "分析失败 Case" }).click();
+  await expect(page.getByRole("heading", { name: "Case Analysis 工作台" })).toBeVisible();
+  await page.getByLabel("Analyzer").click();
+  await page.getByRole("option", { name: analyzerName }).click();
+  await page.getByLabel("Analysis Prompt").click();
+  await page.getByRole("option", { name: "offline-report-e2e-analysis" }).click();
+  await page.getByRole("button", { name: "开始分析" }).click();
+  await expect(page.getByText("已选择 1 个 Case，成功 1 个，错误 0 个。")).toBeVisible();
+  await page.getByRole("button", { name: "查看分析 offline-report-case" }).click();
+  await expect(page.getByText("运行上下文确认该 Case 未通过评估")).toBeVisible();
+  await expect(page.getByText("run_context", { exact: true })).toBeVisible();
+  await expect(page.getByText("92% · 模型自评")).toBeVisible();
 
   await page.goto("/test-suites");
   const suiteRow = page.getByRole("row").filter({ hasText: suiteName });

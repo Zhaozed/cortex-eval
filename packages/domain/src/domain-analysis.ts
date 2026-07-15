@@ -1,18 +1,35 @@
-import type { DomainJsonObject, DomainJsonValue } from "./domain-canonical-hash.ts";
+import {
+  validateAssertionDefinition,
+  validateCaseDefinition,
+  type AssertionDefinition,
+  type CaseDefinition
+} from "./domain-evaluation.ts";
 
 /** Fixed Case analysis classifications. */
 export type AnalysisClassification =
   "LABEL_ERROR" | "ADDITIONAL_VALID_RESULT" | "NORMAL_FAILURE" | "PARAMETER_VARIANCE";
 
-/** Typed Assertion draft already cleaned by an outer Mapper. */
-export interface AnalysisAssertionDraft {
-  /** Assertion type. */
-  type: string;
-  /** Metric name. */
-  metric: string;
-  /** Optional JSON-compatible value. */
-  value?: DomainJsonValue;
+/** Closed Analysis Input facts that can support an evidence conclusion. */
+export type AnalysisEvidenceSource =
+  | "case_definition"
+  | "provider_output"
+  | "failed_assertions"
+  | "expected_actual_diffs"
+  | "llm_rubric_results"
+  | "run_context";
+
+/** Pure Domain evidence fact after the protocol boundary has been cleaned. */
+export interface AnalysisEvidenceDraft {
+  /** Analysis Input fact that supports this conclusion. */
+  readonly source: AnalysisEvidenceSource;
+  /** RFC 6901 pointer inside the source, or null when the source as a whole is referenced. */
+  readonly fieldPath: string | null;
+  /** Non-empty human-readable conclusion derived from the referenced fact. */
+  readonly conclusion: string;
 }
+
+/** Complete recursive Assertion already cleaned by an outer Mapper. */
+export type AnalysisAssertionDraft = AssertionDefinition;
 
 /** Replace the complete Case Definition. */
 export interface ReplaceCaseProposalDraft {
@@ -21,7 +38,7 @@ export interface ReplaceCaseProposalDraft {
   /** Base Case Definition hash. */
   baseDefinitionHash: string;
   /** Complete replacement Case payload. */
-  casePayload: Readonly<DomainJsonObject>;
+  casePayload: CaseDefinition;
 }
 
 /** Insert one Assertion. */
@@ -75,8 +92,8 @@ export interface AnalysisResultDraft {
   classification: AnalysisClassification;
   /** Model self-assessed confidence. */
   confidence: number;
-  /** Concrete evidence list. */
-  evidence: readonly string[];
+  /** Structured concrete evidence list. */
+  evidence: readonly AnalysisEvidenceDraft[];
   /** Explanation. */
   explanation: string;
   /** Recommended action text. */
@@ -98,10 +115,61 @@ export type AnalysisValidationResult =
   { ok: true; value: AnalysisResultDraft } | { ok: false; error: AnalysisValidationError };
 
 const HASH_PATTERN = /^[0-9a-f]{64}$/;
+const JSON_POINTER_PATTERN = /^(?:\/(?:[^~/]|~[01])*)*$/;
+const ANALYSIS_EVIDENCE_SOURCES = new Set<AnalysisEvidenceSource>([
+  "case_definition",
+  "provider_output",
+  "failed_assertions",
+  "expected_actual_diffs",
+  "llm_rubric_results",
+  "run_context"
+]);
+
+// Return whether one already-mapped evidence fact still satisfies Domain invariants.
+function isValidEvidence(value: AnalysisEvidenceDraft): boolean {
+  return (
+    ANALYSIS_EVIDENCE_SOURCES.has(value.source) &&
+    (value.fieldPath === null || JSON_POINTER_PATTERN.test(value.fieldPath)) &&
+    value.conclusion.trim() !== ""
+  );
+}
 
 // Return whether a runtime object contains any field forbidden by its discriminator.
 function hasAnyField(value: object, fields: readonly string[]): boolean {
   return fields.some((field) => Object.hasOwn(value, field));
+}
+
+// Guard dirty Mapper bypasses before calling strongly typed Case validators.
+function isCaseDefinitionShape(value: unknown): value is CaseDefinition {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const source = value as Partial<CaseDefinition>;
+  const metadata = source.metadata as Partial<CaseDefinition["metadata"]> | undefined;
+  const requestBody: unknown = source.requestBody;
+  return (
+    typeof source.caseKey === "string" &&
+    typeof source.description === "string" &&
+    typeof source.threshold === "number" &&
+    typeof source.task === "string" &&
+    requestBody !== null &&
+    typeof requestBody === "object" &&
+    metadata !== undefined &&
+    typeof metadata.requestId === "string" &&
+    typeof metadata.taskId === "string" &&
+    typeof metadata.businessModule === "string" &&
+    typeof metadata.scenarioTag === "string" &&
+    Array.isArray(source.assertions)
+  );
+}
+
+// Guard dirty Mapper bypasses before calling the recursive Assertion validator.
+function isAssertionDefinitionShape(value: unknown): value is AssertionDefinition {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const source = value as Partial<AssertionDefinition>;
+  return (
+    typeof source.type === "string" &&
+    typeof source.metric === "string" &&
+    typeof source.weight === "number"
+  );
 }
 
 // Return a stable Proposal error path.
@@ -116,7 +184,7 @@ export function validateAnalysisResult(result: AnalysisResultDraft): AnalysisVal
     result.confidence < 0 ||
     result.confidence > 1 ||
     result.evidence.length === 0 ||
-    result.evidence.some((item) => item.trim() === "") ||
+    result.evidence.some((item) => !isValidEvidence(item)) ||
     result.explanation.trim() === "" ||
     result.recommendedAction.trim() === ""
   ) {
@@ -136,6 +204,12 @@ export function validateAnalysisResult(result: AnalysisResultDraft): AnalysisVal
     ) {
       return proposalError("proposal.action");
     }
+    if (
+      !isCaseDefinitionShape(proposal.casePayload) ||
+      !validateCaseDefinition(proposal.casePayload).ok
+    ) {
+      return proposalError("proposal.casePayload");
+    }
   }
   if (proposal.action === "ADD_ASSERTION") {
     if (!Object.hasOwn(proposal, "assertion") || !Object.hasOwn(proposal, "targetAssertionIndex")) {
@@ -143,6 +217,12 @@ export function validateAnalysisResult(result: AnalysisResultDraft): AnalysisVal
     }
     if (hasAnyField(proposal, ["casePayload", "targetAssertionDefinitionHash"])) {
       return proposalError("proposal.action");
+    }
+    if (
+      !isAssertionDefinitionShape(proposal.assertion) ||
+      validateAssertionDefinition(proposal.assertion) !== null
+    ) {
+      return proposalError("proposal.assertion");
     }
   }
   if (proposal.action === "REPLACE_ASSERTION") {
@@ -154,6 +234,12 @@ export function validateAnalysisResult(result: AnalysisResultDraft): AnalysisVal
       return proposalError("proposal.assertion");
     }
     if (hasAnyField(proposal, ["casePayload"])) return proposalError("proposal.action");
+    if (
+      !isAssertionDefinitionShape(proposal.assertion) ||
+      validateAssertionDefinition(proposal.assertion) !== null
+    ) {
+      return proposalError("proposal.assertion");
+    }
   }
   if (proposal.action === "REMOVE_ASSERTION") {
     if (hasAnyField(proposal, ["assertion"])) return proposalError("proposal.assertion");
@@ -174,7 +260,7 @@ export function validateAnalysisResult(result: AnalysisResultDraft): AnalysisVal
   }
   const targetIndex =
     "targetAssertionIndex" in proposal ? proposal.targetAssertionIndex : undefined;
-  if (targetIndex !== undefined && targetIndex < 0) {
+  if (targetIndex !== undefined && (!Number.isInteger(targetIndex) || targetIndex < 0)) {
     return proposalError("proposal.targetAssertionIndex");
   }
   return { ok: true, value: result };

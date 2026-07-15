@@ -411,6 +411,30 @@ const RevisionErrorSchema = z.strictObject({
   actualRevision: z.number().int().nonnegative()
 });
 
+const AnalysisRevisionErrorSchema = z.strictObject({
+  code: z.literal("ANALYSIS_REVISION_CONFLICT"),
+  ...ErrorBaseShape,
+  actualRevision: z.number().int().positive()
+});
+
+const AnalysisProposalErrorSchema = z.strictObject({
+  code: z.literal("ANALYSIS_PROPOSAL_INVALID"),
+  ...ErrorBaseShape,
+  path: z.string().min(1)
+});
+
+const AnalysisApplyConflictErrorSchema = z.strictObject({
+  code: z.literal("ANALYSIS_APPLY_CONFLICT"),
+  ...ErrorBaseShape,
+  reason: z.enum([
+    "CASE_VERSION_CHANGED",
+    "ASSERTION_VERSION_CHANGED",
+    "PROMPT_VERSION_CHANGED",
+    "ANALYZER_VERSION_CHANGED",
+    "RUBRIC_PROMPT_CHANGED"
+  ])
+});
+
 const UniqueErrorSchema = z.strictObject({
   code: z.literal("RESOURCE_UNIQUE_CONFLICT"),
   ...ErrorBaseShape,
@@ -474,6 +498,9 @@ const PlainErrorSchema = z.strictObject({
     "WORK_PACKAGE_INVALID",
     "WORK_PACKAGE_LOCKED",
     "EXECUTION_RESULT_CONFLICT",
+    "ANALYSIS_NOT_FOUND",
+    "ANALYSIS_STATE_CONFLICT",
+    "ANALYSIS_STAGE_FAILED",
     "CONFIGURATION_NOT_FOUND",
     "CONFIGURATION_KIND_CONFLICT",
     "RESOURCE_IN_ACTIVE_RUN",
@@ -489,6 +516,9 @@ const PlainErrorSchema = z.strictObject({
 export const ApiErrorV1Schema = z.discriminatedUnion("code", [
   PathErrorSchema,
   RevisionErrorSchema,
+  AnalysisRevisionErrorSchema,
+  AnalysisProposalErrorSchema,
+  AnalysisApplyConflictErrorSchema,
   UniqueErrorSchema,
   ImportItemErrorSchema,
   PromptReferenceErrorSchema,

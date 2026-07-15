@@ -100,6 +100,13 @@ function validateAssertion(
   return null;
 }
 
+/** Validate one standalone recursive Assertion with a stable root path. */
+export function validateAssertionDefinition(
+  value: AssertionDefinition
+): CaseDefinitionError | null {
+  return validateAssertion(value, "assertion");
+}
+
 /** Validate pure Case identity and numerical invariants. */
 export function validateCaseDefinition(value: CaseDefinition): CaseDefinitionValidationResult {
   if (value.caseKey.trim() === "") {

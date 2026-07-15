@@ -258,7 +258,7 @@ async function* alignedImportedCases(
 }
 
 // Select the exact alignment strategy without making imported history executable.
-function reportCases(
+export function openAlignedReportCases(
   run: PlatformRun | ImportedReportRun,
   runTransactions: PlatformRunTransactionManager,
   evalTransactions: PlatformEvalTransactionManager
@@ -266,6 +266,17 @@ function reportCases(
   return run.sourceType === "PLATFORM"
     ? alignedCases(run, runTransactions, evalTransactions)
     : alignedImportedCases(run, runTransactions, evalTransactions);
+}
+
+/** Read one reportable platform or imported Run without inferring a latest identity. */
+export function readReportRun(
+  transactions: PlatformRunTransactionManager,
+  runId: string
+): Promise<PlatformRun | ImportedReportRun | null> {
+  return transactions.execute(async (transaction) => {
+    const platform = await transaction.runs.getPlatformRun(runId);
+    return platform ?? (await transaction.runs.getImportedReportRun(runId));
+  });
 }
 
 // Apply AND across fields and OR within each exact Report Case filter.
@@ -360,7 +371,7 @@ export class PlatformReportService {
 
   /** Read one committed Report overview without recomputing statistics. */
   public async get(runId: string): Promise<PlatformReportOverview | null> {
-    const run = await this.#readReportRun(runId);
+    const run = await readReportRun(this.#runTransactions, runId);
     if (run === null) return null;
     if (run.reportSummary === null || run.reportResultSetHash === null) return null;
     const report = run.reportSummary;
@@ -376,7 +387,7 @@ export class PlatformReportService {
 
   /** Check Run existence across executable platform and immutable imported history. */
   public async exists(runId: string): Promise<boolean> {
-    return (await this.#readReportRun(runId)) !== null;
+    return (await readReportRun(this.#runTransactions, runId)) !== null;
   }
 
   /** Scan immutable ordered facts into one bounded filtered Report Case page. */
@@ -390,11 +401,15 @@ export class PlatformReportService {
     ) {
       throw new Error("REPORT_QUERY_INVALID");
     }
-    const run = await this.#readReportRun(query.runId);
+    const run = await readReportRun(this.#runTransactions, query.runId);
     if (run === null) return null;
     if (run.reportSummary === null || run.reportResultSetHash === null) return null;
     const matching: PlatformReportCase[] = [];
-    for await (const item of reportCases(run, this.#runTransactions, this.#evalTransactions)) {
+    for await (const item of openAlignedReportCases(
+      run,
+      this.#runTransactions,
+      this.#evalTransactions
+    )) {
       if (item.testCase.ordinal <= (query.afterOrdinal ?? -1) || !matchesQuery(item, query)) {
         continue;
       }
@@ -414,7 +429,7 @@ export class PlatformReportService {
 
   /** Read one complete committed Report Case without scanning unrelated result bodies. */
   public async getCase(runId: string, caseKey: string): Promise<PlatformReportCase | null> {
-    const run = await this.#readReportRun(runId);
+    const run = await readReportRun(this.#runTransactions, runId);
     if (run === null) return null;
     if (run.reportSummary === null || run.reportResultSetHash === null) return null;
     const platformCase =
@@ -467,13 +482,17 @@ export class PlatformReportService {
 
   /** Stream every aligned committed Report Case once for normalized export. */
   public async *streamCases(runId: string): AsyncGenerator<PlatformReportArtifactCaseInput> {
-    const run = await this.#readReportRun(runId);
+    const run = await readReportRun(this.#runTransactions, runId);
     if (run === null) throw new Error("REPORT_RECONCILIATION_FAILED");
     if (run.reportSummary === null || run.reportResultSetHash === null) {
       throw new Error("REPORT_RECONCILIATION_FAILED");
     }
     let count = 0;
-    for await (const item of reportCases(run, this.#runTransactions, this.#evalTransactions)) {
+    for await (const item of openAlignedReportCases(
+      run,
+      this.#runTransactions,
+      this.#evalTransactions
+    )) {
       yield item;
       count += 1;
     }
@@ -673,14 +692,6 @@ export class PlatformReportService {
       artifacts: [descriptor]
     });
     return availability[0]?.status ?? "CORRUPTED";
-  }
-
-  // Read one reportable Run from exactly one source discriminator.
-  async #readReportRun(runId: string): Promise<PlatformRun | ImportedReportRun | null> {
-    return await this.#runTransactions.execute(async (transaction) => {
-      const platform = await transaction.runs.getPlatformRun(runId);
-      return platform ?? (await transaction.runs.getImportedReportRun(runId));
-    });
   }
 
   // Observation failures cannot change the Report outcome.

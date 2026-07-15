@@ -12,12 +12,16 @@ import {
   WorkPackageExportRequestV1Schema,
   type WorkPackageExportRequestV1
 } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
-import type { ExecutionReportImportResultV1 } from "@cortex-eval/contracts/src/result-import-contracts.ts";
+import type {
+  ExecutionAnalysisImportResultV1,
+  ExecutionReportImportResultV1
+} from "@cortex-eval/contracts/src/result-import-contracts.ts";
 import type { WorkPackageValidationSummary } from "@cortex-eval/work-package/src/work-package-execution-session.ts";
 import type { ReceivedWorkPackage } from "@cortex-eval/work-package/src/work-package-export-receiver.ts";
 import type { WorkPackageRestRunResult } from "./work-package-rest-run-service.ts";
 import type { WorkPackageEvaluationRunResult } from "./work-package-evaluation-run-service.ts";
 import type { WorkPackageReportRunResult } from "./work-package-report-run-service.ts";
+import type { WorkPackageAnalysisRunResult } from "./work-package-analysis-run-service.ts";
 import type { WorkPackagePipelineRunResult } from "./pipeline-command-service.ts";
 import { Command, CommanderError } from "commander";
 
@@ -108,8 +112,28 @@ export interface ReportCommandService {
   readonly run: (input: ReportRunCommandInput) => Promise<WorkPackageReportRunResult>;
 }
 
-/** Cleaned `result import` input independent of Commander and HTTP details. */
-export interface ResultImportCommandInput {
+/** Cleaned `analyze run` use-case input independent of Commander. */
+export interface AnalysisRunCommandInput {
+  /** Existing Work Package directory. */
+  readonly packagePath: string;
+  /** Existing Execution whose Report stage already succeeded. */
+  readonly executionId: string;
+  /** Explicit analyzable result selector. */
+  readonly selector: "failed" | "errors" | "all";
+  /** Optional external Secret file. */
+  readonly envFile?: string | undefined;
+  /** Command cancellation signal. */
+  readonly signal: AbortSignal;
+}
+
+/** Closed offline Analysis command use case. */
+export interface AnalysisCommandService {
+  /** Execute Analysis on one immutable existing Execution. */
+  readonly run: (input: AnalysisRunCommandInput) => Promise<WorkPackageAnalysisRunResult>;
+}
+
+/** Shared cleaned result import identity independent of Commander and HTTP details. */
+export interface ResultImportRequestInput {
   /** Existing Work Package directory. */
   readonly packagePath: string;
   /** Existing Execution whose Report stage is complete. */
@@ -118,16 +142,29 @@ export interface ResultImportCommandInput {
   readonly signal: AbortSignal;
 }
 
+/** Cleaned `result import` command including the selected import branch. */
+export interface ResultImportCommandInput extends ResultImportRequestInput {
+  /** Explicit Report or Analysis import branch; Report remains the default. */
+  readonly importType: "report" | "analysis";
+}
+
 /** Closed platform Report import use case. */
 export interface ResultImportCommandService {
   /** Reconcile and atomically import one complete offline Report version. */
   readonly importReport: (
-    input: ResultImportCommandInput
+    input: ResultImportRequestInput
   ) => Promise<ExecutionReportImportResultV1>;
+  /** Reconcile and atomically import one complete offline Analysis version. */
+  readonly importAnalysis: (
+    input: ResultImportRequestInput
+  ) => Promise<ExecutionAnalysisImportResultV1>;
 }
 
-/** Cleaned current REST to Evaluation Pipeline input. */
-export type PipelineRunCommandInput = RestRunCommandInput;
+/** Cleaned current default Pipeline input with an optional explicit Analysis tail. */
+export interface PipelineRunCommandInput extends RestRunCommandInput {
+  /** Explicitly enable Analysis and freeze its Case selector. */
+  readonly analysisSelector?: "failed" | "errors" | "all" | undefined;
+}
 
 /** Closed current REST to Evaluation Pipeline use case. */
 export interface PipelineCommandService {
@@ -145,6 +182,8 @@ export interface CliDependencies {
   readonly evaluationCommands: EvaluationCommandService;
   /** Closed offline Report capability. */
   readonly reportCommands: ReportCommandService;
+  /** Closed offline Analysis capability. */
+  readonly analysisCommands: AnalysisCommandService;
   /** Closed current REST to Evaluation Pipeline capability. */
   readonly pipelineCommands: PipelineCommandService;
   /** Closed Report import capability. */
@@ -176,6 +215,7 @@ type CliCommand =
   | "rest run"
   | "eval run"
   | "report build"
+  | "analyze run"
   | "pipeline run"
   | "result import";
 
@@ -292,6 +332,31 @@ function restRunInput(
   };
 }
 
+// Clean one Pipeline command without changing the default closed stage sequence.
+function pipelineRunInput(
+  packagePath: unknown,
+  value: unknown,
+  signal: AbortSignal
+): PipelineRunCommandInput {
+  const rest = restRunInput(packagePath, value, signal);
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("VALIDATION_FAILED");
+  }
+  const selector = (value as Readonly<Record<string, unknown>>).analysisSelector;
+  if (
+    selector !== undefined &&
+    selector !== "failed" &&
+    selector !== "errors" &&
+    selector !== "all"
+  ) {
+    throw new Error("VALIDATION_FAILED");
+  }
+  return {
+    ...rest,
+    ...(selector === undefined ? {} : { analysisSelector: selector })
+  };
+}
+
 // Clean one Evaluation command before it enters the offline use case.
 function evaluationRunInput(
   packagePath: unknown,
@@ -343,6 +408,40 @@ function reportRunInput(
   return { packagePath, executionId: executionId as string, signal };
 }
 
+// Clean one Analysis command before it enters the offline use case.
+function analysisRunInput(
+  packagePath: unknown,
+  value: unknown,
+  signal: AbortSignal
+): AnalysisRunCommandInput {
+  if (
+    typeof packagePath !== "string" ||
+    packagePath.length === 0 ||
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    throw new Error("VALIDATION_FAILED");
+  }
+  const source = value as Readonly<Record<string, unknown>>;
+  const selector = source.selector;
+  if (
+    !UuidV7Schema.safeParse(source.executionId).success ||
+    (selector !== "failed" && selector !== "errors" && selector !== "all") ||
+    (source.envFile !== undefined &&
+      (typeof source.envFile !== "string" || source.envFile.length === 0))
+  ) {
+    throw new Error("VALIDATION_FAILED");
+  }
+  return {
+    packagePath,
+    executionId: source.executionId as string,
+    selector,
+    ...(typeof source.envFile === "string" ? { envFile: source.envFile } : {}),
+    signal
+  };
+}
+
 // Clean one Result import command before it crosses the Local API boundary.
 function resultImportInput(
   packagePath: unknown,
@@ -358,9 +457,21 @@ function resultImportInput(
   ) {
     throw new Error("VALIDATION_FAILED");
   }
-  const executionId = (value as Readonly<Record<string, unknown>>).executionId;
-  if (!UuidV7Schema.safeParse(executionId).success) throw new Error("VALIDATION_FAILED");
-  return { packagePath, executionId: executionId as string, signal };
+  const source = value as Readonly<Record<string, unknown>>;
+  const executionId = source.executionId;
+  const importType = source.type;
+  if (
+    !UuidV7Schema.safeParse(executionId).success ||
+    (importType !== undefined && importType !== "report" && importType !== "analysis")
+  ) {
+    throw new Error("VALIDATION_FAILED");
+  }
+  return {
+    packagePath,
+    executionId: executionId as string,
+    importType: importType === "analysis" ? "analysis" : "report",
+    signal
+  };
 }
 
 // Read one inherited boolean flag without accepting truthy coercion.
@@ -391,6 +502,7 @@ function commandFromArguments(arguments_: readonly string[]): CliCommand | null 
     pair === "rest run" ||
     pair === "eval run" ||
     pair === "report build" ||
+    pair === "analyze run" ||
     pair === "pipeline run" ||
     pair === "result import"
   ) {
@@ -401,7 +513,12 @@ function commandFromArguments(arguments_: readonly string[]): CliCommand | null 
 
 // Preserve the fixed CLI exit-code contract.
 function exitCode(code: ErrorCode): 2 | 3 | 4 | 130 {
-  if (code === "REQUEST_ABORTED" || code === "REST_CANCELLED" || code === "EVALUATOR_CANCELLED") {
+  if (
+    code === "REQUEST_ABORTED" ||
+    code === "REST_CANCELLED" ||
+    code === "EVALUATOR_CANCELLED" ||
+    code === "ANALYSIS_CANCELLED"
+  ) {
     return 130;
   }
   if (
@@ -417,6 +534,7 @@ function exitCode(code: ErrorCode): 2 | 3 | 4 | 130 {
     code === "PROVIDER_REQUEST_FAILED" ||
     code === "PROMPTFOO_PROCESS_ERROR" ||
     code === "EVALUATION_STAGE_FAILED" ||
+    code === "ANALYSIS_STAGE_FAILED" ||
     code === "REPORT_RECONCILIATION_FAILED" ||
     code === "ARTIFACT_WRITE_FAILED" ||
     code === "INTERNAL_ERROR"
@@ -459,6 +577,7 @@ function emitError(
       command === "rest run" ||
       command === "eval run" ||
       command === "report build" ||
+      command === "analyze run" ||
       command === "pipeline run" ||
       command === "result import"
     ) {
@@ -651,17 +770,60 @@ function buildProgram(
         }
       }
     );
+  const analyzeCommand = program.command("analyze").description(cliMessages.ANALYZE_DESCRIPTION);
+  analyzeCommand
+    .command("run")
+    .description(cliMessages.ANALYZE_RUN_DESCRIPTION)
+    .argument("<path>")
+    .requiredOption("--execution-id <id>", cliMessages.ANALYZE_EXECUTION_ID)
+    .requiredOption("--selector <selector>", cliMessages.ANALYZE_SELECTOR)
+    .option("--env-file <path>", cliMessages.ANALYZE_ENV_FILE)
+    .action(
+      async (packagePath: unknown, dirtyOptions: unknown, command: Command): Promise<void> => {
+        state.command = "analyze run";
+        state.json = machineOutput(command);
+        const input = analysisRunInput(packagePath, dirtyOptions, controller.signal);
+        const result = await dependencies.analysisCommands.run(input);
+        if (state.json) {
+          emitExecutionMachine(dependencies.output, {
+            contractVersion: "cortex.cli-execution-event.v1",
+            type: "ANALYSIS_COMPLETED",
+            ...result
+          });
+        } else {
+          dependencies.output.stdout(
+            `${cliMessages.ANALYZE_RUN_COMPLETED} ${result.executionId} ${result.artifactPath}\n`
+          );
+        }
+      }
+    );
   const resultCommand = program.command("result").description(cliMessages.RESULT_DESCRIPTION);
   resultCommand
     .command("import")
     .description(cliMessages.RESULT_IMPORT_DESCRIPTION)
     .argument("<path>")
     .requiredOption("--execution-id <id>", cliMessages.RESULT_EXECUTION_ID)
+    .option("--type <type>", cliMessages.RESULT_IMPORT_TYPE)
     .action(
       async (packagePath: unknown, dirtyOptions: unknown, command: Command): Promise<void> => {
         state.command = "result import";
         state.json = machineOutput(command);
         const input = resultImportInput(packagePath, dirtyOptions, controller.signal);
+        if (input.importType === "analysis") {
+          const result = await dependencies.resultCommands.importAnalysis(input);
+          if (state.json) {
+            emitExecutionMachine(dependencies.output, {
+              ...result,
+              contractVersion: "cortex.cli-execution-event.v1",
+              type: "ANALYSIS_IMPORTED"
+            });
+          } else {
+            dependencies.output.stdout(
+              `${cliMessages.RESULT_ANALYSIS_IMPORT_COMPLETED} ${result.executionId} ${result.runId}\n`
+            );
+          }
+          return;
+        }
         const result = await dependencies.resultCommands.importReport(input);
         if (state.json) {
           emitExecutionMachine(dependencies.output, {
@@ -697,11 +859,12 @@ function buildProgram(
     .option("--rest-concurrency <count>", cliMessages.REST_CONCURRENCY)
     .option("--eval-concurrency <count>", cliMessages.EVAL_CONCURRENCY)
     .option("--analysis-concurrency <count>", cliMessages.ANALYSIS_CONCURRENCY)
+    .option("--analysis-selector <selector>", cliMessages.ANALYZE_SELECTOR)
     .action(
       async (packagePath: unknown, dirtyOptions: unknown, command: Command): Promise<void> => {
         state.command = "pipeline run";
         state.json = machineOutput(command);
-        const input = restRunInput(packagePath, dirtyOptions, controller.signal);
+        const input = pipelineRunInput(packagePath, dirtyOptions, controller.signal);
         const result = await dependencies.pipelineCommands.run(input);
         state.successExitCode = evaluationExitCode(result);
         if (state.json) {

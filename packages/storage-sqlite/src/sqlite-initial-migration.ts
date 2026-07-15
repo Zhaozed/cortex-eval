@@ -4,6 +4,7 @@ import type { Migration, MigrationProvider } from "kysely/migration";
 import { PLATFORM_RUN_INDEX_MIGRATION } from "./sqlite-platform-run-index-migration.ts";
 import { EVALUATION_SUMMARY_MIGRATION } from "./sqlite-evaluation-summary-migration.ts";
 import { REPORTING_MIGRATION } from "./sqlite-reporting-migration.ts";
+import { CASE_ANALYSIS_MIGRATION } from "./sqlite-case-analysis-migration.ts";
 
 const CREATE_STATEMENTS = [
   `CREATE TABLE test_suite (
@@ -256,7 +257,8 @@ export class CortexMigrationProvider implements MigrationProvider {
       "001_initial_schema": INITIAL_MIGRATION,
       "002_platform_run_indexes": PLATFORM_RUN_INDEX_MIGRATION,
       "003_evaluation_summary": EVALUATION_SUMMARY_MIGRATION,
-      "004_reporting_versions": REPORTING_MIGRATION
+      "004_reporting_versions": REPORTING_MIGRATION,
+      "005_case_analysis_versions": CASE_ANALYSIS_MIGRATION
     });
   }
 }

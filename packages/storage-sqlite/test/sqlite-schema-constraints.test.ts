@@ -163,6 +163,34 @@ describe("SQLite 跨字段约束与删除语义", () => {
     }).toThrow(/FOREIGN KEY constraint failed/);
   });
 
+  it("Analysis Proposal 与决策状态必须在数据库边界一致", () => {
+    insertRun(database, "run-1");
+    insertCaseResult(database, "run-1");
+    insertEvalResult(database, "run-1", "FAIL", 0);
+
+    expect(() => {
+      database
+        .prepare(
+          `INSERT INTO case_analysis (
+            id, run_id, case_key, final_case_result_hash, analysis_revision,
+            analysis_prompt_key, analysis_prompt_hash, analysis_prompt_snapshot_json,
+            analyzer_config_hash, analyzer_provider, analyzer_model, analyzer_snapshot_json,
+            analysis_input_contract_version, analysis_output_contract_version,
+            analysis_input_hash, analysis_execution_limits_json, analysis_status,
+            classification, confidence, evidence_json, explanation, recommended_action,
+            proposal_json, decision, apply_status, analysis_result_hash, created_at, updated_at
+          ) VALUES ('analysis-1', 'run-1', 'case-1', ?, 3, 'analysis', ?, '{}', ?,
+            'GOOGLE_GEMINI', 'gemini', '{}', 'cortex.analysis-input.v1',
+            'cortex.analysis-output.v1', ?,
+            '{"contractVersion":"cortex.analysis-execution-limits.v1","analysisConcurrency":1}',
+            'SUCCEEDED', 'NORMAL_FAILURE', 0.8,
+            '[{"source":"failed_assertions","fieldPath":null,"conclusion":"失败"}]',
+            '解释', '修复', NULL, 'PENDING', 'NOT_APPLIED', ?, ?, ?)`
+        )
+        .run(HASH_A, HASH_A, HASH_A, HASH_A, HASH_A, NOW, NOW);
+    }).toThrow(/CASE_ANALYSIS_STATE_INVALID/);
+  });
+
   it("REST 与 Eval Provenance 必须且只能选择一个来源身份", () => {
     insertRun(database, "source-run");
     insertRun(database, "target-run", "source-run");

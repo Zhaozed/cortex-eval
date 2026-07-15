@@ -4,7 +4,7 @@
 
 本文档定义 Cortex Eval 本地版的产品目标、使用方式、业务对象、用户流程、UI 与 CLI 能力、报告口径、异常行为和验收标准。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P8 已完成，P9 尚未开始。平台与离线 REST→Evaluation→Report、Work Package v1 导出/校验、安全文件运行时、REST/Eval/Report/Pipeline CLI、平台与离线 Retry/Force、Raw/Normalized/Report Artifact，以及完整 Execution Report Import 已闭环。文件或目录发布只有在父目录同步后成功；发布后同步失败撤销可见目标。阶段登记失败只凭当前命令持有的非持久发布身份补偿未登记 Artifact；身份已丢失的启动恢复保留文件并报告，不按路径猜测删除。Analysis、Analysis Import 和 Canonical Export 尚未闭合。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P9 已完成。平台与离线 REST→Evaluation→Report→显式 Analysis、结构化 Evidence、Execution Report/Analysis Import 和当前决策能力已闭环。文件或目录发布只有在父目录同步后成功；发布后同步失败撤销可见目标。阶段登记失败只凭当前命令持有的非持久发布身份补偿未登记 Artifact；身份已丢失的启动恢复保留文件并报告，不按路径猜测删除。Canonical Export 尚未闭合。
 
 技术选型、项目架构、模块边界、数据字段、工作包协议、事务、并发和测试设计以 `TECH.md` 为准。本文档不包含具体实现代码。
 
@@ -373,7 +373,7 @@ Case 创建、复制、删除或导入在用户显式使用最新 Revision 重�
 
 工作包不得包含任何 API Key、Authorization 值或其他 Secret 展开值。
 
-Work Package v1 运行时按 UTF-8 原始字节执行固定上限：Manifest 256 MiB、单个 Execution 4 MiB、每个配置/Prompt/`.env.example` 8 MiB、Canonical Tests 总计 1.25 GiB、单个 Canonical Test Case 16 MiB、单个 REST Result Case 32 MiB、单个 Normalized Eval Case 32 MiB、单个 Promptfoo Raw Result Row 64 MiB、解码后的单个 JSON String Token 16 MiB。REST、Normalized 和 Raw Artifact 不新增总文件上限，必须流式计算 Hash、复制和存在性；REST/Normalized 按 Case 流式解析，真实 Promptfoo Raw 在私有临时目录中完成版本、JSON、逐 Row、字符串和 Capability 校验后，以可回收流分别写入 Artifact 和逐 Row 导入，不得再次整文件 `readFile + JSON.parse`；Raw Retry 只校验已登记的 Hash、大小和 Descriptor，不重新整文件解析。Case 超限收敛为 `WORK_PACKAGE_INVALID`，REST 超限为 `ARTIFACT_WRITE_FAILED`，Raw 超限为 `PROMPTFOO_PROCESS_ERROR`，Normalized 超限为 `EVALUATION_STAGE_FAILED`。
+Work Package v1 运行时按 UTF-8 原始字节执行固定上限：Manifest 256 MiB、单个 Execution 4 MiB、每个配置/Prompt/`.env.example` 8 MiB、Canonical Tests 总计 1.25 GiB、单个 Canonical Test Case 16 MiB、单个 REST Result Case 32 MiB、单个 Normalized Eval Case 32 MiB、单个 Report Case 80 MiB、单个 Analysis Result Case 80 MiB、单个 Promptfoo Raw Result Row 64 MiB、解码后的单个 JSON String Token 16 MiB。REST、Normalized、Report、Analysis 和 Raw Artifact 不新增总文件上限，必须流式计算 Hash、复制和存在性；REST/Normalized/Report/Analysis 按 Case 流式解析，真实 Promptfoo Raw 在私有临时目录中完成版本、JSON、逐 Row、字符串和 Capability 校验后，以可回收流分别写入 Artifact 和逐 Row 导入，不得再次整文件 `readFile + JSON.parse`；Raw Retry 只校验已登记的 Hash、大小和 Descriptor，不重新整文件解析。Case 超限收敛为 `WORK_PACKAGE_INVALID`，REST 超限为 `ARTIFACT_WRITE_FAILED`，Raw 超限为 `PROMPTFOO_PROCESS_ERROR`，Normalized 超限为 `EVALUATION_STAGE_FAILED`。
 
 离线 Evaluation 不得把最大 1.25 GiB 的 Case、REST、复用结果、Promptfoo 导入结果或最终结果聚合为数组/Map。命令在 owner-only 私有 SQLite 中按 128 Case 批次暂存强类型投影，以 Ordinal 顺序提供可重放 Case Source；Promptfoo 配置使用两遍输入并流式写入，Raw 逐 Row 导入，最终 Normalized 结果按 Ordinal 直接流式提交。内存只允许保留一个大 Case/结果及必要的紧凑身份证据。
 
@@ -421,7 +421,7 @@ CLI 从当前进程环境或用户显式指定的 Env 文件读取 Secret。Env 
 
 Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式设置阶段列表。Analysis 只有显式选择并指定 Case 范围时执行。阶段列表必须满足 Artifact 依赖，系统不自动补跑未选择阶段。
 
-当前注册的离线 `pipeline run` 默认执行 REST、Evaluation 和 Report；`report build` 与 `result import` 已在 Report Writer、双遍读取和平台事务闭环后注册。CLI Help 不提前展示尚未闭环的 `analyze run` 或 `data export`。
+当前注册的离线 `pipeline run` 默认执行 REST、Evaluation 和 Report；只有显式提供 `--analysis-selector failed | errors | all` 时才追加 Analysis，并要求工作包已经冻结 Analyzer 和 Analysis Prompt。`analyze run` 与 `result import --type analysis` 已在 Analysis Writer、双遍读取和平台事务闭环后注册。CLI Help 仍不展示尚未闭环的 `data export`。
 
 离线 Pipeline 包含 Analysis 时必须已有或同时选择 Report，并提供 Analyzer、Analysis Prompt 和 `failed | errors | all` Selector。Analysis 失败使 CLI 返回阶段系统错误，但不改变已完成 Report JSON、Markdown 或导入事实。无可分析 Case 时 Analysis 以零结果成功结束。
 
@@ -602,10 +602,20 @@ Metric 通过率为 `Metric PASS Case 数 / (Metric PASS Case 数 + Metric FAIL 
 
 - Classification。
 - 模型自评 Confidence。
-- Evidence。
+- 非空结构化 Evidence 数组。
 - Explanation。
 - Recommended Action。
 - 可选的单个结构化 Proposal。
+
+每项 Evidence 必须包含：
+
+- `source`：只能引用 `case_definition`、`provider_output`、`failed_assertions`、`expected_actual_diffs`、`llm_rubric_results` 或 `run_context` 之一。
+- `fieldPath`：必填；引用整个来源时为 `null`，引用来源内部字段时为合法 RFC 6901 JSON Pointer。
+- `conclusion`：基于该来源事实得出的非空结论。
+
+Evidence 不接受字符串兼容格式。模型返回字符串、未知来源、非法路径、空结论或空数组时，整条 Analysis 保存为稳定结构输出错误，不做猜测转换。
+
+Contracts、Adapter、Domain、Artifact、SQLite、API 和 Web 必须保持同一结构化 Evidence 形状；不得在中间层把结构化对象退化为拼接字符串再反向解析。
 
 Proposal 使用判别联合明确动作和目标：
 
@@ -743,16 +753,19 @@ Proposal 使用判别联合明确动作和目标：
 
 - 分析结果只接受四种固定分类。
 - 参数波动按工具参数语义等价定义，不自动重复执行 Case。
-- 分析输出包含证据、解释和修改建议。
+- 分析输出包含非空结构化 Evidence、解释和修改建议；每项 Evidence 包含固定来源、必填的 RFC 6901 字段路径或 `null`、非空结论，字符串 Evidence 必须拒绝。
 - UI 可以从分析结果进入 Case 编辑。
 - 过期分析不能覆盖当前 Case。
 - Prompt 或 Analyzer 配置变化会形成新的分析输入身份。
+- 每次平台 Analysis 调用和离线 Execution 都是独立版本；导入按显式 Package、Execution、Artifact、Result Set 和 Final Case Result 身份对账，不使用最大 ID、最大时间、最近记录或 `select max`。
 
 ### 16.7 并发、恢复和安全
 
 - 两个独立进程不能同时启动平台运行阶段。
 - 取消不生成伪造结果。
 - 重启能把遗留运行收敛为 Interrupted。
+- Local Server 在开放请求前把遗留 Analysis `PENDING/RUNNING` 收敛为 `ANALYSIS_INTERRUPTED/ERROR`。
+- 离线 Analysis 在阶段认领前取消保持 `PENDING` 并返回 `REQUEST_ABORTED`，认领后取消保存 `ANALYSIS_CANCELLED/ERROR`；两者 CLI 退出码均为 130，且不登记部分 Artifact。
 - 工作包半写、Hash 错误和路径逃逸被稳定拒绝。
 - Secret 不出现在数据库、工作包、日志、快照或 API 响应中。
 - CLI 取消信号贯穿 REST 执行与最终发布、Runtime 预检、Engine、Raw 复制、逐 Row 导入、Normalized 写入和最终提交。REST 阶段开始后取消统一为 `REST_CANCELLED`；Evaluation 阶段开始前取消保持 `PENDING`，开始后统一为 `EVALUATOR_CANCELLED`。取消不得登记部分 Artifact。

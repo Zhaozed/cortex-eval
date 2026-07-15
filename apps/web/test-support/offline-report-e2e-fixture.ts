@@ -28,6 +28,8 @@ export interface OfflineReportE2eFixtureInput {
   readonly packagePath: string;
   /** Stable offline Execution version identity. */
   readonly executionId: string;
+  /** Deterministic normalized Evaluation outcome; PASS preserves the original fixture default. */
+  readonly evaluationStatus?: "PASS" | "FAIL" | undefined;
 }
 
 // Return deterministic monotonic stage timestamps while keeping file nonces unpredictable.
@@ -51,6 +53,7 @@ function reportService(): WorkPackageReportRunService {
 export async function materializeCompletedOfflineReport(
   input: OfflineReportE2eFixtureInput
 ): Promise<void> {
+  const evaluationStatus = input.evaluationStatus ?? "PASS";
   await receiveWorkPackageExport(Readable.from([input.exportBody]), input.packagePath, {
     nonce: randomUUID(),
     owner: {
@@ -128,7 +131,7 @@ export async function materializeCompletedOfflineReport(
       input.executionId,
       {
         promptfooVersion: "0.121.18",
-        exitCode: 0,
+        exitCode: evaluationStatus === "FAIL" ? 100 : 0,
         durationMs: 1,
         raw: { results: { version: 3, results: [] } },
         rubricPromptMaterializations: {},
@@ -140,14 +143,14 @@ export async function materializeCompletedOfflineReport(
     const evaluationPartial = {
       caseKey: testCase.caseKey,
       ordinal: testCase.ordinal,
-      status: "PASS" as const,
-      promptfooSuccess: true,
-      score: 1,
-      reason: "offline e2e passed",
+      status: evaluationStatus,
+      promptfooSuccess: evaluationStatus === "PASS",
+      score: evaluationStatus === "PASS" ? 1 : 0,
+      reason: evaluationStatus === "PASS" ? "offline e2e passed" : "offline e2e failed",
       evaluationError: null,
       assertions: [],
       diffs: [],
-      metrics: [{ metric, status: "PASS" as const }],
+      metrics: [{ metric, status: evaluationStatus }],
       latencyMs: 1,
       tokenUsage: null,
       cost: null,

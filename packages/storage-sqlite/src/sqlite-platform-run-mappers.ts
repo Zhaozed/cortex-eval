@@ -55,8 +55,8 @@ const JsonValueSchema: z.ZodType<DomainJsonValue> = z.lazy(() =>
     z.record(z.string(), JsonValueSchema)
   ])
 );
-const JsonObjectSchema = z.record(z.string(), JsonValueSchema);
-interface PersistedAssertionV1 {
+export const PersistedJsonObjectSchema = z.record(z.string(), JsonValueSchema);
+export interface PersistedAssertionV1 {
   /** Assertion type. */
   readonly type: string;
   /** Stable metric name. */
@@ -78,14 +78,14 @@ interface PersistedAssertionV1 {
   /** Nested Assertion Set members. */
   readonly assert?: readonly PersistedAssertionV1[] | undefined;
 }
-const PersistedAssertionSchema: z.ZodType<PersistedAssertionV1> = z.lazy(() =>
+export const PersistedAssertionSchema: z.ZodType<PersistedAssertionV1> = z.lazy(() =>
   z.strictObject({
     type: z.string().trim().min(1),
     metric: z.string().trim().min(1),
     value: JsonValueSchema.optional(),
     threshold: z.number().optional(),
     weight: z.number().nonnegative().optional(),
-    config: JsonObjectSchema.optional(),
+    config: PersistedJsonObjectSchema.optional(),
     rubricPrompt: z.string().optional(),
     transform: z.string().optional(),
     contextTransform: z.string().optional(),
@@ -96,7 +96,10 @@ export const CaseDefinitionV1Schema = z.strictObject({
   contractVersion: z.literal("cortex.case-definition.v1"),
   description: z.string().trim().min(1),
   threshold: z.number().min(0).max(1),
-  vars: z.strictObject({ task: z.string().trim().min(1), request_body: JsonObjectSchema }),
+  vars: z.strictObject({
+    task: z.string().trim().min(1),
+    request_body: PersistedJsonObjectSchema
+  }),
   metadata: z.strictObject({
     case_id: z.string().trim().min(1),
     req_id: z.string().trim().min(1),
@@ -162,8 +165,8 @@ export const ProviderOutputV1Schema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
     task_name: z.string().trim().min(1),
-    resolved_config: JsonObjectSchema,
-    parsed_output: JsonObjectSchema
+    resolved_config: PersistedJsonObjectSchema,
+    parsed_output: PersistedJsonObjectSchema
   }),
   z.strictObject({ ok: z.literal(false), err_msg: z.string().trim().min(1) })
 ]);
@@ -406,7 +409,7 @@ export function parseJson<T>(schema: z.ZodType<T>, serialized: string): T {
 }
 
 // Map one recursive transport Assertion into the clean Domain model.
-function assertionFromV1(value: CaseDefinitionV1["assert"][number]): AssertionDefinition {
+export function assertionFromV1(value: CaseDefinitionV1["assert"][number]): AssertionDefinition {
   return {
     type: value.type,
     metric: value.metric,

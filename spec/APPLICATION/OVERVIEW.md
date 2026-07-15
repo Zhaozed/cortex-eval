@@ -14,7 +14,7 @@ Feature 内部用例、局部事务、状态变化和错误归对应 Feature 文
 
 ## 实现状态
 
-P2 已落地 Application 基础 Package、资源 Port、Kysely 托管事务边界、Test Suite/Case/Configuration 用例和离线 Execution 身份幂等原语。P3 补充受控 staging Port、流式 Case 导入、Revision 一致导出和外部配置验证 Adapter 契约。P5–P8 补充平台 Run 预检/冻结、REST/Evaluation/Report 编排、逐 Case 结果、Artifact、取消、恢复、版本化 Retry/Force、统一查询和完整 Execution Report Import。Case Analysis 按 P9 落地。
+P2 已落地 Application 基础 Package、资源 Port、Kysely 托管事务边界、Test Suite/Case/Configuration 用例和离线 Execution 身份幂等原语。P3 补充受控 staging Port、流式 Case 导入、Revision 一致导出和外部配置验证 Adapter 契约。P5–P8 补充平台 Run 预检/冻结、REST/Evaluation/Report 编排、逐 Case 结果、Artifact、取消、恢复、版本化 Retry/Force、统一查询和完整 Execution Report Import。P9 已补充结构化 Case Analysis、当前版本、Proposal 决策和完整 Execution Analysis Import。
 
 ## 目标代码落点
 

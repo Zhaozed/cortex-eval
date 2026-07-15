@@ -192,6 +192,38 @@ describe("CaseDefinitionWriter", () => {
     expect(editedAndAccepted).toMatchObject({ ok: true, case: { revision: 3 } });
   });
 
+  it("允许 Analysis 协调器在既有短事务内复用同一 Case Writer", async () => {
+    const store = InMemoryApplicationStore.withEmptySuite("suite-1");
+    store.seedRubricPrompt("quality");
+    const dependencies = store.dependencies();
+    const writer = new CaseDefinitionWriter(dependencies);
+    await writer.createCase({
+      suiteId: "suite-1",
+      expectedSuiteRevision: 0,
+      definition: definition("case-1")
+    });
+
+    const result = await dependencies.transactionManager.execute((transaction) =>
+      writer.editCaseWithinTransaction(
+        transaction,
+        {
+          suiteId: "suite-1",
+          caseKey: "case-1",
+          expectedSuiteRevision: 1,
+          expectedCaseRevision: 0,
+          definition: { ...definition("case-1"), description: "Atomic Analysis edit" }
+        },
+        "2026-07-15T00:00:00.000Z"
+      )
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      case: { description: "Atomic Analysis edit", revision: 1 },
+      suite: { revision: 2 }
+    });
+  });
+
   it("覆盖创建、替换和编辑的校验、身份、引用与 Revision 错误", async () => {
     const emptyStore = new InMemoryApplicationStore();
     const emptyWriter = new CaseDefinitionWriter(emptyStore.dependencies());

@@ -14,7 +14,7 @@ Package 实现 Application Port，依赖 Contracts 边界 Schema 和外部运行
 
 ## 实现状态
 
-P5 已建立 `packages/evaluation-adapters` 并落地 Fetch REST Executor。当前实现覆盖受控 URL 模板、RFC 6901 Selector、EnvSecretRef、精确请求/响应上限、并发、超时、取消、手动 Redirect、严格 Provider Output 和闭合错误分类。P6 已落地无 Assertion 类型白名单的配置物化、固定版本子进程、Bridge v2、Gemini/OpenAI-compatible Evaluator Client；Analysis Model Client 属于后续阶段。
+P5 已建立 `packages/evaluation-adapters` 并落地 Fetch REST Executor。当前实现覆盖受控 URL 模板、RFC 6901 Selector、EnvSecretRef、精确请求/响应上限、并发、超时、取消、手动 Redirect、严格 Provider Output 和闭合错误分类。P6 已落地无 Assertion 类型白名单的配置物化、固定版本子进程、Bridge v2、Gemini/OpenAI-compatible Evaluator Client。P9 已完成不经过 Bridge 的 Gemini/OpenAI-compatible Analyzer Client，以及平台和离线 Analysis 入口闭环。
 
 ## 代码落点
 
@@ -33,6 +33,8 @@ P5 已建立 `packages/evaluation-adapters` 并落地 Fetch REST Executor。当�
 - [evaluator-bridge-v2.ts](../../packages/evaluation-adapters/src/evaluator-bridge-v2.ts)：Evaluation 调用期 Capability、预算、FIFO 并发、TTL、超时和取消。
 - [frozen-evaluator-model-client.ts](../../packages/evaluation-adapters/src/frozen-evaluator-model-client.ts)：官方 SDK、无自动重试、冻结配置和环境 Secret 边界。
 - [evaluator-model-errors.ts](../../packages/evaluation-adapters/src/evaluator-model-errors.ts)：SDK HTTP 状态到闭合 Provider Error Code 的安全映射。
+- [frozen-analyzer-model-client.ts](../../packages/evaluation-adapters/src/frozen-analyzer-model-client.ts)：Analyzer 官方 SDK、`JSON_SCHEMA | JSON_OBJECT` 精确映射、严格响应校验、大小、取消和无重试边界。
+- [analyzer-model-errors.ts](../../packages/evaluation-adapters/src/analyzer-model-errors.ts)：Analyzer 安全错误收敛。
 
 ## 当前样例与测试入口
 
@@ -42,7 +44,7 @@ P5 已建立 `packages/evaluation-adapters` 并落地 Fetch REST Executor。当�
 
 ## 对外接口
 
-当前 REST Executor 接收 Frozen Cases、Endpoint、Abort Signal、冻结并发限制和逐 Case 结果回调。Promptfoo 子模块接收冻结 Case/REST/Evaluator/Prompt 和 Abort Signal；Analysis Model Client 尚无运行时能力。
+当前 REST Executor 接收 Frozen Cases、Endpoint、Abort Signal、冻结并发限制和逐 Case 结果回调。Promptfoo 子模块接收冻结 Case/REST/Evaluator/Prompt 和 Abort Signal。Analysis Model Client 直接接收冻结 Analyzer、Prompt、六个结构化变量和 Abort Signal，不调用 Evaluator Bridge。
 
 ## 核心流程
 
@@ -70,4 +72,4 @@ REST 错误闭合为 `TIMEOUT`、`NETWORK`、`HTTP_STATUS`、`RESPONSE_PARSE`、
 
 ## 相关测试
 
-当前测试覆盖 REST HTTP、网络、状态码、解析、Provider Output、模板、Selector、Secret、合法 `ok=false`、请求/响应大小边界、超时、取消、并发和 Worker 收口。P6/P7 已覆盖无类型白名单的矩阵 Assert 构建、递归 config 安全边界、紧凑组合敏感键及大小写/前导空白外部引用绕过拒绝、Bridge Capability/绑定/预算/FIFO 并发/精确 Host/排队 TTL 复验/非协作上游的超时与关闭、Provider 400/422、双官方 SDK 无重试与无认证 Header、固定 Promptfoo 真实进程、普通 Assert 前的固定版本预检、Raw Row 在完整文档到达前背压交付、固定版本拒绝、版本检查共享整体截止时间、有界诊断输出、Root 外路径与临时父目录符号链接拒绝、主进程提前退出时后代保留剩余 TERM 宽限期、函数返回前完整进程组回收、真实子进程取消到 CLI 130、非零及缺失 Token Usage、内联执行错误清洗、Rubric Prompt 身份恢复和严格 Importer。Evaluator Promise 在超时或关闭后若忽略 Abort，HTTP 与 Owner 可以先收口，但真实并发槽持续占用到该 Promise 自身结束；关闭后的统计仍反映无法强制终止的实际在途调用，且监听器关闭后不再接收新调用。平台不逐类复现或限制 Promptfoo Assert 执行；Analysis 测试属于后续阶段。
+当前测试覆盖 REST HTTP、网络、状态码、解析、Provider Output、模板、Selector、Secret、合法 `ok=false`、请求/响应大小边界、超时、取消、并发和 Worker 收口。P6/P7 已覆盖无类型白名单的矩阵 Assert 构建、递归 config 安全边界、紧凑组合敏感键及大小写/前导空白外部引用绕过拒绝、Bridge Capability/绑定/预算/FIFO 并发/精确 Host/排队 TTL 复验/非协作上游的超时与关闭、Provider 400/422、双官方 SDK 无重试与无认证 Header、固定 Promptfoo 真实进程、普通 Assert 前的固定版本预检、Raw Row 在完整文档到达前背压交付、固定版本拒绝、版本检查共享整体截止时间、有界诊断输出、Root 外路径与临时父目录符号链接拒绝、主进程提前退出时后代保留剩余 TERM 宽限期、函数返回前完整进程组回收、真实子进程取消到 CLI 130、非零及缺失 Token Usage、内联执行错误清洗、Rubric Prompt 身份恢复和严格 Importer。P9 追加 Gemini/OpenAI-compatible Analyzer 严格结构输出、结构化 Evidence、大小、取消、无自动重试和安全错误收敛。Evaluator Promise 在超时或关闭后若忽略 Abort，HTTP 与 Owner 可以先收口，但真实并发槽持续占用到该 Promise 自身结束；关闭后的统计仍反映无法强制终止的实际在途调用，且监听器关闭后不再接收新调用。平台不逐类复现或限制 Promptfoo Assert 执行；Analyzer 不调用 Bridge。

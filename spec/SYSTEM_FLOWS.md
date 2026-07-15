@@ -67,27 +67,29 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 
 ## Analysis 流程
 
-1. 用户从完整报告选择失败或评估错误 Case，并选择 Analyzer 与 Case Analysis Prompt。
-2. Application 构造脱敏、版本化的 Analysis Input 和输入身份。
+1. 用户从完整报告显式选择 `failed | errors | all`，并选择 Analyzer、Case Analysis Prompt 与 Analysis 并发。
+2. Application 构造脱敏、版本化的 Analysis Input 和输入身份；Analyzer 直接使用官方 SDK，不经过 Promptfoo Evaluator Bridge。
 3. Analysis Adapter 渲染受控变量并调用模型，模型调用期间不持有事务。
-4. Analysis Adapter/Mapper 使用 Contracts 校验外部结构化输出并转换为核心类型，Application 保存当前分析、分类、证据和可选 Proposal。
-5. 用户拒绝、接受或编辑后接受建议。
-6. 应用前重新校验 Final Result、Analysis Revision、Base Definition Hash 和 Prompt 引用，再调用统一 Case Definition Writer。
+4. Analysis Adapter/Mapper 使用 Contracts 校验外部结构化输出并转换为核心类型。Evidence 每项必须有固定来源、RFC 6901 字段路径或 `null` 和非空结论，字符串整体拒绝。
+5. Application 保存当前分析、分类、结构化 Evidence 和可选 Proposal。每次调用生成新 ID/Input/Result Hash；重新分析按 Revision 替换当前记录并清除旧决策。
+6. 并发启动只能恢复本请求精确抢占的 ID/Revision；另一个请求持有的 `RUNNING` 记录返回 `ANALYSIS_STATE_CONFLICT` 且不被覆盖。
+7. 用户拒绝、接受或编辑后接受建议。
+8. 应用前重新校验 Final Result、Analysis Revision、Base Definition Hash 和 Prompt 引用，再调用统一 Case Definition Writer。
 
-输入或目标发生变化时写入冲突，不自动合并。重新分析覆盖同一 Run/Case 的当前分析，并递增 Revision。
+输入或目标发生变化时写入冲突，不自动合并或 Rebase。
 
 ## 离线工作包
 
 1. 平台在短读事务中冻结当前资源，通过 Manifest-first NDJSON 导出不可变输入、Hash 和 `.env.example`。
 2. 本地接收器在受控 staging 中校验路径、大小、顺序和 Hash，完整成功后原子发布 0700 目录与 0600 文件。
 3. 每次离线执行创建新的 Execution ID 和独立输出目录；Retry/Force 只读取来源，不覆盖来源。
-4. 单阶段 CLI 校验自身环境；REST 在创建 Execution 前完整读取 Endpoint、全部 Case 和 Retry 来源。当前 Pipeline 在 REST 外部调用和任何 Execution 变更前，同时预检 REST/Evaluation 环境、冻结 Case、完整 Evaluator/Rubric Prompt、Case Prompt 引用、固定 Promptfoo 精确版本与实际需要的 Python/Ruby Runtime，并用同一个冻结 Secret Snapshot 顺序执行。
+4. 单阶段 CLI 校验自身环境；REST 在创建 Execution 前完整读取 Endpoint、全部 Case 和 Retry 来源。Pipeline 在 REST 外部调用和任何 Execution 变更前，同时预检所选阶段环境、冻结 Case、完整 Evaluator/Rubric Prompt、Case Prompt 引用、固定 Promptfoo 精确版本与实际需要的 Python/Ruby Runtime，并用同一个冻结 Secret Snapshot 顺序执行。
 5. Evaluation 的 Case、REST、复用与导入结果按 128 项写入 owner-only SQLite；Engine 两遍重放并流式生成配置，Raw 逐 Row 导入，最终按 Ordinal 直接写 Normalized，不聚合随 Case 数线性增长的大对象数组或 Map。
 6. 同一工作包由跨进程锁限制为单写者；不同工作包可以并行。阶段成功产物不可覆盖。
-7. P7 当前 Pipeline 只执行 REST→Evaluation。P8 闭合 Report 后再扩展默认 Pipeline；P9 再注册 Analysis。
-8. Work Package Reader 对 REST/Raw/Normalized 执行两遍严格校验并重算 Eval、Final 和 Result Set Hash；复用结果沿 Execution Provenance 追溯到真正持有 Raw 的祖先，每遍按执行版本验证一次并只缓存最小 Evidence 身份。取消贯穿预检、Engine、Raw/Normalized 与最终提交；清理失败只报告，不覆盖主终态。P8 在此基础上完成 Report 对账与平台事务导入。
+7. 当前 Pipeline 默认执行 REST→Evaluation→Report；只有显式提供 Analysis Selector 时才追加 Analysis，并要求 Report、Analyzer 和 Analysis Prompt 已存在。
+8. Work Package Reader 对 REST/Raw/Normalized/Report/Analysis 执行两遍严格校验并重算 Eval、Final、Report、Analysis Input/Result 和 Result Set Hash；复用结果沿 Execution Provenance 追溯到真正持有 Raw 的祖先，每遍按执行版本验证一次并只缓存最小 Evidence 身份。取消贯穿预检、Engine、Artifact 与最终提交；清理失败只报告，不覆盖主终态。
 
-相同 Package ID、Execution ID、Result Set Hash 与规范化 Artifact Manifest 重复登记幂等成功；相同 Execution ID 对应不同 Package、结果，或 Manifest 的版本、Owner、Kind、路径、Hash、大小、Payload Contract Version 任一不同均返回冲突。报告和分析允许分两次导入。
+相同 Package ID、Execution ID、Result Set Hash 与规范化 Artifact Manifest 重复登记幂等成功；相同 Execution ID 对应不同 Package、结果，或 Manifest 的版本、Owner、Kind、路径、Hash、大小、Payload Contract Version 任一不同均返回冲突。报告和分析允许分两次导入；Analysis 必须绑定已经存在的精确 Report Execution 与 Final Case Result。所有导入按显式身份查询，不使用 `select max`。
 
 平台 Retry 与离线 `--retry-failed` 使用来源冻结输入创建新 Run/Execution：复制 REST `SUCCEEDED`，重新请求 REST `ERROR`；只复制对齐且 Raw/Normalized 来源 Artifact 在规划和 Evaluation 时均实际校验为 `PRESENT` 的 Eval `PASS/FAIL`；文件缺失/损坏、`EVALUATION_ERROR`、缺失 Eval 事实和新 REST 成功后的 `NOT_EVALUATED` 都重新评估。Force 在新身份下重新执行全部 REST/Eval。P6 内部 Use Case 已创建新 Run、跳过复用 Case 的外部调用并重新生成完整 Artifact/Result Set；来源事实不得覆盖。对外入口等待 Report 终态闭环后注册。
 
@@ -113,7 +115,7 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 - 当前 P4–P5 Web：[apps/web/src](../apps/web/src)
 - 当前 Work Package 文件运行时：[packages/work-package/src](../packages/work-package/src)
 - 当前离线 CLI：[apps/cli/src](../apps/cli/src)
-- Promptfoo 外部链、Eval/Report 原子持久化、平台重跑、Work Package REST→Evaluation→Report、Reporting Ajv Diff/聚合/Markdown 和完整 Execution Report Import 已落地；Analysis 与 Canonical Export 等待 P9/P10。
+- Promptfoo 外部链、Eval/Report/Analysis 原子持久化、平台重跑、Work Package REST→Evaluation→Report→显式 Analysis、Reporting Ajv Diff/聚合/Markdown 和完整 Execution Report/Analysis Import 已落地；Canonical Export 等待 P10。
 - [APPLICATION/RUNS.md](APPLICATION/RUNS.md)
 - [APPLICATION/EXECUTION_IMPORTS.md](APPLICATION/EXECUTION_IMPORTS.md)
 - [PACKAGES/EVALUATION_ADAPTERS.md](PACKAGES/EVALUATION_ADAPTERS.md)

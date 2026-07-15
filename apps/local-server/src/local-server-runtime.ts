@@ -21,10 +21,15 @@ import {
   PlatformReportService,
   type PlatformReportBusinessEvent
 } from "@cortex-eval/application/src/features/reporting/platform-report-service.ts";
+import { PlatformCaseAnalysisService } from "@cortex-eval/application/src/features/case-analysis/platform-case-analysis-service.ts";
+import type { AnalysisModelClient } from "@cortex-eval/application/src/features/case-analysis/case-analysis-model-client.ts";
+import { CaseAnalysisDecisionService } from "@cortex-eval/application/src/features/case-analysis/case-analysis-decision-service.ts";
 import zhCnMessages from "@cortex-eval/contracts/messages/zh-CN.json" with { type: "json" };
+import analysisCaseMessages from "@cortex-eval/contracts/messages/analysis-case.zh-CN.json" with { type: "json" };
 import { FetchRestExecutor } from "@cortex-eval/evaluation-adapters/src/fetch-rest-executor.ts";
 import { PlatformPromptfooEvaluationEngine } from "@cortex-eval/evaluation-adapters/src/platform-promptfoo-evaluation-engine.ts";
 import { PromptfooRuntimePreflight } from "@cortex-eval/evaluation-adapters/src/promptfoo-runtime-preflight.ts";
+import { createFrozenAnalyzerModelClient } from "@cortex-eval/evaluation-adapters/src/frozen-analyzer-model-client.ts";
 import {
   PROMPTFOO_CAPABILITY_MATRIX_HASH,
   promptfooAssertionRequiresEvaluator
@@ -56,6 +61,7 @@ import { LocalRunArtifactStore } from "./run-artifact-store.ts";
 import { WorkPackageExportService } from "./work-package-export-service.ts";
 import { createWorkPackageExportHandler } from "./work-package-export-handler.ts";
 import { ExecutionReportImportService } from "./execution-report-import-service.ts";
+import { ExecutionAnalysisImportService } from "./execution-analysis-import-service.ts";
 
 /** Local Server composition options. */
 export interface LocalServerRuntimeOptions {
@@ -71,6 +77,8 @@ export interface LocalServerRuntimeOptions {
   readonly developmentSeed?: boolean | undefined;
   /** Optional built Web root used by the production runtime and E2E. */
   readonly staticRoot?: string | undefined;
+  /** Optional test-owned Analyzer boundary; production defaults to the official SDK adapter. */
+  readonly analysisModelClient?: AnalysisModelClient | undefined;
 }
 
 /** Fully composed Local Server lifecycle. */
@@ -143,6 +151,13 @@ function runMessage(code: string): string {
   return typeof value === "string" ? value : zhCnMessages.INTERNAL_ERROR;
 }
 
+/** Resolve both Analyzer Case errors and registered platform Analysis errors. */
+export function resolveAnalysisMessage(code: string): string {
+  const messages: Readonly<Record<string, unknown>> = analysisCaseMessages;
+  const value = messages[code];
+  return typeof value === "string" ? value : runMessage(code);
+}
+
 /** Initialize storage, clean staging and assemble all P3 resource capabilities. */
 export async function createLocalServerRuntime(
   options: LocalServerRuntimeOptions
@@ -153,6 +168,9 @@ export async function createLocalServerRuntime(
     const transactionManager = storage.createTransactionManager();
     const processLiveness = new PsProcessLiveness();
     const stagingFactory = storage.createCaseImportStagingFactory((event) =>
+      businessLogger.record({ event, timestamp: new Date().toISOString() })
+    );
+    const analysisImportStagingFactory = storage.createAnalysisImportStagingFactory((event) =>
       businessLogger.record({ event, timestamp: new Date().toISOString() })
     );
     const caseExportBodies = new FileCaseExportBodyPreparer(
@@ -170,6 +188,7 @@ export async function createLocalServerRuntime(
       })
     );
     await stagingFactory.cleanupStale();
+    await analysisImportStagingFactory.cleanupStale();
     await caseExportBodies.cleanupStale();
     const workPackageExportWorkspaces = new CaseImportWorkspaceManager({
       containmentRoot: options.projectRoot,
@@ -279,6 +298,39 @@ export async function createLocalServerRuntime(
       processIdentity: processLiveness,
       nonce: randomUUID
     });
+    const analysisTransactionManager = storage.createAnalysisTransactionManager();
+    const analysisImports = new ExecutionAnalysisImportService({
+      stagingFactory: analysisImportStagingFactory,
+      idGenerator,
+      clock,
+      processIdentity: processLiveness,
+      nonce: randomUUID,
+      errorMessage: resolveAnalysisMessage
+    });
+    const analyses = new PlatformCaseAnalysisService({
+      transactionManager: analysisTransactionManager,
+      reports,
+      modelClient:
+        options.analysisModelClient ??
+        createFrozenAnalyzerModelClient({
+          readSecret: (key): string | undefined => process.env[key]
+        }),
+      idGenerator,
+      clock,
+      errorMessage: resolveAnalysisMessage
+    });
+    const analysisDecisions = new CaseAnalysisDecisionService({
+      transactionManager: analysisTransactionManager,
+      caseWriter: cases,
+      clock
+    });
+    await analysisTransactionManager.execute((transaction) =>
+      transaction.analyses.recoverUnfinished(
+        clock.now(),
+        "ANALYSIS_INTERRUPTED",
+        resolveAnalysisMessage("ANALYSIS_INTERRUPTED")
+      )
+    );
     await runs.initialize();
     const resourceHandlers = createApplicationResourceHandlers({
       testSuites,
@@ -311,7 +363,12 @@ export async function createLocalServerRuntime(
       streamReportCases: reports.streamCases.bind(reports),
       openReportExport: artifactStore.openReportJson.bind(artifactStore),
       createRerun: reruns.create.bind(reruns),
-      importExecutionReport: reportImports.importReport.bind(reportImports)
+      importExecutionReport: reportImports.importReport.bind(reportImports),
+      importExecutionAnalysis: analysisImports.importAnalysis.bind(analysisImports),
+      startCaseAnalysis: analyses.start.bind(analyses),
+      getCurrentCaseAnalysis: analyses.getCurrent.bind(analyses),
+      rejectAnalysisProposal: analysisDecisions.rejectProposal.bind(analysisDecisions),
+      acceptAnalysisProposal: analysisDecisions.acceptProposal.bind(analysisDecisions)
     };
     const server = buildLocalServer({
       requestIdGenerator: idGenerator,

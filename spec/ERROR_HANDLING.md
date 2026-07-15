@@ -38,7 +38,7 @@ Markdown 渲染错误不改变已经验证的 Report JSON 事实。Markdown 只�
 
 ## 分析错误
 
-模型调用失败或输出不满足 Schema 时保存当前 Analysis `ERROR`，Decision 为 `NO_PROPOSAL`，Apply Status 为 `NOT_APPLICABLE`。系统不从不完整文本猜测分类或建议。
+模型调用失败或输出不满足 Schema 时保存当前 Analysis `ERROR`，Decision 为 `NO_PROPOSAL`，Apply Status 为 `NOT_APPLICABLE`。Evidence 必须是非空结构化数组；字符串、未知来源、非法 RFC 6901 路径、空结论或空数组均属于结构输出错误。系统不兼容转换，也不从不完整文本猜测分类、Evidence 或建议。
 
 建议应用时 Final Result、Revision、Base Definition、目标 Assertion 或 Prompt 引用发生变化，写入 `CONFLICT`，不自动 Rebase、合并或部分修改 Case。
 
@@ -62,7 +62,7 @@ CLI 对能够从参数前缀识别的命令，在 Commander 参数解析失败�
 
 非法 Run 转换返回 `RUN_STATE_CONFLICT`，原因区分状态/Revision、全局已有运行和 Stage 未注册。阶段抢占失败不伪造 `RUNNING`，提交冲突不覆盖已落库事实。Artifact 写失败收敛为 `FAILED/DONE` 并保留逐 Case 数据库事实；数据库提交竞争失败删除未提交文件。Runtime Shutdown 优先于本地 Owner 的晚到 Artifact/阶段成功，并把尚未 `DONE` 的 Run 收敛为 `INTERRUPTED/DONE`。
 
-非法 Analysis 转换或旧 Revision 返回 `ANALYSIS_STATE_CONFLICT`。Provider 能力、Evaluator 绑定、预算、超时、取消和请求失败使用独立稳定 Error Code；所有中文消息由 Contracts 消息资源提供。
+非法 Analysis 转换或旧 Revision 返回 `ANALYSIS_STATE_CONFLICT`。Analysis 认领后取消返回 `ANALYSIS_CANCELLED`，启动恢复返回 `ANALYSIS_INTERRUPTED`；Provider 能力、Evaluator 绑定、预算、超时、取消和请求失败使用独立稳定 Error Code。Analyzer Case 错误与平台注册 Analysis 错误由组合消息解析器读取外置资源，未知码才降级为 `INTERNAL_ERROR`。
 
 进程重启时遗留 `RUNNING` 收敛为 `INTERRUPTED/DONE`。系统不自动推测外部副作用或断点续跑。遗留工作包锁只在确认进程不存在且状态可恢复时清理。
 

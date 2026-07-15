@@ -6,6 +6,10 @@ import type {
   FrozenRunCase,
   FrozenRunEndpoint
 } from "@cortex-eval/application/src/features/runs/run-rest-models.ts";
+import type {
+  FrozenAnalysisAnalyzer,
+  FrozenCaseAnalysisPrompt
+} from "@cortex-eval/application/src/features/case-analysis/frozen-analysis-engine.ts";
 import {
   CaseDefinitionV1Schema,
   type CaseDefinitionV1
@@ -19,7 +23,10 @@ import {
   EndpointConfigV1Schema,
   LlmConfigV1Schema
 } from "@cortex-eval/contracts/src/provider-contracts.ts";
-import { PromptDefinitionV1Schema } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
+import {
+  AnalysisPromptDefinitionV1Schema,
+  PromptDefinitionV1Schema
+} from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import type { WorkPackageManifestV1 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import { WORK_PACKAGE_RUNTIME_LIMITS } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
 
@@ -48,6 +55,14 @@ export interface WorkPackageEvaluationInputs {
   readonly evaluator: FrozenRunEvaluator;
   /** Complete referenced Rubric Prompt set. */
   readonly rubricPrompts: readonly FrozenRunRubricPrompt[];
+}
+
+/** Frozen non-Secret inputs required by one offline Analysis stage. */
+export interface WorkPackageAnalysisInputs {
+  /** Frozen Analyzer configuration and semantic identity. */
+  readonly analyzer: FrozenAnalysisAnalyzer;
+  /** Frozen Case Analysis Prompt and semantic identity. */
+  readonly prompt: FrozenCaseAnalysisPrompt;
 }
 
 // Require every recursive Assertion prompt reference to resolve inside the frozen package.
@@ -238,6 +253,49 @@ export class WorkPackageInputReader {
         new Set(rubricPrompts.map((prompt) => `prompt://${prompt.name}`))
       );
       return inputs;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message === "WORK_PACKAGE_INVALID" || error.message === "WORK_PACKAGE_HASH_MISMATCH")
+      ) {
+        throw error;
+      }
+      throw new Error("WORK_PACKAGE_INVALID", { cause: error });
+    }
+  }
+
+  /** Read and clean the frozen Analyzer and Case Analysis Prompt. */
+  public async readAnalysisInputs(): Promise<WorkPackageAnalysisInputs> {
+    try {
+      const [analyzerBytes, promptBytes] = await Promise.all([
+        this.#readVerifiedInput(
+          this.#manifest.inputs.analyzer,
+          WORK_PACKAGE_RUNTIME_LIMITS.configurationBytes
+        ),
+        this.#readVerifiedInput(
+          this.#manifest.inputs.analysisPrompt,
+          WORK_PACKAGE_RUNTIME_LIMITS.configurationBytes
+        )
+      ]);
+      const analyzerValue = LlmConfigV1Schema.parse(parseJson(analyzerBytes));
+      const promptValue = AnalysisPromptDefinitionV1Schema.parse(parseJson(promptBytes));
+      if (promptValue.promptKey !== this.#manifest.inputs.analysisPrompt.promptKey) {
+        throw new Error("WORK_PACKAGE_INVALID");
+      }
+      const { contractVersion: _analyzerVersion, ...analyzerDefinition } = analyzerValue;
+      const { contractVersion: _promptVersion, ...promptDefinition } = promptValue;
+      void _analyzerVersion;
+      void _promptVersion;
+      return {
+        analyzer: {
+          configHash: this.#manifest.configurationHashes.analyzer,
+          definition: analyzerDefinition
+        },
+        prompt: {
+          promptHash: this.#manifest.configurationHashes.analysisPrompt,
+          definition: promptDefinition
+        }
+      };
     } catch (error) {
       if (
         error instanceof Error &&

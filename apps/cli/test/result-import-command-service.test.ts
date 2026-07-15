@@ -35,6 +35,24 @@ function success(status = 201): Response {
   );
 }
 
+function analysisSuccess(): Response {
+  return new Response(
+    JSON.stringify({
+      contractVersion: "cortex.execution-analysis-import-result.v1",
+      runId: ID,
+      packageId: ID,
+      executionId: ID,
+      idempotent: false,
+      selector: "failed",
+      selectedCount: 1,
+      importedCount: 1,
+      finalCaseResultSetHash: "e".repeat(64),
+      analysisResultSetHash: "f".repeat(64)
+    }),
+    { status: 201, headers: { "content-type": "application/json" } }
+  );
+}
+
 describe("P8 result import HTTP adapter", () => {
   it("posts one absolute local package path and strictly parses the imported version", async () => {
     const fetchStub = vi.fn<typeof fetch>().mockResolvedValue(success());
@@ -55,6 +73,24 @@ describe("P8 result import HTTP adapter", () => {
     expect(JSON.parse(init.body) as unknown).toEqual({
       contractVersion: "cortex.execution-report-import-request.v1",
       packagePath: resolve("relative-package"),
+      executionId: ID
+    });
+  });
+
+  it("把 Analysis 导入发送到独立闭合路径并严格解析版本", async () => {
+    const fetchStub = vi.fn<typeof fetch>().mockResolvedValue(analysisSuccess());
+    const service = new HttpResultImportCommandService({ fetch: fetchStub });
+    await expect(service.importAnalysis(input())).resolves.toMatchObject({
+      selector: "failed",
+      analysisResultSetHash: "f".repeat(64)
+    });
+    const [url, init] = fetchStub.mock.calls[0] ?? [];
+    if (!(url instanceof URL)) throw new Error("TEST_REQUEST_URL_INVALID");
+    expect(url.href).toBe("http://127.0.0.1:4310/api/v1/execution-results/analysis/import");
+    if (typeof init?.body !== "string") throw new Error("TEST_REQUEST_BODY_INVALID");
+    expect(JSON.parse(init.body) as unknown).toEqual({
+      contractVersion: "cortex.execution-analysis-import-request.v1",
+      packagePath: "/tmp/package",
       executionId: ID
     });
   });

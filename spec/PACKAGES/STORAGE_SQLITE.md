@@ -14,7 +14,7 @@ Package 使用 Kysely 构建显式 SQL，使用 better-sqlite3 访问当前唯�
 
 ## 实现状态
 
-P2 已落地十张业务表、Kysely Migration、连接策略、Repository、托管事务、严格行映射、Revision 条件更新、JSON1 查询、Execution 幂等原语和删除/Provenance 约束。P3 补充资源分页 Repository、外部 Case staging 和 owner-aware 临时目录清理。P5 补充平台 Run Repository、冻结行映射、逐 Case REST 结果、阶段 CAS、取消/恢复、Artifact Manifest 和 Run Cursor。P6 补充完整 Eval 集合的短事务对账、原子写入、分页查询和 REST/Eval 复用 Provenance 校验。P8 补充 Report Summary/Hash 终态提交、统一最新完整 Run 查询、Report 分页过滤、对外重跑和完整离线 Report 原子导入。Run Detail 与 Run Progress 使用独立有界 SQL 投影；逐 Case 结果写入只按 Ordinal 读取目标冻结 Case 身份，不加载整个 Suite JSON。Case、Configuration、Run、Eval 与 Report 读取都在边界清洗脏行。
+P2 已落地十张业务表、Kysely Migration、连接策略、Repository、托管事务、严格行映射、Revision 条件更新、JSON1 查询、Execution 幂等原语和删除/Provenance 约束。P3 补充资源分页 Repository、外部 Case staging 和 owner-aware 临时目录清理。P5 补充平台 Run Repository、冻结行映射、逐 Case REST 结果、阶段 CAS、取消/恢复、Artifact Manifest 和 Run Cursor。P6 补充完整 Eval 集合的短事务对账、原子写入、分页查询和 REST/Eval 复用 Provenance 校验。P8 补充 Report Summary/Hash 终态提交、统一最新完整 Run 查询、Report 分页过滤、对外重跑和完整离线 Report 原子导入。P9 激活既有 `case_analysis` 表，补充严格 Migration、当前 Analysis CAS/恢复/决策、平台并发所有权和离线 Analysis 原子导入。Run Detail 与 Run Progress 使用独立有界 SQL 投影；逐 Case 结果写入只按 Ordinal 读取目标冻结 Case 身份，不加载整个 Suite JSON。Case、Configuration、Run、Eval、Report 与 Analysis 读取都在边界清洗脏行。
 
 ## 目标代码落点
 
@@ -30,6 +30,10 @@ P2 已落地十张业务表、Kysely Migration、连接策略、Repository、托
 - [sqlite-platform-eval-repository.ts](../../packages/storage-sqlite/src/sqlite-platform-eval-repository.ts)：完整 Eval 集合对账、原子提交、阶段推进与分页查询。
 - [sqlite-imported-execution-store.ts](../../packages/storage-sqlite/src/sqlite-imported-execution-store.ts)：离线终态 Run/REST/Eval 原子导入与身份幂等。
 - [sqlite-imported-report-mappers.ts](../../packages/storage-sqlite/src/sqlite-imported-report-mappers.ts)：离线 Report 与 Artifact 脏行清洗。
+- [sqlite-case-analysis-migration.ts](../../packages/storage-sqlite/src/sqlite-case-analysis-migration.ts)：当前 Analysis 严格结构、版本与状态约束。
+- [sqlite-case-analysis-repository.ts](../../packages/storage-sqlite/src/sqlite-case-analysis-repository.ts)：当前 Analysis CAS、精确恢复、决策和导入替换。
+- [sqlite-case-analysis-mappers.ts](../../packages/storage-sqlite/src/sqlite-case-analysis-mappers.ts)：结构化 Evidence、Proposal、状态和版本脏行清洗。
+- [sqlite-analysis-import-staging.ts](../../packages/storage-sqlite/src/sqlite-analysis-import-staging.ts)：Analysis 外部 staging、只读 ATTACH、最终集合事务与清理。
 - [sqlite-transaction-manager.ts](../../packages/storage-sqlite/src/sqlite-transaction-manager.ts)：共享短事务与受控 Busy 重启。
 - [sqlite-platform-eval-mappers.ts](../../packages/storage-sqlite/src/sqlite-platform-eval-mappers.ts)：Eval 状态、JSON、Hash 和 Provenance 脏行清洗。
 - [sqlite-platform-run-index-migration.ts](../../packages/storage-sqlite/src/sqlite-platform-run-index-migration.ts)：测试集最新平台 Run 查询索引。
@@ -59,7 +63,7 @@ Repository、Transaction Manager 和查询对象实现 Application 定义的窄 
 
 ## 写入与读取路径
 
-资源由 Test Suites 和 Configurations Feature 写入。Runs 写入冻结 Run、逐 Case REST/Eval Result、各阶段 Result Set Hash 和 Artifact Manifest；Report 在 JSON/Markdown 完整发布后原子写入 Summary 与 Report Result Set Hash 并推进终态。Execution Imports 在一个事务中原子导入完整 Run、REST、Eval 和 Report 事实。Case Analysis 写入当前分析和决策。
+资源由 Test Suites 和 Configurations Feature 写入。Runs 写入冻结 Run、逐 Case REST/Eval Result、各阶段 Result Set Hash 和 Artifact Manifest；Report 在 JSON/Markdown 完整发布后原子写入 Summary 与 Report Result Set Hash 并推进终态。Execution Imports 分别在短事务中原子导入完整 Run/REST/Eval/Report 与当前 Analysis 事实。Case Analysis 写入当前结构化结果和决策。
 
 Web、API 和 CLI 不直接查询数据库；所有读取通过 Application Repository Port。只有阶段抢占返回完整冻结执行输入；详情、动作、SSE、取消轮询和结果写入分别使用有界 Detail/Progress/目标 Case 投影，避免 Case 数增长导致重复全量 JSON 解析。
 
@@ -71,7 +75,11 @@ Web、API 和 CLI 不直接查询数据库；所有读取通过 Application Repo
 
 离线导入先以 Execution ID 唯一约束串行化，再对账 Package、Evaluation/Report Result Set Hash 和完整 Manifest；不得使用 `select max`、最大时间或最近记录推断导入身份。导入始终保存冻结 Suite Snapshot；只有当前 `test_suite.id` 存在时才写入可空 `suite_id`，否则保持无关联历史事实。Summary 或任一明细失败时 Run、REST 和 Eval 在同一事务整体回滚。
 
+同一 Run/Case 只保存一条当前 Analysis。每次平台调用用新 Analysis ID 和期望 Revision 原子替换；抢占冲突返回稳定状态冲突。失败恢复只按本请求持有的 Analysis ID/Revision 完成，不能扫描并修改另一个并发请求的 `RUNNING` 记录。离线 Analysis 导入按精确 Execution、Final Case Result、Input/Result/Result Set Hash 幂等保存；相同输入不同输出冲突，不同输入替换当前 Revision。Mapper 从 Success/Error 语义重算 Analysis Result Hash，并拒绝 Lifecycle、Output/Error、Proposal、Decision、Apply Status、Base/Applied Definition 不一致的脏行；增量 Migration 的 Insert/Update Trigger 在数据库边界执行相同状态组合约束。
+
 Case 全量导入的 staging SQLite 位于受控外部工作目录，不计入十张业务表。Writer 阶段文件为 `0600` 且关闭 journal；最终提交前收敛为 `0400`，通过主库 Kysely 租用连接 `ATTACH`，在一个 `BEGIN IMMEDIATE` 短事务中校验并 `INSERT ... SELECT`，随后验证 `DETACH`。主库正常业务事务仍使用 Kysely 托管事务；这一手工事务只限 ATTACH 生命周期内的 staging 最终提交。
+
+Analysis 导入使用独立 `analysis-import-*` owner-only staging，完整文件流和 staging 事务都在主库写事务外完成。关闭 writer 并收敛为 `0400` 后，最终主库事务通过只读 ATTACH 进行依赖/冲突校验和批量 upsert；SQLite Busy 只重启这一最终短事务并复用 staging。完成、失败或取消后按 owner 身份 DETACH 并清理。
 
 ## 错误收敛
 
@@ -85,4 +93,4 @@ SQLite 初始化先 canonicalize 显式项目根，再逐级以 `lstat + realpat
 
 ## 相关测试
 
-当前测试覆盖十表 Migration、约束、索引、删除、严格行映射、Case Writer、真实 SQLite Case 首/中/末删除和重排失败回滚、双连接 Revision/唯一字段/Execution 竞争、双进程唯一运行、Execution 身份幂等、平台 Run 阶段条件提交、跨进程取消/提交竞争、启动恢复、Run 有界投影、结果写入不触发完整 Run 读取、分页/Case 查询/Manifest、Eval/Report 原子提交与回滚、离线完整导入、当前 Suite 可选关联、统一最近运行、复用 Provenance 和千级查询。
+当前测试覆盖十表 Migration、约束、索引、删除、严格行映射、Case Writer、真实 SQLite Case 首/中/末删除和重排失败回滚、双连接 Revision/唯一字段/Execution 竞争、双进程唯一运行、Execution 身份幂等、平台 Run 阶段条件提交、跨进程取消/提交竞争、启动恢复、Run 有界投影、结果写入不触发完整 Run 读取、分页/Case 查询/Manifest、Eval/Report/Analysis 原子提交与回滚、离线完整导入、当前 Suite 可选关联、结构化 Evidence、当前 Analysis CAS、并发所有权、统一最近运行、复用 Provenance 和千级查询。

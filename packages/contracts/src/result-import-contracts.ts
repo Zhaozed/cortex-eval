@@ -64,3 +64,32 @@ export type ExecutionReportImportRequestV1 = z.infer<typeof ExecutionReportImpor
 
 /** Local Report import success DTO. */
 export type ExecutionReportImportResultV1 = z.infer<typeof ExecutionReportImportResultV1Schema>;
+
+/** Local-only request that selects one locked Work Package Execution for Analysis import. */
+export const ExecutionAnalysisImportRequestV1Schema = z.strictObject({
+  contractVersion: z.literal("cortex.execution-analysis-import-request.v1"),
+  packagePath: z.string().trim().min(1).max(4_096),
+  executionId: UuidV7Schema
+});
+
+/** Stable current-Analysis import result returned after atomic persistence. */
+export const ExecutionAnalysisImportResultV1Schema = z.strictObject({
+  contractVersion: z.literal("cortex.execution-analysis-import-result.v1"),
+  runId: UuidV7Schema,
+  packageId: UuidV7Schema,
+  executionId: UuidV7Schema,
+  idempotent: z.boolean(),
+  selector: z.enum(["failed", "errors", "all"]),
+  selectedCount: z.number().int().nonnegative(),
+  importedCount: z.number().int().nonnegative(),
+  finalCaseResultSetHash: Sha256Schema,
+  analysisResultSetHash: Sha256Schema
+});
+
+/** Local Analysis import request DTO. */
+export type ExecutionAnalysisImportRequestV1 = z.infer<
+  typeof ExecutionAnalysisImportRequestV1Schema
+>;
+
+/** Local Analysis import success DTO. */
+export type ExecutionAnalysisImportResultV1 = z.infer<typeof ExecutionAnalysisImportResultV1Schema>;

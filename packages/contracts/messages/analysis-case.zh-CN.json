@@ -1,0 +1,9 @@
+{
+  "ANALYZER_CONFIG_INVALID": "Analyzer 配置无效",
+  "ANALYZER_SECRET_MISSING": "Analyzer 密钥缺失",
+  "ANALYZER_PROVIDER_CAPABILITY_UNSUPPORTED": "Analyzer Provider 不支持结构化输出能力",
+  "ANALYZER_PROVIDER_REQUEST_FAILED": "Analyzer Provider 请求失败",
+  "ANALYZER_INPUT_TOO_LARGE": "Analyzer 输入超过大小限制",
+  "ANALYZER_OUTPUT_TOO_LARGE": "Analyzer 输出超过大小限制",
+  "ANALYZER_OUTPUT_INVALID": "Analyzer 输出结构无效"
+}

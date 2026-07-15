@@ -1,4 +1,7 @@
-import type { ExecutionReportImportResultV1 } from "@cortex-eval/contracts/src/result-import-contracts.ts";
+import type {
+  ExecutionAnalysisImportResultV1,
+  ExecutionReportImportResultV1
+} from "@cortex-eval/contracts/src/result-import-contracts.ts";
 import { CliExecutionEventV1Schema } from "@cortex-eval/contracts/src/cli-contracts.ts";
 import type { WorkPackageValidationSummary } from "@cortex-eval/work-package/src/work-package-execution-session.ts";
 import type { ReceivedWorkPackage } from "@cortex-eval/work-package/src/work-package-export-receiver.ts";
@@ -11,7 +14,6 @@ import {
   type PipelineCommandService,
   type ReportCommandService,
   type RestCommandService,
-  type ResultImportCommandInput,
   type ResultImportCommandService
 } from "../src/cli-program.ts";
 
@@ -30,6 +32,9 @@ const evaluationCommands: EvaluationCommandService = {
   run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
 };
 const reportCommands: ReportCommandService = {
+  run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+};
+const analysisCommands = {
   run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
 };
 const pipelineCommands: PipelineCommandService = {
@@ -53,14 +58,30 @@ function imported(): ExecutionReportImportResultV1 {
   };
 }
 
+function importedAnalysis(): ExecutionAnalysisImportResultV1 {
+  return {
+    contractVersion: "cortex.execution-analysis-import-result.v1",
+    runId: ID,
+    packageId: ID,
+    executionId: ID,
+    idempotent: false,
+    selector: "failed",
+    selectedCount: 1,
+    importedCount: 1,
+    finalCaseResultSetHash: "e".repeat(64),
+    analysisResultSetHash: "f".repeat(64)
+  };
+}
+
 describe("P8 CLI result import", () => {
   it("imports one Report Execution and emits one strict versioned event", async () => {
-    let observed: ResultImportCommandInput | null = null;
+    let observed: unknown = null;
     const resultCommands: ResultImportCommandService = {
       importReport: (input) => {
         observed = input;
         return Promise.resolve(imported());
-      }
+      },
+      importAnalysis: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
     };
     const stdout: string[] = [];
     const stderr: string[] = [];
@@ -71,6 +92,7 @@ describe("P8 CLI result import", () => {
         restCommands,
         evaluationCommands,
         reportCommands,
+        analysisCommands,
         pipelineCommands,
         resultCommands,
         output: {
@@ -85,7 +107,11 @@ describe("P8 CLI result import", () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(observed).toMatchObject({ packagePath: "/tmp/package", executionId: ID });
+    expect(observed).toMatchObject({
+      packagePath: "/tmp/package",
+      executionId: ID,
+      importType: "report"
+    });
     expect(CliExecutionEventV1Schema.parse(JSON.parse(stdout.join("")) as unknown)).toMatchObject({
       type: "REPORT_IMPORTED",
       runId: ID,
@@ -96,9 +122,47 @@ describe("P8 CLI result import", () => {
     expect(stderr).toEqual([]);
   });
 
+  it("显式导入 Analysis 并输出独立版本事件", async () => {
+    let observed: unknown = null;
+    const stdout: string[] = [];
+    const exitCode = await runCli(
+      ["--json", "result", "import", "/tmp/package", "--execution-id", ID, "--type", "analysis"],
+      {
+        packageCommands,
+        restCommands,
+        evaluationCommands,
+        reportCommands,
+        analysisCommands,
+        pipelineCommands,
+        resultCommands: {
+          importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED")),
+          importAnalysis: (input) => {
+            observed = input;
+            return Promise.resolve(importedAnalysis());
+          }
+        },
+        output: {
+          stdout: (value): void => {
+            stdout.push(value);
+          },
+          stderr: (): void => undefined
+        }
+      }
+    );
+    expect(exitCode).toBe(0);
+    expect(observed).toMatchObject({ importType: "analysis", executionId: ID });
+    expect(JSON.parse(stdout.join("")) as unknown).toMatchObject({
+      type: "ANALYSIS_IMPORTED",
+      selector: "failed",
+      selectedCount: 1,
+      analysisResultSetHash: "f".repeat(64)
+    });
+  });
+
   it("exposes Result but keeps Analysis and Data hidden, and maps conflicts to exit 4", async () => {
     const resultCommands: ResultImportCommandService = {
-      importReport: (): Promise<never> => Promise.reject(new Error("EXECUTION_RESULT_CONFLICT"))
+      importReport: (): Promise<never> => Promise.reject(new Error("EXECUTION_RESULT_CONFLICT")),
+      importAnalysis: (): Promise<never> => Promise.reject(new Error("EXECUTION_RESULT_CONFLICT"))
     };
     const help: string[] = [];
     await expect(
@@ -107,6 +171,7 @@ describe("P8 CLI result import", () => {
         restCommands,
         evaluationCommands,
         reportCommands,
+        analysisCommands,
         pipelineCommands,
         resultCommands,
         output: {
@@ -118,7 +183,8 @@ describe("P8 CLI result import", () => {
       })
     ).resolves.toBe(0);
     expect(help.join("")).toMatch(/^\s{2}result\b/m);
-    expect(help.join("")).not.toMatch(/^\s{2}(?:analyze|data)\b/m);
+    expect(help.join("")).toMatch(/^\s{2}analyze\b/m);
+    expect(help.join("")).not.toMatch(/^\s{2}data\b/m);
 
     const stdout: string[] = [];
     await expect(
@@ -127,6 +193,7 @@ describe("P8 CLI result import", () => {
         restCommands,
         evaluationCommands,
         reportCommands,
+        analysisCommands,
         pipelineCommands,
         resultCommands,
         output: {

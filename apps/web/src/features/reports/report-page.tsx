@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Download, Filter, RefreshCw } from "lucide-react";
+import { ArrowLeft, Download, Filter, FlaskConical, RefreshCw } from "lucide-react";
 import { useState, type ChangeEvent, type ReactElement } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert.tsx";
@@ -274,6 +274,14 @@ export function ReportPage({ api, runId, onNavigate }: ReportPageProps): ReactEl
         </div>
         <div className="run-header-badges">
           <Badge variant="outline">{sourceLabel(report.sourceType)}</Badge>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onNavigate(`/runs/${encodeURIComponent(runId)}/analysis`)}
+          >
+            <FlaskConical aria-hidden="true" />
+            {message("reports.analyzeFailedCases")}
+          </Button>
           <Button asChild type="button" variant="outline">
             <a href={`/api/v1/runs/${encodeURIComponent(runId)}/report/export`}>
               <Download aria-hidden="true" />

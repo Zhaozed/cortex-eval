@@ -16,7 +16,23 @@ const runtime = await createLocalServerRuntime({
   projectRoot,
   staticRoot: fileURLToPath(new URL("../dist", import.meta.url)),
   endpointValidator: successfulEndpointValidator,
-  llmValidator: successfulLlmValidator
+  llmValidator: successfulLlmValidator,
+  analysisModelClient: {
+    analyze: () =>
+      Promise.resolve({
+        classification: "NORMAL_FAILURE",
+        confidence: 0.92,
+        evidence: [
+          {
+            source: "run_context",
+            fieldPath: null,
+            conclusion: "运行上下文确认该 Case 未通过评估"
+          }
+        ],
+        explanation: "冻结结果未满足 Case 约束",
+        recommendedAction: "修复被测系统后重新执行"
+      })
+  }
 });
 let closing = false;
 

@@ -56,6 +56,10 @@ import {
   prepareWorkPackageReportImport,
   type PreparedWorkPackageReportImport
 } from "./work-package-report-import-reader.ts";
+import {
+  prepareWorkPackageAnalysisImport,
+  type PreparedWorkPackageAnalysisImport
+} from "./work-package-analysis-import-reader.ts";
 import type { OfflineRestCaseResult } from "@cortex-eval/application/src/features/runs/offline-rest-execution-service.ts";
 
 type WorkPackageStage = "REST" | "EVALUATION" | "REPORT" | "ANALYSIS";
@@ -421,6 +425,27 @@ export class WorkPackageExecutionSession {
   ): Promise<PreparedWorkPackageReportImport> {
     this.#requireOpen();
     return prepareWorkPackageReportImport({
+      directory: this.#directory,
+      manifest: this.#validated.manifest,
+      execution: this.#requireExecution(executionId),
+      inputs: this.#inputs,
+      caseHasher,
+      restHashing,
+      evalHashing,
+      signal
+    });
+  }
+
+  /** Preflight a completed Analysis and expose a second strict import pass. */
+  public prepareAnalysisImport(
+    executionId: string,
+    caseHasher: WorkPackageCaseDefinitionHasher,
+    restHashing: WorkPackageRestSemanticHashing,
+    evalHashing: WorkPackageEvalSemanticHashing,
+    signal: AbortSignal
+  ): Promise<PreparedWorkPackageAnalysisImport> {
+    this.#requireOpen();
+    return prepareWorkPackageAnalysisImport({
       directory: this.#directory,
       manifest: this.#validated.manifest,
       execution: this.#requireExecution(executionId),

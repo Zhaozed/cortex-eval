@@ -73,6 +73,22 @@ const EvaluationCompletedEventV1Schema = z.strictObject({
     )
 });
 
+const AnalysisCompletionV1Schema = z.strictObject({
+  packageId: UuidV7Schema,
+  executionId: UuidV7Schema,
+  selector: z.enum(["failed", "errors", "all"]),
+  selectedCount: z.number().int().nonnegative(),
+  succeededCount: z.number().int().nonnegative(),
+  errorCount: z.number().int().nonnegative(),
+  finalCaseResultSetHash: Sha256Schema,
+  analysisResultSetHash: Sha256Schema,
+  artifactPath: z
+    .string()
+    .regex(
+      /^executions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/analysis-results\.json$/
+    )
+});
+
 const PipelineCompletedEventV1Schema = z.strictObject({
   contractVersion: z.literal("cortex.cli-execution-event.v1"),
   type: z.literal("PIPELINE_COMPLETED"),
@@ -110,7 +126,8 @@ const PipelineCompletedEventV1Schema = z.strictObject({
     .string()
     .regex(
       /^executions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/report\.md$/
-    )
+    ),
+  analysis: AnalysisCompletionV1Schema.optional()
 });
 
 const ReportCompletedEventV1Schema = z.strictObject({
@@ -133,6 +150,12 @@ const ReportCompletedEventV1Schema = z.strictObject({
     )
 });
 
+const AnalysisCompletedEventV1Schema = z.strictObject({
+  contractVersion: z.literal("cortex.cli-execution-event.v1"),
+  type: z.literal("ANALYSIS_COMPLETED"),
+  ...AnalysisCompletionV1Schema.shape
+});
+
 const ReportImportedEventV1Schema = z.strictObject({
   contractVersion: z.literal("cortex.cli-execution-event.v1"),
   type: z.literal("REPORT_IMPORTED"),
@@ -149,10 +172,31 @@ const ReportImportedEventV1Schema = z.strictObject({
   reportResultSetHash: Sha256Schema
 });
 
+const AnalysisImportedEventV1Schema = z.strictObject({
+  contractVersion: z.literal("cortex.cli-execution-event.v1"),
+  type: z.literal("ANALYSIS_IMPORTED"),
+  runId: UuidV7Schema,
+  packageId: UuidV7Schema,
+  executionId: UuidV7Schema,
+  idempotent: z.boolean(),
+  selector: z.enum(["failed", "errors", "all"]),
+  selectedCount: z.number().int().nonnegative(),
+  importedCount: z.number().int().nonnegative(),
+  finalCaseResultSetHash: Sha256Schema,
+  analysisResultSetHash: Sha256Schema
+});
+
 const ExecutionCommandErrorEventV1Schema = z.strictObject({
   contractVersion: z.literal("cortex.cli-execution-event.v1"),
   type: z.literal("COMMAND_ERROR"),
-  command: z.enum(["rest run", "eval run", "report build", "pipeline run", "result import"]),
+  command: z.enum([
+    "rest run",
+    "eval run",
+    "report build",
+    "analyze run",
+    "pipeline run",
+    "result import"
+  ]),
   code: z.enum(ERROR_CODES),
   exitCode: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(130)])
 });
@@ -162,7 +206,9 @@ export const CliExecutionEventV1Schema = z.discriminatedUnion("type", [
   RestCompletedEventV1Schema,
   EvaluationCompletedEventV1Schema,
   ReportCompletedEventV1Schema,
+  AnalysisCompletedEventV1Schema,
   ReportImportedEventV1Schema,
+  AnalysisImportedEventV1Schema,
   PipelineCompletedEventV1Schema,
   ExecutionCommandErrorEventV1Schema
 ]);

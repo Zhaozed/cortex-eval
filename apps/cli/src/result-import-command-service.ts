@@ -2,12 +2,15 @@ import { resolve } from "node:path";
 
 import { ApiErrorResponseV1Schema } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import {
+  ExecutionAnalysisImportRequestV1Schema,
+  ExecutionAnalysisImportResultV1Schema,
+  type ExecutionAnalysisImportResultV1,
   ExecutionReportImportRequestV1Schema,
   ExecutionReportImportResultV1Schema,
   type ExecutionReportImportResultV1
 } from "@cortex-eval/contracts/src/result-import-contracts.ts";
 
-import type { ResultImportCommandInput, ResultImportCommandService } from "./cli-program.ts";
+import type { ResultImportCommandService, ResultImportRequestInput } from "./cli-program.ts";
 
 const MAX_RESPONSE_BYTES = 64 * 1024;
 
@@ -25,7 +28,7 @@ export interface HttpResultImportCommandServiceOptions {
 }
 
 // Build only the fixed local import endpoint; remote and credential-bearing origins are forbidden.
-function resultImportUrl(baseUrl: string): URL {
+function resultImportUrl(baseUrl: string, importType: "report" | "analysis"): URL {
   let url: URL;
   try {
     url = new URL(baseUrl);
@@ -45,7 +48,12 @@ function resultImportUrl(baseUrl: string): URL {
   ) {
     throw new Error("VALIDATION_FAILED");
   }
-  return new URL("/api/v1/execution-results/import", url);
+  return new URL(
+    importType === "report"
+      ? "/api/v1/execution-results/import"
+      : "/api/v1/execution-results/analysis/import",
+    url
+  );
 }
 
 // Read one JSON response under a fixed byte ceiling before decoding untrusted UTF-8.
@@ -96,18 +104,21 @@ async function readJson(response: Response): Promise<unknown> {
 
 /** Local-only HTTP adapter for the complete Report import transaction. */
 export class HttpResultImportCommandService implements ResultImportCommandService {
-  readonly #url: URL;
+  readonly #reportUrl: URL;
+  readonly #analysisUrl: URL;
   readonly #fetch: typeof fetch;
 
   /** Bind the trusted Local API and Fetch boundary. */
   public constructor(options: HttpResultImportCommandServiceOptions = {}) {
-    this.#url = resultImportUrl(options.baseUrl ?? "http://127.0.0.1:4310");
+    const baseUrl = options.baseUrl ?? "http://127.0.0.1:4310";
+    this.#reportUrl = resultImportUrl(baseUrl, "report");
+    this.#analysisUrl = resultImportUrl(baseUrl, "analysis");
     this.#fetch = options.fetch ?? globalThis.fetch;
   }
 
   /** Import one fully reconciled Report Execution into platform storage. */
   public async importReport(
-    input: ResultImportCommandInput
+    input: ResultImportRequestInput
   ): Promise<ExecutionReportImportResultV1> {
     if (isAborted(input.signal)) throw new Error("REQUEST_ABORTED");
     const request = ExecutionReportImportRequestV1Schema.parse({
@@ -117,7 +128,7 @@ export class HttpResultImportCommandService implements ResultImportCommandServic
     });
     let response: Response;
     try {
-      response = await this.#fetch(this.#url, {
+      response = await this.#fetch(this.#reportUrl, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(request),
@@ -141,6 +152,46 @@ export class HttpResultImportCommandService implements ResultImportCommandServic
     }
     if (response.status !== 201) throw new Error("PROVIDER_REQUEST_FAILED");
     const parsed = ExecutionReportImportResultV1Schema.safeParse(dirty);
+    if (!parsed.success) throw new Error("PROVIDER_REQUEST_FAILED");
+    return parsed.data;
+  }
+
+  /** Import one fully reconciled Analysis Artifact into current platform facts. */
+  public async importAnalysis(
+    input: ResultImportRequestInput
+  ): Promise<ExecutionAnalysisImportResultV1> {
+    if (isAborted(input.signal)) throw new Error("REQUEST_ABORTED");
+    const request = ExecutionAnalysisImportRequestV1Schema.parse({
+      contractVersion: "cortex.execution-analysis-import-request.v1",
+      packagePath: resolve(input.packagePath),
+      executionId: input.executionId
+    });
+    let response: Response;
+    try {
+      response = await this.#fetch(this.#analysisUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+        redirect: "error",
+        signal: input.signal
+      });
+    } catch (error) {
+      if (isAborted(input.signal)) throw new Error("REQUEST_ABORTED", { cause: error });
+      throw new Error("PROVIDER_REQUEST_FAILED", { cause: error });
+    }
+    let dirty: unknown;
+    try {
+      dirty = await readJson(response);
+    } catch (error) {
+      if (isAborted(input.signal)) throw new Error("REQUEST_ABORTED", { cause: error });
+      throw new Error("PROVIDER_REQUEST_FAILED", { cause: error });
+    }
+    if (!response.ok) {
+      const parsed = ApiErrorResponseV1Schema.safeParse(dirty);
+      throw new Error(parsed.success ? parsed.data.error.code : "PROVIDER_REQUEST_FAILED");
+    }
+    if (response.status !== 201) throw new Error("PROVIDER_REQUEST_FAILED");
+    const parsed = ExecutionAnalysisImportResultV1Schema.safeParse(dirty);
     if (!parsed.success) throw new Error("PROVIDER_REQUEST_FAILED");
     return parsed.data;
   }

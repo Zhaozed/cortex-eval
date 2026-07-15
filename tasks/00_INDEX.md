@@ -34,7 +34,7 @@
 - [x] [P6：Promptfoo Evaluation 闭环](P6_PROMPTFOO_EVALUATION.md) — `COMPLETED`
 - [x] [P7：Work Package、CLI、重跑与导入基础](P7_WORK_PACKAGE_AND_CLI.md) — `COMPLETED`
 - [x] [P8：Reporting 闭环](P8_REPORTING.md) — `COMPLETED`
-- [ ] [P9：Case Analysis 闭环](P9_CASE_ANALYSIS.md) — `PENDING`
+- [x] [P9：Case Analysis 闭环](P9_CASE_ANALYSIS.md) — `COMPLETED`
 - [ ] [P10：Canonical Export 与最终硬化](P10_FINAL_HARDENING.md) — `PENDING`
 
 ## 最终交付记录

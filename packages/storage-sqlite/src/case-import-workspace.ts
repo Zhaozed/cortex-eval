@@ -54,7 +54,8 @@ export interface CaseImportWorkspaceManagerOptions {
   /** Minimum age before a dead workspace is removable. */
   readonly ttlMs: number;
   /** Closed internal workspace family prefix. */
-  readonly workspacePrefix?: "case-import-" | "case-export-" | "work-package-export-" | undefined;
+  readonly workspacePrefix?:
+    "case-import-" | "case-export-" | "work-package-export-" | "analysis-import-" | undefined;
   /** Optional safe internal security event sink. */
   readonly onSecurityEvent?: ((event: WorkspaceSecurityEvent) => void | Promise<void>) | undefined;
 }
@@ -138,7 +139,8 @@ export class PsProcessLiveness implements ProcessLiveness {
 /** Symlink-safe Case import workspace lifecycle manager. */
 export class CaseImportWorkspaceManager {
   readonly #options: CaseImportWorkspaceManagerOptions;
-  readonly #workspacePrefix: "case-import-" | "case-export-" | "work-package-export-";
+  readonly #workspacePrefix:
+    "case-import-" | "case-export-" | "work-package-export-" | "analysis-import-";
 
   /** Create a manager over one controlled temporary root. */
   public constructor(options: CaseImportWorkspaceManagerOptions) {

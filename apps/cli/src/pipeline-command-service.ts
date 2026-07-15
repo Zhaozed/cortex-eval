@@ -2,7 +2,12 @@ import type { WorkPackageExecutionContextHasher } from "@cortex-eval/work-packag
 import { openWorkPackageExecutionSession } from "@cortex-eval/work-package/src/work-package-execution-session.ts";
 
 import { CliSecretEnvironment } from "./cli-secret-environment.ts";
-import type { EvaluationRunCommandInput, RestRunCommandInput } from "./cli-program.ts";
+import type {
+  AnalysisRunCommandInput,
+  EvaluationRunCommandInput,
+  PipelineRunCommandInput,
+  RestRunCommandInput
+} from "./cli-program.ts";
 import type { CliProcessIdentity } from "./package-command-service.ts";
 import type { WorkPackageEvaluationRunResult } from "./work-package-evaluation-run-service.ts";
 import type {
@@ -10,6 +15,7 @@ import type {
   WorkPackageReportRunResult
 } from "./work-package-report-run-service.ts";
 import type { WorkPackageRestRunResult } from "./work-package-rest-run-service.ts";
+import type { WorkPackageAnalysisRunResult } from "./work-package-analysis-run-service.ts";
 
 /** REST stage port that consumes the Pipeline's frozen Secret snapshot. */
 export interface PreparedRestStageCommand {
@@ -40,6 +46,20 @@ export interface PreparedReportStageCommand {
   readonly run: (input: WorkPackageReportRunInput) => Promise<WorkPackageReportRunResult>;
 }
 
+/** Optional Analysis stage port that consumes the Pipeline's frozen Secret snapshot. */
+export interface PreparedAnalysisStageCommand {
+  /** Validate immutable Analyzer inputs and Secrets before REST mutation. */
+  readonly preflightWithEnvironment: (
+    input: { readonly packagePath: string; readonly signal: AbortSignal },
+    environment: CliSecretEnvironment
+  ) => Promise<void>;
+  /** Complete Analysis after Report on the same Execution version. */
+  readonly runWithEnvironment: (
+    input: AnalysisRunCommandInput,
+    environment: CliSecretEnvironment
+  ) => Promise<WorkPackageAnalysisRunResult>;
+}
+
 /** Explicit dependencies for the closed REST to Evaluation to Report Pipeline. */
 export interface LocalPipelineCommandServiceDependencies {
   /** Pure Execution context hash Port. */
@@ -58,6 +78,8 @@ export interface LocalPipelineCommandServiceDependencies {
   readonly evaluationCommands: PreparedEvaluationStageCommand;
   /** Prepared Report stage command. */
   readonly reportCommands: PreparedReportStageCommand;
+  /** Prepared optional Analysis stage command. */
+  readonly analysisCommands: PreparedAnalysisStageCommand;
 }
 
 /** Complete P8 default Pipeline completion projection. */
@@ -92,6 +114,8 @@ export interface WorkPackagePipelineRunResult {
   readonly reportJsonPath: string;
   /** Fixed Report Markdown Artifact path. */
   readonly reportMarkdownPath: string;
+  /** Optional explicit Analysis completion projection. */
+  readonly analysis?: WorkPackageAnalysisRunResult | undefined;
 }
 
 /** Sequential REST to Evaluation to Report command with all-stage Secret preflight. */
@@ -105,17 +129,28 @@ export class LocalPipelineCommandService {
   }
 
   /** Preflight selected dependencies, then execute all default stages on one Execution. */
-  public async run(input: RestRunCommandInput): Promise<WorkPackagePipelineRunResult> {
+  public async run(input: PipelineRunCommandInput): Promise<WorkPackagePipelineRunResult> {
     if (input.signal.aborted) throw new Error("REQUEST_ABORTED");
     const environment = await CliSecretEnvironment.load({
       ...(input.envFile === undefined ? {} : { envFile: input.envFile }),
       inherited: this.#dependencies.inheritedEnvironment()
     });
-    await this.#preflight(input.packagePath, environment, input.signal);
+    await this.#preflight(
+      input.packagePath,
+      environment,
+      input.signal,
+      input.analysisSelector !== undefined
+    );
     await this.#dependencies.evaluationCommands.preflightWithEnvironment(
       { packagePath: input.packagePath, signal: input.signal },
       environment
     );
+    if (input.analysisSelector !== undefined) {
+      await this.#dependencies.analysisCommands.preflightWithEnvironment(
+        { packagePath: input.packagePath, signal: input.signal },
+        environment
+      );
+    }
     const rest = await this.#dependencies.restCommands.runWithEnvironment(input, environment);
     const evaluation = await this.#dependencies.evaluationCommands.runWithEnvironment(
       {
@@ -131,12 +166,31 @@ export class LocalPipelineCommandService {
       executionId: evaluation.executionId,
       signal: input.signal
     });
+    const analysis =
+      input.analysisSelector === undefined
+        ? undefined
+        : await this.#dependencies.analysisCommands.runWithEnvironment(
+            {
+              packagePath: input.packagePath,
+              executionId: report.executionId,
+              selector: input.analysisSelector,
+              ...(input.envFile === undefined ? {} : { envFile: input.envFile }),
+              signal: input.signal
+            },
+            environment
+          );
     if (
       rest.packageId !== evaluation.packageId ||
       rest.executionId !== evaluation.executionId ||
       evaluation.packageId !== report.packageId ||
       evaluation.executionId !== report.executionId ||
       evaluation.resultSetHash !== report.evaluationResultSetHash
+    ) {
+      throw new Error("INTERNAL_ERROR");
+    }
+    if (
+      analysis !== undefined &&
+      (analysis.packageId !== report.packageId || analysis.executionId !== report.executionId)
     ) {
       throw new Error("INTERNAL_ERROR");
     }
@@ -155,7 +209,8 @@ export class LocalPipelineCommandService {
       reportResultSetHash: report.reportResultSetHash,
       reportSummary: report.summary,
       reportJsonPath: report.reportJsonPath,
-      reportMarkdownPath: report.reportMarkdownPath
+      reportMarkdownPath: report.reportMarkdownPath,
+      ...(analysis === undefined ? {} : { analysis })
     };
   }
 
@@ -163,7 +218,8 @@ export class LocalPipelineCommandService {
   async #preflight(
     packagePath: string,
     environment: CliSecretEnvironment,
-    signal: AbortSignal
+    signal: AbortSignal,
+    includeAnalysis: boolean
   ): Promise<void> {
     const processStartedAt = await this.#dependencies.processIdentity.processStartedAt(process.pid);
     if (processStartedAt === null) throw new Error("INTERNAL_ERROR");
@@ -185,6 +241,9 @@ export class LocalPipelineCommandService {
         ...session.inputs.requiredEnvKeys("EVALUATION"),
         ...session.inputs.requiredEnvKeys("REPORT")
       ]);
+      if (includeAnalysis) {
+        for (const key of session.inputs.requiredEnvKeys("ANALYSIS")) keys.add(key);
+      }
       environment.require([...keys]);
     } finally {
       await session.close();

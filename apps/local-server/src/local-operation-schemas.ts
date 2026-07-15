@@ -32,6 +32,13 @@ import {
   ValidateLlmConfigRequestV1Schema
 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import {
+  AcceptAnalysisProposalRequestV1Schema,
+  AnalysisProposalDecisionTargetV1Schema,
+  CurrentCaseAnalysisV1Schema,
+  StartCaseAnalysisRequestV1Schema,
+  StartCaseAnalysisResultV1Schema
+} from "@cortex-eval/contracts/src/analysis-contracts.ts";
+import {
   CreatePlatformRunRequestV1Schema,
   CreatePlatformRerunRequestV1Schema,
   PlatformRerunCreatedV1Schema,
@@ -51,6 +58,8 @@ import {
 import { WorkPackageExportRequestV1Schema } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
 import { ReportArtifactV1Schema } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import {
+  ExecutionAnalysisImportRequestV1Schema,
+  ExecutionAnalysisImportResultV1Schema,
   ExecutionReportImportRequestV1Schema,
   ExecutionReportImportResultV1Schema
 } from "@cortex-eval/contracts/src/result-import-contracts.ts";
@@ -104,7 +113,12 @@ function operationBodySchema(operationId: string): Record<string, unknown> | und
     startRun: RunRevisionRequestV1Schema,
     cancelRun: RunRevisionRequestV1Schema,
     exportWorkPackage: WorkPackageExportRequestV1Schema,
-    importExecutionReport: ExecutionReportImportRequestV1Schema
+    importExecutionReport: ExecutionReportImportRequestV1Schema,
+    importExecutionAnalysis: ExecutionAnalysisImportRequestV1Schema,
+    startCaseAnalysis: StartCaseAnalysisRequestV1Schema,
+    rejectAnalysisProposal: AnalysisProposalDecisionTargetV1Schema,
+    acceptAnalysisProposal: AcceptAnalysisProposalRequestV1Schema,
+    editAndAcceptAnalysisProposal: AcceptAnalysisProposalRequestV1Schema
   };
   const schema = schemas[operationId];
   return schema === undefined ? undefined : projectRuntimeSchema(schema);
@@ -161,7 +175,13 @@ function operationResponseSchema(operationId: string): Record<string, unknown> {
     startRun: RunProgressV1Schema,
     cancelRun: RunProgressV1Schema,
     getRunProgress: RunProgressV1Schema,
-    importExecutionReport: ExecutionReportImportResultV1Schema
+    importExecutionReport: ExecutionReportImportResultV1Schema,
+    importExecutionAnalysis: ExecutionAnalysisImportResultV1Schema,
+    startCaseAnalysis: StartCaseAnalysisResultV1Schema,
+    getCurrentCaseAnalysis: CurrentCaseAnalysisV1Schema,
+    rejectAnalysisProposal: CurrentCaseAnalysisV1Schema,
+    acceptAnalysisProposal: CurrentCaseAnalysisV1Schema,
+    editAndAcceptAnalysisProposal: CurrentCaseAnalysisV1Schema
   };
   const schema = schemas[operationId];
   return schema === undefined ? EmptyResponseSchema : projectRuntimeSchema(schema);
@@ -251,7 +271,7 @@ export function localOperationSchema(
     .map((match) => match[1])
     .filter((value): value is string => value !== undefined);
   const successStatus =
-    operationId === "importExecutionReport"
+    operationId === "importExecutionReport" || operationId === "importExecutionAnalysis"
       ? 201
       : operationId === "startRun" || operationId === "cancelRun"
         ? 202
@@ -296,7 +316,9 @@ export function localOperationSchema(
       422: errorResponse,
       ...(operationId === "exportWorkPackage" ? { 499: errorResponse } : {}),
       ...(operationId === "exportRunReport" ? { 499: errorResponse } : {}),
-      ...(operationId === "importExecutionReport" ? { 499: errorResponse } : {}),
+      ...(operationId === "importExecutionReport" || operationId === "importExecutionAnalysis"
+        ? { 499: errorResponse }
+        : {}),
       ...(operationId === "validateEndpointConfig" || operationId === "validateLlmConfig"
         ? { 502: apiErrorSchema }
         : {}),

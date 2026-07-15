@@ -180,6 +180,30 @@ describe("SQLite 初始化与 Migration", () => {
     );
   });
 
+  it("P9 追加 Analysis 结果身份、资源来源与导入批次回执，不改写初始表", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-analysis-"));
+    const storage = await initializeSqliteStorage({ projectRoot });
+    openStorages.push(storage);
+
+    const database = new Database(storage.databasePath, { readonly: true });
+    const analysisColumns = database.prepare("PRAGMA table_info(case_analysis)").all() as {
+      readonly name: string;
+    }[];
+    const runColumns = database.prepare("PRAGMA table_info(run_log)").all() as {
+      readonly name: string;
+    }[];
+    const migrations = database
+      .prepare("SELECT name FROM kysely_migration ORDER BY name")
+      .all() as { readonly name: string }[];
+    database.close();
+
+    expect(analysisColumns.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["analysis_result_hash", "analysis_prompt_id", "analyzer_config_id"])
+    );
+    expect(runColumns.map((item) => item.name)).toContain("analysis_import_identity_json");
+    expect(migrations.at(-1)?.name).toBe("005_case_analysis_versions");
+  });
+
   it("从不可变 P5 002 Schema 升级时只新增三类 Evaluation 计数", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-upgrade-"));
     const databasePath = resolveDefaultDatabasePath(projectRoot);

@@ -53,6 +53,12 @@ const RUN_CAPABILITY_HANDLERS: LocalRunHandlers = {
   getRunReportCase: notExecutable,
   exportRunReport: notExecutable,
   importExecutionReport: notExecutable,
+  importExecutionAnalysis: notExecutable,
+  startCaseAnalysis: notExecutable,
+  getCurrentCaseAnalysis: notExecutable,
+  rejectAnalysisProposal: notExecutable,
+  acceptAnalysisProposal: notExecutable,
+  editAndAcceptAnalysisProposal: notExecutable,
   startRun: notExecutable,
   cancelRun: notExecutable,
   getRunProgress: notExecutable

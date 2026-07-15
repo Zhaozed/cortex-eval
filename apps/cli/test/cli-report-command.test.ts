@@ -31,7 +31,11 @@ const pipelineCommands: PipelineCommandService = {
   run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
 };
 const resultCommands = {
-  importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+  importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED")),
+  importAnalysis: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+};
+const analysisCommands = {
+  run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
 };
 
 describe("P8 CLI Report command", () => {
@@ -71,6 +75,7 @@ describe("P8 CLI Report command", () => {
         restCommands,
         evaluationCommands,
         reportCommands,
+        analysisCommands,
         pipelineCommands,
         resultCommands,
         output: {
@@ -104,6 +109,7 @@ describe("P8 CLI Report command", () => {
         restCommands,
         evaluationCommands,
         reportCommands,
+        analysisCommands,
         pipelineCommands,
         resultCommands,
         output: {
