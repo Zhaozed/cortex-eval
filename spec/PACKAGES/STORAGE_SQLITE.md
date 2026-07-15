@@ -87,7 +87,7 @@ Analysis 导入使用独立 `analysis-import-*` owner-only staging，完整文�
 
 ## 观测与验收
 
-每个连接启用 Foreign Keys、WAL、5 秒 Busy Timeout 和 `synchronous=FULL`。装配层必须传入绝对项目根；Storage 不读取 `cwd`，默认数据库位于 `<projectRoot>/.cortex-eval/db/cortex-eval.sqlite3`。目录权限收敛为 `0700`，数据库与 WAL/SHM 收敛为 `0600`。千级 Case 导入低于 10 秒，查询预热 5 次后测量 30 次并执行 p95 250 毫秒、p99 500 毫秒失败门禁。
+每个连接启用 Foreign Keys、WAL、5 秒 Busy Timeout 和 `synchronous=FULL`。装配层必须传入绝对项目根；Storage 不读取 `cwd`，默认数据库位于 `<projectRoot>/.cortex-eval/db/cortex-eval.sqlite3`。目录权限收敛为 `0700`，数据库与 WAL/SHM 收敛为 `0600`。千级 Case 导入低于 10 秒，查询预热 10 次后测量 100 次并执行 p95 250 毫秒、p99 500 毫秒失败门禁。
 
 SQLite 初始化先 canonicalize 显式项目根，再逐级以 `lstat + realpath` 验证 `.cortex-eval` 和 `db` 为真实目录且保持 containment；现有数据库、WAL、SHM 是符号链接或非普通文件时拒绝。只有预检通过后才 chmod 或打开数据库。staging owner 严格保存 PID、进程启动时间和 nonce。临时根必须同时满足 lexical 与 canonical 项目 containment；根或直接父级是符号链接时在 chmod、readdir、rename、rm 前拒绝。启动清理超过 TTL 的目录前，以无 Shell 的 `/bin/ps` 校验 PID 启动身份并再次读取 nonce；无 owner 目录未过 TTL 时保留，避免与并发 owner 初始化竞争，过 TTL 后才作为非法 owner 隔离。其他非法 owner 与工作区符号链接先隔离，路径必须通过 realpath containment。导入和导出使用闭合的独立工作区前缀，共用相同 owner/containment 规则。owner 文件、权限、realpath、SQLite 打开、PRAGMA 或建表任一步初始化失败时，关闭已打开 writer，并在重新验证 containment/owner 后回收部分工作区。删除失败发出闭合 `TEMP_CLEANUP_FAILED`，由默认 Local Server 日志接收。better-sqlite3 当前连接未启用 SQLite URI 文件名解析，因此不能依赖 `mode=ro&immutable=1` 的 ATTACH URI；P3 使用 canonical realpath 与 OS `0400` 强制只读，并以真实 `SQLITE_READONLY` 测试证明。
 

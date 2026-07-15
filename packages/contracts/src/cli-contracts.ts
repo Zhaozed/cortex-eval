@@ -38,6 +38,31 @@ export const CliPackageEventV1Schema = z.discriminatedUnion("type", [
 /** Package command machine-output event. */
 export type CliPackageEventV1 = z.infer<typeof CliPackageEventV1Schema>;
 
+const DataExportedEventV1Schema = z.strictObject({
+  contractVersion: z.literal("cortex.cli-data-export-event.v1"),
+  type: z.literal("DATA_EXPORTED"),
+  exportId: UuidV7Schema,
+  manifestSha256: Sha256Schema,
+  targetPath: z.string().min(1)
+});
+
+const DataExportCommandErrorEventV1Schema = z.strictObject({
+  contractVersion: z.literal("cortex.cli-data-export-event.v1"),
+  type: z.literal("COMMAND_ERROR"),
+  command: z.literal("data export"),
+  code: z.enum(ERROR_CODES),
+  exitCode: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(130)])
+});
+
+/** Stable NDJSON events for the complete Canonical Data Export command. */
+export const CliDataExportEventV1Schema = z.discriminatedUnion("type", [
+  DataExportedEventV1Schema,
+  DataExportCommandErrorEventV1Schema
+]);
+
+/** Canonical Data Export command machine-output event. */
+export type CliDataExportEventV1 = z.infer<typeof CliDataExportEventV1Schema>;
+
 const RestCompletedEventV1Schema = z.strictObject({
   contractVersion: z.literal("cortex.cli-execution-event.v1"),
   type: z.literal("REST_COMPLETED"),

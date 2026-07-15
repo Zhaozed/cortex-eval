@@ -62,6 +62,8 @@ import { WorkPackageExportService } from "./work-package-export-service.ts";
 import { createWorkPackageExportHandler } from "./work-package-export-handler.ts";
 import { ExecutionReportImportService } from "./execution-report-import-service.ts";
 import { ExecutionAnalysisImportService } from "./execution-analysis-import-service.ts";
+import { CanonicalExportService } from "./canonical-export-service.ts";
+import { createCanonicalExportHandler } from "./canonical-export-handler.ts";
 
 /** Local Server composition options. */
 export interface LocalServerRuntimeOptions {
@@ -203,6 +205,19 @@ export async function createLocalServerRuntime(
         businessLogger.record({ event, timestamp: new Date().toISOString() })
     });
     await workPackageExportWorkspaces.cleanupStale();
+    const canonicalExportWorkspaces = new CaseImportWorkspaceManager({
+      containmentRoot: options.projectRoot,
+      temporaryRoot: join(options.projectRoot, ".cortex-eval", "tmp"),
+      processLiveness,
+      now: Date.now,
+      nonce: randomUUID,
+      pid: process.pid,
+      ttlMs: 24 * 60 * 60 * 1000,
+      workspacePrefix: "canonical-export-",
+      onSecurityEvent: (event): Promise<void> =>
+        businessLogger.record({ event, timestamp: new Date().toISOString() })
+    });
+    await canonicalExportWorkspaces.cleanupStale();
     const clock = { now: (): string => new Date().toISOString() };
     const idGenerator = { nextId: (): string => uuidV7() };
     const common = { transactionManager, clock, idGenerator };
@@ -378,6 +393,15 @@ export async function createLocalServerRuntime(
         new WorkPackageExportService({
           snapshots: new WorkPackageExportSnapshotService({ transactionManager }),
           workspaces: workPackageExportWorkspaces,
+          nextId: idGenerator.nextId,
+          now: clock.now
+        })
+      ),
+      canonicalExportHandler: createCanonicalExportHandler(
+        new CanonicalExportService({
+          snapshots: storage.createCanonicalExportSnapshotFactory(canonicalExportWorkspaces),
+          workspaces: canonicalExportWorkspaces,
+          artifactRoot: join(options.projectRoot, ".cortex-eval", "artifacts"),
           nextId: idGenerator.nextId,
           now: clock.now
         })

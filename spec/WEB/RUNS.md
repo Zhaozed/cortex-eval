@@ -2,7 +2,7 @@
 
 ## 模块职责
 
-该 Feature 提供平台 Run 预检、创建、REST/Evaluation/Report 启动、进度、逐 Case 结果、取消、刷新恢复和版本化重跑界面。Analysis 仍未注册。
+该 Feature 提供平台 Run 预检、创建、REST/Evaluation/Report 启动、进度、逐 Case 结果、取消、刷新恢复、版本化重跑和当前 Case Analysis 决策界面。
 
 模块不在浏览器推进状态机，不直接控制 REST 请求，也不把缓存视为运行事实。
 
@@ -12,7 +12,7 @@
 
 ## 实现状态
 
-已注册 `/runs`、`/runs/:id`、`/runs/:id/report`、导航和 Dashboard 统一最近 Run/最新报告卡片。详情支持 REST/Evaluation/Report 启动、结果查询、Pipeline 自动推进后的刷新恢复，以及终态平台 Run 的 Retry/Force。离线导入 Run 直接进入只读 Report；Analysis 保持未注册。
+已注册 `/runs`、`/runs/:id`、`/runs/:id/report`、导航和 Dashboard 统一最近 Run/最新报告卡片。详情支持 REST/Evaluation/Report 启动、结果查询、Pipeline 自动推进后的刷新恢复，以及终态平台 Run 的 Retry/Force。报告页支持显式 Analysis、重新分析、结构化 Evidence 展示，以及 Proposal 拒绝、接受和编辑后接受；离线导入 Run 进入只读 Report 与当前 Analysis 决策界面。
 
 ## 代码落点
 
@@ -62,4 +62,4 @@ REST 展示总数、完成、成功和错误；逐 Case 表只显示真实结果
 
 ## 相关测试
 
-当前测试覆盖预检门禁、选择改变 Abort、迟到响应拒绝、创建参数和身份、统一 Run 列表、详情、REST/Evaluation/Report 启动与取消 Revision、Pipeline 刷新恢复、SSE 身份、逐 Case 结果、导航、Dashboard、离线报告链接和 Retry/Force。Analysis 动作保持隔离。
+当前测试覆盖预检门禁、选择改变 Abort、迟到响应拒绝、创建参数和身份、统一 Run 列表、详情、REST/Evaluation/Report 启动与取消 Revision、Pipeline 刷新恢复、SSE 身份、逐 Case 结果、导航、Dashboard、离线报告链接、Retry/Force、Analysis Cursor 遍历、重新分析和 Proposal 决策。

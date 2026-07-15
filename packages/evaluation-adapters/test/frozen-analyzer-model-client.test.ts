@@ -120,6 +120,21 @@ describe("冻结 Analyzer 官方 SDK Adapter", () => {
       expect(clientOptions?.httpOptions).toMatchObject({ retryOptions: { attempts: 1 } });
       expect(generated?.config?.responseMimeType).toBe("application/json");
       expect(generated?.config?.responseJsonSchema).toBeTypeOf(schemaType);
+      if (mode === "JSON_SCHEMA") {
+        const schemaText = JSON.stringify(generated?.config?.responseJsonSchema);
+        expect(schemaText).not.toMatch(
+          /"(?:const|pattern|minLength|maxLength|propertyNames|definitions|allOf)":/
+        );
+        expect(schemaText).not.toMatch(/"(?:\$defs|\$ref)":/);
+        expect(generated?.config?.responseJsonSchema).toMatchObject({
+          properties: {
+            contractVersion: { enum: ["cortex.analysis-output.v1"] },
+            proposal: {
+              anyOf: [{ type: "object", additionalProperties: true }, { type: "null" }]
+            }
+          }
+        });
+      }
     }
   );
 

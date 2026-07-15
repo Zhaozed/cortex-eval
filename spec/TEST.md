@@ -16,10 +16,11 @@
 - [apps/local-server/test](../apps/local-server/test)：资源与 Run REST/Evaluation/Report API、真实 SQLite 装配、安全入口、OpenAPI、配置 Probe、日志、SSE、Artifact、完整结果导入和流式导出边界。
 - [apps/cli/test](../apps/cli/test)：命令注册、机器输出、Secret Snapshot、真实 REST/Evaluation/Report/Pipeline、结果导入、Retry 和 Force。
 - [packages/work-package/test](../packages/work-package/test)：原生安全目录、导出、Execution、Artifact、大小边界、锁、恢复、Retry、严格 Evaluation/Report 读取和 Golden Fixture。
+- [packages/canonical-export/test](../packages/canonical-export/test)：独立事件读取、文件接收、十实体与 Artifact Hash、四类重算、截断/伪造拒绝和原子发布。
 
 Vitest、V8 覆盖率和架构测试已在 P0 落地。P2 已把 Application 与 Storage SQLite 纳入覆盖率范围，P3 纳入 Local Server。当前全仓门禁为语句/行 90%、函数 90%、分支 85%；最终门禁仍以本 Goal 全局要求为准。
 
-- [tooling/test](../tooling/test)：Runtime Doctor、Fixture、Secret、文档、架构、能力矩阵、官方 SDK 契约、Promptfoo 真实进程和 Benchmark 测试。
+- [tooling/test](../tooling/test)：Runtime Doctor、Fixture、Secret、文档、架构、能力矩阵、官方 SDK 契约、Promptfoo 真实进程、Benchmark 和 Release Gate 顺序/审计解析测试。
 - [vitest.config.ts](../vitest.config.ts)：当前覆盖率范围与阈值。
 - [package.json](../package.json)：`pnpm verify` 确定性门禁入口。
 
@@ -37,7 +38,7 @@ Vitest、V8 覆盖率和架构测试已在 P0 落地。P2 已把 Application 与
 
 每个数据库测试使用独立临时数据库。并发正确性必须使用独立连接或独立进程验证，不能仅用进程内 Mock 代替。
 
-P2 千级门禁固定生成 1,000 Case；导入同时覆盖全量校验、Hash 与事务写入并限制为 10 秒。组合查询先预热 5 次，再采集 30 个独立样本，nearest-rank p95 不超过 250 毫秒、p99 不超过 500 毫秒；JSON1 必须证明精确成员查询。
+千级门禁固定生成 1,000 Case；导入同时覆盖全量校验、Hash 与事务写入并限制为 10 秒。P2 的 5 次预热/30 个查询样本已由 P10 最终协议取代：组合查询预热 10 次，再采集 100 个独立样本，nearest-rank p95 不超过 250 毫秒、p99 不超过 500 毫秒；JSON1 必须证明精确成员查询。
 
 ## Work Package 测试
 
@@ -81,7 +82,7 @@ Markdown 断言关注结构和事实，不对无关排版做脆弱快照。
 
 ## API、CLI 与 Web 测试
 
-API 覆盖 Cursor 分页、字段路径、稳定错误、Host、Origin 和脱敏。CLI 当前覆盖 Work Package 导出/校验、REST、Evaluation、Report、Analyze、默认 REST→Evaluation→Report 与显式 Analysis Pipeline、Report/Analysis 结果导入、机器输出、Retry 和 Force；Canonical Export 测试按 P10 注册。Web 覆盖资源管理、Run/Evaluation/Report/Analysis、Dashboard、平台重跑、离线导入报告和结构化 Evidence 决策闭环。
+API 覆盖 Cursor 分页、字段路径、稳定错误、Host、Origin 和脱敏。CLI 当前覆盖 Work Package 导出/校验、Canonical `data export`、REST、Evaluation、Report、Analyze、默认 REST→Evaluation→Report 与显式 Analysis Pipeline、Report/Analysis 结果导入、机器输出、Retry 和 Force；Canonical Export 额外覆盖 SQLite Backup 后主库可写、脏 Secret/Case 拒绝、复合 Key、Artifact Presence/Inclusion、十文件顺序、服务器与接收端双重对账、截断/伪造拒绝、HTTP/CLI 和真实 Runtime。Web 覆盖资源管理、Run/Evaluation/Report/Analysis、Dashboard、平台重跑、离线导入报告和结构化 Evidence 决策闭环。
 
 P3 API 当前额外覆盖严格成功响应 DTO、六项 Analysis Prompt 变量、OpenAPI 精确 allowlist/漂移与所有 Route 403、真实 SQLite CRUD、Revision/唯一冲突、无未来 Route、服务关闭 Abort、Case 导入固定 200 MiB 边界与合法数组尾随空白超限不提交、低于 192 MiB RSS 增量、导出响应前冲突及临时文件正常/失败/取消清理。Endpoint/LLM Probe 以 Stub SDK 验证无凭据、无 Redirect、无自动重试、配置超时、双 Provider Thinking/结构输出映射和安全失败分类；真实回环 HTTP 验证 `NONE` 不发送 Authorization。Storage/Runtime 额外覆盖状态根 symlink 启动前不污染外部目录、临时根 symlink 不改动外部条目、未过 TTL 的 owner 初始化窗口，以及 owner/writer 故障注入后的句柄和工作区回收。
 
@@ -102,6 +103,8 @@ P7 覆盖率门禁通过 160 个 Vitest 文件、943 项测试；V8 覆盖率为
 覆盖千级 Case 导入、全量 Hash、常用搜索与组合过滤、REST 进度批量提交、报告聚合和 Markdown 生成。性能门禁使用固定数据规模与环境说明，不断言具体配置参数。
 
 固定 1,000 Case、Node 24、本地磁盘，参考环境至少 4 个逻辑核和 8 GiB 可用内存，不做人工资源限速并记录实际硬件。测试集导入、Work Package 导出、Execution Result 导入分别计时且各不超过 10 秒；查询预热后 p95 不超过 250 毫秒且 p99 不超过 500 毫秒；报告与 Markdown 不超过 5 秒；1440×900 与 1280×800 关键列表页可交互不超过 2.5 秒。测量次数、预热、统计方法和重测规则以 [P10_FINAL_HARDENING.md](../tasks/P10_FINAL_HARDENING.md) 为准。
+
+P10 Release Gate 由 [release-gate.ts](../tooling/src/release-gate.ts) 固定同一次调用的顺序和通过条件，由 [release-gate-production.ts](../tooling/src/release-gate-production.ts) 采集真实环境、执行官方 Registry 生产依赖审计、完整 Runtime Doctor、真实 Promptfoo `llm-rubric` 和真实 Analyzer。显式 Live 配置先经 [release-gate-contracts.ts](../packages/contracts/src/release-gate-contracts.ts) 严格校验，配置只保存 Env Secret 引用，不保存展开值；两次模型调用的 Provider 总尝试数都必须精确为 1。
 
 ## 边界与发布测试
 

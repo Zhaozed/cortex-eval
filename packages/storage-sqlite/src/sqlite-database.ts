@@ -15,6 +15,8 @@ import {
   type SqliteCaseImportStagingFactoryOptions
 } from "./sqlite-case-import-staging.ts";
 import { SqliteAnalysisImportStagingFactory } from "./sqlite-analysis-import-staging.ts";
+import { SqliteCanonicalExportSnapshotFactory } from "./sqlite-canonical-export-snapshot.ts";
+import type { CaseImportWorkspaceManager } from "./case-import-workspace.ts";
 import type { WorkspaceSecurityEvent } from "./case-import-workspace.ts";
 import type { SqliteDatabaseSchema } from "./sqlite-schema.ts";
 
@@ -136,6 +138,13 @@ export class SqliteStorage {
     return new SqliteAnalysisImportStagingFactory(this.#database, this.#projectRoot, {
       onSecurityEvent
     });
+  }
+
+  /** Create immutable owner-only snapshots for Canonical Export. */
+  public createCanonicalExportSnapshotFactory(
+    workspaces: CaseImportWorkspaceManager
+  ): SqliteCanonicalExportSnapshotFactory {
+    return new SqliteCanonicalExportSnapshotFactory(this.#nativeDatabase, workspaces);
   }
 
   /** Close the Kysely driver and native database exactly once. */

@@ -12,7 +12,7 @@ Entrypoint、Web、CLI、Work Package 和 Importer 使用 Contracts。Domain 不
 
 ## 实现状态
 
-P1 已落地纯 Contracts Package；P3–P6 补充资源、Run/REST/Evaluation API 和使用 `runId + runContextHash` 的平台 Raw/Normalized Eval Artifact。P8 已注册 Report、Retry/Force、统一最近运行和 Execution Report Import 契约。P9 已注册严格结构化 Evidence、平台当前 Analysis、Proposal 决策、Analysis Artifact 和 Execution Analysis Import 契约。Canonical Export 仍是尚未注册的纯协议。
+P1 已落地纯 Contracts Package；P3–P6 补充资源、Run/REST/Evaluation API 和使用 `runId + runContextHash` 的平台 Raw/Normalized Eval Artifact。P8 已注册 Report、Retry/Force、统一最近运行和 Execution Report Import 契约。P9 已注册严格结构化 Evidence、平台当前 Analysis、Proposal 决策、Analysis Artifact 和 Execution Analysis Import 契约。P10 已按真实复合 Result 身份、显式引用、Artifact Presence/Inclusion、独立 Transport 和 CLI 机器事件闭环 Canonical Export，并新增不展开 Secret 的显式 Live Release Gate 配置契约。
 
 Contracts 只冻结协议，不代表对应 API、CLI、Web 或文件运行时已经注册。P7–P9 只能实现 v1 Writer、Reader、Importer 和能力注册，不能修改 Work Package v1 Schema。
 
@@ -24,7 +24,8 @@ Contracts 只冻结协议，不代表对应 API、CLI、Web 或文件运行时�
 - [work-package-contracts.ts](../../packages/contracts/src/work-package-contracts.ts)：完整 Manifest v1、Execution v1、固定依赖图和六类 Artifact 槽位。
 - [artifact-contracts.ts](../../packages/contracts/src/artifact-contracts.ts)：REST、Eval、Report、Analysis 与 Artifact Manifest。
 - [evaluator-bridge-contracts.ts](../../packages/contracts/src/evaluator-bridge-contracts.ts)：Bridge Capability、Request/Response 和 Provider Capability Error。
-- [canonical-export-contracts.ts](../../packages/contracts/src/canonical-export-contracts.ts)：Canonical Export 请求、Manifest、JSONL Entity 与四类对账。
+- [canonical-export-contracts.ts](../../packages/contracts/src/canonical-export-contracts.ts)：Canonical Export 请求、十类文件、复合 Entity Key、Manifest、Artifact 状态、Raw 授权与规范路径、独立 Transport 与四类对账。
+- [release-gate-contracts.ts](../../packages/contracts/src/release-gate-contracts.ts)：真实 Gemini Rubric/Analyzer 的显式模型、Prompt 引用、Env Secret 引用和结构输出模式。
 - [error-contracts.ts](../../packages/contracts/src/error-contracts.ts)：稳定 Error Code。
 - [resource-api-contracts.ts](../../packages/contracts/src/resource-api-contracts.ts)：P3 资源 Request/Response、Cursor、分页和闭合 API Error。
 - [run-api-contracts.ts](../../packages/contracts/src/run-api-contracts.ts)：Run Request/Response、Cursor、REST/Evaluation 分类进度、Case 结果和 SSE Envelope。
@@ -45,7 +46,7 @@ Contracts 只冻结协议，不代表对应 API、CLI、Web 或文件运行时�
 
 `RunExecutionLimitsV1` 由平台 Create Run 或离线 Create Execution 接受，包含 REST/Eval 并发；`AnalysisExecutionLimitsV1` 由平台 Analysis 请求或离线 Create Execution 接受，包含 Analysis 并发。两者的默认值、范围、冻结点和 Hash 归属是版本化协议，不使用散落配置。
 
-字段定义以当前真实 Schema 和导出类型为准。Assertion `type` 不设白名单，`config` 保持开放 JSON；边界递归拒绝其中的 Provider、OAuth/认证/Secret、模块/依赖字段。外部引用统一忽略前导空白和大小写后识别 `file://`、`package:`、`module:`、`node:`、`npm:`、`pip:`，敏感键按分隔符、camelCase 与紧凑敏感词组合识别，防止开放 Payload 绕过平台持有的执行边界。该边界不解释或限制 Promptfoo Assert 执行语义。Analysis Prompt 预览响应的变量联合与 Domain 一致，闭合为 `case_definition`、`provider_output`、`failed_assertions`、`expected_actual_diffs`、`llm_rubric_results`、`run_context` 六项。Analysis Artifact Error Code 使用闭合枚举，错误文案限制最大长度；平台注册 `ANALYSIS_CANCELLED` 与 `ANALYSIS_INTERRUPTED`，平台展示文案不由 Artifact 提供。文档只维护协议语义、版本关系和兼容边界。
+字段定义以当前真实 Schema 和导出类型为准。Assertion `type` 不设白名单，`config` 保持开放 JSON；边界递归拒绝其中的 Provider、OAuth/认证/Secret、模块/依赖字段。外部引用统一忽略前导空白和大小写后识别 `file://`、`package:`、`module:`、`node:`、`npm:`、`pip:`，敏感键按分隔符、camelCase 与紧凑敏感词组合识别，防止开放 Payload 绕过平台持有的执行边界。该边界不解释或限制 Promptfoo Assert 执行语义。Canonical Export Manifest 只有在全局 Raw 开关为真、Artifact Kind 为 `RAW_PROMPTFOO_EVIDENCE` 且路径精确等于对应 Run 的规范路径时才接受 `included=true`；接收器还必须用本次请求事实校验同一开关。Analysis Prompt 预览响应的变量联合与 Domain 一致，闭合为 `case_definition`、`provider_output`、`failed_assertions`、`expected_actual_diffs`、`llm_rubric_results`、`run_context` 六项。Analysis Artifact Error Code 使用闭合枚举，错误文案限制最大长度；平台注册 `ANALYSIS_CANCELLED` 与 `ANALYSIS_INTERRUPTED`，平台展示文案不由 Artifact 提供。文档只维护协议语义、版本关系和兼容边界。
 
 ## 核心流程
 

@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@cortex-eval/application": "workspace:*",
+    "@cortex-eval/canonical-export": "workspace:*",
     "@cortex-eval/contracts": "workspace:*",
     "@cortex-eval/domain": "workspace:*",
     "@cortex-eval/evaluation-adapters": "workspace:*",

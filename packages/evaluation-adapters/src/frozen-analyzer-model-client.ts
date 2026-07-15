@@ -25,6 +25,7 @@ import type {
 } from "openai/resources/chat/completions/completions.js";
 
 import { AnalyzerModelError, analyzerModelErrorFromProvider } from "./analyzer-model-errors.ts";
+import { AnalysisOutputV1GeminiJsonSchema } from "./gemini-analysis-output-schema.ts";
 
 /** Fixed maximum UTF-8 size for one normalized Analysis input or response. */
 export const ANALYZER_CASE_MAX_BYTES = 32 * 1_024 * 1_024;
@@ -256,7 +257,7 @@ async function analyzeGemini(
           maxOutputTokens: config.maxOutputTokens,
           responseMimeType: "application/json",
           ...(config.structuredOutput === "JSON_SCHEMA"
-            ? { responseJsonSchema: AnalysisOutputV1JsonSchema }
+            ? { responseJsonSchema: AnalysisOutputV1GeminiJsonSchema }
             : {})
         }
       }),

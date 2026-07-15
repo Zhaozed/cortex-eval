@@ -80,8 +80,7 @@ export async function materializeCompletedOfflineReport(
     for await (const item of session.inputs.streamCases(workPackageCaseDefinitionHasher)) {
       cases.push(item);
     }
-    const testCase = cases[0];
-    if (testCase === undefined || cases.length !== 1) {
+    if (cases.length === 0) {
       throw new Error("E2E_OFFLINE_REPORT_CASE_COUNT_INVALID");
     }
 
@@ -91,35 +90,38 @@ export async function materializeCompletedOfflineReport(
       rerun: { mode: "NEW" }
     });
     await session.startStage(input.executionId, "REST", "2026-07-15T00:00:30.000Z");
-    const restPartial = {
-      caseKey: testCase.caseKey,
-      ordinal: testCase.ordinal,
-      caseDefinitionHash: testCase.definitionHash,
-      status: "SUCCEEDED" as const,
-      httpStatus: 200,
-      providerOutput: {
-        ok: true as const,
-        taskName: testCase.definition.task,
-        resolvedConfig: { source: "offline-e2e" },
-        parsedOutput: { answer: "ok" }
-      },
-      errorType: null,
-      errorMessage: null,
-      durationMs: 1,
-      completedAt: "2026-07-15T00:01:00.000Z",
-      resultHash: "",
-      provenance: null
-    };
-    const restResultHash = workPackageRestSemanticHashing.hashResult(restPartial);
-    const restResult = { ...restPartial, resultHash: restResultHash };
     const restHasher = workPackageRestSemanticHashing.createResultSetHasher();
-    restHasher.add({
-      caseKey: testCase.caseKey,
-      ordinal: testCase.ordinal,
-      resultHash: restResultHash
-    });
     const restWriter = await WorkPackageRestArtifactWriter.create(session, input.executionId);
-    await restWriter.append(restResult);
+    const restResultHashes = new Map<string, string>();
+    for (const testCase of cases) {
+      const restPartial = {
+        caseKey: testCase.caseKey,
+        ordinal: testCase.ordinal,
+        caseDefinitionHash: testCase.definitionHash,
+        status: "SUCCEEDED" as const,
+        httpStatus: 200,
+        providerOutput: {
+          ok: true as const,
+          taskName: testCase.definition.task,
+          resolvedConfig: { source: "offline-e2e" },
+          parsedOutput: { answer: "ok" }
+        },
+        errorType: null,
+        errorMessage: null,
+        durationMs: 1,
+        completedAt: "2026-07-15T00:01:00.000Z",
+        resultHash: "",
+        provenance: null
+      };
+      const restResultHash = workPackageRestSemanticHashing.hashResult(restPartial);
+      restResultHashes.set(testCase.caseKey, restResultHash);
+      restHasher.add({
+        caseKey: testCase.caseKey,
+        ordinal: testCase.ordinal,
+        resultHash: restResultHash
+      });
+      await restWriter.append({ ...restPartial, resultHash: restResultHash });
+    }
     const restArtifact = await restWriter.commit("2026-07-15T00:01:00.000Z", restHasher.finish());
     await session.completeStage(input.executionId, "REST", "2026-07-15T00:01:00.000Z", [
       restArtifact
@@ -139,55 +141,59 @@ export async function materializeCompletedOfflineReport(
       },
       new AbortController().signal
     );
-    const metric = testCase.definition.assertions[0]?.metric ?? "quality";
-    const evaluationPartial = {
-      caseKey: testCase.caseKey,
-      ordinal: testCase.ordinal,
-      status: evaluationStatus,
-      promptfooSuccess: evaluationStatus === "PASS",
-      score: evaluationStatus === "PASS" ? 1 : 0,
-      reason: evaluationStatus === "PASS" ? "offline e2e passed" : "offline e2e failed",
-      evaluationError: null,
-      assertions: [],
-      diffs: [],
-      metrics: [{ metric, status: evaluationStatus }],
-      latencyMs: 1,
-      tokenUsage: null,
-      cost: null,
-      rawEvidence: {
-        present: true as const,
-        path: rawArtifact.path,
-        expectedSha256: rawArtifact.sha256,
-        expectedSizeBytes: rawArtifact.sizeBytes
-      },
-      evalResultHash: "",
-      finalCaseResultHash: "",
-      provenance: null
-    };
-    const evalResultHash = workPackageEvalSemanticHashing.hashResult(evaluationPartial);
-    const evaluation: EvalCaseV1 = {
-      ...evaluationPartial,
-      evalResultHash,
-      finalCaseResultHash: workPackageEvalSemanticHashing.hashFinalResult({
-        caseDefinitionHash: testCase.definitionHash,
-        restResultHash,
-        evalResultHash
-      })
-    };
     const evalHasher = workPackageEvalSemanticHashing.createResultSetHasher(
       (ordinal): string | null => session.inputs.expectedCaseKey(ordinal)
-    );
-    evalHasher.add({ caseKey: testCase.caseKey, ordinal: testCase.ordinal, evalResultHash });
-    const evaluationResultSetHash = evalHasher.finish(
-      { kind: "EXECUTION", id: input.executionId },
-      EVALUATION_CONTEXT_HASH
     );
     const evalWriter = await WorkPackageNormalizedEvalArtifactWriter.create(
       session,
       input.executionId,
       EVALUATION_CONTEXT_HASH
     );
-    await evalWriter.append(evaluation);
+    for (const testCase of cases) {
+      const metric = testCase.definition.assertions[0]?.metric ?? "quality";
+      const evaluationPartial = {
+        caseKey: testCase.caseKey,
+        ordinal: testCase.ordinal,
+        status: evaluationStatus,
+        promptfooSuccess: evaluationStatus === "PASS",
+        score: evaluationStatus === "PASS" ? 1 : 0,
+        reason: evaluationStatus === "PASS" ? "offline e2e passed" : "offline e2e failed",
+        evaluationError: null,
+        assertions: [],
+        diffs: [],
+        metrics: [{ metric, status: evaluationStatus }],
+        latencyMs: 1,
+        tokenUsage: null,
+        cost: null,
+        rawEvidence: {
+          present: true as const,
+          path: rawArtifact.path,
+          expectedSha256: rawArtifact.sha256,
+          expectedSizeBytes: rawArtifact.sizeBytes
+        },
+        evalResultHash: "",
+        finalCaseResultHash: "",
+        provenance: null
+      };
+      const evalResultHash = workPackageEvalSemanticHashing.hashResult(evaluationPartial);
+      const restResultHash = restResultHashes.get(testCase.caseKey);
+      if (restResultHash === undefined) throw new Error("E2E_OFFLINE_REST_RESULT_MISSING");
+      const evaluation: EvalCaseV1 = {
+        ...evaluationPartial,
+        evalResultHash,
+        finalCaseResultHash: workPackageEvalSemanticHashing.hashFinalResult({
+          caseDefinitionHash: testCase.definitionHash,
+          restResultHash,
+          evalResultHash
+        })
+      };
+      evalHasher.add({ caseKey: testCase.caseKey, ordinal: testCase.ordinal, evalResultHash });
+      await evalWriter.append(evaluation);
+    }
+    const evaluationResultSetHash = evalHasher.finish(
+      { kind: "EXECUTION", id: input.executionId },
+      EVALUATION_CONTEXT_HASH
+    );
     const evalArtifact = await evalWriter.commit(
       "2026-07-15T00:03:00.000Z",
       evaluationResultSetHash

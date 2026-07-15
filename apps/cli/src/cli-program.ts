@@ -3,6 +3,8 @@ import contractMessages from "@cortex-eval/contracts/messages/zh-CN.json" with {
 import {
   CliExecutionEventV1Schema,
   type CliExecutionEventV1,
+  CliDataExportEventV1Schema,
+  type CliDataExportEventV1,
   CliPackageEventV1Schema,
   type CliPackageEventV1
 } from "@cortex-eval/contracts/src/cli-contracts.ts";
@@ -23,6 +25,7 @@ import type { WorkPackageEvaluationRunResult } from "./work-package-evaluation-r
 import type { WorkPackageReportRunResult } from "./work-package-report-run-service.ts";
 import type { WorkPackageAnalysisRunResult } from "./work-package-analysis-run-service.ts";
 import type { WorkPackagePipelineRunResult } from "./pipeline-command-service.ts";
+import type { DataExportCommandService } from "./data-export-command-service.ts";
 import { Command, CommanderError } from "commander";
 
 /** Controlled CLI output sinks. */
@@ -188,6 +191,8 @@ export interface CliDependencies {
   readonly pipelineCommands: PipelineCommandService;
   /** Closed Report import capability. */
   readonly resultCommands: ResultImportCommandService;
+  /** Closed P10 Canonical Data Export capability. */
+  readonly dataCommands?: DataExportCommandService | undefined;
   /** Explicit output sinks. */
   readonly output: CliOutput;
   /** Optional process cancellation signal. */
@@ -209,6 +214,13 @@ interface ExportOptions {
   readonly output: string;
 }
 
+interface DataExportOptions {
+  /** Destination migration directory. */
+  readonly output: string;
+  /** Explicit Raw Promptfoo evidence inclusion choice. */
+  readonly includeRawEvidence: boolean;
+}
+
 type CliCommand =
   | "package export"
   | "package validate"
@@ -217,7 +229,8 @@ type CliCommand =
   | "report build"
   | "analyze run"
   | "pipeline run"
-  | "result import";
+  | "result import"
+  | "data export";
 
 const ERROR_CODE_SET = new Set<string>(ERROR_CODES);
 const HELP_TITLES: Readonly<Record<string, string>> = cliMessages.CLI_HELP_TITLES;
@@ -248,7 +261,11 @@ const WORK_PACKAGE_ERROR_MAP: Readonly<Record<string, ErrorCode>> = {
   WORK_PACKAGE_NATIVE_UNSUPPORTED: "INTERNAL_ERROR",
   WORK_PACKAGE_NONCE_INVALID: "INTERNAL_ERROR",
   WORK_PACKAGE_PUBLISHER_CLOSED: "INTERNAL_ERROR",
-  WORK_PACKAGE_RECOVERY_POLICY_INVALID: "INTERNAL_ERROR"
+  WORK_PACKAGE_RECOVERY_POLICY_INVALID: "INTERNAL_ERROR",
+  CANONICAL_EXPORT_EVENT_INVALID: "PROVIDER_REQUEST_FAILED",
+  CANONICAL_EXPORT_STREAM_TRUNCATED: "PROVIDER_REQUEST_FAILED",
+  CANONICAL_EXPORT_LINE_TOO_LARGE: "PROVIDER_REQUEST_FAILED",
+  CANONICAL_EXPORT_RECONCILIATION_FAILED: "PROVIDER_REQUEST_FAILED"
 };
 
 // Clean Commander option objects before they enter a command use case.
@@ -268,6 +285,22 @@ function exportOptions(value: unknown): ExportOptions {
     throw new Error("VALIDATION_FAILED");
   }
   return { ...request.data, output: source.output };
+}
+
+// Clean the complete Data Export options before the HTTP and filesystem boundary.
+function dataExportOptions(value: unknown): DataExportOptions {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("VALIDATION_FAILED");
+  }
+  const source = value as Readonly<Record<string, unknown>>;
+  if (
+    typeof source.output !== "string" ||
+    source.output.length === 0 ||
+    typeof source.includeRawEvidence !== "boolean"
+  ) {
+    throw new Error("VALIDATION_FAILED");
+  }
+  return { output: source.output, includeRawEvidence: source.includeRawEvidence };
 }
 
 // Parse one optional bounded positive integer without JavaScript coercion.
@@ -504,7 +537,8 @@ function commandFromArguments(arguments_: readonly string[]): CliCommand | null 
     pair === "report build" ||
     pair === "analyze run" ||
     pair === "pipeline run" ||
-    pair === "result import"
+    pair === "result import" ||
+    pair === "data export"
   ) {
     return pair;
   }
@@ -564,6 +598,12 @@ function emitExecutionMachine(output: CliOutput, event: CliExecutionEventV1): vo
   output.stdout(`${JSON.stringify(clean)}\n`);
 }
 
+// Emit one strict Canonical Data Export event as exactly one NDJSON line.
+function emitDataExportMachine(output: CliOutput, event: CliDataExportEventV1): void {
+  const clean = CliDataExportEventV1Schema.parse(event);
+  output.stdout(`${JSON.stringify(clean)}\n`);
+}
+
 // Format a public error without third-party stack, submitted value or secret material.
 function emitError(
   output: CliOutput,
@@ -573,7 +613,15 @@ function emitError(
 ): 2 | 3 | 4 | 130 {
   const status = exitCode(code);
   if (json) {
-    if (
+    if (command === "data export") {
+      emitDataExportMachine(output, {
+        contractVersion: "cortex.cli-data-export-event.v1",
+        type: "COMMAND_ERROR",
+        command,
+        code,
+        exitCode: status
+      });
+    } else if (
       command === "rest run" ||
       command === "eval run" ||
       command === "report build" ||
@@ -660,6 +708,35 @@ function buildProgram(
         dependencies.output.stdout(`${cliMessages.PACKAGE_EXPORTED} ${result.targetPath}\n`);
       }
     });
+
+  if (dependencies.dataCommands !== undefined) {
+    const dataCommands = dependencies.dataCommands;
+    const dataCommand = program.command("data").description(cliMessages.DATA_DESCRIPTION);
+    dataCommand
+      .command("export")
+      .description(cliMessages.DATA_EXPORT_DESCRIPTION)
+      .requiredOption("--output <path>", cliMessages.DATA_EXPORT_OUTPUT)
+      .option("--include-raw-evidence", cliMessages.DATA_EXPORT_INCLUDE_RAW, false)
+      .action(async (dirtyOptions: unknown, command: Command): Promise<void> => {
+        state.command = "data export";
+        state.json = machineOutput(command);
+        const options = dataExportOptions(dirtyOptions);
+        const result = await dataCommands.exportData(
+          { rawEvidenceIncluded: options.includeRawEvidence },
+          options.output,
+          controller.signal
+        );
+        if (state.json) {
+          emitDataExportMachine(dependencies.output, {
+            contractVersion: "cortex.cli-data-export-event.v1",
+            type: "DATA_EXPORTED",
+            ...result
+          });
+        } else {
+          dependencies.output.stdout(`${cliMessages.DATA_EXPORTED} ${result.targetPath}\n`);
+        }
+      });
+  }
 
   packageCommand
     .command("validate")

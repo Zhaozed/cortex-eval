@@ -3,10 +3,22 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { WorkPackageManifestV1 } from "../../contracts/src/work-package-contracts.ts";
+import type { CaseDefinition } from "../../domain/src/domain-evaluation.ts";
+import { workPackageCaseDefinitionHasher } from "../src/work-package-domain-hashing.ts";
 import { expectedRubricPromptPath } from "../src/work-package-manifest-policy.ts";
 
 /** Stable UUIDv7 shared by Work Package tests. */
 export const WORK_PACKAGE_FIXTURE_ID = "018f22aa-33bb-7ccc-8ddd-eeeeeeeeeeee";
+
+/** Optional deterministic fixture variants. */
+export interface MaterializeWorkPackageFixtureOptions {
+  /** Override the only Case hash for single-Case boundary tests. */
+  readonly baseDefinitionHash?: string | undefined;
+  /** Environment keys needed by the REST stage. */
+  readonly restEnvKeys?: readonly string[] | undefined;
+  /** Number of generated ordered Cases. */
+  readonly caseCount?: number | undefined;
+}
 
 // Compute one lowercase content hash.
 function hash(value: Uint8Array): string {
@@ -16,30 +28,51 @@ function hash(value: Uint8Array): string {
 /** Materialize one owner-only, input-complete Work Package fixture. */
 export async function materializeWorkPackageFixture(
   root: string,
-  options: {
-    readonly baseDefinitionHash?: string | undefined;
-    readonly restEnvKeys?: readonly string[] | undefined;
-  } = {}
+  options: MaterializeWorkPackageFixtureOptions = {}
 ): Promise<WorkPackageManifestV1> {
+  const caseCount = options.caseCount ?? 1;
+  if (!Number.isInteger(caseCount) || caseCount < 1 || caseCount > 1_000) {
+    throw new Error("WORK_PACKAGE_FIXTURE_CASE_COUNT_INVALID");
+  }
+  const cases = Array.from({ length: caseCount }, (_, ordinal) => {
+    const number = String(ordinal + 1).padStart(4, "0");
+    const caseKey = caseCount === 1 ? "case-1" : `case-${number}`;
+    const requestId = caseCount === 1 ? "req-1" : `req-${number}`;
+    const taskId = caseCount === 1 ? "task-1" : `task-${number}`;
+    const definition: CaseDefinition = {
+      caseKey,
+      description: "fixture",
+      threshold: 1,
+      task: "reply",
+      requestBody: { text: "hello" },
+      metadata: {
+        requestId,
+        taskId,
+        businessModule: "fixture",
+        scenarioTag: "fixture"
+      },
+      assertions: [{ type: "equals", metric: "exact", weight: 1, value: "hello" }]
+    };
+    return {
+      definition,
+      transport: {
+        contractVersion: "cortex.case-definition.v1" as const,
+        description: "fixture",
+        threshold: 1,
+        vars: { task: "reply", request_body: { text: "hello" } },
+        metadata: {
+          case_id: caseKey,
+          req_id: requestId,
+          task_id: taskId,
+          business_module: "fixture",
+          scenario_tag: "fixture"
+        },
+        assert: [{ type: "equals", metric: "exact", weight: 1, value: "hello" }]
+      }
+    };
+  });
   const files = {
-    tests: Buffer.from(
-      `${JSON.stringify([
-        {
-          contractVersion: "cortex.case-definition.v1",
-          description: "fixture",
-          threshold: 1,
-          vars: { task: "reply", request_body: { text: "hello" } },
-          metadata: {
-            case_id: "case-1",
-            req_id: "req-1",
-            task_id: "task-1",
-            business_module: "fixture",
-            scenario_tag: "fixture"
-          },
-          assert: [{ type: "equals", metric: "exact", weight: 1, value: "hello" }]
-        }
-      ])}\n`
-    ),
+    tests: Buffer.from(`${JSON.stringify(cases.map((item) => item.transport))}\n`),
     endpoint: Buffer.from(
       `${JSON.stringify({
         contractVersion: "cortex.endpoint-config.v1",
@@ -136,13 +169,18 @@ export async function materializeWorkPackageFixture(
     packageId: WORK_PACKAGE_FIXTURE_ID,
     createdAt: "2026-07-14T00:00:00.000Z",
     sourceSuite: { suiteId: WORK_PACKAGE_FIXTURE_ID, suiteHash: hash(files.tests) },
-    cases: [
-      {
-        caseKey: "case-1",
-        ordinal: 0,
-        baseDefinitionHash: options.baseDefinitionHash ?? "a".repeat(64)
-      }
-    ],
+    cases: cases.map((item, ordinal) => ({
+      caseKey: item.definition.caseKey,
+      ordinal,
+      baseDefinitionHash:
+        caseCount === 1
+          ? (options.baseDefinitionHash ?? "a".repeat(64))
+          : workPackageCaseDefinitionHasher.hash({
+              contractVersion: "cortex.case-definition.v1",
+              caseKey: item.definition.caseKey,
+              definition: item.definition
+            })
+    })),
     inputs: {
       tests: descriptors.tests,
       endpoint: descriptors.endpoint,

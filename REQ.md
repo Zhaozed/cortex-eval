@@ -4,7 +4,7 @@
 
 本文档定义 Cortex Eval 本地版的产品目标、使用方式、业务对象、用户流程、UI 与 CLI 能力、报告口径、异常行为和验收标准。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P9 已完成。平台与离线 REST→Evaluation→Report→显式 Analysis、结构化 Evidence、Execution Report/Analysis Import 和当前决策能力已闭环。文件或目录发布只有在父目录同步后成功；发布后同步失败撤销可见目标。阶段登记失败只凭当前命令持有的非持久发布身份补偿未登记 Artifact；身份已丢失的启动恢复保留文件并报告，不按路径猜测删除。Canonical Export 尚未闭合。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P10 已完成。平台与离线 REST→Evaluation→Report→显式 Analysis、结构化 Evidence、Execution Report/Analysis Import 和当前决策能力已闭环。文件或目录发布只有在父目录同步后成功；发布后同步失败撤销可见目标。阶段登记失败只凭当前命令持有的非持久发布身份补偿未登记 Artifact；身份已丢失的启动恢复保留文件并报告，不按路径猜测删除。P10 Canonical Export API/CLI、SQLite 快照、稳定 JSONL、Artifact 状态、独立接收端四类对账、确定性硬化门禁和独立变更复审已闭环；使用 `GOOGLE_API_KEY` 的真实 Gemini Rubric 与 Analyzer 已在同一次完整 `pnpm verify:release` 中通过。
 
 技术选型、项目架构、模块边界、数据字段、工作包协议、事务、并发和测试设计以 `TECH.md` 为准。本文档不包含具体实现代码。
 
@@ -421,7 +421,7 @@ CLI 从当前进程环境或用户显式指定的 Env 文件读取 Secret。Env 
 
 Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式设置阶段列表。Analysis 只有显式选择并指定 Case 范围时执行。阶段列表必须满足 Artifact 依赖，系统不自动补跑未选择阶段。
 
-当前注册的离线 `pipeline run` 默认执行 REST、Evaluation 和 Report；只有显式提供 `--analysis-selector failed | errors | all` 时才追加 Analysis，并要求工作包已经冻结 Analyzer 和 Analysis Prompt。`analyze run` 与 `result import --type analysis` 已在 Analysis Writer、双遍读取和平台事务闭环后注册。CLI Help 仍不展示尚未闭环的 `data export`。
+当前注册的离线 `pipeline run` 默认执行 REST、Evaluation 和 Report；只有显式提供 `--analysis-selector failed | errors | all` 时才追加 Analysis，并要求工作包已经冻结 Analyzer 和 Analysis Prompt。`analyze run`、`result import --type analysis` 与 `data export` 均在各自写入、读回对账和资源回收闭环后注册。
 
 离线 Pipeline 包含 Analysis 时必须已有或同时选择 Report，并提供 Analyzer、Analysis Prompt 和 `failed | errors | all` Selector。Analysis 失败使 CLI 返回阶段系统错误，但不改变已完成 Report JSON、Markdown 或导入事实。无可分析 Case 时 Analysis 以零结果成功结束。
 
@@ -449,7 +449,7 @@ Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式设置阶段
 
 ### 8.6 Canonical Data Export
 
-平台通过 API 和 CLI `data export` 输出版本化 Manifest 和稳定排序的 Canonical JSONL。导出包含当前资源、历史 Runs、Case/Eval 规范化结果、当前 Analysis、Contract Versions 和 Artifact 预期元数据，不包含展开 Secret，默认不内嵌 Raw Evidence。
+平台通过 `POST /api/v1/data/export` 和 CLI `data export --output <path>` 输出版本化 Manifest 和稳定排序的 Canonical JSONL；`--include-raw-evidence` 只显式控制 Raw Promptfoo Evidence 复制。导出包含当前资源、历史 Runs、Case/Eval 规范化结果、当前 Analysis、Contract Versions 和 Artifact 预期元数据，不包含展开 Secret，默认不内嵌 Raw Evidence。Case/Eval Result 使用 `{ runId, caseKey }` 复合身份；其他当前资源、Run 与 Analysis 使用真实 UUID 身份。只有本次请求显式授权、Manifest 同样声明授权且 Artifact 为 `RAW_PROMPTFOO_EVIDENCE` 时，接收端才允许规范路径 `artifacts/runs/<runId>/raw-promptfoo-evidence.bin` 落盘；请求与 Manifest 授权漂移、非 Raw 包含或非规范路径均拒绝发布。服务器和 CLI 接收端分别从磁盘重新执行计数、引用、实体 Hash 和文件 Hash 四类对账。
 
 系统重新读取导出并完成计数、引用、实体 Hash 和文件 Hash 四类对账。Raw Artifact 缺失不阻止导出，但必须标记不存在并保留预期 Hash 与大小。当前不实现 Canonical Import、PostgreSQL Adapter 或备份恢复。
 
@@ -685,7 +685,7 @@ Proposal 使用判别联合明确动作和目标：
 - Promptfoo 临时父目录必须显式绑定项目 Containment Root，逐级通过 `lstat` 与 canonical containment 后才能创建或修改权限；取消或超时时，主进程提前退出不得截断解释器后代剩余 TERM 宽限期，返回前必须确认完整 POSIX 进程组已经消失，随后才能关闭 Bridge 和回收目录。
 - Promptfoo 使用固定参数启动，不通过 Shell 拼接用户输入。
 - 日志不记录完整 Vars、Provider Output、Prompt、Secret 或第三方堆栈。
-- 日志以单行中文可读文本记录安全字段，单文件 10 MiB 轮转并保留最近 10 个文件；日志写入失败只做脱敏 stderr 降级，不改变业务事实。
+- 日志以单行中文可读文本记录安全字段，单文件 10 MiB 轮转；当前文件与 9 个历史文件合计最多保留最近 10 个文件。日志写入失败只做脱敏 stderr 降级，不改变业务事实。
 
 ## 15. 非功能需求
 

@@ -34,6 +34,7 @@ P5 已建立 `packages/evaluation-adapters` 并落地 Fetch REST Executor。当�
 - [frozen-evaluator-model-client.ts](../../packages/evaluation-adapters/src/frozen-evaluator-model-client.ts)：官方 SDK、无自动重试、冻结配置和环境 Secret 边界。
 - [evaluator-model-errors.ts](../../packages/evaluation-adapters/src/evaluator-model-errors.ts)：SDK HTTP 状态到闭合 Provider Error Code 的安全映射。
 - [frozen-analyzer-model-client.ts](../../packages/evaluation-adapters/src/frozen-analyzer-model-client.ts)：Analyzer 官方 SDK、`JSON_SCHEMA | JSON_OBJECT` 精确映射、严格响应校验、大小、取消和无重试边界。
+- [gemini-analysis-output-schema.ts](../../packages/evaluation-adapters/src/gemini-analysis-output-schema.ts)：Gemini 稳定支持的顶层 Analysis/Evidence Schema；递归 Proposal 由响应边界的完整共享契约继续校验。
 - [analyzer-model-errors.ts](../../packages/evaluation-adapters/src/analyzer-model-errors.ts)：Analyzer 安全错误收敛。
 
 ## 当前样例与测试入口
@@ -44,7 +45,7 @@ P5 已建立 `packages/evaluation-adapters` 并落地 Fetch REST Executor。当�
 
 ## 对外接口
 
-当前 REST Executor 接收 Frozen Cases、Endpoint、Abort Signal、冻结并发限制和逐 Case 结果回调。Promptfoo 子模块接收冻结 Case/REST/Evaluator/Prompt 和 Abort Signal。Analysis Model Client 直接接收冻结 Analyzer、Prompt、六个结构化变量和 Abort Signal，不调用 Evaluator Bridge。
+当前 REST Executor 接收 Frozen Cases、Endpoint、Abort Signal、冻结并发限制和逐 Case 结果回调。Promptfoo 子模块接收冻结 Case/REST/Evaluator/Prompt 和 Abort Signal。Analysis Model Client 直接接收冻结 Analyzer、Prompt、六个结构化变量和 Abort Signal，不调用 Evaluator Bridge。Gemini `JSON_SCHEMA` 只把 Provider 稳定支持的顶层结构用于生成约束，返回值仍由完整共享 Schema 严格解析；无效 Proposal 不得进入 Domain。
 
 ## 核心流程
 

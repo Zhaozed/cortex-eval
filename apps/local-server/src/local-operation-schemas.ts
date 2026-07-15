@@ -56,6 +56,7 @@ import {
   RunRevisionRequestV1Schema
 } from "@cortex-eval/contracts/src/run-api-contracts.ts";
 import { WorkPackageExportRequestV1Schema } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
+import { CanonicalExportRequestV1Schema } from "@cortex-eval/contracts/src/canonical-export-contracts.ts";
 import { ReportArtifactV1Schema } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import {
   ExecutionAnalysisImportRequestV1Schema,
@@ -113,6 +114,7 @@ function operationBodySchema(operationId: string): Record<string, unknown> | und
     startRun: RunRevisionRequestV1Schema,
     cancelRun: RunRevisionRequestV1Schema,
     exportWorkPackage: WorkPackageExportRequestV1Schema,
+    exportCanonicalData: CanonicalExportRequestV1Schema,
     importExecutionReport: ExecutionReportImportRequestV1Schema,
     importExecutionAnalysis: ExecutionAnalysisImportRequestV1Schema,
     startCaseAnalysis: StartCaseAnalysisRequestV1Schema,
@@ -126,7 +128,9 @@ function operationBodySchema(operationId: string): Record<string, unknown> | und
 
 // Return the exact success response contract for one closed operation.
 function operationResponseSchema(operationId: string): Record<string, unknown> {
-  if (operationId === "exportWorkPackage") return { type: "string" };
+  if (operationId === "exportWorkPackage" || operationId === "exportCanonicalData") {
+    return { type: "string" };
+  }
   const schemas: Readonly<Record<string, z.ZodType>> = {
     listTestSuites: TestSuitePageV1Schema,
     createTestSuite: TestSuiteDetailV1Schema,
@@ -282,13 +286,13 @@ export function localOperationSchema(
             : 200;
   const apiErrorSchema = projectRuntimeSchema(ApiErrorResponseV1Schema);
   const successResponse =
-    operationId === "exportWorkPackage"
+    operationId === "exportWorkPackage" || operationId === "exportCanonicalData"
       ? mediaTypeResponse("application/x-ndjson", operationResponseSchema(operationId))
       : operationId === "exportRunReport"
         ? mediaTypeResponse("application/json", operationResponseSchema(operationId))
         : operationResponseSchema(operationId);
   const errorResponse =
-    operationId === "exportWorkPackage"
+    operationId === "exportWorkPackage" || operationId === "exportCanonicalData"
       ? mediaTypeResponse("application/json", apiErrorSchema)
       : apiErrorSchema;
   return {
@@ -314,7 +318,9 @@ export function localOperationSchema(
       409: errorResponse,
       413: errorResponse,
       422: errorResponse,
-      ...(operationId === "exportWorkPackage" ? { 499: errorResponse } : {}),
+      ...(operationId === "exportWorkPackage" || operationId === "exportCanonicalData"
+        ? { 499: errorResponse }
+        : {}),
       ...(operationId === "exportRunReport" ? { 499: errorResponse } : {}),
       ...(operationId === "importExecutionReport" || operationId === "importExecutionAnalysis"
         ? { 499: errorResponse }

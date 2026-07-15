@@ -35,8 +35,10 @@
 - [x] [P7：Work Package、CLI、重跑与导入基础](P7_WORK_PACKAGE_AND_CLI.md) — `COMPLETED`
 - [x] [P8：Reporting 闭环](P8_REPORTING.md) — `COMPLETED`
 - [x] [P9：Case Analysis 闭环](P9_CASE_ANALYSIS.md) — `COMPLETED`
-- [ ] [P10：Canonical Export 与最终硬化](P10_FINAL_HARDENING.md) — `PENDING`
+- [x] [P10：Canonical Export 与最终硬化](P10_FINAL_HARDENING.md) — `COMPLETED`
 
 ## 最终交付记录
 
-Goal 完成前在此记录阶段 Commit、`pnpm verify:release` 结果、性能实测、Gemini Live 结果、依赖审计、剩余未完成项和工作区状态。
+Goal 完成记录包含阶段 Commit、`pnpm verify:release` 结果、性能实测、Gemini Live 结果、依赖审计、剩余未完成项和工作区状态。
+
+P0–P10 已按顺序完成。同一次完整 `pnpm verify:release` 已通过；真实 Rubric 与 Analyzer 各调用一次，生产审计全严重度为 0，无剩余功能项。P10 阶段 Conventional Commit 与本记录一并提交；三项用户测试套件数据变更不属于该提交。

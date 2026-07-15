@@ -1,6 +1,6 @@
 # Cortex Eval
 
-Cortex Eval 正在按 `tasks/00_INDEX.md` 的 P0–P10 顺序实现。本仓库当前已完成 P0–P4：Contracts、Domain、十表 SQLite、资源 Application、Local API 和资源管理 Web 已落地。Run、Evaluation、Work Package、Reporting、Analysis、Canonical Export 和目标 CLI 尚未注册。
+Cortex Eval 已按 `tasks/00_INDEX.md` 的 P0–P10 顺序完成当前 Goal。P10 已闭环 Canonical Export API/CLI、日志轮转、资源压力、性能、安全、OpenAPI、WCAG、完整 E2E、Runtime Doctor 与独立变更复审；使用 `GOOGLE_API_KEY` 的真实 Gemini Rubric 和 Analyzer 已在同一次完整 `pnpm verify:release` 中通过。最终状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。
 
 ## 当前可用能力
 
@@ -13,6 +13,7 @@ Cortex Eval 正在按 `tasks/00_INDEX.md` 的 P0–P10 顺序实现。本仓库�
 - 通过同源 Web/API 管理 Test Suite、Case、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt。
 - 使用服务端分页、组合过滤、Case 双编辑器、原子导入导出、配置探测、Prompt 预览与引用影响。
 - 在 1440×900、1280×800 Reduced Motion 和小于 1024px 提示场景运行生产 Playwright E2E。
+- 通过 `POST /api/v1/data/export` 或 `data export` 生成十实体 Canonical JSONL，并由独立接收端完成四类对账后原子发布。
 
 ## 环境
 

@@ -14,7 +14,7 @@
 - P2 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
 - P3 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
 - P4 Web 入口：[apps/web/src](../apps/web/src)
-- P9 Analysis、平台与离线执行、当前决策和完整 Execution Analysis Import 已完成完整门禁与独立变更复审；P10 Canonical Export 与最终硬化尚未开始。
+- P9 Analysis、平台与离线执行、当前决策和完整 Execution Analysis Import 已完成完整门禁与独立变更复审；P10 Canonical Export API/CLI、双重对账、确定性硬化门禁和独立变更复审已闭环，同一次完整发布调用中的真实 Gemini Rubric 与 Analyzer 已通过。
 
 ## 单文件 SQLite
 
@@ -1185,3 +1185,85 @@ Work Package 可以依赖 Reporting 与 Domain，以复用同一纯报告算法�
 ### 状态
 
 生效。
+
+## P10 Canonical Export 身份与传输边界
+
+### 决策
+
+Canonical Export 首次对外注册前修正 v1 实体身份：具有 UUID 主键的资源、Run 与当前 Analysis 使用 `{ id }`；没有独立 UUID 的 Case Result 和 Eval Result 使用 `{ runId, caseKey }` 复合 `entityKey`。Artifact Owner 同样使用显式判别 Key，不生成伪 UUID，也不通过最大 ID、时间或最近记录推断身份。
+
+Canonical Export 使用独立 `EXPORT_START | FILE_START | FILE_CHUNK | FILE_END | EXPORT_END` NDJSON 传输协议，不复用 Work Package 的 `PACKAGE_*` 身份。十类实体文件的类型、路径和字节顺序固定；排序只使用 UTF-8/ASCII 二进制规则，不使用 Locale 或数据库默认 Collation。
+
+Artifact 的 `present/actual*` 表示源 Artifact 已按预期 Hash 和大小验证可用；`included/exportPath` 独立表示文件是否复制进本次导出。`sourcePath` 保存原始元数据路径。Raw Evidence 的全局开关只控制复制，不改变源可用性事实。
+
+### 原因
+
+Case Result 与 Eval Result 的真实主键是复合键，强制 UUID 会制造不可验证身份。Work Package Transport 绑定 Package ID 和其专用 Manifest，不能冒充迁移导出协议。源文件存在与导出内嵌是两个不同事实，混用会让“存在但未选择复制”和“真实缺失”无法区分。
+
+### 代码影响
+
+`canonical-export-contracts.ts` 使用显式 Entity/Owner Key，冻结十类 Entity File 和 Canonical Export Content-Type/事件联合。Application 负责稳定投影；SQLite 使用 owner-only Backup 并在投影前复用当前行 Mapper；Local Server 在成功响应前从磁盘对账；`packages/canonical-export` 接收端不信任服务声明，独立重算后原子发布；CLI 只通过 Local API 消费。Canonical Import、PostgreSQL、多用户与 Web 入口仍不注册。
+
+### 测试影响
+
+契约测试覆盖复合 Key、旧 `entityId` 拒绝、固定文件顺序、Artifact Presence/Inclusion 不变量和独立 Transport 事件。后续测试必须覆盖重复/乱序/截断、Hash/大小、跨导出稳定字节和完整引用矩阵。
+
+### 排障影响
+
+身份对账失败先检查显式 Key 与冻结引用，不生成 UUID 替代复合键。Transport 错误先检查 Export ID、文件顺序、Sequence、Hash 和截断；Artifact 差异分别检查源可用性与导出复制状态。
+
+### 状态
+
+生效，Application/Storage/API/CLI、独立接收端、真实 Runtime 测试与同一次发布调用中的真实 Gemini Rubric/Analyzer 均已落地；P10 完成。
+
+## P10 Artifact 缺失降级与双重对账发布
+
+### 决策
+
+Artifact `present=true` 只在源文件经稳定描述符读取且实际 Hash/大小与持久预期完全相等时成立；`included=true` 仅适用于调用方显式选择复制的 `RAW_PROMPTFOO_EVIDENCE`。源缺失、符号链接、硬链接、并发替换、大小或 Hash 不匹配统一保留预期元数据并降级为 `present=false/included=false`，不阻止规范化实体导出。
+
+调用方的 Raw 选择是接收端持有的授权事实，不能只信任服务端 Manifest。Manifest 开关必须与请求完全一致，且只有 Run 所有的 `RAW_PROMPTFOO_EVIDENCE` 可以使用 `artifacts/runs/<runId>/raw-promptfoo-evidence.bin` 规范路径标记为包含；任何授权漂移、非 Raw 包含或路径漂移都在原子发布前失败。
+
+Local Server 必须在打开 200 前从 owner-only 工作区重新计算四类对账；CLI 接收端必须在独立 staging 中再次计算，并要求其结果与传输的 `reconciliation.json` 字节语义完全一致。任何事件乱序、重复、截断、文件差异或对账伪造都不得发布目标目录。
+
+### 原因
+
+历史 Artifact 可因人工清理或旧版本缺陷缺失，但 SQLite 中的规范化业务事实仍可迁移。把缺失 Artifact 提升为全导出失败会丢失更多可靠事实；反过来，仅信任服务端 PASS 会使传输损坏或错误实现进入迁移包。源可用性、复制选择和规范化数据完整性必须分别建模。
+
+### 测试影响
+
+测试覆盖 Raw 存在但未选择复制、显式复制、源缺失/Hash 不符、十文件磁盘读回、传输截断、伪造 checked 数、工作区清理和真实 Runtime HTTP→接收器发布。
+
+### 状态
+
+生效。
+
+## P10 发布门禁、日志保留与测量协议
+
+### 决策
+
+`pnpm verify:release` 必须在一次调用中先完成全部确定性 `pnpm verify`，再顺序执行环境校验、官方 npm Registry 生产依赖审计、完整 Runtime Doctor、一次真实 Gemini `llm-rubric` 和一次真实 Gemini Analyzer。两次模型调用都使用显式版本化配置、Env Secret 引用和官方 SDK；每条 Provider 链总尝试数精确为 1，不允许 Bridge、SDK 或外层编排自动重试。Release Report 只保存环境、模型标识、组件/结构计数与审计结果，不保存 Secret、Prompt 展开值或模型正文。
+
+P10 Live 配置引用当前运行环境提供的 `GOOGLE_API_KEY`。Gemini `responseJsonSchema` 使用其稳定支持的顶层 Analysis/Evidence 结构；递归 Proposal 只声明 object/null，并继续由统一 `AnalysisOutputV1Schema` 完整校验。该投影只处理 Provider 能力兼容，不改变跨入口输出契约。
+
+文本日志的“最近 10 个文件”定义为当前活动文件和 9 个历史轮转文件合计 10 个，不解释为 10 个历史文件再加当前文件。单文件阈值保持 10 MiB。
+
+千级导入、Work Package 导出、Execution Result 导入和报告分别预热 1 次、测量 5 次并以中位数验收；查询预热 10 次、测量 100 次并使用 nearest-rank p95/p99；两个目标 Web 视口各进行 5 次完整导航并以最慢样本验收。性能噪音只允许在相同环境完整重跑一次，不修改阈值。
+
+生产依赖审计命令固定显式使用 `https://registry.npmjs.org`。本机或用户级 Registry 镜像不参与漏洞事实，避免缺少 advisory endpoint 的镜像把基础设施错误误报为漏洞结论。
+
+### 原因
+
+分开运行确定性测试和 Live Smoke 不能证明两者属于同一发布候选与同一环境。显式配置和单次尝试让真实模型证据可追溯，不把隐藏重试当作通过。日志总数需要消除“当前加十份历史”的歧义。统一预热、样本和统计口径使阈值具有可重复含义。漏洞审计必须依赖有正式 advisory API 的事实源。
+
+### 代码影响
+
+`release-gate.ts` 固定顺序、环境和结果不变量，并要求 Rubric 与 Analyzer 结果分别保存非空的冻结模型标识；`release-gate-production.ts` 从两条实际调用使用的已校验定义写入模型标识，负责真实环境、审计、Runtime Doctor、Rubric 和 Analyzer 装配；`release-gate-contracts.ts` 校验 Secret-free Live 配置。`local-logger.ts` 的默认历史文件数为 9。性能测试在各自真实边界打印结构化样本结果。
+
+### 测试影响
+
+单元测试先固定 Release Gate 顺序、失败短路、审计解析、配置闭合和脱敏结果；生产门禁再执行真实外部调用。日志测试验证轮转后文件总数精确为 10。SQLite、Report、Work Package、Execution Import 与 Playwright 性能测试使用统一 P10 协议，Canonical Runtime 连续导出 20 次并验证临时资源清零。
+
+### 状态
+
+确定性实现、独立门禁和变更复审已生效；同一次 `pnpm verify:release` 的两项真实 Gemini Smoke 已通过，P10 完成。

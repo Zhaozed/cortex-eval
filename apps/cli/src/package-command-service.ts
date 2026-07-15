@@ -79,7 +79,10 @@ export class MacOsCliProcessIdentity implements CliProcessIdentity {
 }
 
 // Restrict platform commands to the local loopback service.
-function localApiUrl(baseUrl: string): URL {
+export function localApiUrl(
+  baseUrl: string,
+  pathname: "/api/v1/work-packages/export" | "/api/v1/data/export" = "/api/v1/work-packages/export"
+): URL {
   let url: URL;
   try {
     url = new URL(baseUrl);
@@ -99,11 +102,11 @@ function localApiUrl(baseUrl: string): URL {
   ) {
     throw new Error("VALIDATION_FAILED");
   }
-  return new URL("/api/v1/work-packages/export", url);
+  return new URL(pathname, url);
 }
 
 // Stream a Web ReadableStream without converting the response into one aggregate buffer.
-async function* responseChunks(
+export async function* responseChunks(
   stream: ReadableStream<Uint8Array>,
   signal: AbortSignal
 ): AsyncGenerator<Uint8Array> {
@@ -173,7 +176,7 @@ async function readBoundedError(response: Response): Promise<Uint8Array | null> 
 }
 
 // Parse only the strict public API error envelope and discard remote prose.
-async function apiErrorCode(response: Response): Promise<string> {
+export async function apiErrorCode(response: Response): Promise<string> {
   const contentType = response.headers.get("content-type")?.split(";", 1)[0]?.trim();
   if (contentType !== "application/json") return "PROVIDER_REQUEST_FAILED";
   const bytes = await readBoundedError(response);

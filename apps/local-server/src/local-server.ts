@@ -143,6 +143,8 @@ export interface LocalServerOptions {
   readonly runHandlers?: LocalRunHandlers | undefined;
   /** Closed P7 Work Package export handler, absent until fully composed. */
   readonly workPackageExportHandler?: LocalApiHandler | undefined;
+  /** Closed P10 Canonical Export handler, absent until fully reconciled. */
+  readonly canonicalExportHandler?: LocalApiHandler | undefined;
   /** Exact loopback authorities accepted by Host validation. */
   readonly allowedHosts?: readonly string[] | undefined;
   /** Optional resilient request business logger. */
@@ -253,6 +255,15 @@ async function registerResourceRoutes(
     "/api/v1/test-suites",
     "createTestSuite",
     options.resourceHandlers.createTestSuite,
+    64 * 1024
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "POST",
+    "/api/v1/data/export",
+    "exportCanonicalData",
+    options.canonicalExportHandler,
     64 * 1024
   );
   registerHandlerRoute(

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -66,6 +66,34 @@ describe("P3 中文安全日志", () => {
     const names = (await readdir(root)).sort();
     expect(names).toEqual(["server.log", "server.log.1", "server.log.2"]);
     expect(await readFile(path, "utf8")).toContain("line-7");
+  });
+
+  it("默认严格限制为 10 MiB 且当前文件计入 10 文件总数", async () => {
+    const root = await mkdtemp(join(tmpdir(), "cortex-log-default-"));
+    roots.push(root);
+    const path = join(root, "server.log");
+    const sink = new RotatingTextLogSink({ path });
+    const nearThreshold = `${"x".repeat(10 * 1024 * 1024 - 1)}\n`;
+
+    for (let index = 0; index < 11; index += 1) {
+      await sink.write(nearThreshold);
+    }
+
+    const names = (await readdir(root)).sort();
+    expect(names).toEqual([
+      "server.log",
+      "server.log.1",
+      "server.log.2",
+      "server.log.3",
+      "server.log.4",
+      "server.log.5",
+      "server.log.6",
+      "server.log.7",
+      "server.log.8",
+      "server.log.9"
+    ]);
+    expect((await stat(path)).mode & 0o777).toBe(0o600);
+    expect((await stat(root)).mode & 0o777).toBe(0o700);
   });
 
   it("主日志写失败只输出脱敏 stderr 降级提示且不抛错", async () => {

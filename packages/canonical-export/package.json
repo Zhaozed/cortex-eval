@@ -1,0 +1,11 @@
+{
+  "name": "@cortex-eval/canonical-export",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@cortex-eval/contracts": "workspace:*",
+    "@cortex-eval/domain": "workspace:*",
+    "@cortex-eval/work-package": "workspace:*"
+  }
+}

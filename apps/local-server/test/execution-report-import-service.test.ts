@@ -12,6 +12,7 @@ import { encodeWorkPackageExport } from "@cortex-eval/work-package/src/work-pack
 import { workPackageCaseDefinitionHasher } from "@cortex-eval/work-package/src/work-package-domain-hashing.ts";
 import { validateWorkPackageDirectory } from "@cortex-eval/work-package/src/work-package-validator.ts";
 import { materializeWorkPackageFixture } from "@cortex-eval/work-package/test-support/work-package-fixture.ts";
+import { runBenchmark } from "../../../tooling/src/benchmark-harness.ts";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { materializeCompletedOfflineReport } from "../../web/test-support/offline-report-e2e-fixture.ts";
@@ -140,4 +141,57 @@ describe("Execution Report Import Service", () => {
       )
     ).rejects.toThrow("WORK_PACKAGE_LOCKED");
   });
+
+  it("千级 Execution Report 完整导入预热一次、测量五次的中位数不超过十秒", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "cortex-report-import-performance-"));
+    const source = await mkdtemp(join(tmpdir(), "cortex-report-import-performance-source-"));
+    roots.push(parent, source);
+    const manifest = await materializeWorkPackageFixture(source, { caseCount: 1_000 });
+    expect(manifest.cases).toHaveLength(1_000);
+    const packagePath = join(parent, "package");
+    await materializeCompletedOfflineReport({
+      exportBody: await exportBytes(source),
+      packagePath,
+      executionId: EXECUTION_ID
+    });
+    let nonce = 0;
+    const benchmark = await runBenchmark(
+      async () => {
+        const projectRoot = await mkdtemp(join(tmpdir(), "cortex-report-import-measurement-"));
+        roots.push(projectRoot);
+        const storage = await initializeSqliteStorage({ projectRoot });
+        try {
+          const service = new ExecutionReportImportService({
+            transactionManager: storage.createTransactionManager(),
+            idGenerator: { nextId: (): string => RUN_ID },
+            clock: { now: (): string => "2026-07-15T00:10:00.000Z" },
+            processIdentity: {
+              processStartedAt: (): Promise<string> => Promise.resolve(PROCESS_STARTED_AT)
+            },
+            nonce: (): string =>
+              `import_performance_${String(++nonce).padStart(2, "0")}_${randomUUID()}`
+          });
+          const result = await service.importReport(
+            {
+              contractVersion: "cortex.execution-report-import-request.v1",
+              packagePath,
+              executionId: EXECUTION_ID
+            },
+            new AbortController().signal
+          );
+          expect(result).toMatchObject({ ok: true, value: { idempotent: false } });
+        } finally {
+          await storage.close();
+        }
+      },
+      1,
+      5
+    );
+
+    expect(benchmark.environment).toMatchObject({ platform: "darwin", architecture: "arm64" });
+    expect(benchmark.medianMs).toBeLessThanOrEqual(10_000);
+    process.stdout.write(
+      `${JSON.stringify({ gate: "P10_EXECUTION_RESULT_IMPORT_PERFORMANCE", benchmark })}\n`
+    );
+  }, 120_000);
 });

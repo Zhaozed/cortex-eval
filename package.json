@@ -49,6 +49,10 @@
     "vitest": "4.1.10"
   },
   "dependencies": {
+    "@cortex-eval/application": "workspace:*",
+    "@cortex-eval/contracts": "workspace:*",
+    "@cortex-eval/domain": "workspace:*",
+    "@cortex-eval/evaluation-adapters": "workspace:*",
     "@google/genai": "2.11.0",
     "openai": "6.46.0"
   }

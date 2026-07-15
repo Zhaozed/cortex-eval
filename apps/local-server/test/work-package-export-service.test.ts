@@ -12,6 +12,7 @@ import { InMemoryApplicationStore } from "@cortex-eval/application/test/test-sup
 import { CaseImportWorkspaceManager } from "@cortex-eval/storage-sqlite/src/case-import-workspace.ts";
 import { receiveWorkPackageExport } from "@cortex-eval/work-package/src/work-package-export-receiver.ts";
 import { validateWorkPackage } from "@cortex-eval/work-package/src/work-package-validator.ts";
+import { runBenchmark } from "../../../tooling/src/benchmark-harness.ts";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { WorkPackageExportService } from "../src/work-package-export-service.ts";
@@ -32,73 +33,14 @@ async function temporaryRoot(prefix: string): Promise<string> {
   return root;
 }
 
-function seed(store: InMemoryApplicationStore): void {
+function seed(store: InMemoryApplicationStore, caseCount = 1): void {
   const suite: TestSuite = {
     id: ID,
     name: "Export",
     description: "service",
-    caseCount: 1,
+    caseCount,
     suiteHash: HASH_A,
     revision: 1,
-    createdAt: "2026-07-14T00:00:00.000Z",
-    updatedAt: "2026-07-14T00:00:00.000Z"
-  };
-  const definition = {
-    caseKey: "case-1",
-    description: "service",
-    threshold: 1,
-    task: "evaluate",
-    requestBody: { text: "hello" },
-    metadata: {
-      requestId: "req-1",
-      taskId: "task-1",
-      businessModule: "service",
-      scenarioTag: "roundtrip"
-    },
-    assertions: [
-      {
-        type: "llm-rubric",
-        metric: "quality",
-        weight: 1,
-        rubricPrompt: "prompt://quality"
-      }
-    ]
-  };
-  const storedCase: StoredTestCase = {
-    id: "018f22aa-33bb-7ccc-8ddd-eeeeeeeeeee6",
-    suiteId: ID,
-    caseKey: "case-1",
-    ordinal: 0,
-    description: "service",
-    businessModule: "service",
-    scenarioTag: "roundtrip",
-    assertionTypes: ["llm-rubric"],
-    metrics: ["quality"],
-    definition,
-    definitionJson: {
-      contractVersion: "cortex.case-definition.v1",
-      description: "service",
-      threshold: 1,
-      vars: { task: "evaluate", request_body: { text: "hello" } },
-      metadata: {
-        case_id: "case-1",
-        req_id: "req-1",
-        task_id: "task-1",
-        business_module: "service",
-        scenario_tag: "roundtrip"
-      },
-      assert: [
-        {
-          type: "llm-rubric",
-          metric: "quality",
-          weight: 1,
-          rubricPrompt: "prompt://quality"
-        }
-      ]
-    },
-    rubricPromptKeys: ["quality"],
-    definitionHash: HASH_B,
-    revision: 0,
     createdAt: "2026-07-14T00:00:00.000Z",
     updatedAt: "2026-07-14T00:00:00.000Z"
   };
@@ -176,7 +118,64 @@ function seed(store: InMemoryApplicationStore): void {
     }
   ];
   store.seedSuite(suite);
-  store.seedCase(storedCase);
+  for (let ordinal = 0; ordinal < caseCount; ordinal += 1) {
+    const number = String(ordinal + 1).padStart(4, "0");
+    const caseKey = `case-${number}`;
+    const requestId = `req-${number}`;
+    const taskId = `task-${number}`;
+    const assertion = {
+      type: "llm-rubric",
+      metric: "quality",
+      weight: 1,
+      rubricPrompt: "prompt://quality"
+    } as const;
+    const definition = {
+      caseKey,
+      description: "service",
+      threshold: 1,
+      task: "evaluate",
+      requestBody: { text: "hello" },
+      metadata: {
+        requestId,
+        taskId,
+        businessModule: "service",
+        scenarioTag: "roundtrip"
+      },
+      assertions: [assertion]
+    };
+    const storedCase: StoredTestCase = {
+      id: `018f22aa-33bb-7ccc-8ddd-${String(ordinal + 6).padStart(12, "0")}`,
+      suiteId: ID,
+      caseKey,
+      ordinal,
+      description: "service",
+      businessModule: "service",
+      scenarioTag: "roundtrip",
+      assertionTypes: ["llm-rubric"],
+      metrics: ["quality"],
+      definition,
+      definitionJson: {
+        contractVersion: "cortex.case-definition.v1",
+        description: "service",
+        threshold: 1,
+        vars: { task: "evaluate", request_body: { text: "hello" } },
+        metadata: {
+          case_id: caseKey,
+          req_id: requestId,
+          task_id: taskId,
+          business_module: "service",
+          scenario_tag: "roundtrip"
+        },
+        assert: [assertion]
+      },
+      rubricPromptKeys: ["quality"],
+      definitionHash: HASH_B,
+      revision: 0,
+      createdAt: "2026-07-14T00:00:00.000Z",
+      updatedAt: "2026-07-14T00:00:00.000Z"
+    };
+    store.seedCase(storedCase);
+  }
   for (const configuration of configurations) store.seedConfiguration(configuration);
 }
 
@@ -241,4 +240,67 @@ describe("platform Work Package export service", () => {
     ).resolves.toMatchObject({ manifest: { packageId: ID } });
     expect(await readdir(temporary)).toEqual([]);
   });
+
+  it("千级 Case 完整导出与接收预热一次、测量五次的中位数不超过十秒", async () => {
+    const project = await temporaryRoot("cortex-work-package-performance-");
+    const temporary = join(project, "tmp");
+    const targets = join(project, "targets");
+    await mkdir(temporary, { mode: 0o700 });
+    await mkdir(targets, { mode: 0o700 });
+    const store = new InMemoryApplicationStore();
+    seed(store, 1_000);
+    const service = new WorkPackageExportService({
+      snapshots: new WorkPackageExportSnapshotService({ transactionManager: store }),
+      workspaces: new CaseImportWorkspaceManager({
+        containmentRoot: project,
+        temporaryRoot: temporary,
+        processLiveness: {
+          processStartedAt: (): Promise<string> => Promise.resolve("process-start")
+        },
+        now: (): number => Date.parse("2026-07-14T00:00:00.000Z"),
+        nonce: (): string => "performance-workspace-nonce",
+        pid: process.pid,
+        ttlMs: 60_000,
+        workspacePrefix: "work-package-export-"
+      }),
+      nextId: (): string => ID,
+      now: (): string => "2026-07-14T00:00:00.000Z"
+    });
+    let iteration = 0;
+    const benchmark = await runBenchmark(
+      async () => {
+        iteration += 1;
+        const body = await service.prepare(
+          {
+            suiteId: ID,
+            endpointConfigId: ENDPOINT_ID,
+            evaluatorConfigId: EVALUATOR_ID,
+            analyzerConfigId: ANALYZER_ID,
+            analysisPromptId: ANALYSIS_ID
+          },
+          new AbortController().signal
+        );
+        const target = join(targets, `package-${iteration}`);
+        const result = await receiveWorkPackageExport(body, target, {
+          nonce: `performance-receiver-${iteration}`,
+          owner: {
+            pid: process.pid,
+            processStartedAt: "process-start",
+            executionId: null,
+            acquiredAt: "2026-07-14T00:00:00.000Z"
+          }
+        });
+        expect(result.targetPath).toBe(target);
+      },
+      1,
+      5
+    );
+
+    expect(benchmark.environment).toMatchObject({ platform: "darwin", architecture: "arm64" });
+    expect(benchmark.medianMs).toBeLessThanOrEqual(10_000);
+    process.stdout.write(
+      `${JSON.stringify({ gate: "P10_WORK_PACKAGE_EXPORT_PERFORMANCE", benchmark })}\n`
+    );
+    expect(await readdir(temporary)).toEqual([]);
+  }, 90_000);
 });

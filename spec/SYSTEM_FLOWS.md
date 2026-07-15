@@ -115,7 +115,7 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 - 当前 P4–P5 Web：[apps/web/src](../apps/web/src)
 - 当前 Work Package 文件运行时：[packages/work-package/src](../packages/work-package/src)
 - 当前离线 CLI：[apps/cli/src](../apps/cli/src)
-- Promptfoo 外部链、Eval/Report/Analysis 原子持久化、平台重跑、Work Package REST→Evaluation→Report→显式 Analysis、Reporting Ajv Diff/聚合/Markdown 和完整 Execution Report/Analysis Import 已落地；Canonical Export 等待 P10。
+- Promptfoo 外部链、Eval/Report/Analysis 原子持久化、平台重跑、Work Package REST→Evaluation→Report→显式 Analysis、Reporting Ajv Diff/聚合/Markdown、完整 Execution Report/Analysis Import、Canonical Export 请求授权绑定与双重对账发布、保存实际模型标识的确定性硬化门禁、独立变更复审及同一次发布调用中的真实 Gemini Rubric/Analyzer 均已落地；P0–P10 完成。
 - [APPLICATION/RUNS.md](APPLICATION/RUNS.md)
 - [APPLICATION/EXECUTION_IMPORTS.md](APPLICATION/EXECUTION_IMPORTS.md)
 - [PACKAGES/EVALUATION_ADAPTERS.md](PACKAGES/EVALUATION_ADAPTERS.md)

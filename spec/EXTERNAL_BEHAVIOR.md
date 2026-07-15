@@ -2,7 +2,7 @@
 
 ## 当前实现边界
 
-当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST、Evaluation 与 Report、查看逐 Case 结果、取消、刷新恢复、创建 Retry/Force 新版本，以及查询和导出统一 Report。Report 完成后可以显式执行 Case Analysis、查看结构化 Evidence 并决策 Proposal。`PIPELINE` 自动推进到 Report；`STAGED` 可按 Stage 显式启动。Local Server 另提供 Work Package v1 流式导出与完整 Execution Report/Analysis Import API；CLI 已注册包导出/校验、离线 REST、Evaluation、Report、Analyze、默认三阶段且可显式追加 Analysis 的 Pipeline、两类 `result import`，并支持 `--retry-failed` 与 `--force` 创建新 Execution。Canonical Export 尚未暴露。
+当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST、Evaluation 与 Report、查看逐 Case 结果、取消、刷新恢复、创建 Retry/Force 新版本，以及查询和导出统一 Report。Report 完成后可以显式执行 Case Analysis、查看结构化 Evidence 并决策 Proposal。`PIPELINE` 自动推进到 Report；`STAGED` 可按 Stage 显式启动。Local Server 另提供 Work Package v1、Canonical Export v1 与完整 Execution Report/Analysis Import API；CLI 已注册包导出/校验、`data export`、离线 REST、Evaluation、Report、Analyze、默认三阶段且可显式追加 Analysis 的 Pipeline、两类 `result import`，并支持 `--retry-failed` 与 `--force` 创建新 Execution。
 
 ## 使用方式
 

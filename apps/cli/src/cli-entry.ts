@@ -18,6 +18,7 @@ import { runCli } from "./cli-program.ts";
 import { LocalEvaluationCommandService } from "./evaluation-command-service.ts";
 import { LocalAnalysisCommandService } from "./analysis-command-service.ts";
 import { HttpPackageCommandService, MacOsCliProcessIdentity } from "./package-command-service.ts";
+import { HttpDataExportCommandService } from "./data-export-command-service.ts";
 import { LocalPipelineCommandService } from "./pipeline-command-service.ts";
 import { LocalRestCommandService } from "./rest-command-service.ts";
 import { HttpResultImportCommandService } from "./result-import-command-service.ts";
@@ -32,6 +33,16 @@ const processIdentity = new MacOsCliProcessIdentity();
 const now = (): string => new Date().toISOString();
 const packageCommands = new HttpPackageCommandService({
   contextHasher: cliExecutionContextHasher,
+  processIdentity,
+  now,
+  cleanupFailureSink: {
+    record: (): Promise<void> => {
+      process.stderr.write(`${cliMessages.WORK_PACKAGE_TEMP_CLEANUP_FAILED}\n`);
+      return Promise.resolve();
+    }
+  }
+});
+const dataCommands = new HttpDataExportCommandService({
   processIdentity,
   now,
   cleanupFailureSink: {
@@ -134,6 +145,7 @@ try {
     analysisCommands,
     pipelineCommands,
     resultCommands,
+    dataCommands,
     output: {
       stdout: (value): boolean => process.stdout.write(value),
       stderr: (value): boolean => process.stderr.write(value)

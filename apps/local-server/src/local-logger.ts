@@ -101,12 +101,12 @@ export class RotatingTextLogSink implements TextLogSink {
   readonly #options: ResolvedRotatingTextLogSinkOptions;
   #tail: Promise<void> = Promise.resolve();
 
-  /** Create one 10 MiB / 10-file sink unless explicit test limits are supplied. */
+  /** Create one 10 MiB / 10-total-file sink unless explicit test limits are supplied. */
   public constructor(options: RotatingTextLogSinkOptions) {
     this.#options = {
       path: options.path,
       maximumBytes: options.maximumBytes ?? 10 * 1024 * 1024,
-      retainedFiles: options.retainedFiles ?? 10
+      retainedFiles: options.retainedFiles ?? 9
     };
     if (this.#options.maximumBytes < 1 || this.#options.retainedFiles < 1) {
       throw new Error("LOG_ROTATION_OPTIONS_INVALID");

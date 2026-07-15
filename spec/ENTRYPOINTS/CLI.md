@@ -12,13 +12,14 @@ CLI 不直接访问平台 SQLite，不复制状态机、统计、Case 写入或�
 
 ## 实现状态
 
-已落地 `apps/cli` 的 `package export`、`package validate`、`rest run`、`eval run`、`report build`、`analyze run`、默认 REST→Evaluation→Report 且可显式追加 Analysis 的 `pipeline run`，以及 Report/Analysis `result import`。旧 TypeScript REST 运行器已经删除。Canonical Export 尚未闭环，因此 `data export` 不注册，也不出现在 Help。
+已落地 `apps/cli` 的 `package export`、`package validate`、`data export`、`rest run`、`eval run`、`report build`、`analyze run`、默认 REST→Evaluation→Report 且可显式追加 Analysis 的 `pipeline run`，以及 Report/Analysis `result import`。旧 TypeScript REST 运行器已经删除。
 
 ## 代码事实入口
 
 - [cli-program.ts](../../apps/cli/src/cli-program.ts)：命令、参数、机器协议和退出码映射。
 - [cli-entry.ts](../../apps/cli/src/cli-entry.ts)：生产依赖装配。
 - [package-command-service.ts](../../apps/cli/src/package-command-service.ts)：平台导出与本地校验。
+- [data-export-command-service.ts](../../apps/cli/src/data-export-command-service.ts)：Canonical Export HTTP 流、独立对账和原子目录发布。
 - [rest-command-service.ts](../../apps/cli/src/rest-command-service.ts)：离线 REST 阶段入口。
 - [evaluation-command-service.ts](../../apps/cli/src/evaluation-command-service.ts)：离线 Evaluation 阶段入口。
 - [work-package-report-run-service.ts](../../apps/cli/src/work-package-report-run-service.ts)：离线 Report 对账、JSON/Markdown 写入和阶段提交。
@@ -35,7 +36,7 @@ CLI 不直接访问平台 SQLite，不复制状态机、统计、Case 写入或�
 
 ## 对外接口
 
-当前命令为 `package export`、`package validate`、`rest run`、`eval run`、`report build`、`analyze run`、`pipeline run` 和 `result import`。`result import --type report | analysis` 显式选择导入类型。后续阶段只剩 `data export` 待注册，未实现命令不得提前暴露。
+当前命令为 `package export`、`package validate`、`data export`、`rest run`、`eval run`、`report build`、`analyze run`、`pipeline run` 和 `result import`。`data export --output <path>` 默认只导出 Artifact 元数据，`--include-raw-evidence` 显式复制 Raw Promptfoo Evidence；`result import --type report | analysis` 显式选择导入类型。未实现命令不得提前暴露。
 
 当前 `pipeline run` 默认执行 REST、Evaluation 与 Report。只有显式提供 `--analysis-selector failed | errors | all` 才执行 Analysis，且必须已有或同时选择 Report，并使用工作包冻结的 Analyzer、Analysis Prompt 和创建 Execution 时冻结的 Analysis 并发。
 
@@ -52,6 +53,8 @@ REST 单阶段命令也在创建 Execution 前完整读取 Endpoint、全部 Cas
 后续阶段通过 Execution ID 读取同一执行的既有产物。已完成阶段不可覆盖。参数、环境或运行时预检失败时不开始阶段；阶段开始后的系统失败写入该阶段 `ERROR`，前置失败保持 `PENDING`。
 
 同一工作包写入由跨进程锁串行化，不同工作包可以并行。`package export` 在发起 Local API 请求前按 Owner、PID 启动身份和 TTL 清理目标父目录中的失活 staging，不删除存活或身份不稳定的目录；正式目标名拒绝恢复器保留的 `.cortex-export-*` 前缀。Endpoint、Evaluator 和 Rubric Prompt 在实际消费时复核 Manifest 文件 Hash 与大小。平台导入幂等由 Application 处理，CLI 不直接写平台数据库。
+
+`data export` 使用相同 owner-only staging 与失活恢复边界，但消费独立 Canonical Transport。接收端持有本次命令的 `--include-raw-evidence` 授权事实，并要求 Manifest 开关完全一致；未授权 Raw、非 Raw Artifact 包含或非规范 Raw 路径一律拒绝，授权漂移对外收敛为 `PROVIDER_REQUEST_FAILED`。接收端不信任服务端对账声明：它按 Manifest 重新读取十类实体和可选 Artifact，复算计数、引用、实体 Hash、文件 Hash，并要求与 `reconciliation.json` 完全一致后才发布目标目录。
 
 ## 错误收敛
 

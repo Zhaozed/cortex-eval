@@ -1,4 +1,3 @@
-import { performance } from "node:perf_hooks";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -64,15 +63,23 @@ describe("SQLite 千级 Case 性能门禁", () => {
       },
       clock: { now: (): string => NOW }
     });
-    const startedAt = performance.now();
-    const imported = await writer.replaceAllCases({
-      suiteId: "suite-1",
-      expectedSuiteRevision: 0,
-      definitions: Array.from({ length: 1_000 }, (_, index) => definition(index))
-    });
-    const importMs = performance.now() - startedAt;
-    expect(imported.ok).toBe(true);
-    expect(importMs).toBeLessThanOrEqual(10_000);
+    const definitions = Array.from({ length: 1_000 }, (_, index) => definition(index));
+    let suiteRevision = 0;
+    const importBenchmark = await runBenchmark(
+      async () => {
+        const imported = await writer.replaceAllCases({
+          suiteId: "suite-1",
+          expectedSuiteRevision: suiteRevision,
+          definitions
+        });
+        expect(imported.ok).toBe(true);
+        if (!imported.ok) return;
+        suiteRevision = imported.suite.revision;
+      },
+      1,
+      5
+    );
+    expect(importBenchmark.medianMs).toBeLessThanOrEqual(10_000);
 
     const benchmark = await runBenchmark(
       async () => {
@@ -91,12 +98,19 @@ describe("SQLite 千级 Case 性能门禁", () => {
           false
         );
       },
-      5,
-      30
+      10,
+      100
     );
     expect(benchmark.environment).toMatchObject({ platform: "darwin", architecture: "arm64" });
     expect(benchmark.p95Ms).toBeLessThanOrEqual(250);
     expect(benchmark.p99Ms).toBeLessThanOrEqual(500);
+    process.stdout.write(
+      `${JSON.stringify({
+        gate: "P10_SQLITE_PERFORMANCE",
+        import: importBenchmark,
+        query: benchmark
+      })}\n`
+    );
     await storage.close();
   }, 30_000);
 });

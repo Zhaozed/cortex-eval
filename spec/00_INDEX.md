@@ -4,7 +4,7 @@
 
 `spec/` 是 Cortex Eval 目标系统的稳定事实入口，服务人类工程师和 AI coding agent。产品行为以 [REQ.md](../REQ.md) 为来源，技术架构以 [TECH.md](../TECH.md) 为来源，文档组织规则以 [SPEC_DOC.md](../SPEC_DOC.md) 为来源。
 
-当前仓库已完成 P0–P9。平台与离线 REST→Evaluation→Report→显式 Analysis、Work Package v1 导出/校验、安全文件运行时、平台与离线 Retry/Force、连续 Evidence 追溯、Pipeline 写前完整 Evaluation 输入/Prompt/Runtime 预检、固定 Promptfoo 版本、真实取消到 CLI 130、Promptfoo Raw 有界流式 Source、Raw/Normalized/Report/Analysis Artifact、严格双遍读取、完整 Execution Report/Analysis Import、发布后同步失败的可见性补偿、当前命令未登记 Artifact 清理、Ajv Diff、SQLite 原子提交和受控 Promptfoo/Bridge 链已闭环。Case Assert 构建不设类型白名单，平台不复现或限制 Assert 执行；Bridge 只执行冻结 Evaluator 调用，不识别 Assertion/Metric。Analysis 使用直接官方 SDK 和结构化 Evidence，API/Web/CLI 与当前决策能力已闭环；Canonical Export 尚未闭环。当前状态由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
+当前仓库已完成 P0–P10。平台与离线 REST→Evaluation→Report→显式 Analysis、Work Package v1、Retry/Force、结构化 Evidence、完整 Execution Report/Analysis Import、Artifact 安全发布和受控 Promptfoo/Bridge 链已闭环。Case Assert 构建不设类型白名单，平台不复现或限制 Assert 执行；Bridge 只执行冻结 Evaluator 调用，不识别 Assertion/Metric。P10 已闭环 Canonical Export API/CLI、SQLite Backup 快照、十实体稳定 JSONL、复合 Result 身份、Artifact Presence/Inclusion、服务器与 CLI 双重四类对账、原子发布以及日志、资源压力、性能、安全、OpenAPI、WCAG、完整 E2E、Runtime Doctor 与独立变更复审；使用 `GOOGLE_API_KEY` 的真实 Gemini Rubric 与 Analyzer 已在同一次完整 `pnpm verify:release` 中通过。当前状态由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
 
 Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入口。每个阶段必须同步更新本索引和直接相关 spec，未落地能力不得提前改写为代码事实。
 

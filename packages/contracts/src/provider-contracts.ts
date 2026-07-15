@@ -98,7 +98,8 @@ const CommonLlmConfigShape = {
   structuredOutput: StructuredOutputSchema
 };
 
-const GeminiLlmConfigV1Schema = z.strictObject({
+/** Google Gemini-only LLM configuration used by provider-specific boundaries. */
+export const GeminiLlmConfigV1Schema = z.strictObject({
   ...CommonLlmConfigShape,
   providerType: z.literal("GOOGLE_GEMINI"),
   apiKey: EnvSecretRefSchema

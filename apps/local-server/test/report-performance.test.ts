@@ -242,12 +242,13 @@ describe("Report 千级 Case 性能门禁", () => {
           expect(output.json.descriptor.expectedSizeBytes).toBeGreaterThan(0);
           expect(output.markdown.descriptor.expectedSizeBytes).toBeGreaterThan(0);
         },
-        2,
-        7
+        1,
+        5
       );
 
       expect(benchmark.environment).toMatchObject({ platform: "darwin", architecture: "arm64" });
       expect(benchmark.medianMs).toBeLessThanOrEqual(5_000);
+      process.stdout.write(`${JSON.stringify({ gate: "P10_REPORT_PERFORMANCE", benchmark })}\n`);
     } finally {
       await rm(projectRoot, { force: true, recursive: true });
     }

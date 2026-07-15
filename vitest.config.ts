@@ -10,6 +10,7 @@ export default defineConfig({
         "apps/web/src/**/*.ts",
         "apps/web/src/**/*.tsx",
         "packages/application/src/**/*.ts",
+        "packages/canonical-export/src/**/*.ts",
         "packages/contracts/src/**/*.ts",
         "packages/domain/src/**/*.ts",
         "packages/storage-sqlite/src/**/*.ts",

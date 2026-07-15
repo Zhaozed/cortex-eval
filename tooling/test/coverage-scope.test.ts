@@ -15,4 +15,9 @@ describe("核心包覆盖率范围", () => {
     expect(config).toContain('"apps/cli/src/**/*.ts"');
     expect(config).toContain('"packages/work-package/src/**/*.ts"');
   });
+
+  it("显式纳入 P10 Canonical Export 独立接收端生产源码", async () => {
+    const config = await readFile(resolve(process.cwd(), "vitest.config.ts"), "utf8");
+    expect(config).toContain('"packages/canonical-export/src/**/*.ts"');
+  });
 });

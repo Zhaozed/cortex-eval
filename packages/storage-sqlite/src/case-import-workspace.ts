@@ -55,7 +55,12 @@ export interface CaseImportWorkspaceManagerOptions {
   readonly ttlMs: number;
   /** Closed internal workspace family prefix. */
   readonly workspacePrefix?:
-    "case-import-" | "case-export-" | "work-package-export-" | "analysis-import-" | undefined;
+    | "case-import-"
+    | "case-export-"
+    | "work-package-export-"
+    | "analysis-import-"
+    | "canonical-export-"
+    | undefined;
   /** Optional safe internal security event sink. */
   readonly onSecurityEvent?: ((event: WorkspaceSecurityEvent) => void | Promise<void>) | undefined;
 }
@@ -140,7 +145,11 @@ export class PsProcessLiveness implements ProcessLiveness {
 export class CaseImportWorkspaceManager {
   readonly #options: CaseImportWorkspaceManagerOptions;
   readonly #workspacePrefix:
-    "case-import-" | "case-export-" | "work-package-export-" | "analysis-import-";
+    | "case-import-"
+    | "case-export-"
+    | "work-package-export-"
+    | "analysis-import-"
+    | "canonical-export-";
 
   /** Create a manager over one controlled temporary root. */
   public constructor(options: CaseImportWorkspaceManagerOptions) {

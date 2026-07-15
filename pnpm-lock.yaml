@@ -11,6 +11,18 @@ importers:
 
   .:
     dependencies:
+      '@cortex-eval/application':
+        specifier: workspace:*
+        version: link:packages/application
+      '@cortex-eval/contracts':
+        specifier: workspace:*
+        version: link:packages/contracts
+      '@cortex-eval/domain':
+        specifier: workspace:*
+        version: link:packages/domain
+      '@cortex-eval/evaluation-adapters':
+        specifier: workspace:*
+        version: link:packages/evaluation-adapters
       '@google/genai':
         specifier: 2.11.0
         version: 2.11.0(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))
@@ -57,6 +69,9 @@ importers:
       '@cortex-eval/application':
         specifier: workspace:*
         version: link:../../packages/application
+      '@cortex-eval/canonical-export':
+        specifier: workspace:*
+        version: link:../../packages/canonical-export
       '@cortex-eval/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -84,6 +99,9 @@ importers:
       '@cortex-eval/application':
         specifier: workspace:*
         version: link:../../packages/application
+      '@cortex-eval/canonical-export':
+        specifier: workspace:*
+        version: link:../../packages/canonical-export
       '@cortex-eval/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -254,6 +272,18 @@ importers:
       js-yaml:
         specifier: 5.2.0
         version: 5.2.0
+
+  packages/canonical-export:
+    dependencies:
+      '@cortex-eval/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@cortex-eval/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@cortex-eval/work-package':
+        specifier: workspace:*
+        version: link:../work-package
 
   packages/contracts:
     dependencies:

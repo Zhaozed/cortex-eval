@@ -1,0 +1,53 @@
+{
+  "contractVersion": "cortex.release-live-config.v1",
+  "evaluator": {
+    "contractVersion": "cortex.llm-config.v1",
+    "providerType": "GOOGLE_GEMINI",
+    "model": "gemini-2.5-flash",
+    "apiKey": { "kind": "ENV_SECRET", "envKey": "GOOGLE_API_KEY" },
+    "thinkingLevel": "OFF",
+    "temperature": 0,
+    "topP": 1,
+    "maxOutputTokens": 1024,
+    "timeoutMs": 60000,
+    "structuredOutput": "JSON_OBJECT"
+  },
+  "analyzer": {
+    "contractVersion": "cortex.llm-config.v1",
+    "providerType": "GOOGLE_GEMINI",
+    "model": "gemini-2.5-flash",
+    "apiKey": { "kind": "ENV_SECRET", "envKey": "GOOGLE_API_KEY" },
+    "thinkingLevel": "OFF",
+    "temperature": 0,
+    "topP": 1,
+    "maxOutputTokens": 2048,
+    "timeoutMs": 60000,
+    "structuredOutput": "JSON_SCHEMA"
+  },
+  "rubricPrompt": {
+    "contractVersion": "cortex.prompt.v1",
+    "kind": "LLM_RUBRIC",
+    "promptKey": "release-rubric",
+    "messages": [
+      {
+        "role": "SYSTEM",
+        "content": "根据给定输出判断结果是否清晰表达成功事实，并返回评分与简短理由。"
+      }
+    ]
+  },
+  "analysisPrompt": {
+    "contractVersion": "cortex.prompt.v1",
+    "kind": "CASE_ANALYSIS",
+    "promptKey": "release-analysis",
+    "messages": [
+      {
+        "role": "SYSTEM",
+        "content": "分析输入事实并严格按响应 Schema 返回。Evidence 必须引用允许的 source 与 RFC 6901 fieldPath；本次只做诊断，不生成 proposal。"
+      },
+      {
+        "role": "USER",
+        "content": "Case={{case_definition}}\nOutput={{provider_output}}\nFailures={{failed_assertions}}\nDiffs={{expected_actual_diffs}}\nRubric={{llm_rubric_results}}\nContext={{run_context}}"
+      }
+    ]
+  }
+}
