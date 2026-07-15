@@ -5,6 +5,10 @@ import type {
   PromptDefinition
 } from "@cortex-eval/domain/src/domain-resource-models.ts";
 import { validateLlmConfig } from "@cortex-eval/domain/src/domain-resource-models.ts";
+import type {
+  ReportMetricSummary,
+  ReportSummary
+} from "@cortex-eval/reporting/src/report-aggregation.ts";
 
 import type { FrozenRunCase, RestExecutionErrorType } from "./run-rest-models.ts";
 
@@ -116,6 +120,14 @@ export interface PlatformRunContractVersions {
   readonly platformRestResults: "cortex.platform-rest-results.v1";
 }
 
+/** Persisted bounded Report statistics for one immutable Run version. */
+export interface PlatformReportSummary {
+  /** Complete overall Report statistics. */
+  readonly summary: ReportSummary;
+  /** Stable Metric summaries sorted by Metric name. */
+  readonly byMetric: readonly ReportMetricSummary[];
+}
+
 /** Current platform Run aggregate. */
 export interface PlatformRun {
   /** Internal Run identity. */
@@ -175,6 +187,14 @@ export interface PlatformRun {
   readonly evalNotEvaluatedCount: number;
   /** Complete REST result-set hash after stage commit. */
   readonly resultSetHash: string | null;
+  /** Frozen Evaluation invocation identity after Evaluation commit. */
+  readonly evaluationContextHash: string | null;
+  /** Complete Evaluation result-set identity after Evaluation commit. */
+  readonly evaluationResultSetHash: string | null;
+  /** Complete Report result-set identity after Report commit. */
+  readonly reportResultSetHash: string | null;
+  /** Bounded committed Report summary, absent before Report commit. */
+  readonly reportSummary: PlatformReportSummary | null;
   /** Complete immutable Artifact expectation facts. */
   readonly artifactManifest: RunArtifactManifest;
   /** Stable terminal system error code. */
@@ -223,6 +243,12 @@ export interface PlatformRunProgress {
   readonly evalNotEvaluatedCount: number;
   /** Complete REST result-set hash after stage commit. */
   readonly resultSetHash: string | null;
+  /** Frozen Evaluation invocation identity after Evaluation commit. */
+  readonly evaluationContextHash: string | null;
+  /** Complete Evaluation result-set identity after Evaluation commit. */
+  readonly evaluationResultSetHash: string | null;
+  /** Complete Report result-set identity after Report commit. */
+  readonly reportResultSetHash: string | null;
   /** Complete immutable Artifact expectation facts. */
   readonly artifactManifest: RunArtifactManifest;
   /** Stable terminal system error code. */
@@ -300,6 +326,9 @@ export function platformRunProgress(value: PlatformRun): PlatformRunProgress {
     evalErrorCount: value.evalErrorCount,
     evalNotEvaluatedCount: value.evalNotEvaluatedCount,
     resultSetHash: value.resultSetHash,
+    evaluationContextHash: value.evaluationContextHash,
+    evaluationResultSetHash: value.evaluationResultSetHash,
+    reportResultSetHash: value.reportResultSetHash,
     artifactManifest: value.artifactManifest,
     errorCode: value.errorCode,
     errorMessage: value.errorMessage,
@@ -418,7 +447,7 @@ export interface PlatformRunSummary {
   /** Internal Run identity. */
   readonly id: string;
   /** Strict source discriminator. */
-  readonly sourceType: "PLATFORM";
+  readonly sourceType: "PLATFORM" | "OFFLINE_IMPORT";
   /** Frozen Suite identity. */
   readonly suiteId: string;
   /** Frozen Suite display name. */

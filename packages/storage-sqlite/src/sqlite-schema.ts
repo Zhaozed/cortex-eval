@@ -217,6 +217,12 @@ export interface RunLogTable {
   summary_json: string | null;
   /** Complete stage result-set hash. */
   result_set_hash: string | null;
+  /** Frozen Evaluation invocation identity. */
+  evaluation_context_hash: string | null;
+  /** Complete Evaluation result-set identity. */
+  evaluation_result_set_hash: string | null;
+  /** Complete Report result-set identity. */
+  report_result_set_hash: string | null;
   /** Complete Artifact manifest JSON. */
   artifact_manifest_json: string;
   /** Stable terminal system error. */

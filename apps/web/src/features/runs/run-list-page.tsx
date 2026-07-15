@@ -123,6 +123,20 @@ function selectionKey(selection: RunSelection): string {
   return [selection.suiteId, selection.endpointConfigId, selection.evaluatorConfigId].join("\n");
 }
 
+// Route a complete imported Run directly to its normalized Report page.
+function runPath(run: {
+  readonly id: string;
+  readonly sourceType: "PLATFORM" | "OFFLINE_IMPORT";
+}): string {
+  const encodedId = encodeURIComponent(run.id);
+  return run.sourceType === "OFFLINE_IMPORT" ? `/runs/${encodedId}/report` : `/runs/${encodedId}`;
+}
+
+// Resolve one closed Run source label at the presentation boundary.
+function runSourceLabel(sourceType: "PLATFORM" | "OFFLINE_IMPORT"): string {
+  return sourceType === "PLATFORM" ? message("runs.platform") : message("runs.offlineImport");
+}
+
 /** Cursor-paged recent platform Runs with preflight-gated creation. */
 export function RunListPage({
   api,
@@ -299,10 +313,10 @@ export function RunListPage({
                   <TableCell>
                     <a
                       className="resource-link run-id-link"
-                      href={`/runs/${encodeURIComponent(run.id)}`}
+                      href={runPath(run)}
                       onClick={(event: MouseEvent<HTMLAnchorElement>) => {
                         event.preventDefault();
-                        onNavigate(`/runs/${encodeURIComponent(run.id)}`);
+                        onNavigate(runPath(run));
                       }}
                     >
                       {run.id}
@@ -310,7 +324,7 @@ export function RunListPage({
                   </TableCell>
                   <TableCell>{run.suiteName}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{message("runs.platform")}</Badge>
+                    <Badge variant="outline">{runSourceLabel(run.sourceType)}</Badge>
                   </TableCell>
                   <TableCell>{runStageLabel(run.stage)}</TableCell>
                   <TableCell>

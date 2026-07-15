@@ -5,6 +5,10 @@ import { CliSecretEnvironment } from "./cli-secret-environment.ts";
 import type { EvaluationRunCommandInput, RestRunCommandInput } from "./cli-program.ts";
 import type { CliProcessIdentity } from "./package-command-service.ts";
 import type { WorkPackageEvaluationRunResult } from "./work-package-evaluation-run-service.ts";
+import type {
+  WorkPackageReportRunInput,
+  WorkPackageReportRunResult
+} from "./work-package-report-run-service.ts";
 import type { WorkPackageRestRunResult } from "./work-package-rest-run-service.ts";
 
 /** REST stage port that consumes the Pipeline's frozen Secret snapshot. */
@@ -30,7 +34,13 @@ export interface PreparedEvaluationStageCommand {
   ) => Promise<WorkPackageEvaluationRunResult>;
 }
 
-/** Explicit dependencies for the currently closed REST to Evaluation Pipeline. */
+/** Report stage port that consumes the completed Evaluation version. */
+export interface PreparedReportStageCommand {
+  /** Complete Report JSON and Markdown on the Evaluation stage's exact Execution. */
+  readonly run: (input: WorkPackageReportRunInput) => Promise<WorkPackageReportRunResult>;
+}
+
+/** Explicit dependencies for the closed REST to Evaluation to Report Pipeline. */
 export interface LocalPipelineCommandServiceDependencies {
   /** Pure Execution context hash Port. */
   readonly contextHasher: WorkPackageExecutionContextHasher;
@@ -46,9 +56,11 @@ export interface LocalPipelineCommandServiceDependencies {
   readonly restCommands: PreparedRestStageCommand;
   /** Prepared Evaluation stage command. */
   readonly evaluationCommands: PreparedEvaluationStageCommand;
+  /** Prepared Report stage command. */
+  readonly reportCommands: PreparedReportStageCommand;
 }
 
-/** Current P7 Pipeline completion projection without future Report fields. */
+/** Complete P8 default Pipeline completion projection. */
 export interface WorkPackagePipelineRunResult {
   /** Immutable Work Package identity. */
   readonly packageId: string;
@@ -72,9 +84,17 @@ export interface WorkPackagePipelineRunResult {
   readonly rawArtifactPath: string;
   /** Fixed Normalized Eval Artifact path. */
   readonly normalizedArtifactPath: string;
+  /** Complete Report Result Set identity. */
+  readonly reportResultSetHash: string;
+  /** Complete stable Report summary. */
+  readonly reportSummary: WorkPackageReportRunResult["summary"];
+  /** Fixed Report JSON Artifact path. */
+  readonly reportJsonPath: string;
+  /** Fixed Report Markdown Artifact path. */
+  readonly reportMarkdownPath: string;
 }
 
-/** Sequential REST to Evaluation command with all-stage Secret preflight. */
+/** Sequential REST to Evaluation to Report command with all-stage Secret preflight. */
 export class LocalPipelineCommandService {
   /** Complete explicit runtime dependencies. */
   readonly #dependencies: LocalPipelineCommandServiceDependencies;
@@ -84,7 +104,7 @@ export class LocalPipelineCommandService {
     this.#dependencies = dependencies;
   }
 
-  /** Preflight both stages, then execute them against one new Execution identity. */
+  /** Preflight selected dependencies, then execute all default stages on one Execution. */
   public async run(input: RestRunCommandInput): Promise<WorkPackagePipelineRunResult> {
     if (input.signal.aborted) throw new Error("REQUEST_ABORTED");
     const environment = await CliSecretEnvironment.load({
@@ -106,7 +126,18 @@ export class LocalPipelineCommandService {
       },
       environment
     );
-    if (rest.packageId !== evaluation.packageId || rest.executionId !== evaluation.executionId) {
+    const report = await this.#dependencies.reportCommands.run({
+      packagePath: input.packagePath,
+      executionId: evaluation.executionId,
+      signal: input.signal
+    });
+    if (
+      rest.packageId !== evaluation.packageId ||
+      rest.executionId !== evaluation.executionId ||
+      evaluation.packageId !== report.packageId ||
+      evaluation.executionId !== report.executionId ||
+      evaluation.resultSetHash !== report.evaluationResultSetHash
+    ) {
       throw new Error("INTERNAL_ERROR");
     }
     return {
@@ -120,7 +151,11 @@ export class LocalPipelineCommandService {
       evalErrorCount: evaluation.evalErrorCount,
       evaluationResultSetHash: evaluation.resultSetHash,
       rawArtifactPath: evaluation.rawArtifactPath,
-      normalizedArtifactPath: evaluation.normalizedArtifactPath
+      normalizedArtifactPath: evaluation.normalizedArtifactPath,
+      reportResultSetHash: report.reportResultSetHash,
+      reportSummary: report.summary,
+      reportJsonPath: report.reportJsonPath,
+      reportMarkdownPath: report.reportMarkdownPath
     };
   }
 
@@ -147,7 +182,8 @@ export class LocalPipelineCommandService {
       if (signal.aborted) throw new Error("REQUEST_ABORTED");
       const keys = new Set([
         ...session.inputs.requiredEnvKeys("REST"),
-        ...session.inputs.requiredEnvKeys("EVALUATION")
+        ...session.inputs.requiredEnvKeys("EVALUATION"),
+        ...session.inputs.requiredEnvKeys("REPORT")
       ]);
       environment.require([...keys]);
     } finally {

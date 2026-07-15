@@ -36,9 +36,9 @@ describe("P3 资源 API 契约", () => {
       caseCount: 3,
       revision: 2,
       updatedAt: "2026-07-13T00:00:00.000Z",
-      latestPlatformRun: {
+      latestRun: {
         id: requestId,
-        sourceType: "PLATFORM",
+        sourceType: "OFFLINE_IMPORT",
         status: "RUNNING",
         stage: "REST",
         updatedAt: "2026-07-13T00:01:00.000Z"
@@ -46,9 +46,9 @@ describe("P3 资源 API 契约", () => {
     };
 
     expect(TestSuiteSummaryV1Schema.parse(summary)).toEqual(summary);
-    expect(TestSuiteSummaryV1Schema.parse({ ...summary, latestPlatformRun: null })).toEqual({
+    expect(TestSuiteSummaryV1Schema.parse({ ...summary, latestRun: null })).toEqual({
       ...summary,
-      latestPlatformRun: null
+      latestRun: null
     });
     expect(
       TestSuiteSummaryV1Schema.safeParse({ ...summary, cases: [{ secret: "large" }] }).success
@@ -99,6 +99,24 @@ describe("P3 资源 API 契约", () => {
         }
       }).success
     ).toBe(false);
+    expect(
+      ApiErrorResponseV1Schema.safeParse({
+        error: {
+          code: "REPORT_RECONCILIATION_FAILED",
+          message: "报告对账失败",
+          requestId
+        }
+      }).success
+    ).toBe(true);
+    expect(
+      ApiErrorResponseV1Schema.safeParse({
+        error: {
+          code: "RERUN_SOURCE_INCOMPLETE",
+          message: "重跑来源不完整",
+          requestId
+        }
+      }).success
+    ).toBe(true);
   });
 
   it("写入 DTO 严格拒绝未知键和展开 Secret", () => {

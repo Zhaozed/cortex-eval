@@ -98,6 +98,8 @@ export interface PlatformEvalProgress {
   readonly evalErrorCount: number;
   /** Durable Not Evaluated count. */
   readonly evalNotEvaluatedCount: number;
-  /** Complete Eval result-set hash. */
-  readonly resultSetHash: string;
+  /** Frozen Evaluation invocation identity. */
+  readonly evaluationContextHash: string;
+  /** Complete Eval result-set identity. */
+  readonly evaluationResultSetHash: string;
 }

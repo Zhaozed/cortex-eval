@@ -10,6 +10,7 @@ import {
   type EvaluationRunCommandInput,
   type PackageCommandService,
   type PipelineCommandService,
+  type ReportCommandService,
   type RestCommandService
 } from "../src/cli-program.ts";
 
@@ -48,6 +49,12 @@ const restCommands: RestCommandService = {
 const pipelineCommands: PipelineCommandService = {
   run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
 };
+const reportCommands: ReportCommandService = {
+  run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+};
+const resultCommands = {
+  importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+};
 
 describe("P7 CLI Evaluation command", () => {
   it("runs one existing Execution and maps native Assertion failure to CLI exit 1", async () => {
@@ -83,7 +90,9 @@ describe("P7 CLI Evaluation command", () => {
         packageCommands,
         restCommands,
         evaluationCommands,
+        reportCommands,
         pipelineCommands,
+        resultCommands,
         output: target.streams
       }
     );
@@ -122,7 +131,9 @@ describe("P7 CLI Evaluation command", () => {
         packageCommands,
         restCommands,
         evaluationCommands,
+        reportCommands,
         pipelineCommands,
+        resultCommands,
         output: target.streams
       })
     ).resolves.toBe(1);

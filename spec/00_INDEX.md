@@ -4,7 +4,7 @@
 
 `spec/` 是 Cortex Eval 目标系统的稳定事实入口，服务人类工程师和 AI coding agent。产品行为以 [REQ.md](../REQ.md) 为来源，技术架构以 [TECH.md](../TECH.md) 为来源，文档组织规则以 [SPEC_DOC.md](../SPEC_DOC.md) 为来源。
 
-当前仓库已完成 P0–P7，P8 尚未开始。平台与离线 REST→Evaluation、Work Package v1 导出/校验、安全文件运行时、Retry/Force、连续 Evidence 追溯、Pipeline 写前完整 Evaluation 输入/Prompt/Runtime 预检、固定 Promptfoo 版本、真实取消到 CLI 130、Promptfoo Raw 有界流式 Source、Raw/Normalized Artifact、严格读取、完整 Artifact Manifest 导入身份、发布后同步失败的可见性补偿、当前命令未登记 Artifact 清理、Ajv Diff、SQLite 原子提交和受控 Promptfoo/Bridge/官方 SDK 链已闭环。Case Assert 构建不设类型白名单，平台不复现或限制 Assert 执行；Bridge 只执行冻结 Evaluator 调用，不识别 Assertion/Metric。Report、Analysis、对外平台 Retry/Force、完整结果导入入口和 Canonical Export 尚未闭环。当前状态由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
+当前仓库已完成 P0–P8，P9 尚未开始。平台与离线 REST→Evaluation→Report、Work Package v1 导出/校验、安全文件运行时、平台与离线 Retry/Force、连续 Evidence 追溯、Pipeline 写前完整 Evaluation 输入/Prompt/Runtime 预检、固定 Promptfoo 版本、真实取消到 CLI 130、Promptfoo Raw 有界流式 Source、Raw/Normalized/Report Artifact、严格双遍读取、完整 Execution Report Import、发布后同步失败的可见性补偿、当前命令未登记 Artifact 清理、Ajv Diff、SQLite 原子提交和受控 Promptfoo/Bridge/官方 SDK 链已闭环。Case Assert 构建不设类型白名单，平台不复现或限制 Assert 执行；Bridge 只执行冻结 Evaluator 调用，不识别 Assertion/Metric。Analysis、Analysis Import 和 Canonical Export 尚未闭环。当前状态由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
 
 Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入口。每个阶段必须同步更新本索引和直接相关 spec，未落地能力不得提前改写为代码事实。
 

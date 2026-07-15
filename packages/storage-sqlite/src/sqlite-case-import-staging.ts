@@ -16,10 +16,10 @@ import { sql, type Kysely } from "kysely";
 import {
   SqliteConfigurationRepository,
   SqliteRunReferenceRepository,
-  SqliteTestSuiteRepository,
-  SqliteTransactionConflictError
+  SqliteTestSuiteRepository
 } from "./sqlite-application-repositories.ts";
 import type { SqliteDatabaseSchema } from "./sqlite-schema.ts";
+import { SqliteTransactionConflictError } from "./sqlite-transaction-manager.ts";
 import {
   CaseImportWorkspaceManager,
   PsProcessLiveness,

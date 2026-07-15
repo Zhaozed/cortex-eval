@@ -11,6 +11,11 @@ import {
   type CaseDefinitionV1
 } from "@cortex-eval/contracts/src/case-contracts.ts";
 import {
+  ReportContextV1Schema,
+  type ReportContextV1
+} from "@cortex-eval/contracts/src/artifact-contracts.ts";
+import type { RunExecutionLimitsV1 } from "@cortex-eval/contracts/src/execution-limit-contracts.ts";
+import {
   EndpointConfigV1Schema,
   LlmConfigV1Schema
 } from "@cortex-eval/contracts/src/provider-contracts.ts";
@@ -242,6 +247,47 @@ export class WorkPackageInputReader {
       }
       throw new Error("WORK_PACKAGE_INVALID", { cause: error });
     }
+  }
+
+  /** Read and validate the complete safe context embedded in an offline Report. */
+  public async readReportContext(
+    runContextHash: string,
+    runExecutionLimits: RunExecutionLimitsV1,
+    cases: AsyncIterable<FrozenRunCase> | Iterable<FrozenRunCase>
+  ): Promise<ReportContextV1> {
+    const [endpoint, evaluation] = await Promise.all([
+      this.readEndpoint(),
+      this.readEvaluationInputs(cases)
+    ]);
+    return ReportContextV1Schema.parse({
+      contractVersion: "cortex.report-context.v1",
+      runContextHash,
+      suite: {
+        sourceId: this.#manifest.sourceSuite.suiteId,
+        name: null,
+        suiteHash: this.#manifest.sourceSuite.suiteHash
+      },
+      endpoint: {
+        sourceId: null,
+        name: null,
+        configHash: this.#manifest.configurationHashes.endpoint,
+        config: { contractVersion: "cortex.endpoint-config.v1", ...endpoint }
+      },
+      evaluator: {
+        sourceId: null,
+        name: null,
+        configHash: this.#manifest.configurationHashes.evaluator,
+        config: { contractVersion: "cortex.llm-config.v1", ...evaluation.evaluator.definition }
+      },
+      rubricPrompts: evaluation.rubricPrompts.map((prompt) => ({
+        sourceId: null,
+        promptKey: prompt.definition.promptKey,
+        name: null,
+        promptHash: prompt.promptHash
+      })),
+      promptfooVersion: this.#manifest.promptfoo.version,
+      runExecutionLimits
+    });
   }
 
   // Revalidate immutable bytes at their consumption boundary after the initial package scan.

@@ -337,6 +337,10 @@ export class PlatformRunService {
           evalErrorCount: 0,
           evalNotEvaluatedCount: 0,
           resultSetHash: null,
+          evaluationContextHash: null,
+          evaluationResultSetHash: null,
+          reportResultSetHash: null,
+          reportSummary: null,
           artifactManifest: {
             contractVersion: "cortex.artifact-manifest.v1",
             owner: { kind: "RUN", id: runId },

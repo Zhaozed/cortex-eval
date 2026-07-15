@@ -2,10 +2,13 @@ import { createHash, randomUUID, type Hash } from "node:crypto";
 import { createReadStream, type Stats } from "node:fs";
 import { chmod, link, lstat, mkdir, open, readdir, realpath, stat, unlink } from "node:fs/promises";
 import { isAbsolute, join, relative, sep } from "node:path";
+import type { Readable } from "node:stream";
 
 import type {
   PlatformNormalizedEvalArtifactInput,
   PlatformRawPromptfooArtifactInput,
+  PlatformReportArtifactInput,
+  PlatformReportArtifactWriteResult,
   PlatformRestArtifactInput,
   PlatformRestArtifactWriteResult,
   PublishedRunArtifact,
@@ -20,8 +23,11 @@ import type {
 } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
 import {
   EvalCaseV1Schema,
+  MetricSummaryV1Schema,
   PlatformRawPromptfooEvidenceArtifactV1Schema,
-  RestArtifactCaseV1Schema
+  ReportSummaryV1Schema,
+  RestArtifactCaseV1Schema,
+  type ReportCaseV1
 } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import {
   canonicalJson,
@@ -31,11 +37,22 @@ import {
   hashEvalResultSet,
   OrderedRestResultSetHasher
 } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
+import {
+  createReportAccumulator,
+  type ReportAggregationResult
+} from "@cortex-eval/reporting/src/report-aggregation.ts";
+import {
+  renderReportMarkdownCase,
+  renderReportMarkdownHeader,
+  type ReportMarkdownCaseInput
+} from "@cortex-eval/reporting/src/report-markdown.ts";
+import { mapAlignedPlatformReportCaseToV1, mapRunReportContextToV1 } from "./report-dto-mappers.ts";
 
 const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const RUN_ARTIFACT_PATH =
-  /^runs\/([0-9a-f-]+)\/(rest-results|promptfoo-raw|normalized-eval)\.json$/;
-const TEMP_ARTIFACT = /^\.(rest-results|promptfoo-raw|normalized-eval)\.[A-Za-z0-9-]+\.tmp$/;
+  /^runs\/([0-9a-f-]+)\/(rest-results\.json|promptfoo-raw\.json|normalized-eval\.json|report\.json|report\.md)$/;
+const TEMP_ARTIFACT =
+  /^\.(rest-results|promptfoo-raw|normalized-eval|report-json|report-markdown)\.[A-Za-z0-9-]+\.tmp$/;
 
 function sameFileIdentity(left: Stats, right: Stats): boolean {
   return left.dev === right.dev && left.ino === right.ino;
@@ -171,10 +188,48 @@ function evalArtifactCase(value: PlatformEvalCaseResult): DomainJsonObject {
   };
 }
 
+// Project one strict Report Case into the one-way Markdown renderer.
+function reportMarkdownCase(value: ReportCaseV1): ReportMarkdownCaseInput {
+  return {
+    caseKey: value.caseKey,
+    ordinal: value.ordinal,
+    status: value.evaluation.status,
+    reason: value.evaluation.reason,
+    evaluationErrorCode: value.evaluation.evaluationError?.code ?? null,
+    assertions: value.evaluation.assertions.map((item) => ({
+      index: item.index,
+      type: item.type,
+      metric: item.metric,
+      status: item.status,
+      score: item.score,
+      reason: item.reason
+    })),
+    diffs: value.evaluation.diffs.map((item) => ({
+      assertionIndex: item.assertionIndex,
+      instancePath: item.instancePath,
+      schemaPath: item.schemaPath,
+      keyword: item.keyword,
+      expectedConstraint: item.expectedConstraint,
+      actual: item.actual,
+      reason: item.reason
+    }))
+  };
+}
+
+// Require the writer's independent second-pass aggregation to match the preflight exactly.
+function sameAggregation(left: ReportAggregationResult, right: ReportAggregationResult): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 // Require one exact UTC ISO timestamp without accepting date normalization.
 function validTimestamp(value: string): boolean {
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value;
+}
+
+// Re-read mutable AbortSignal state across asynchronous boundaries.
+function signalAborted(signal: AbortSignal): boolean {
+  return signal.aborted;
 }
 
 // Write one complete UTF-8 chunk while updating exact integrity facts.
@@ -540,6 +595,159 @@ export class LocalRunArtifactStore implements RunArtifactStore {
     }
   }
 
+  /** Stream and atomically publish one immutable Report JSON/Markdown pair. */
+  public async writeReport(
+    input: PlatformReportArtifactInput
+  ): Promise<PlatformReportArtifactWriteResult> {
+    const evaluationContextHash = input.run.evaluationContextHash;
+    const evaluationResultSetHash = input.run.evaluationResultSetHash;
+    if (
+      !RUN_ID.test(input.run.id) ||
+      evaluationContextHash === null ||
+      evaluationResultSetHash === null ||
+      !validTimestamp(input.completedAt) ||
+      !Number.isInteger(input.expectedTotal) ||
+      input.expectedTotal < 1 ||
+      input.expectedTotal !== input.run.suite.cases.length ||
+      input.signal.aborted
+    ) {
+      throw new RunArtifactStoreError();
+    }
+    let jsonTemp: string | null = null;
+    let markdownTemp: string | null = null;
+    let jsonHandle: Awaited<ReturnType<typeof open>> | null = null;
+    let markdownHandle: Awaited<ReturnType<typeof open>> | null = null;
+    const published: PublishedRunArtifact[] = [];
+    try {
+      const context = mapRunReportContextToV1(input.run);
+      const summary = ReportSummaryV1Schema.parse(input.aggregation.summary);
+      const byMetric = input.aggregation.byMetric.map((item) => MetricSummaryV1Schema.parse(item));
+      const runRoot = await ensureDirectory(this.#runsRoot, join(this.#runsRoot, input.run.id));
+      jsonTemp = join(runRoot, `.report-json.${this.#nonce()}.tmp`);
+      markdownTemp = join(runRoot, `.report-markdown.${this.#nonce()}.tmp`);
+      jsonHandle = await open(jsonTemp, "wx", 0o600);
+      markdownHandle = await open(markdownTemp, "wx", 0o600);
+      const jsonHash = createHash("sha256");
+      const markdownHash = createHash("sha256");
+      let jsonSize = await writeChunk(
+        jsonHandle,
+        jsonHash,
+        `${JSON.stringify({ byMetric }).slice(0, -1)},"cases":[`
+      );
+      let markdownSize = await writeChunk(
+        markdownHandle,
+        markdownHash,
+        renderReportMarkdownHeader({
+          owner: { kind: "RUN", id: input.run.id },
+          completedAt: input.completedAt,
+          summary,
+          byMetric
+        })
+      );
+      const accumulator = createReportAccumulator({
+        owner: { kind: "RUN", id: input.run.id },
+        runContextHash: input.run.runContextHash,
+        evaluationContextHash,
+        evaluationResultSetHash,
+        expectedCaseKey: (ordinal) => input.run.suite.cases[ordinal]?.caseKey ?? null
+      });
+      let caseCount = 0;
+      for await (const item of input.cases) {
+        if (caseCount >= input.expectedTotal || signalAborted(input.signal)) {
+          throw new RunArtifactStoreError();
+        }
+        const reportCase = mapAlignedPlatformReportCaseToV1(item);
+        accumulator.add({
+          caseKey: reportCase.caseKey,
+          ordinal: reportCase.ordinal,
+          rest: { status: reportCase.rest.status, resultHash: reportCase.rest.resultHash },
+          evaluation: {
+            status: reportCase.evaluation.status,
+            evalResultHash: reportCase.evaluation.evalResultHash,
+            finalCaseResultHash: reportCase.evaluation.finalCaseResultHash,
+            metrics: reportCase.evaluation.metrics
+          }
+        });
+        if (caseCount > 0) jsonSize += await writeChunk(jsonHandle, jsonHash, ",");
+        jsonSize += await writeChunk(jsonHandle, jsonHash, JSON.stringify(reportCase));
+        const markdown = renderReportMarkdownCase(reportMarkdownCase(reportCase));
+        if (markdown !== "") {
+          markdownSize += await writeChunk(markdownHandle, markdownHash, markdown);
+        }
+        caseCount += 1;
+      }
+      if (
+        caseCount !== input.expectedTotal ||
+        !sameAggregation(accumulator.finish(), input.aggregation)
+      ) {
+        throw new RunArtifactStoreError();
+      }
+      if (signalAborted(input.signal)) throw new RunArtifactStoreError();
+      const trailer =
+        `],"completedAt":${JSON.stringify(input.completedAt)},` +
+        `"context":${JSON.stringify(context)},` +
+        '"contractVersion":"cortex.report.v1",' +
+        `"evaluationContextHash":${JSON.stringify(evaluationContextHash)},` +
+        `"evaluationResultSetHash":${JSON.stringify(evaluationResultSetHash)},` +
+        `"owner":${JSON.stringify({ kind: "RUN", id: input.run.id })},` +
+        '"packageId":null,' +
+        `"reportResultSetHash":${JSON.stringify(input.aggregation.reportResultSetHash)},` +
+        `"summary":${JSON.stringify(summary)}}\n`;
+      jsonSize += await writeChunk(jsonHandle, jsonHash, trailer);
+      markdownSize += await writeChunk(markdownHandle, markdownHash, "\n");
+      await Promise.all([jsonHandle.sync(), markdownHandle.sync()]);
+      await Promise.all([jsonHandle.close(), markdownHandle.close()]);
+      jsonHandle = null;
+      markdownHandle = null;
+      await Promise.all([chmod(jsonTemp, 0o600), chmod(markdownTemp, 0o600)]);
+      const jsonPublicationIdentity = await this.#linkAndSync(
+        runRoot,
+        jsonTemp,
+        join(runRoot, "report.json")
+      );
+      const jsonPublication: PublishedRunArtifact = {
+        descriptor: {
+          kind: "REPORT_JSON",
+          path: `runs/${input.run.id}/report.json`,
+          expectedSha256: jsonHash.digest("hex"),
+          expectedSizeBytes: jsonSize,
+          contractVersion: "cortex.report.v1"
+        },
+        publicationIdentity: jsonPublicationIdentity
+      };
+      published.push(jsonPublication);
+      const markdownPublicationIdentity = await this.#linkAndSync(
+        runRoot,
+        markdownTemp,
+        join(runRoot, "report.md")
+      );
+      const markdownPublication: PublishedRunArtifact = {
+        descriptor: {
+          kind: "REPORT_MARKDOWN",
+          path: `runs/${input.run.id}/report.md`,
+          expectedSha256: markdownHash.digest("hex"),
+          expectedSizeBytes: markdownSize,
+          contractVersion: "cortex.report-markdown.v1"
+        },
+        publicationIdentity: markdownPublicationIdentity
+      };
+      published.push(markdownPublication);
+      await Promise.all([unlink(jsonTemp), unlink(markdownTemp)]);
+      jsonTemp = null;
+      markdownTemp = null;
+      return { json: jsonPublication, markdown: markdownPublication };
+    } catch {
+      await Promise.allSettled(published.map((artifact) => this.removeUncommitted(artifact)));
+      throw new RunArtifactStoreError();
+    } finally {
+      await Promise.allSettled([jsonHandle?.close(), markdownHandle?.close()]);
+      await Promise.allSettled([
+        jsonTemp === null ? Promise.resolve() : unlink(jsonTemp),
+        markdownTemp === null ? Promise.resolve() : unlink(markdownTemp)
+      ]);
+    }
+  }
+
   /** Remove only one controlled uncommitted immutable file. */
   public async removeUncommitted(published: PublishedRunArtifact): Promise<void> {
     const artifact = published.descriptor;
@@ -553,7 +761,11 @@ export class LocalRunArtifactStore implements RunArtifactStore {
           ? "promptfoo-raw.json"
           : artifact.kind === "NORMALIZED_EVAL_RESULTS"
             ? "normalized-eval.json"
-            : null;
+            : artifact.kind === "REPORT_JSON"
+              ? "report.json"
+              : artifact.kind === "REPORT_MARKDOWN"
+                ? "report.md"
+                : null;
     if (fileName !== expectedFile) throw new RunArtifactStoreError();
     const path = join(this.#artifactRoot, artifact.path);
     const facts = await lstat(path).catch(() => null);
@@ -641,6 +853,71 @@ export class LocalRunArtifactStore implements RunArtifactStore {
     return results;
   }
 
+  /** Verify and open the exact committed Report JSON file object for bounded streaming export. */
+  public async openReportJson(
+    manifest: RunArtifactManifest,
+    signal: AbortSignal
+  ): Promise<Readable | null> {
+    if (signal.aborted) throw new Error("REQUEST_ABORTED");
+    const descriptor = manifest.artifacts.find((item) => item.kind === "REPORT_JSON");
+    const ownerId = manifest.owner.id;
+    if (
+      descriptor?.path !== `runs/${ownerId}/report.json` ||
+      descriptor.contractVersion !== "cortex.report.v1" ||
+      artifactRunId(descriptor.path) !== ownerId
+    ) {
+      return null;
+    }
+    const path = join(this.#artifactRoot, descriptor.path);
+    const pathFacts = await lstat(path).catch(() => null);
+    if (pathFacts === null || !pathFacts.isFile() || pathFacts.isSymbolicLink()) return null;
+    const handle = await open(path, "r").catch(() => null);
+    if (handle === null) return null;
+    let transferred = false;
+    try {
+      const before = await handle.stat();
+      if (
+        !before.isFile() ||
+        !sameFileIdentity(pathFacts, before) ||
+        before.size !== descriptor.expectedSizeBytes
+      ) {
+        return null;
+      }
+      const hash = createHash("sha256");
+      const verification = handle.createReadStream({ start: 0, autoClose: false, signal });
+      try {
+        for await (const chunk of verification) {
+          const bytes: unknown = chunk;
+          if (!Buffer.isBuffer(bytes)) return null;
+          hash.update(bytes);
+        }
+      } catch (error) {
+        if (signalAborted(signal)) throw new Error("REQUEST_ABORTED", { cause: error });
+        return null;
+      }
+      const [after, currentPathFacts] = await Promise.all([
+        handle.stat(),
+        lstat(path).catch(() => null)
+      ]);
+      if (
+        signalAborted(signal) ||
+        currentPathFacts === null ||
+        currentPathFacts.isSymbolicLink() ||
+        !sameFileIdentity(before, after) ||
+        !sameFileIdentity(after, currentPathFacts) ||
+        after.size !== descriptor.expectedSizeBytes ||
+        hash.digest("hex") !== descriptor.expectedSha256
+      ) {
+        if (signalAborted(signal)) throw new Error("REQUEST_ABORTED");
+        return null;
+      }
+      transferred = true;
+      return handle.createReadStream({ start: 0, autoClose: true, signal });
+    } finally {
+      if (!transferred) await handle.close().catch(() => undefined);
+    }
+  }
+
   /** Preserve and report files absent from durable Manifests when publication identity is gone. */
   public async cleanupOrphans(manifests: readonly RunArtifactManifest[]): Promise<void> {
     const durablePaths = new Set(
@@ -658,7 +935,9 @@ export class LocalRunArtifactStore implements RunArtifactStore {
         const controlled =
           file.name === "rest-results.json" ||
           file.name === "promptfoo-raw.json" ||
-          file.name === "normalized-eval.json";
+          file.name === "normalized-eval.json" ||
+          file.name === "report.json" ||
+          file.name === "report.md";
         const orphaned =
           (controlled && !durablePaths.has(relativePath)) || TEMP_ARTIFACT.test(file.name);
         if (orphaned) {

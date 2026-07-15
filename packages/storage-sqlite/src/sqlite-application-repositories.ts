@@ -1,15 +1,13 @@
 import type {
-  ApplicationTransaction,
   ConfigurationRepository,
   RunReferenceRepository,
   TestSuiteRepository,
-  TransactionManager,
   UpdateSuiteAggregate
 } from "@cortex-eval/application/src/application-ports.ts";
 import type {
   CaseQuery,
   CaseQueryPage,
-  LatestPlatformRunReference,
+  LatestRunReference,
   StoredTestCase,
   TestSuite,
   TestSuiteQuery,
@@ -24,7 +22,10 @@ import type {
 } from "@cortex-eval/application/src/features/configurations/configuration-models.ts";
 import type {
   ExistingImportedExecution,
-  ImportedExecutionRecord
+  ExistingImportedExecutionReport,
+  ImportedExecutionRecord,
+  ImportedExecutionReportCase,
+  ImportedExecutionReportRecord
 } from "@cortex-eval/application/src/features/execution-imports/execution-import-models.ts";
 import { canonicalJson } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 import { sql, type Kysely } from "kysely";
@@ -62,19 +63,21 @@ function mapSuite(row: {
   };
 }
 
-interface LatestPlatformRunRow {
-  /** Latest platform Run identity. */
-  readonly latest_platform_run_id: string | null;
-  /** Latest platform Run status. */
-  readonly latest_platform_run_status: string | null;
-  /** Latest platform Run stage. */
-  readonly latest_platform_run_stage: string | null;
-  /** Latest platform Run update time. */
-  readonly latest_platform_run_updated_at: string | null;
+interface LatestRunRow {
+  /** Latest reportable Run identity. */
+  readonly latest_run_id: string | null;
+  /** Latest reportable Run source. */
+  readonly latest_run_source_type: string | null;
+  /** Latest reportable Run status. */
+  readonly latest_run_status: string | null;
+  /** Latest reportable Run stage. */
+  readonly latest_run_stage: string | null;
+  /** Latest reportable Run update time. */
+  readonly latest_run_updated_at: string | null;
 }
 
 // Narrow one dirty persisted scalar to the closed Run status contract.
-function isRunStatus(value: string): value is LatestPlatformRunReference["status"] {
+function isRunStatus(value: string): value is LatestRunReference["status"] {
   return (
     value === "READY" ||
     value === "RUNNING" ||
@@ -87,27 +90,38 @@ function isRunStatus(value: string): value is LatestPlatformRunReference["status
 }
 
 // Narrow one dirty persisted scalar to the closed Run stage contract.
-function isRunStage(value: string): value is LatestPlatformRunReference["stage"] {
+function isRunStage(value: string): value is LatestRunReference["stage"] {
   return value === "REST" || value === "EVALUATION" || value === "REPORT" || value === "DONE";
 }
 
 // Map the all-null or fully populated correlated latest-Run projection.
-function mapLatestPlatformRun(row: LatestPlatformRunRow): LatestPlatformRunReference | null {
-  const id = row.latest_platform_run_id;
-  const status = row.latest_platform_run_status;
-  const stage = row.latest_platform_run_stage;
-  const updatedAt = row.latest_platform_run_updated_at;
-  const values = [id, status, stage, updatedAt];
+function mapLatestRun(row: LatestRunRow): LatestRunReference | null {
+  const id = row.latest_run_id;
+  const sourceType = row.latest_run_source_type;
+  const status = row.latest_run_status;
+  const stage = row.latest_run_stage;
+  const updatedAt = row.latest_run_updated_at;
+  const values = [id, sourceType, status, stage, updatedAt];
   if (values.every((value) => value === null)) return null;
-  if (id === null || status === null || stage === null || updatedAt === null) {
+  if (
+    id === null ||
+    sourceType === null ||
+    status === null ||
+    stage === null ||
+    updatedAt === null
+  ) {
     throw new SqliteRowInvalidError();
   }
-  if (!isRunStatus(status) || !isRunStage(stage)) {
+  if (
+    (sourceType !== "PLATFORM" && sourceType !== "OFFLINE_IMPORT") ||
+    !isRunStatus(status) ||
+    !isRunStage(stage)
+  ) {
     throw new SqliteRowInvalidError();
   }
   return {
     id,
-    sourceType: "PLATFORM",
+    sourceType,
     status,
     stage,
     updatedAt
@@ -178,24 +192,44 @@ export class SqliteTestSuiteRepository implements TestSuiteRepository {
       "updated_at",
       sql<string | null>`(
           SELECT id FROM run_log
-          WHERE source_type = 'PLATFORM' AND suite_id = test_suite.id
+          WHERE suite_id = test_suite.id
+            AND report_result_set_hash IS NOT NULL
+            AND stage = 'DONE'
+            AND status IN ('COMPLETED', 'COMPLETED_WITH_ERRORS')
           ORDER BY created_at DESC, id DESC LIMIT 1
-        )`.as("latest_platform_run_id"),
+        )`.as("latest_run_id"),
+      sql<string | null>`(
+          SELECT source_type FROM run_log
+          WHERE suite_id = test_suite.id
+            AND report_result_set_hash IS NOT NULL
+            AND stage = 'DONE'
+            AND status IN ('COMPLETED', 'COMPLETED_WITH_ERRORS')
+          ORDER BY created_at DESC, id DESC LIMIT 1
+        )`.as("latest_run_source_type"),
       sql<string | null>`(
           SELECT status FROM run_log
-          WHERE source_type = 'PLATFORM' AND suite_id = test_suite.id
+          WHERE suite_id = test_suite.id
+            AND report_result_set_hash IS NOT NULL
+            AND stage = 'DONE'
+            AND status IN ('COMPLETED', 'COMPLETED_WITH_ERRORS')
           ORDER BY created_at DESC, id DESC LIMIT 1
-        )`.as("latest_platform_run_status"),
+        )`.as("latest_run_status"),
       sql<string | null>`(
           SELECT stage FROM run_log
-          WHERE source_type = 'PLATFORM' AND suite_id = test_suite.id
+          WHERE suite_id = test_suite.id
+            AND report_result_set_hash IS NOT NULL
+            AND stage = 'DONE'
+            AND status IN ('COMPLETED', 'COMPLETED_WITH_ERRORS')
           ORDER BY created_at DESC, id DESC LIMIT 1
-        )`.as("latest_platform_run_stage"),
+        )`.as("latest_run_stage"),
       sql<string | null>`(
           SELECT updated_at FROM run_log
-          WHERE source_type = 'PLATFORM' AND suite_id = test_suite.id
+          WHERE suite_id = test_suite.id
+            AND report_result_set_hash IS NOT NULL
+            AND stage = 'DONE'
+            AND status IN ('COMPLETED', 'COMPLETED_WITH_ERRORS')
           ORDER BY created_at DESC, id DESC LIMIT 1
-        )`.as("latest_platform_run_updated_at")
+        )`.as("latest_run_updated_at")
     ]);
     if (query.afterCursor !== undefined) {
       const cursor = query.afterCursor;
@@ -219,7 +253,7 @@ export class SqliteTestSuiteRepository implements TestSuiteRepository {
       caseCount: row.case_count,
       revision: row.revision,
       updatedAt: row.updated_at,
-      latestPlatformRun: mapLatestPlatformRun(row)
+      latestRun: mapLatestRun(row)
     }));
     const last = items.at(-1);
     return {
@@ -473,6 +507,21 @@ export class SqliteRunReferenceRepository implements RunReferenceRepository {
   /** Insert one normalized minimal imported Run registration. */
   public async insertImportedExecution(value: ImportedExecutionRecord): Promise<void> {
     await this.#importedExecutions.insert(value);
+  }
+
+  /** Read one existing complete offline Report import identity. */
+  public async getImportedExecutionReport(
+    executionId: string
+  ): Promise<ExistingImportedExecutionReport | null> {
+    return await this.#importedExecutions.getReport(executionId);
+  }
+
+  /** Atomically stream one complete imported Run and its result rows. */
+  public async insertImportedExecutionReport(
+    value: ImportedExecutionReportRecord,
+    cases: AsyncIterable<ImportedExecutionReportCase>
+  ): Promise<void> {
+    await this.#importedExecutions.insertReport(value, cases);
   }
 }
 
@@ -885,56 +934,6 @@ export class SqliteConfigurationRepository implements ConfigurationRepository {
     `.execute(this.#database);
     return result.rows.map((row) => ({ suiteId: row.suite_id, caseKey: row.case_key }));
   }
-}
-
-/** Kysely managed transaction exposing only transaction-bound repositories. */
-export class SqliteTransactionManager implements TransactionManager {
-  readonly #database: Kysely<SqliteDatabaseSchema>;
-
-  /** Bind the manager to one configured Kysely connection. */
-  public constructor(database: Kysely<SqliteDatabaseSchema>) {
-    this.#database = database;
-  }
-
-  /** Execute database-only work and restart only SQLite Busy short transactions. */
-  public async execute<T>(work: (transaction: ApplicationTransaction) => Promise<T>): Promise<T> {
-    const maximumAttempts = 4;
-    for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
-      try {
-        return await this.#database.transaction().execute(async (database) =>
-          work({
-            testSuites: new SqliteTestSuiteRepository(database),
-            configurations: new SqliteConfigurationRepository(database),
-            runs: new SqliteRunReferenceRepository(database)
-          })
-        );
-      } catch (error) {
-        if (!isSqliteBusy(error)) throw error;
-        if (attempt === maximumAttempts) throw new SqliteTransactionConflictError();
-        await new Promise<void>((resolve) => setImmediate(resolve));
-      }
-    }
-    throw new SqliteTransactionConflictError();
-  }
-}
-
-/** Stable storage conflict after bounded SQLite Busy transaction restarts. */
-export class SqliteTransactionConflictError extends Error {
-  /** Stable machine-readable error code. */
-  public readonly code = "STORAGE_TRANSACTION_CONFLICT" as const;
-
-  /** Create one path-safe transaction conflict. */
-  public constructor() {
-    super("STORAGE_TRANSACTION_CONFLICT");
-    this.name = "SqliteTransactionConflictError";
-  }
-}
-
-// Recognize only SQLite lock conflicts; all other failures propagate unchanged.
-function isSqliteBusy(error: unknown): boolean {
-  if (error === null || typeof error !== "object" || !("code" in error)) return false;
-  const code = error.code;
-  return code === "SQLITE_BUSY" || code === "SQLITE_BUSY_SNAPSHOT";
 }
 
 // Recognize a SQLite unique-constraint failure without exposing its message.

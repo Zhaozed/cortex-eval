@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-import { ArtifactManifestV1Schema, EvalCaseV1Schema } from "./artifact-contracts.ts";
+import {
+  ArtifactManifestV1Schema,
+  EvalCaseV1Schema,
+  MetricSummaryV1Schema,
+  ReportCaseV1Schema,
+  ReportContextV1Schema,
+  ReportSummaryV1Schema
+} from "./artifact-contracts.ts";
 import { CaseDefinitionV1Schema } from "./case-contracts.ts";
 import {
   BusinessKeySchema,
@@ -47,6 +54,35 @@ export const RunPreflightRequestV1Schema = PlatformRunSelectionV1Schema;
 export const CreatePlatformRunRequestV1Schema = PlatformRunSelectionV1Schema.extend({
   runMode: RunModeV1Schema,
   runExecutionLimits: RunExecutionLimitsV1Schema.optional()
+});
+
+/** Create a new immutable Retry/Force Run from one terminal source Run. */
+export const CreatePlatformRerunRequestV1Schema = z.strictObject({
+  mode: z.enum(["RETRY_FAILED", "FORCE"])
+});
+
+const PlatformRerunCountsV1Schema = z
+  .strictObject({
+    reuseRest: z.number().int().nonnegative(),
+    executeRest: z.number().int().nonnegative(),
+    reuseEval: z.number().int().nonnegative(),
+    executeEval: z.number().int().nonnegative()
+  })
+  .superRefine((value, context) => {
+    if (value.reuseRest + value.executeRest !== value.reuseEval + value.executeEval) {
+      context.addIssue({ code: "custom", message: "RERUN_COUNTS_INVALID" });
+    }
+  });
+
+/** Newly created rerun link and exact planned reuse/execute totals. */
+export const PlatformRerunCreatedV1Schema = z.strictObject({
+  runId: UuidV7Schema,
+  sourceRunId: UuidV7Schema,
+  rerunMode: z.enum(["RETRY_FAILED", "FORCE"]),
+  status: z.literal("READY"),
+  stage: z.literal("REST"),
+  lockRevision: z.literal(0),
+  counts: PlatformRerunCountsV1Schema
 });
 
 /** Frozen preflight dependencies and current execution defaults. */
@@ -109,7 +145,7 @@ export const RunProgressV1Schema = z.strictObject({
 /** Small recent platform Run list projection. */
 export const PlatformRunSummaryV1Schema = z.strictObject({
   id: UuidV7Schema,
-  sourceType: z.literal("PLATFORM"),
+  sourceType: z.enum(["PLATFORM", "OFFLINE_IMPORT"]),
   suiteId: UuidV7Schema,
   suiteName: z.string().trim().min(1),
   runMode: RunModeV1Schema,
@@ -235,6 +271,74 @@ export const ArtifactAvailabilityV1Schema = z.strictObject({
   ]),
   path: z.string().min(1),
   status: z.enum(["PRESENT", "MISSING", "CORRUPTED"])
+});
+
+/** Complete committed Report overview without Case arrays. */
+export const RunReportOverviewV1Schema = z.strictObject({
+  runId: UuidV7Schema,
+  sourceType: z.enum(["PLATFORM", "OFFLINE_IMPORT"]),
+  sourceRunId: UuidV7Schema.nullable(),
+  rerunMode: z.enum(["NONE", "RETRY_FAILED", "FORCE"]),
+  completedAt: UtcDateTimeSchema,
+  context: ReportContextV1Schema,
+  evaluationContextHash: Sha256Schema,
+  evaluationResultSetHash: Sha256Schema,
+  reportResultSetHash: Sha256Schema,
+  summary: ReportSummaryV1Schema,
+  byMetric: z.array(MetricSummaryV1Schema),
+  artifactAvailability: z.array(ArtifactAvailabilityV1Schema)
+});
+
+/** Complete normalized Report Case plus current Evidence availability. */
+export const RunReportCaseV1Schema = ReportCaseV1Schema.safeExtend({
+  rawEvidenceStatus: z.enum(["ABSENT", "PRESENT", "MISSING", "CORRUPTED"])
+});
+
+/** Cursor-paged filtered complete Report Cases. */
+export const RunReportCasePageV1Schema = z.strictObject({
+  items: z.array(RunReportCaseV1Schema),
+  nextCursor: z.string().min(1).nullable()
+});
+
+// Normalize Fastify's single query value and repeated values into one exact list.
+function reportQueryValues(value: unknown): unknown {
+  return value === undefined ? undefined : Array.isArray(value) ? value : [value];
+}
+
+const ReportRestStatusQueryV1Schema = z.preprocess(
+  reportQueryValues,
+  z
+    .array(z.enum(["SUCCEEDED", "ERROR"]))
+    .min(1)
+    .max(50)
+    .optional()
+);
+const ReportEvalStatusQueryV1Schema = z.preprocess(
+  reportQueryValues,
+  z
+    .array(z.enum(["PASS", "FAIL", "EVALUATION_ERROR", "NOT_EVALUATED"]))
+    .min(1)
+    .max(50)
+    .optional()
+);
+const ReportBusinessKeyQueryV1Schema = z.preprocess(
+  reportQueryValues,
+  z.array(BusinessKeySchema).min(1).max(50).optional()
+);
+const ReportTextQueryV1Schema = z.preprocess(
+  reportQueryValues,
+  z.array(z.string().trim().min(1)).min(1).max(50).optional()
+);
+
+/** Bounded Report Case query with AND across fields and OR within one field. */
+export const RunReportCaseListQueryV1Schema = z.strictObject({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  cursor: z.string().min(1).optional(),
+  restStatus: ReportRestStatusQueryV1Schema,
+  evalStatus: ReportEvalStatusQueryV1Schema,
+  metric: ReportBusinessKeyQueryV1Schema,
+  businessModule: ReportTextQueryV1Schema,
+  scenarioTag: ReportTextQueryV1Schema
 });
 
 /** Bounded platform Run detail without the frozen Case array or Prompt bodies. */

@@ -12,7 +12,11 @@ import {
   RestArtifactCaseV1Schema,
   RestResultsArtifactV1Schema
 } from "../src/artifact-contracts.ts";
-import { ExecutionResultImportV1Schema } from "../src/result-import-contracts.ts";
+import {
+  ExecutionReportImportRequestV1Schema,
+  ExecutionReportImportResultV1Schema,
+  ExecutionResultImportV1Schema
+} from "../src/result-import-contracts.ts";
 
 const ID = "018f1e2d-3c4b-7abc-8def-0123456789ab";
 const HASH = "b".repeat(64);
@@ -373,10 +377,112 @@ describe("阶段 Artifact v1", () => {
   });
 
   it("校验报告和分析产物的身份绑定", () => {
+    const definition = {
+      contractVersion: "cortex.case-definition.v1",
+      description: "验证结果",
+      threshold: 1,
+      vars: { task: "answer", request_body: {} },
+      metadata: {
+        case_id: "case-1",
+        req_id: "req-1",
+        task_id: "task-1",
+        business_module: "assistant",
+        scenario_tag: "basic"
+      },
+      assert: [{ type: "contains", metric: "schema", value: "ok" }]
+    };
+    const rest = {
+      caseKey: "case-1",
+      ordinal: 0,
+      caseDefinitionHash: HASH,
+      status: "SUCCEEDED",
+      httpStatus: 200,
+      providerOutput: { ok: false, err_msg: "业务失败" },
+      durationMs: 12,
+      completedAt: TIME,
+      resultHash: HASH,
+      provenance: null
+    };
+    const evaluation = {
+      caseKey: "case-1",
+      ordinal: 0,
+      status: "FAIL",
+      promptfooSuccess: false,
+      score: 0,
+      reason: "未包含期望值",
+      evaluationError: null,
+      assertions: [
+        {
+          index: 0,
+          definitionHash: HASH,
+          type: "contains",
+          metric: "schema",
+          weight: 1,
+          status: "FAIL",
+          score: 0,
+          reason: "未包含期望值"
+        }
+      ],
+      diffs: [],
+      metrics: [{ metric: "schema", status: "FAIL" }],
+      latencyMs: null,
+      tokenUsage: null,
+      cost: null,
+      rawEvidence: null,
+      evalResultHash: HASH,
+      finalCaseResultHash: HASH,
+      provenance: null
+    };
     const report = {
       contractVersion: "cortex.report.v1",
-      ...identity,
+      owner: { kind: "EXECUTION", id: ID },
+      packageId: ID,
       completedAt: TIME,
+      context: {
+        contractVersion: "cortex.report-context.v1",
+        runContextHash: HASH,
+        suite: { sourceId: ID, name: "测试集", suiteHash: HASH },
+        endpoint: {
+          sourceId: ID,
+          name: "Endpoint",
+          configHash: HASH,
+          config: {
+            contractVersion: "cortex.endpoint-config.v1",
+            urlTemplate: "https://example.test/run",
+            method: "POST",
+            headers: {},
+            bodySelector: "",
+            timeoutMs: 1_000,
+            defaultConcurrency: 2
+          }
+        },
+        evaluator: {
+          sourceId: ID,
+          name: "Evaluator",
+          configHash: HASH,
+          config: {
+            contractVersion: "cortex.llm-config.v1",
+            providerType: "GOOGLE_GEMINI",
+            model: "gemini-test",
+            apiKey: { kind: "ENV_SECRET", envKey: "GEMINI_API_KEY" },
+            thinkingLevel: "OFF",
+            temperature: 0,
+            topP: 1,
+            maxOutputTokens: 128,
+            timeoutMs: 1_000,
+            structuredOutput: "JSON_OBJECT"
+          }
+        },
+        rubricPrompts: [],
+        promptfooVersion: "0.121.18",
+        runExecutionLimits: {
+          contractVersion: "cortex.run-execution-limits.v1",
+          restConcurrency: 2,
+          evalConcurrency: 2
+        }
+      },
+      evaluationContextHash: HASH,
+      evaluationResultSetHash: HASH,
       summary: {
         total: 1,
         restSucceeded: 1,
@@ -393,17 +499,29 @@ describe("阶段 Artifact v1", () => {
         { metric: "schema", pass: 0, fail: 1, error: 0, skipped: 0, notEvaluated: 0, passRate: 0 }
       ],
       cases: [
-        {
-          caseKey: "case-1",
-          ordinal: 0,
-          restResultHash: HASH,
-          evalResultHash: HASH,
-          finalCaseResultHash: HASH
-        }
+        { caseKey: "case-1", ordinal: 0, definitionHash: HASH, definition, rest, evaluation }
       ],
-      resultSetHash: HASH
+      reportResultSetHash: HASH
     };
     expect(ReportArtifactV1Schema.parse(report).summary.total).toBe(1);
+    expect(
+      ReportArtifactV1Schema.safeParse({
+        ...report,
+        cases: [{ ...report.cases[0], evaluation: { ...evaluation, diffs: undefined } }]
+      }).success
+    ).toBe(false);
+    expect(
+      ReportArtifactV1Schema.safeParse({
+        ...report,
+        cases: [{ ...report.cases[0], rest: { ...rest, caseKey: "wrong" } }]
+      }).success
+    ).toBe(false);
+    expect(
+      ReportArtifactV1Schema.safeParse({
+        ...report,
+        owner: { kind: "RUN", id: ID }
+      }).success
+    ).toBe(false);
 
     const analysis = {
       contractVersion: "cortex.analysis-results.v1",
@@ -475,7 +593,10 @@ describe("Execution Result Import v1", () => {
       contractVersion: "cortex.execution-result-import.v1",
       importType: "REPORT",
       ...identity,
-      resultSetHash: HASH,
+      restResultSetHash: HASH,
+      evaluationContextHash: HASH,
+      evaluationResultSetHash: HASH,
+      reportResultSetHash: HASH,
       restResultsFile: { path: "executions/x/rest-results.json", sha256: HASH, sizeBytes: 1 },
       normalizedEvalFile: {
         path: "executions/x/normalized-eval.json",
@@ -499,5 +620,50 @@ describe("Execution Result Import v1", () => {
     expect(
       ExecutionResultImportV1Schema.safeParse({ ...reportImport, apiKey: "secret" }).success
     ).toBe(false);
+    expect(
+      ExecutionResultImportV1Schema.safeParse({
+        ...reportImport,
+        reportResultSetHash: undefined,
+        resultSetHash: HASH
+      }).success
+    ).toBe(false);
+  });
+
+  it("本地导入请求只携带安全文件运行时入口，响应显式区分幂等", () => {
+    expect(
+      ExecutionReportImportRequestV1Schema.parse({
+        contractVersion: "cortex.execution-report-import-request.v1",
+        packagePath: "/tmp/package",
+        executionId: ID
+      })
+    ).toEqual({
+      contractVersion: "cortex.execution-report-import-request.v1",
+      packagePath: "/tmp/package",
+      executionId: ID
+    });
+    expect(
+      ExecutionReportImportRequestV1Schema.safeParse({
+        contractVersion: "cortex.execution-report-import-request.v1",
+        packagePath: "/tmp/package",
+        executionId: ID,
+        importType: "ANALYSIS"
+      }).success
+    ).toBe(false);
+    expect(
+      ExecutionReportImportResultV1Schema.parse({
+        contractVersion: "cortex.execution-report-import-result.v1",
+        runId: ID,
+        packageId: ID,
+        executionId: ID,
+        idempotent: false,
+        sourceType: "OFFLINE_IMPORT",
+        status: "COMPLETED",
+        stage: "DONE",
+        restResultSetHash: HASH,
+        evaluationContextHash: HASH,
+        evaluationResultSetHash: HASH,
+        reportResultSetHash: HASH
+      }).sourceType
+    ).toBe("OFFLINE_IMPORT");
   });
 });

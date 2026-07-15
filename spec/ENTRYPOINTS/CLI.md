@@ -12,7 +12,7 @@ CLI 不直接访问平台 SQLite，不复制状态机、统计、Case 写入或�
 
 ## 实现状态
 
-P7 已落地 `apps/cli` 的 `package export`、`package validate`、`rest run`、`eval run` 和当前 REST→Evaluation `pipeline run`。旧 TypeScript REST 运行器已经删除。Report、Analysis、完整结果导入和 Canonical Export 尚未闭环，因此 `report build`、`analyze run`、`result import` 和 `data export` 不注册，也不出现在 Help。
+已落地 `apps/cli` 的 `package export`、`package validate`、`rest run`、`eval run`、`report build`、REST→Evaluation→Report `pipeline run` 和 `result import`。旧 TypeScript REST 运行器已经删除。Analysis 和 Canonical Export 尚未闭环，因此 `analyze run` 和 `data export` 不注册，也不出现在 Help。
 
 ## 代码事实入口
 
@@ -21,7 +21,9 @@ P7 已落地 `apps/cli` 的 `package export`、`package validate`、`rest run`�
 - [package-command-service.ts](../../apps/cli/src/package-command-service.ts)：平台导出与本地校验。
 - [rest-command-service.ts](../../apps/cli/src/rest-command-service.ts)：离线 REST 阶段入口。
 - [evaluation-command-service.ts](../../apps/cli/src/evaluation-command-service.ts)：离线 Evaluation 阶段入口。
-- [pipeline-command-service.ts](../../apps/cli/src/pipeline-command-service.ts)：当前 REST→Evaluation Pipeline。
+- [work-package-report-run-service.ts](../../apps/cli/src/work-package-report-run-service.ts)：离线 Report 对账、JSON/Markdown 写入和阶段提交。
+- [result-import-command-service.ts](../../apps/cli/src/result-import-command-service.ts)：通过本地 API 导入完整 Execution Report。
+- [pipeline-command-service.ts](../../apps/cli/src/pipeline-command-service.ts)：REST→Evaluation→Report Pipeline。
 - [cli-contracts.ts](../../packages/contracts/src/cli-contracts.ts)：稳定机器输出契约。
 
 ## 当前测试入口
@@ -31,13 +33,13 @@ P7 已落地 `apps/cli` 的 `package export`、`package validate`、`rest run`�
 
 ## 对外接口
 
-P7 当前命令为 `package export`、`package validate`、`rest run`、`eval run` 和 `pipeline run`。后续阶段按能力闭环依次注册 `report build`、`analyze run`、`result import` 和 `data export`，未实现命令不得提前暴露。
+当前命令为 `package export`、`package validate`、`rest run`、`eval run`、`report build`、`pipeline run` 和 `result import`。后续阶段按能力闭环依次注册 `analyze run` 和 `data export`，未实现命令不得提前暴露。
 
-当前 `pipeline run` 只执行 REST 与 Evaluation。P8 在 Report Writer 与对账闭环后把默认 Pipeline 扩展到 Report。P9 注册 Analysis 后，显式选择 Analysis 必须已有或同时选择 Report，并提供 Analyzer、Analysis Prompt 和 Case Selector。
+当前 `pipeline run` 默认执行 REST、Evaluation 与 Report。P9 注册 Analysis 后，显式选择 Analysis 必须已有或同时选择 Report，并提供 Analyzer、Analysis Prompt 和 Case Selector。
 
 ## 核心流程
 
-CLI 先读取一次显式 Env 文件并形成冻结 Secret Snapshot。Pipeline 在 REST 调用、创建或修改 Execution 前，同时完成 REST/Evaluation 环境校验、全部冻结 Case 清洗、完整 Evaluator/Rubric Prompt 读取、Case Prompt 引用校验、固定 Promptfoo 精确版本和实际需要的 Python/Ruby Runtime Smoke，再用同一 Snapshot 顺序执行两个阶段。Evaluation 开始前仍重新校验实际待评估 Case，防止状态变化绕过门禁。单阶段命令只校验自身依赖。Secret 展开值不写入工作包、Artifact、stdout、stderr 或日志。
+CLI 先读取一次显式 Env 文件并形成冻结 Secret Snapshot。Pipeline 在 REST 调用、创建或修改 Execution 前，同时完成 REST/Evaluation 环境校验、全部冻结 Case 清洗、完整 Evaluator/Rubric Prompt 读取、Case Prompt 引用校验、固定 Promptfoo 精确版本和实际需要的 Python/Ruby Runtime Smoke，再用同一 Snapshot 顺序执行三个阶段。Evaluation 开始前仍重新校验实际待评估 Case，防止状态变化绕过门禁；Report 从已经提交的规范化结果重算，不读取 Secret 或 Raw 事实。单阶段命令只校验自身依赖。Secret 展开值不写入工作包、Artifact、stdout、stderr 或日志。
 
 REST 单阶段命令也在创建 Execution 前完整读取 Endpoint、全部 Case 和 Retry 来源，并在 REST 返回后和 Artifact 发布后复核取消；开始后的取消返回 `REST_CANCELLED`。Evaluation 使用 owner-only SQLite 有界暂存输入、复用结果与逐 Row 导入结果，全部按 128 项事务批次提交；REST/Normalized 写入按 Manifest ordinal→Case Key 身份对齐并拒绝截断终止，不保留完整 Case/REST/Eval 数组或全量 Case Key 集合。CLI 信号贯穿预检、Engine、Raw/Normalized 写入和最终提交；已发布但未登记的文件只凭当前命令持有的非持久发布身份补偿删除，相同内容的新 inode 也保留并外化清理警告。`package export` 在成功响应完整消费前失败或取消时主动取消未读 Body。启动恢复没有发布身份时保留并报告，不按路径删除；Body 或文件清理失败不覆盖主错误和主退出码。
 
@@ -57,4 +59,4 @@ REST 单阶段命令也在创建 Execution 前完整读取 Endpoint、全部 Cas
 
 普通模式输出外化的简体中文消息；机器模式只输出闭合 NDJSON 事件。日志与终端不显示 Secret、完整 Prompt、Provider Output 或第三方堆栈。
 
-测试必须证明命令按阶段注册、未来命令隐藏、Pipeline 使用同一 Secret Snapshot、预检先于 Execution 变更、Retry/Force 创建新身份、真实 REST Adapter 与固定 Promptfoo 进程可以在同一 Execution 闭环。
+测试必须证明命令按阶段注册、未来命令隐藏、Pipeline 使用同一 Secret Snapshot、预检先于 Execution 变更、Retry/Force 创建新身份、Report 对账与导入幂等，以及真实 REST Adapter 与固定 Promptfoo 进程可以在同一 Execution 闭环。

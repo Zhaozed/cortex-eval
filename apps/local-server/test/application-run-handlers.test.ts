@@ -5,6 +5,11 @@ import {
   type PlatformRunSummary,
   type StoredRestCaseResult
 } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
+import type { PlatformEvalCaseResult } from "@cortex-eval/application/src/features/evaluation/platform-eval-models.ts";
+import type { PlatformReportCase } from "@cortex-eval/application/src/features/reporting/platform-report-service.ts";
+import type { PlatformReportArtifactCaseInput } from "@cortex-eval/application/src/features/runs/run-artifact-port.ts";
+import type { ImportedReportRun } from "@cortex-eval/application/src/features/execution-imports/execution-import-models.ts";
+import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -12,8 +17,15 @@ import {
   type ApplicationRunServiceBoundary
 } from "../src/application-run-handlers.ts";
 import type { LocalApiHandlerInput } from "../src/local-server.ts";
+import {
+  importedReportRunFixture,
+  passingEvaluationFixture,
+  reportCaseFixture,
+  reportedRunFixture
+} from "../test-support/application-report-handler-fixtures.ts";
 
 const RUN_ID = "01900000-0000-7000-8000-000000000001";
+const SOURCE_RUN_ID = "01900000-0000-7000-8000-000000000002";
 const SUITE_ID = "01900000-0000-7000-8000-000000000100";
 const ENDPOINT_ID = "01900000-0000-7000-8000-000000000200";
 const EVALUATOR_ID = "01900000-0000-7000-8000-000000000300";
@@ -118,6 +130,10 @@ function run(): PlatformRun {
     evalErrorCount: 0,
     evalNotEvaluatedCount: 0,
     resultSetHash: HASH,
+    evaluationContextHash: null,
+    evaluationResultSetHash: null,
+    reportResultSetHash: null,
+    reportSummary: null,
     artifactManifest: {
       contractVersion: "cortex.artifact-manifest.v1",
       owner: { kind: "RUN", id: RUN_ID },
@@ -215,6 +231,33 @@ function failedResult(): StoredRestCaseResult {
   };
 }
 
+// Build the P8 Report fixtures from the shared normalized test boundary.
+function passingEvaluation(): PlatformEvalCaseResult {
+  return passingEvaluationFixture(RUN_ID, "case-1", HASH, NOW);
+}
+
+function reportedRun(): PlatformRun {
+  return reportedRunFixture(run(), NOW);
+}
+
+function importedReportRun(): ImportedReportRun {
+  return importedReportRunFixture({
+    current: reportedRun(),
+    packageId: SUITE_ID,
+    executionId: SOURCE_RUN_ID,
+    fallbackHash: HASH,
+    fallbackTime: NOW
+  });
+}
+
+function reportCase(): PlatformReportCase {
+  return reportCaseFixture({
+    run: reportedRun(),
+    rest: successfulResult(true),
+    evaluation: passingEvaluation()
+  });
+}
+
 function input(overrides: Partial<LocalApiHandlerInput> = {}): LocalApiHandlerInput {
   return {
     params: {},
@@ -261,6 +304,22 @@ function service(
     startEvaluation: vi.fn().mockResolvedValue({ ok: true, run: run() }),
     cancelEvaluation: vi.fn().mockResolvedValue({ ok: true, run: platformRunProgress(run()) }),
     queryEvalResults: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
+    startReport: vi.fn().mockResolvedValue({ ok: true, run: reportedRun() }),
+    cancelReport: vi.fn().mockResolvedValue({ ok: true, run: platformRunProgress(reportedRun()) }),
+    getReport: vi.fn().mockResolvedValue(null),
+    hasReportRun: vi.fn().mockResolvedValue(true),
+    queryReportCases: vi.fn().mockResolvedValue(null),
+    getReportCase: vi.fn().mockResolvedValue(null),
+    streamReportCases: vi.fn().mockReturnValue(Readable.from([])),
+    openReportExport: vi.fn().mockResolvedValue(null),
+    createRerun: vi.fn().mockResolvedValue({
+      ok: false,
+      error: { code: "RUN_NOT_FOUND" }
+    }),
+    importExecutionReport: vi.fn().mockResolvedValue({
+      ok: false,
+      error: { code: "EXECUTION_RESULT_CONFLICT", executionId: RUN_ID }
+    }),
     ...overrides
   };
 }
@@ -620,5 +679,290 @@ describe("Application Run HTTP handlers", () => {
         expect(response.statusCode).toBe(error.code === "RUN_NOT_FOUND" ? 404 : 409);
       }
     }
+  });
+
+  it("Report 阶段启动和取消只分派 Report Owner", async () => {
+    const current = { ...reportedRun(), status: "READY" as const, stage: "REPORT" as const };
+    const startReport = vi.fn().mockResolvedValue({ ok: true, run: current });
+    const cancelReport = vi.fn().mockResolvedValue({ ok: true, run: platformRunProgress(current) });
+    const start = vi.fn();
+    const startEvaluation = vi.fn();
+    const handlers = createApplicationRunHandlers(
+      service({
+        getProgress: vi.fn().mockResolvedValue(platformRunProgress(current)),
+        start,
+        startEvaluation,
+        startReport,
+        cancelReport
+      })
+    );
+    const action = input({ params: { runId: RUN_ID }, body: { expectedRevision: 5 } });
+
+    expect((await handlers.startRun(action)).statusCode).toBe(202);
+    expect((await handlers.cancelRun(action)).statusCode).toBe(202);
+    expect(startReport).toHaveBeenCalledWith({ runId: RUN_ID, expectedRevision: 5 });
+    expect(cancelReport).toHaveBeenCalledWith({ runId: RUN_ID, expectedRevision: 5 });
+    expect(start).not.toHaveBeenCalled();
+    expect(startEvaluation).not.toHaveBeenCalled();
+  });
+
+  it("读取 Report Overview、过滤分页和单 Case 时保持同一规范化 DTO", async () => {
+    const current = reportedRun();
+    const item = reportCase();
+    const queryReportCases = vi.fn().mockResolvedValue({ items: [item], nextCursor: 0 });
+    const handlers = createApplicationRunHandlers(
+      service({
+        getProgress: vi.fn().mockResolvedValue(platformRunProgress(current)),
+        getReport: vi.fn().mockResolvedValue({
+          run: current,
+          report: current.reportSummary,
+          artifactAvailability: []
+        }),
+        queryReportCases,
+        getReportCase: vi.fn().mockResolvedValue(item)
+      })
+    );
+
+    const overview = await handlers.getRunReport(input({ params: { runId: RUN_ID } }));
+    expect(overview).toMatchObject({
+      statusCode: 200,
+      body: {
+        runId: RUN_ID,
+        evaluationContextHash: "b".repeat(64),
+        evaluationResultSetHash: "c".repeat(64),
+        reportResultSetHash: "d".repeat(64),
+        summary: { total: 1, evalPass: 1 },
+        byMetric: [{ metric: "quality", pass: 1 }]
+      }
+    });
+    expect(JSON.stringify(overview.body)).not.toContain("secret prompt body");
+
+    const first = await handlers.listRunReportCases(
+      input({
+        params: { runId: RUN_ID },
+        query: {
+          limit: 1,
+          restStatus: ["SUCCEEDED"],
+          evalStatus: ["PASS"],
+          metric: ["quality"],
+          businessModule: ["chat"],
+          scenarioTag: ["smoke"]
+        }
+      })
+    );
+    expect(first).toMatchObject({
+      statusCode: 200,
+      body: { items: [{ caseKey: "case-1", rawEvidenceStatus: "ABSENT" }] }
+    });
+    const cursor = (first.body as { readonly nextCursor: string }).nextCursor;
+    await handlers.listRunReportCases(
+      input({ params: { runId: RUN_ID }, query: { limit: 1, cursor } })
+    );
+    expect(queryReportCases).toHaveBeenLastCalledWith({
+      runId: RUN_ID,
+      limit: 1,
+      afterOrdinal: 0
+    });
+
+    expect(
+      await handlers.getRunReportCase(input({ params: { runId: RUN_ID, caseKey: "case-1" } }))
+    ).toMatchObject({
+      statusCode: 200,
+      body: {
+        caseKey: "case-1",
+        rest: { status: "SUCCEEDED" },
+        evaluation: { status: "PASS" }
+      }
+    });
+  });
+
+  it("导出只返回已完成完整性校验的 Report JSON 流", async () => {
+    const current = reportedRun();
+    const body = Readable.from(['{"contractVersion":"cortex.report.v1"}\n']);
+    const handlers = createApplicationRunHandlers(
+      service({
+        getProgress: vi.fn().mockResolvedValue(platformRunProgress(current)),
+        getReport: vi.fn().mockResolvedValue({
+          run: current,
+          report: current.reportSummary,
+          artifactAvailability: []
+        }),
+        openReportExport: vi.fn().mockResolvedValue(body)
+      })
+    );
+
+    await expect(
+      handlers.exportRunReport(input({ params: { runId: RUN_ID } }))
+    ).resolves.toMatchObject({
+      statusCode: 200,
+      headers: { "content-type": "application/json; charset=utf-8" },
+      body
+    });
+    const corrupted = createApplicationRunHandlers(
+      service({
+        getProgress: vi.fn().mockResolvedValue(platformRunProgress(current)),
+        getReport: vi.fn().mockResolvedValue({
+          run: current,
+          report: current.reportSummary,
+          artifactAvailability: []
+        }),
+        openReportExport: vi.fn().mockResolvedValue(null)
+      })
+    );
+    await expect(
+      corrupted.exportRunReport(input({ params: { runId: RUN_ID } }))
+    ).resolves.toMatchObject({
+      statusCode: 422,
+      body: { error: { code: "REPORT_RECONCILIATION_FAILED" } }
+    });
+  });
+
+  it("离线导入 Report 使用统一 Overview 并从规范化明细流式导出", async () => {
+    const current = importedReportRun();
+    const item = reportCase();
+    const handlers = createApplicationRunHandlers(
+      service({
+        getReport: vi.fn().mockResolvedValue({
+          run: current,
+          report: current.reportSummary,
+          artifactAvailability: []
+        }),
+        streamReportCases: vi.fn().mockReturnValue({
+          async *[Symbol.asyncIterator](): AsyncGenerator<PlatformReportArtifactCaseInput> {
+            await Promise.resolve();
+            yield { testCase: item.testCase, rest: item.rest, evaluation: item.evaluation };
+          }
+        })
+      })
+    );
+
+    await expect(
+      handlers.getRunReport(input({ params: { runId: RUN_ID } }))
+    ).resolves.toMatchObject({
+      statusCode: 200,
+      body: { sourceType: "OFFLINE_IMPORT", reportResultSetHash: current.reportResultSetHash }
+    });
+    const response = await handlers.exportRunReport(input({ params: { runId: RUN_ID } }));
+    expect(response.statusCode).toBe(200);
+    if (!(response.body instanceof Readable)) throw new Error("TEST_REPORT_BODY_INVALID");
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of response.body) {
+      if (!(chunk instanceof Uint8Array)) throw new Error("TEST_REPORT_CHUNK_INVALID");
+      chunks.push(chunk);
+    }
+    expect(JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown).toMatchObject({
+      owner: { kind: "EXECUTION", id: SOURCE_RUN_ID },
+      packageId: SUITE_ID,
+      cases: [{ caseKey: "case-1" }]
+    });
+  });
+
+  it("Retry/Force 创建新 Run 并返回来源、模式和复用数量", async () => {
+    const created = {
+      ...run(),
+      id: RUN_ID,
+      sourceRunId: SOURCE_RUN_ID,
+      rerunMode: "RETRY_FAILED" as const,
+      status: "READY" as const,
+      stage: "REST" as const,
+      lockRevision: 0
+    };
+    const handlers = createApplicationRunHandlers(
+      service({
+        createRerun: vi.fn().mockResolvedValue({
+          ok: true,
+          run: created,
+          plan: {
+            sourceRunId: SOURCE_RUN_ID,
+            mode: "RETRY_FAILED",
+            cases: [{ caseKey: "case-1", ordinal: 0, action: "REUSE_REST_AND_EVAL" }],
+            counts: { reuseRest: 1, executeRest: 0, reuseEval: 1, executeEval: 0 }
+          }
+        })
+      })
+    );
+
+    await expect(
+      handlers.createRunRerun(
+        input({ params: { runId: SOURCE_RUN_ID }, body: { mode: "RETRY_FAILED" } })
+      )
+    ).resolves.toMatchObject({
+      statusCode: 201,
+      body: {
+        runId: RUN_ID,
+        sourceRunId: SOURCE_RUN_ID,
+        rerunMode: "RETRY_FAILED",
+        counts: { reuseRest: 1, reuseEval: 1 }
+      }
+    });
+
+    const incomplete = createApplicationRunHandlers(
+      service({
+        createRerun: vi.fn().mockResolvedValue({
+          ok: false,
+          error: { code: "RERUN_SOURCE_INCOMPLETE" }
+        })
+      })
+    );
+    await expect(
+      incomplete.createRunRerun(
+        input({ params: { runId: SOURCE_RUN_ID }, body: { mode: "FORCE" } })
+      )
+    ).resolves.toMatchObject({
+      statusCode: 422,
+      body: { error: { code: "RERUN_SOURCE_INCOMPLETE" } }
+    });
+  });
+
+  it("Report Execution 导入返回独立版本身份并稳定映射冲突", async () => {
+    const importExecutionReport = vi.fn().mockResolvedValue({
+      ok: true,
+      value: {
+        runId: RUN_ID,
+        packageId: SUITE_ID,
+        executionId: SOURCE_RUN_ID,
+        idempotent: false,
+        status: "COMPLETED",
+        restResultSetHash: HASH,
+        evaluationContextHash: HASH,
+        evaluationResultSetHash: HASH,
+        reportResultSetHash: HASH
+      }
+    });
+    const handlers = createApplicationRunHandlers(service({ importExecutionReport }));
+    const request = input({
+      body: {
+        contractVersion: "cortex.execution-report-import-request.v1",
+        packagePath: "/tmp/package",
+        executionId: SOURCE_RUN_ID
+      }
+    });
+
+    await expect(handlers.importExecutionReport(request)).resolves.toMatchObject({
+      statusCode: 201,
+      body: {
+        runId: RUN_ID,
+        sourceType: "OFFLINE_IMPORT",
+        stage: "DONE",
+        restResultSetHash: HASH,
+        evaluationContextHash: HASH,
+        evaluationResultSetHash: HASH,
+        reportResultSetHash: HASH
+      }
+    });
+    expect(importExecutionReport).toHaveBeenCalledWith(request.body, request.signal);
+
+    const conflict = createApplicationRunHandlers(
+      service({
+        importExecutionReport: vi.fn().mockResolvedValue({
+          ok: false,
+          error: { code: "EXECUTION_RESULT_CONFLICT", executionId: SOURCE_RUN_ID }
+        })
+      })
+    );
+    await expect(conflict.importExecutionReport(request)).resolves.toMatchObject({
+      statusCode: 409,
+      body: { error: { code: "EXECUTION_RESULT_CONFLICT" } }
+    });
   });
 });

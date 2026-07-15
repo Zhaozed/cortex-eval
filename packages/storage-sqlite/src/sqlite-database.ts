@@ -6,7 +6,7 @@ import { Kysely, SqliteDialect } from "kysely";
 import { Migrator } from "kysely/migration";
 
 import { CortexMigrationProvider } from "./sqlite-initial-migration.ts";
-import { SqliteTransactionManager } from "./sqlite-application-repositories.ts";
+import { SqliteTransactionManager } from "./sqlite-transaction-manager.ts";
 import { SqlitePlatformRunTransactionManager } from "./sqlite-platform-run-repository.ts";
 import { SqlitePlatformEvalTransactionManager } from "./sqlite-platform-eval-repository.ts";
 import {

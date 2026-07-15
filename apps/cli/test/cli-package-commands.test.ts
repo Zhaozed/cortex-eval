@@ -10,6 +10,7 @@ import {
   type EvaluationCommandService,
   type PackageCommandService,
   type PipelineCommandService,
+  type ReportCommandService,
   type RestCommandService
 } from "../src/cli-program.ts";
 
@@ -77,14 +78,26 @@ function unusedPipelineService(): PipelineCommandService {
   return { run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED_PIPELINE_COMMAND")) };
 }
 
-describe("P7 CLI package commands", () => {
-  it("exposes only closed package, REST, Evaluation and Pipeline capabilities in Help", async () => {
+function unusedReportService(): ReportCommandService {
+  return { run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED_REPORT_COMMAND")) };
+}
+
+function unusedResultImportService(): { readonly importReport: () => Promise<never> } {
+  return {
+    importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED_RESULT_COMMAND"))
+  };
+}
+
+describe("P8 CLI closed capabilities", () => {
+  it("exposes Report and Result Import but still hides unclosed Analysis and Data Export", async () => {
     const target = output();
     const exitCode = await runCli(["--help"], {
       packageCommands: service(),
       restCommands: unusedRestService(),
       evaluationCommands: unusedEvaluationService(),
+      reportCommands: unusedReportService(),
       pipelineCommands: unusedPipelineService(),
+      resultCommands: unusedResultImportService(),
       output: target.streams
     });
     expect(exitCode).toBe(0);
@@ -92,8 +105,10 @@ describe("P7 CLI package commands", () => {
     expect(help).toContain("package");
     expect(help).toMatch(/^\s{2}rest\b/m);
     expect(help).toMatch(/^\s{2}eval\b/m);
+    expect(help).toMatch(/^\s{2}report\b/m);
     expect(help).toMatch(/^\s{2}pipeline\b/m);
-    expect(help).not.toMatch(/^\s{2}(?:report|analyze|result|data)\b/m);
+    expect(help).toMatch(/^\s{2}result\b/m);
+    expect(help).not.toMatch(/^\s{2}(?:analyze|data)\b/m);
   });
 
   it("exports through the package service and emits one strict NDJSON event", async () => {
@@ -102,7 +117,9 @@ describe("P7 CLI package commands", () => {
       packageCommands: service(),
       restCommands: unusedRestService(),
       evaluationCommands: unusedEvaluationService(),
+      reportCommands: unusedReportService(),
       pipelineCommands: unusedPipelineService(),
+      resultCommands: unusedResultImportService(),
       output: target.streams
     });
     expect(exitCode).toBe(0);
@@ -122,7 +139,9 @@ describe("P7 CLI package commands", () => {
       packageCommands: service(),
       restCommands: unusedRestService(),
       evaluationCommands: unusedEvaluationService(),
+      reportCommands: unusedReportService(),
       pipelineCommands: unusedPipelineService(),
+      resultCommands: unusedResultImportService(),
       output: target.streams
     });
     expect(exitCode).toBe(0);
@@ -153,7 +172,9 @@ describe("P7 CLI package commands", () => {
         packageCommands: service(errorCode),
         restCommands: unusedRestService(),
         evaluationCommands: unusedEvaluationService(),
+        reportCommands: unusedReportService(),
         pipelineCommands: unusedPipelineService(),
+        resultCommands: unusedResultImportService(),
         output: target.streams
       });
       expect(exitCode).toBe(expectedExitCode);
@@ -175,7 +196,9 @@ describe("P7 CLI package commands", () => {
       packageCommands: service(),
       restCommands: unusedRestService(),
       evaluationCommands: unusedEvaluationService(),
+      reportCommands: unusedReportService(),
       pipelineCommands: unusedPipelineService(),
+      resultCommands: unusedResultImportService(),
       output: target.streams
     });
 
@@ -219,7 +242,9 @@ describe("P7 CLI package commands", () => {
         packageCommands: service(privateCode),
         restCommands: unusedRestService(),
         evaluationCommands: unusedEvaluationService(),
+        reportCommands: unusedReportService(),
         pipelineCommands: unusedPipelineService(),
+        resultCommands: unusedResultImportService(),
         output: target.streams
       });
       expect(result).toBe(expectedExitCode);
@@ -249,7 +274,9 @@ describe("P7 CLI package commands", () => {
       packageCommands: waiting,
       restCommands: unusedRestService(),
       evaluationCommands: unusedEvaluationService(),
+      reportCommands: unusedReportService(),
       pipelineCommands: unusedPipelineService(),
+      resultCommands: unusedResultImportService(),
       output: target.streams,
       signal: controller.signal
     });

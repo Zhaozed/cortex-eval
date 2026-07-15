@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { AnalysisProposalV1Schema } from "./analysis-contracts.ts";
+import { CaseDefinitionV1Schema } from "./case-contracts.ts";
 import {
   BusinessKeySchema,
   JsonObjectSchema,
@@ -10,7 +11,12 @@ import {
   UtcDateTimeSchema,
   UuidV7Schema
 } from "./contracts-primitives.ts";
-import { ProviderOutputV1Schema } from "./provider-contracts.ts";
+import { RunExecutionLimitsV1Schema } from "./execution-limit-contracts.ts";
+import {
+  EndpointConfigV1Schema,
+  LlmConfigV1Schema,
+  ProviderOutputV1Schema
+} from "./provider-contracts.ts";
 
 /** Identity shared by all stage Artifacts. */
 export const ArtifactIdentityV1Schema = z.strictObject({
@@ -343,7 +349,8 @@ export const ReportSummaryV1Schema = z.strictObject({
   coverageRate: z.number().min(0).max(1).nullable()
 });
 
-const MetricSummaryV1Schema = z.strictObject({
+/** One stable By Metric report summary. */
+export const MetricSummaryV1Schema = z.strictObject({
   metric: z.string().trim().min(1),
   pass: z.number().int().nonnegative(),
   fail: z.number().int().nonnegative(),
@@ -353,28 +360,122 @@ const MetricSummaryV1Schema = z.strictObject({
   passRate: z.number().min(0).max(1).nullable()
 });
 
-/** Report JSON Artifact. */
+/** Version identity shared by platform and offline reports. */
+export const ReportOwnerV1Schema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("RUN"), id: UuidV7Schema }),
+  z.strictObject({ kind: z.literal("EXECUTION"), id: UuidV7Schema })
+]);
+
+const ReportConfigurationIdentityV1Schema = z.strictObject({
+  sourceId: UuidV7Schema.nullable(),
+  name: z.string().trim().min(1).nullable(),
+  configHash: Sha256Schema
+});
+
+/** Complete safe context shown by report clients without expanded Secrets. */
+export const ReportContextV1Schema = z.strictObject({
+  contractVersion: z.literal("cortex.report-context.v1"),
+  runContextHash: Sha256Schema,
+  suite: z.strictObject({
+    sourceId: UuidV7Schema.nullable(),
+    name: z.string().trim().min(1).nullable(),
+    suiteHash: Sha256Schema
+  }),
+  endpoint: ReportConfigurationIdentityV1Schema.extend({ config: EndpointConfigV1Schema }),
+  evaluator: ReportConfigurationIdentityV1Schema.extend({ config: LlmConfigV1Schema }),
+  rubricPrompts: z.array(
+    z.strictObject({
+      sourceId: UuidV7Schema.nullable(),
+      promptKey: BusinessKeySchema,
+      name: z.string().trim().min(1).nullable(),
+      promptHash: Sha256Schema
+    })
+  ),
+  promptfooVersion: z.literal("0.121.18"),
+  runExecutionLimits: RunExecutionLimitsV1Schema
+});
+
+/** Complete safe Report context DTO. */
+export type ReportContextV1 = z.infer<typeof ReportContextV1Schema>;
+
+/** Complete normalized Case facts carried by Report JSON. */
+export const ReportCaseV1Schema = z
+  .strictObject({
+    caseKey: BusinessKeySchema,
+    ordinal: z.number().int().nonnegative(),
+    definitionHash: Sha256Schema,
+    definition: CaseDefinitionV1Schema,
+    rest: RestArtifactCaseV1Schema,
+    evaluation: EvalCaseV1Schema
+  })
+  .superRefine((item, context) => {
+    if (
+      item.definition.metadata.case_id !== item.caseKey ||
+      item.rest.caseKey !== item.caseKey ||
+      item.evaluation.caseKey !== item.caseKey ||
+      item.rest.ordinal !== item.ordinal ||
+      item.evaluation.ordinal !== item.ordinal ||
+      item.rest.caseDefinitionHash !== item.definitionHash
+    ) {
+      context.addIssue({ code: "custom", message: "REPORT_CASE_ALIGNMENT" });
+    }
+    if ((item.rest.status === "ERROR") !== (item.evaluation.status === "NOT_EVALUATED")) {
+      context.addIssue({ code: "custom", message: "REPORT_RECONCILIATION_FAILED" });
+    }
+    const metrics = new Set<string>();
+    for (const [index, metric] of item.evaluation.metrics.entries()) {
+      if (metrics.has(metric.metric)) {
+        context.addIssue({
+          code: "custom",
+          path: ["evaluation", "metrics", index],
+          message: "REPORT_METRIC_DUPLICATE"
+        });
+      }
+      metrics.add(metric.metric);
+    }
+  });
+
+/** Complete normalized Report Case DTO. */
+export type ReportCaseV1 = z.infer<typeof ReportCaseV1Schema>;
+
+/** Complete Report JSON Artifact for either one Run or one offline Execution version. */
 export const ReportArtifactV1Schema = z
   .strictObject({
     contractVersion: z.literal("cortex.report.v1"),
-    ...ArtifactIdentityV1Schema.shape,
+    owner: ReportOwnerV1Schema,
+    packageId: UuidV7Schema.nullable(),
     completedAt: UtcDateTimeSchema,
+    context: ReportContextV1Schema,
+    evaluationContextHash: Sha256Schema,
+    evaluationResultSetHash: Sha256Schema,
     summary: ReportSummaryV1Schema,
     byMetric: z.array(MetricSummaryV1Schema),
-    cases: z
-      .array(
-        z.strictObject({
-          caseKey: BusinessKeySchema,
-          ordinal: z.number().int().nonnegative(),
-          restResultHash: Sha256Schema,
-          evalResultHash: Sha256Schema,
-          finalCaseResultHash: Sha256Schema
-        })
-      )
-      .min(1),
-    resultSetHash: Sha256Schema
+    cases: z.array(ReportCaseV1Schema).min(1),
+    reportResultSetHash: Sha256Schema
   })
-  .superRefine((artifact, context) => validateCaseSequence(artifact.cases, context));
+  .superRefine((artifact, context) => {
+    validateCaseSequence(artifact.cases, context);
+    const packageIdentityMatches =
+      (artifact.owner.kind === "EXECUTION" && artifact.packageId !== null) ||
+      (artifact.owner.kind === "RUN" && artifact.packageId === null);
+    if (!packageIdentityMatches) {
+      context.addIssue({ code: "custom", path: ["packageId"], message: "REPORT_OWNER_SHAPE" });
+    }
+    const metrics = new Set<string>();
+    for (const [index, metric] of artifact.byMetric.entries()) {
+      if (metrics.has(metric.metric)) {
+        context.addIssue({
+          code: "custom",
+          path: ["byMetric", index],
+          message: "REPORT_METRIC_DUPLICATE"
+        });
+      }
+      metrics.add(metric.metric);
+    }
+  });
+
+/** Complete Report JSON Artifact DTO. */
+export type ReportArtifactV1 = z.infer<typeof ReportArtifactV1Schema>;
 
 const AnalysisSuccessV1Schema = z.strictObject({
   caseKey: BusinessKeySchema,

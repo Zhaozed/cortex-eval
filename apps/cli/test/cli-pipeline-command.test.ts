@@ -10,12 +10,25 @@ import {
   type PackageCommandService,
   type PipelineCommandService,
   type PipelineRunCommandInput,
+  type ReportCommandService,
   type RestCommandService
 } from "../src/cli-program.ts";
 
 const ID = "018f22aa-33bb-7ccc-8ddd-eeeeeeeeeeee";
 const SOURCE_ID = "018f22aa-33bb-7ccc-8ddd-fffffffffff1";
 const HASH = "a".repeat(64);
+const REPORT_SUMMARY = {
+  total: 1,
+  restSucceeded: 1,
+  restError: 0,
+  evalPass: 0,
+  evalFail: 1,
+  evalError: 0,
+  notEvaluated: 0,
+  effectivePassRate: 0,
+  evaluatedPassRate: 0,
+  coverageRate: 1
+} as const;
 
 function output(): {
   readonly stdout: string[];
@@ -49,6 +62,12 @@ const restCommands: RestCommandService = {
 const evaluationCommands: EvaluationCommandService = {
   run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
 };
+const reportCommands: ReportCommandService = {
+  run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+};
+const resultCommands = {
+  importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+};
 
 describe("P7 CLI REST to Evaluation Pipeline", () => {
   it("creates one retry Execution, emits one strict completion event and preserves Eval exit 1", async () => {
@@ -67,7 +86,11 @@ describe("P7 CLI REST to Evaluation Pipeline", () => {
           evalErrorCount: 0,
           evaluationResultSetHash: "b".repeat(64),
           rawArtifactPath: `executions/${ID}/promptfoo-raw.json`,
-          normalizedArtifactPath: `executions/${ID}/normalized-eval.json`
+          normalizedArtifactPath: `executions/${ID}/normalized-eval.json`,
+          reportResultSetHash: "c".repeat(64),
+          reportSummary: REPORT_SUMMARY,
+          reportJsonPath: `executions/${ID}/report.json`,
+          reportMarkdownPath: `executions/${ID}/report.md`
         });
       }
     };
@@ -91,7 +114,9 @@ describe("P7 CLI REST to Evaluation Pipeline", () => {
         packageCommands,
         restCommands,
         evaluationCommands,
+        reportCommands,
         pipelineCommands,
+        resultCommands,
         output: target.streams
       }
     );
@@ -128,7 +153,17 @@ describe("P7 CLI REST to Evaluation Pipeline", () => {
           evalErrorCount: 0,
           evaluationResultSetHash: HASH,
           rawArtifactPath: `executions/${ID}/promptfoo-raw.json`,
-          normalizedArtifactPath: `executions/${ID}/normalized-eval.json`
+          normalizedArtifactPath: `executions/${ID}/normalized-eval.json`,
+          reportResultSetHash: "c".repeat(64),
+          reportSummary: {
+            ...REPORT_SUMMARY,
+            evalPass: 1,
+            evalFail: 0,
+            effectivePassRate: 1,
+            evaluatedPassRate: 1
+          },
+          reportJsonPath: `executions/${ID}/report.json`,
+          reportMarkdownPath: `executions/${ID}/report.md`
         })
     };
     const target = output();
@@ -137,7 +172,9 @@ describe("P7 CLI REST to Evaluation Pipeline", () => {
         packageCommands,
         restCommands,
         evaluationCommands,
+        reportCommands,
         pipelineCommands,
+        resultCommands,
         output: target.streams
       })
     ).resolves.toBe(0);

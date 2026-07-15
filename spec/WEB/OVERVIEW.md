@@ -14,7 +14,7 @@ UI Primitive 只负责表现、可访问性和基础交互，不负责请求、�
 
 ## 实现状态
 
-已落地资源管理与平台 Run/REST/Evaluation Web。当前注册 Dashboard 资源数量和最近平台 Run、Test Suite/Case、Endpoint、LLM、LLM Rubric Prompt、Case Analysis Prompt，以及 Run 创建/详情；Report 和 Analysis 页面保持未注册。
+已落地资源管理与平台 Run/REST/Evaluation/Report Web。当前注册 Dashboard 资源数量、统一最近 Run 与最新完整报告指标、Test Suite/Case、Endpoint、LLM、LLM Rubric Prompt、Case Analysis Prompt、Run 创建/详情、Report 和平台 Retry/Force；Analysis 页面保持未注册。
 
 ## 目标代码落点
 
@@ -27,6 +27,7 @@ UI Primitive 只负责表现、可访问性和基础交互，不负责请求、�
 - [app.tsx](../../apps/web/src/app.tsx)：闭合路由、Feature 动态加载和 Query 根装配。
 - [resource-api.ts](../../apps/web/src/lib/resource-api.ts)：Contracts 与请求上下文双重校验的资源 API Client、Query Key 和精确失效范围。
 - [run-api.ts](../../apps/web/src/lib/run-api.ts)：Run HTTP/SSE 严格协议和请求身份校验。
+- [report-page.tsx](../../apps/web/src/features/reports/report-page.tsx)：平台与离线导入统一 Report 页面。
 - [feature-registry.ts](../../apps/web/src/features/feature-registry.ts)：当前导航与 Dashboard 能力贡献。
 - [app-shell.tsx](../../apps/web/src/components/app-shell.tsx)：桌面外壳、跳转、焦点和小屏提示。
 - [styles.css](../../apps/web/src/styles.css)：浅色本地实验室仪表台视觉、目标尺寸和 Reduced Motion。
@@ -67,8 +68,8 @@ API Client 的服务端错误码从闭合错误响应 Schema 推导，客户端�
 
 页面满足 WCAG 2.2 AA、键盘操作、可见焦点、表单错误关联、Reduced Motion、可读状态和稳定加载反馈。千级 Case 使用服务端分页。Feature 通过能力注册进入导航与 Dashboard，未实现能力不显示占位、伪数据或永久 Loading。
 
-Dashboard 贡献按闭环注册：P4 提供资源数量；P5 已提供最近平台 Run、阶段、状态和 Source Type，并让测试集列表显示最近 Run 状态；P8 在注册 Report 导入入口后增加离线导入来源，以及最近完整报告的有效通过率、覆盖率和主要 Metric。所有卡片只读取服务端事实。
+Dashboard 贡献按闭环注册：P4 提供资源数量；P5 提供最近平台 Run；P8 已扩展为显式区分来源的最近完整平台/离线导入 Run，并展示最近完整报告的有效通过率、覆盖率和按稳定 Metric 名称排序的第一项主要 Metric。所有卡片只读取服务端 DTO，不在前端重算。
 
 ## 相关测试
 
-当前测试覆盖资源与 Run API Client、请求/响应身份、路由、缓存失效、表单错误映射、Run 刷新恢复、取消和可访问状态。Report 与 Analysis 主路径随对应阶段补充。源码架构门禁同时限制 `apps`、`packages` 与 `tooling` 的 TypeScript/TSX 文件不超过 1,000 个物理行。
+当前测试覆盖资源、Run 与 Report API Client、请求/响应身份、路由、缓存失效、表单错误映射、Run 刷新恢复、取消、重跑、报告过滤/详情/导出和可访问状态。真实 Playwright 覆盖离线 Report 导入后的 Dashboard、Run、Report 与 Test Suite 关联；Analysis 主路径随 P9 补充。源码架构门禁同时限制 `apps`、`packages` 与 `tooling` 的 TypeScript/TSX 文件不超过 1,000 个物理行。

@@ -1,5 +1,6 @@
 import type {
   ClaimRunStageResult,
+  CompleteReportStageInput,
   CompleteRestStageInput,
   FailPlatformRunInput,
   PlatformRunRepository,
@@ -18,6 +19,7 @@ import {
   type RunArtifactManifest,
   type StoredRestCaseResult
 } from "../src/features/runs/platform-run-models.ts";
+import type { ImportedReportRun } from "../src/features/execution-imports/execution-import-models.ts";
 
 const NOW = "2026-07-13T00:00:00.000Z";
 
@@ -25,6 +27,8 @@ const NOW = "2026-07-13T00:00:00.000Z";
 export class MemoryPlatformRunStore implements PlatformRunRepository {
   /** Current test Runs. */
   readonly values = new Map<string, PlatformRun>();
+  /** Current imported history Runs. */
+  readonly importedValues = new Map<string, ImportedReportRun>();
   /** Durable test Case results. */
   readonly results = new Map<string, StoredRestCaseResult>();
 
@@ -49,6 +53,11 @@ export class MemoryPlatformRunStore implements PlatformRunRepository {
   /** Read one Run. */
   public getPlatformRun(runId: string): Promise<PlatformRun | null> {
     return Promise.resolve(this.values.get(runId) ?? null);
+  }
+
+  /** Read one imported history Run. */
+  public getImportedReportRun(runId: string): Promise<ImportedReportRun | null> {
+    return Promise.resolve(this.importedValues.get(runId) ?? null);
   }
 
   /** Read one bounded Run detail. */
@@ -173,6 +182,49 @@ export class MemoryPlatformRunStore implements PlatformRunRepository {
       resultSetHash: input.resultSetHash,
       artifactManifest: input.artifactManifest,
       updatedAt: input.updatedAt
+    };
+    this.values.set(run.id, completed);
+    return Promise.resolve(platformRunProgress(completed));
+  }
+
+  /** Commit one complete Report pair and terminal summary. */
+  public completeReportStage(input: CompleteReportStageInput): Promise<PlatformRunProgress | null> {
+    const run = this.values.get(input.runId);
+    if (
+      run?.status !== "RUNNING" ||
+      run.stage !== "REPORT" ||
+      run.cancelRequestedAt !== null ||
+      run.lockRevision !== input.expectedRevision
+    ) {
+      return Promise.resolve(null);
+    }
+    const reportArtifacts = input.artifactManifest.artifacts;
+    if (
+      reportArtifacts.length !== 2 ||
+      reportArtifacts[0]?.kind !== "REPORT_JSON" ||
+      reportArtifacts[1]?.kind !== "REPORT_MARKDOWN"
+    ) {
+      return Promise.resolve(null);
+    }
+    const completed = {
+      ...run,
+      status:
+        run.restErrorCount + run.evalErrorCount + run.evalNotEvaluatedCount === 0
+          ? ("COMPLETED" as const)
+          : ("COMPLETED_WITH_ERRORS" as const),
+      stage: "DONE" as const,
+      lockRevision: run.lockRevision + 1,
+      reportResultSetHash: input.aggregation.reportResultSetHash,
+      reportSummary: {
+        summary: input.aggregation.summary,
+        byMetric: input.aggregation.byMetric
+      },
+      artifactManifest: {
+        ...run.artifactManifest,
+        artifacts: [...run.artifactManifest.artifacts, ...reportArtifacts]
+      },
+      completedAt: input.completedAt,
+      updatedAt: input.completedAt
     };
     this.values.set(run.id, completed);
     return Promise.resolve(platformRunProgress(completed));

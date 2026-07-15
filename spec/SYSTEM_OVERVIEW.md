@@ -10,9 +10,9 @@ Cortex Eval 是面向本地单用户的测试集管理、REST 结果获取、Pro
 
 ## 实现状态
 
-当前仓库已完成 P0–P7，P8 尚未开始。Node 24 工具链、137 条 Assertion 能力契约、十表 SQLite、资源/API/Web、平台 REST→Evaluation Pipeline、Eval API/Web/SSE、不可变 Eval Artifact、规范化 Hash、Case Metric、Ajv 2020-12 Diff、严格 Importer、SQLite 原子提交、受控 Promptfoo/Bridge/官方 SDK 链、Work Package v1 导出与安全文件运行时、离线 REST/Eval/Pipeline CLI、Retry/Force、连续 Retry Evidence 追溯、Pipeline 写前完整 Evaluation 输入/Prompt/Runtime 预检、固定 Promptfoo 版本、真实取消到 CLI 130、Promptfoo Raw 有界流式 Source 和完整 Artifact Manifest 导入身份已生效。
+当前仓库已完成 P0–P8，P9 尚未开始。Node 24 工具链、137 条 Assertion 能力契约、十表 SQLite、资源/API/Web、平台与离线 REST→Evaluation→Report Pipeline、不可变 Eval/Report Artifact、规范化 Hash、Case Metric、Ajv 2020-12 Diff、纯报告聚合与 Markdown、严格 Importer、SQLite 原子提交、受控 Promptfoo/Bridge/官方 SDK 链、Work Package v1 导出与安全文件运行时、平台与离线 Retry/Force、连续 Retry Evidence 追溯、完整 Execution Report Import、固定 Promptfoo 版本、真实取消到 CLI 130 和 Promptfoo Raw 有界流式 Source 已生效。
 
-当前 OpenAPI 与 Web 包含资源、平台 REST 与 Evaluation 闭环；Work Package 导出 API 已注册。Bridge v2 只绑定一次 Evaluation 调用期，以确定性总预算和并发限制保护冻结 Evaluator，不识别 Assertion、Metric 或组件身份；结果身份由 Promptfoo Raw Result 的 Metric、完整 Definition 和组件结构承担。Case 构建不按类型拒绝 `select-best`、`max-score` 或其他 Assertion，平台也不复现或预判其执行流程。Report、Analysis、对外平台 Retry/Force、完整 Execution Result Import、Canonical Export 及其 API/CLI/Web 能力尚未闭合。
+当前 OpenAPI 与 Web 包含资源、平台 REST、Evaluation、Report、Retry/Force 和 Execution Report Import 闭环；Work Package 导出 API 已注册。Bridge v2 只绑定一次 Evaluation 调用期，以确定性总预算和并发限制保护冻结 Evaluator，不识别 Assertion、Metric 或组件身份；结果身份由 Promptfoo Raw Result 的 Metric、完整 Definition 和组件结构承担。Case 构建不按类型拒绝 `select-best`、`max-score` 或其他 Assertion，平台也不复现或预判其执行流程。Analysis、Analysis Import 和 Canonical Export 及其 API/CLI/Web 能力尚未闭合。
 
 本文档描述 [REQ.md](../REQ.md) 和 [TECH.md](../TECH.md) 已确认的目标系统。未落地路径统一称为目标代码落点，不视为当前代码事实。
 
@@ -35,16 +35,16 @@ Infrastructure 实现 SQLite、文件、REST、Promptfoo、分析模型、Clock 
 ## 代码模块
 
 - `apps/local-server`：本地 HTTP Server、资源与 Run/Evaluation Route、Run SSE、生产 Web 静态入口、Mapper、安全入口、日志、OpenAPI、依赖装配和生命周期。
-- `apps/web`：Dashboard、测试集/Case、四类配置管理和平台 Run/REST/Evaluation；后续 Feature 按报告和分析组织。
-- `apps/cli`：P7 已落地 Work Package 导出/校验、REST、Evaluation 和当前 REST→Evaluation Pipeline 命令；后续命令按阶段注册。
+- `apps/web`：Dashboard、测试集/Case、四类配置管理、平台 Run/REST/Evaluation、统一报告查询和平台 Retry/Force；后续 Feature 按分析组织。
+- `apps/cli`：Work Package 导出/校验、REST、Evaluation、Report、REST→Evaluation→Report Pipeline 和结果导入；后续命令按阶段注册。
 - `packages/domain`：纯业务类型和规则，P1 已落地。
-- `packages/application`：资源 Use Case、Port、流式导入导出、平台 Run/REST/Evaluation 编排、严格 Importer 和内部 Retry/Force Use Case。
+- `packages/application`：资源 Use Case、Port、流式导入导出、平台 Run/REST/Evaluation/Report 编排、严格 Importer、对外 Retry/Force 和 Execution Report Import Use Case。
 - `packages/contracts`：DTO、Schema、Contract Version 和 Error Code，P1 已落地。
-- `packages/storage-sqlite`：P2–P5 已落地 SQLite Schema、Migration、资源/Run Repository、事务和外部 Case staging；P6 已落地原子 Eval 提交、查询和复用 Provenance 对账。
+- `packages/storage-sqlite`：SQLite Schema、Migration、资源/Run Repository、事务和外部 Case staging，以及原子 Eval/Report 提交、离线完整导入、查询和复用 Provenance 对账。
 - `packages/evaluation-adapters`：REST Adapter、受控 Promptfoo 配置/进程、Bridge v2 和 Gemini/OpenAI-compatible Evaluator SDK Adapter。
 - `packages/application/src/features/evaluation`：Evaluation 编排、严格 Promptfoo Importer、Eval 模型与持久化 Port。
-- `packages/reporting`：P6 已落地锁定 Ajv 2020-12 的纯 Diff；报告聚合和 Markdown Renderer 等待 P8。
-- `packages/work-package`：P7 已落地 Manifest、Execution、原生安全目录、文件锁、Artifact Store、Retry 证据和严格 Evaluation Result Reader。
+- `packages/reporting`：锁定 Ajv 2020-12 的纯 Diff、有界报告聚合、Report Result Set Hash 和单向 Markdown Renderer。
+- `packages/work-package`：Manifest、Execution、原生安全目录、文件锁、Artifact Store、Retry 证据，以及严格 Evaluation/Report Result Reader 与 Writer。
 
 ## 依赖边界
 

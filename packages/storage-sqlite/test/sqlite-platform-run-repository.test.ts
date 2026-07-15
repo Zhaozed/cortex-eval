@@ -6,11 +6,9 @@ import type {
   PlatformRun,
   StoredRestCaseResult
 } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
-import type { PlatformEvalCaseResult } from "@cortex-eval/application/src/features/evaluation/platform-eval-models.ts";
 import { caseDefinitionJson } from "@cortex-eval/domain/src/domain-case-projection.ts";
 import {
   hashCaseDefinition,
-  hashEvalResult,
   hashFinalCaseResult,
   hashRestResult,
   hashRunContext
@@ -27,7 +25,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { initializeSqliteStorage } from "../src/sqlite-database.ts";
 import { SqlitePlatformRunRepository } from "../src/sqlite-platform-run-repository.ts";
 import {
+  sqliteEvalArtifactManifest as evalArtifactManifest,
   sqliteEvalResultSetHash,
+  sqlitePassingEvalResult,
+  sqliteRestArtifactManifest as restArtifactManifest,
   sqliteRunCaseDefinition
 } from "../test-support/sqlite-platform-run-fixtures.ts";
 
@@ -204,6 +205,10 @@ function platformRun(
     evalErrorCount: 0,
     evalNotEvaluatedCount: 0,
     resultSetHash: null,
+    evaluationContextHash: null,
+    evaluationResultSetHash: null,
+    reportResultSetHash: null,
+    reportSummary: null,
     artifactManifest: {
       contractVersion: "cortex.artifact-manifest.v1",
       owner: { kind: "RUN", id },
@@ -246,106 +251,14 @@ function successResult(
   };
 }
 
-function passingEvalResult(runId: string): PlatformEvalCaseResult {
-  const assertions = [
-    {
-      index: 0,
-      definitionHash: hashCaseDefinition({
-        contractVersion: "cortex.case-definition.v1",
-        caseKey: "assertion",
-        definition: { type: "equals", metric: "quality", weight: 1 }
-      }),
-      type: "equals",
-      metric: "quality",
-      weight: 1,
-      status: "PASS" as const,
-      score: 1,
-      reason: "Assertion passed"
-    }
-  ];
-  const evalResultHash = hashEvalResult({
-    contractVersion: "cortex.eval-result.v1",
-    caseKey: "case-1",
-    status: "PASS",
-    promptfooSuccess: true,
-    score: 1,
-    reason: "All assertions passed",
-    evaluationError: null,
-    assertions,
-    diffs: [],
-    metrics: [{ metric: "quality", status: "PASS" }]
-  });
-  return {
+function passingEvalResult(runId: string): ReturnType<typeof sqlitePassingEvalResult> {
+  return sqlitePassingEvalResult({
     runId,
-    caseKey: "case-1",
-    ordinal: 0,
-    status: "PASS",
-    promptfooSuccess: true,
-    score: 1,
-    reason: "All assertions passed",
-    evaluationError: null,
-    assertions,
-    diffs: [],
-    metrics: [{ metric: "quality", status: "PASS" }],
-    latencyMs: 5,
-    tokenUsage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
-    cost: 0,
-    rawEvidence: {
-      present: true,
-      path: "runs/raw.json",
-      expectedSha256: HASH,
-      expectedSizeBytes: 10
-    },
-    evalResultHash,
-    finalCaseResultHash: hashFinalCaseResult({
-      contractVersion: "cortex.final-case-result.v1",
-      caseDefinitionHash: DEFINITION_HASH,
-      restResultHash: successResult(runId).resultHash,
-      evalResultHash
-    }),
-    provenance: null,
-    createdAt: SECOND_TIME,
-    updatedAt: SECOND_TIME
-  };
-}
-
-function evalArtifactManifest(runId: string): PlatformRun["artifactManifest"] {
-  return {
-    contractVersion: "cortex.artifact-manifest.v1",
-    owner: { kind: "RUN", id: runId },
-    artifacts: [
-      {
-        kind: "RAW_PROMPTFOO_EVIDENCE",
-        path: "runs/raw.json",
-        expectedSha256: HASH,
-        expectedSizeBytes: 10,
-        contractVersion: "cortex.raw-promptfoo-evidence.v1"
-      },
-      {
-        kind: "NORMALIZED_EVAL_RESULTS",
-        path: "runs/eval.json",
-        expectedSha256: "b".repeat(64),
-        expectedSizeBytes: 20,
-        contractVersion: "cortex.platform-normalized-eval.v1"
-      }
-    ]
-  };
-}
-
-function restArtifactManifest(runId: string): PlatformRun["artifactManifest"] {
-  return {
-    contractVersion: "cortex.artifact-manifest.v1",
-    owner: { kind: "RUN", id: runId },
-    artifacts: [
-      {
-        kind: "REST_RESULTS",
-        path: "runs/rest.json",
-        expectedSha256: "d".repeat(64),
-        expectedSizeBytes: 30,
-        contractVersion: "cortex.platform-rest-results.v1"
-      }
-    ]
-  };
+    definitionHash: DEFINITION_HASH,
+    restResultHash: successResult(runId).resultHash,
+    evidenceHash: HASH,
+    completedAt: SECOND_TIME
+  });
 }
 
 describe("SQLite Platform Run Repository", () => {
@@ -574,7 +487,7 @@ describe("SQLite Platform Run Repository", () => {
     });
   });
 
-  it("完整 Eval 集合在一个短事务中对账、写入并推进到 REPORT", async () => {
+  it("完整 Eval 与 Report 分别在短事务中对账并保留三类独立版本", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-platform-eval-"));
     const storage = await initializeSqliteStorage({ projectRoot });
     openStorages.push(storage);
@@ -630,7 +543,8 @@ describe("SQLite Platform Run Repository", () => {
         evalFailCount: 0,
         evalErrorCount: 0,
         evalNotEvaluatedCount: 0,
-        resultSetHash: evalResultSetHash
+        evaluationContextHash: HASH,
+        evaluationResultSetHash: evalResultSetHash
       }
     });
     const stored = await evalManager.execute(async (transaction) =>
@@ -655,13 +569,101 @@ describe("SQLite Platform Run Repository", () => {
       evalPassCount: 1,
       evalFailCount: 0,
       evalErrorCount: 0,
-      evalNotEvaluatedCount: 0
+      evalNotEvaluatedCount: 0,
+      resultSetHash: HASH,
+      evaluationContextHash: HASH,
+      evaluationResultSetHash: evalResultSetHash,
+      reportResultSetHash: null
     });
     expect(progress?.artifactManifest.artifacts.map((item) => item.kind)).toEqual([
       "REST_RESULTS",
       "RAW_PROMPTFOO_EVIDENCE",
       "NORMALIZED_EVAL_RESULTS"
     ]);
+    const reportClaim = await runManager.execute(async (transaction) =>
+      transaction.runs.claimStage(RUN_C, progress?.lockRevision ?? -1, SECOND_TIME)
+    );
+    if (!reportClaim.ok) throw new Error("TEST_REPORT_CLAIM_FAILED");
+    const aggregation = {
+      summary: {
+        total: 1,
+        restSucceeded: 1,
+        restError: 0,
+        evalPass: 1,
+        evalFail: 0,
+        evalError: 0,
+        notEvaluated: 0,
+        effectivePassRate: 1,
+        evaluatedPassRate: 1,
+        coverageRate: 1
+      },
+      byMetric: [
+        {
+          metric: "quality",
+          pass: 1,
+          fail: 0,
+          error: 0,
+          skipped: 0,
+          notEvaluated: 0,
+          passRate: 1
+        }
+      ],
+      reportResultSetHash: "d".repeat(64)
+    };
+    const reportCommitted = await runManager.execute(async (transaction) =>
+      transaction.runs.completeReportStage({
+        runId: RUN_C,
+        expectedRevision: reportClaim.run.lockRevision,
+        aggregation,
+        artifactManifest: {
+          contractVersion: "cortex.artifact-manifest.v1",
+          owner: { kind: "RUN", id: RUN_C },
+          artifacts: [
+            {
+              kind: "REPORT_JSON",
+              path: `runs/${RUN_C}/report.json`,
+              expectedSha256: "e".repeat(64),
+              expectedSizeBytes: 100,
+              contractVersion: "cortex.report.v1"
+            },
+            {
+              kind: "REPORT_MARKDOWN",
+              path: `runs/${RUN_C}/report.md`,
+              expectedSha256: "f".repeat(64),
+              expectedSizeBytes: 80,
+              contractVersion: "cortex.report-markdown.v1"
+            }
+          ]
+        },
+        completedAt: SECOND_TIME
+      })
+    );
+    expect(reportCommitted).toMatchObject({
+      status: "COMPLETED",
+      stage: "DONE",
+      resultSetHash: HASH,
+      evaluationContextHash: HASH,
+      evaluationResultSetHash: evalResultSetHash,
+      reportResultSetHash: aggregation.reportResultSetHash
+    });
+    const completedRun = await runManager.execute(async (transaction) =>
+      transaction.runs.getPlatformRun(RUN_C)
+    );
+    expect(completedRun).toMatchObject({
+      reportSummary: {
+        summary: { total: 1, evalPass: 1, coverageRate: 1 },
+        byMetric: [{ metric: "quality", pass: 1 }]
+      },
+      artifactManifest: {
+        artifacts: [
+          { kind: "REST_RESULTS" },
+          { kind: "RAW_PROMPTFOO_EVIDENCE" },
+          { kind: "NORMALIZED_EVAL_RESULTS" },
+          { kind: "REPORT_JSON" },
+          { kind: "REPORT_MARKDOWN" }
+        ]
+      }
+    });
   });
 
   it("只接受与来源 Eval 和复用 REST 精确对齐的 Eval Provenance", async () => {
@@ -932,14 +934,29 @@ describe("SQLite Platform Run Repository", () => {
     await manager.execute(async (transaction) => {
       await transaction.runs.insertPlatformRun(platformRun(RUN_A));
       await transaction.runs.insertPlatformRun(platformRun(RUN_B));
+      await transaction.runs.insertPlatformRun(platformRun(RUN_C));
       await transaction.runs.claimStage(RUN_B, 0, SECOND_TIME);
       await transaction.runs.recordRestResult(successResult(RUN_B), SECOND_TIME);
     });
+    const withoutReports = await manager.execute(async (transaction) =>
+      transaction.runs.queryPlatformRuns({ limit: 20 })
+    );
+    expect(withoutReports.items).toEqual([]);
+    const database = new Database(storage.databasePath);
+    database
+      .prepare(
+        `UPDATE run_log
+         SET status = 'COMPLETED', stage = 'DONE', report_result_set_hash = ?,
+             summary_json = '{}', completed_at = ?, updated_at = ?
+         WHERE id IN (?, ?)`
+      )
+      .run("d".repeat(64), SECOND_TIME, SECOND_TIME, RUN_A, RUN_C);
+    database.close();
     const firstPage = await manager.execute(async (transaction) =>
       transaction.runs.queryPlatformRuns({ limit: 1 })
     );
-    expect(firstPage.items).toMatchObject([{ id: RUN_B, suiteId: SUITE_ID, restTotalCount: 1 }]);
-    expect(firstPage.nextCursor).toEqual({ createdAt: FIRST_TIME, id: RUN_B });
+    expect(firstPage.items).toMatchObject([{ id: RUN_C, suiteId: SUITE_ID, restTotalCount: 1 }]);
+    expect(firstPage.nextCursor).toEqual({ createdAt: FIRST_TIME, id: RUN_C });
     const secondPage = await manager.execute(async (transaction) =>
       transaction.runs.queryPlatformRuns({
         limit: 1,
@@ -954,6 +971,6 @@ describe("SQLite Platform Run Repository", () => {
     const manifests = await manager.execute(async (transaction) =>
       transaction.runs.listPlatformRunManifests()
     );
-    expect(manifests).toHaveLength(2);
+    expect(manifests).toHaveLength(3);
   });
 });

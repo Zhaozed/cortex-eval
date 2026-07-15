@@ -9,6 +9,8 @@ import type {
   RunArtifactManifest,
   StoredRestCaseResult
 } from "./platform-run-models.ts";
+import type { ImportedReportRun } from "../execution-imports/execution-import-models.ts";
+import type { ReportAggregationResult } from "@cortex-eval/reporting/src/report-aggregation.ts";
 import type { StoredTestCase, TestSuite } from "../test-suites/test-suite-models.ts";
 import type {
   ConfigurationResource,
@@ -41,6 +43,20 @@ export interface CompleteRestStageInput {
   readonly updatedAt: string;
 }
 
+/** REPORT stage terminal commit guarded by the latest Revision. */
+export interface CompleteReportStageInput {
+  /** Target platform Run. */
+  readonly runId: string;
+  /** Latest claimed REPORT Revision. */
+  readonly expectedRevision: number;
+  /** Complete preflighted Report aggregation and version. */
+  readonly aggregation: ReportAggregationResult;
+  /** Manifest containing exactly the new JSON and Markdown descriptors. */
+  readonly artifactManifest: RunArtifactManifest;
+  /** Shared Report completion timestamp. */
+  readonly completedAt: string;
+}
+
 /** Stable terminal Run failure facts guarded by the latest Revision. */
 export interface FailPlatformRunInput {
   /** Target Run. */
@@ -66,6 +82,8 @@ export interface PlatformRunRepository {
   ): Promise<void>;
   /** Read one strict platform Run without mapping imported history. */
   getPlatformRun(runId: string): Promise<PlatformRun | null>;
+  /** Read one complete bounded imported Report history Run. */
+  getImportedReportRun(runId: string): Promise<ImportedReportRun | null>;
   /** Read one bounded platform Run detail without Case arrays or Prompt bodies. */
   getPlatformRunDetail(runId: string): Promise<PlatformRunDetail | null>;
   /** Read one small durable state projection for polling and CAS settlement. */
@@ -91,6 +109,8 @@ export interface PlatformRunRepository {
   ): Promise<PlatformRunProgress | null>;
   /** Commit a complete REST stage only while cancellation remains absent. */
   completeRestStage(input: CompleteRestStageInput): Promise<PlatformRunProgress | null>;
+  /** Atomically append both Report descriptors and finish the Run. */
+  completeReportStage(input: CompleteReportStageInput): Promise<PlatformRunProgress | null>;
   /** Commit cancellation after all already-dispatched work settles. */
   commitCancellation(
     runId: string,

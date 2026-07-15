@@ -80,7 +80,7 @@ describe("Run 页面", () => {
                 caseCount: 3,
                 revision: 1,
                 updatedAt: RUN_TIME,
-                latestPlatformRun: null
+                latestRun: null
               }
             ],
             nextCursor: null
@@ -190,7 +190,7 @@ describe("Run 页面", () => {
                 caseCount: 3,
                 revision: 1,
                 updatedAt: RUN_TIME,
-                latestPlatformRun: null
+                latestRun: null
               }
             ],
             nextCursor: null
@@ -312,7 +312,7 @@ describe("Run 页面", () => {
                 caseCount: 3,
                 revision: 1,
                 updatedAt: RUN_TIME,
-                latestPlatformRun: null
+                latestRun: null
               }
             ],
             nextCursor: null
@@ -478,7 +478,7 @@ describe("Run 页面", () => {
                     caseCount: 3,
                     revision: 1,
                     updatedAt: RUN_TIME,
-                    latestPlatformRun: null
+                    latestRun: null
                   }
                 ]
               : [
@@ -530,7 +530,7 @@ describe("Run 页面", () => {
                     caseCount: 3,
                     revision: 1,
                     updatedAt: RUN_TIME,
-                    latestPlatformRun: null
+                    latestRun: null
                   }
                 ]
               : [
@@ -607,7 +607,7 @@ describe("Run 页面", () => {
     await userEvent.click(screen.getByRole("button", { name: "下一页" }));
     expect(await screen.findByText("page-1")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "下一页" }));
-    expect(await screen.findByText("当前没有平台运行。")).toBeInTheDocument();
+    expect(await screen.findByText("当前没有运行。")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "上一页" }));
     expect(await screen.findByText("page-1")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "上一页" }));
@@ -660,7 +660,7 @@ describe("Run 页面", () => {
                   caseCount: 3,
                   revision: 1,
                   updatedAt: RUN_TIME,
-                  latestPlatformRun: null
+                  latestRun: null
                 }
               ]
             : [
@@ -725,7 +725,7 @@ describe("Run 页面", () => {
     await waitFor(() => expect(onCommittedNavigate).toHaveBeenCalledWith(`/runs/${RUN_ID}`));
   });
 
-  it("Run Detail 读取失败可重试，并呈现零 Case、未注册阶段和系统错误", async () => {
+  it("Run Detail 读取失败可重试，并呈现零 Case、Report 入口和系统错误", async () => {
     let detailCalls = 0;
     const current = {
       ...runDetail({
@@ -758,7 +758,7 @@ describe("Run 页面", () => {
 
     expect(await screen.findByText("运行详情读取失败")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "重新读取" }));
-    expect(await screen.findByText("下一阶段尚未注册")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "生成报告" })).toBeInTheDocument();
     expect(screen.getByText("运行发生系统错误")).toBeInTheDocument();
     expect(await screen.findByText("尚无已完成的真实 Case 结果。")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "返回运行" }));

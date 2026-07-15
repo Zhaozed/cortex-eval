@@ -252,12 +252,21 @@ function registerRunEventStream(
   });
 }
 
-/** Register only the fully closed P5 Run HTTP and SSE capabilities. */
+/** Register the closed Run, Evaluation and Report HTTP/SSE capabilities. */
 export function registerRunRoutes(
   server: FastifyInstance,
   controllers: Set<AbortController>,
   handlers: LocalRunHandlers
 ): void {
+  registerHandlerRoute(
+    server,
+    controllers,
+    "POST",
+    "/api/v1/execution-results/import",
+    "importExecutionReport",
+    handlers.importExecutionReport,
+    16 * 1024
+  );
   registerHandlerRoute(
     server,
     controllers,
@@ -288,6 +297,15 @@ export function registerRunRoutes(
   registerHandlerRoute(
     server,
     controllers,
+    "POST",
+    "/api/v1/runs/:runId/reruns",
+    "createRunRerun",
+    handlers.createRunRerun,
+    64 * 1024
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
     "GET",
     "/api/v1/runs/:runId/cases",
     "listRunCases",
@@ -308,6 +326,38 @@ export function registerRunRoutes(
     "/api/v1/runs/:runId/evaluations",
     "listRunEvaluations",
     handlers.listRunEvaluations
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "GET",
+    "/api/v1/runs/:runId/report",
+    "getRunReport",
+    handlers.getRunReport
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "GET",
+    "/api/v1/runs/:runId/report/cases",
+    "listRunReportCases",
+    handlers.listRunReportCases
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "GET",
+    "/api/v1/runs/:runId/report/cases/:caseKey",
+    "getRunReportCase",
+    handlers.getRunReportCase
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
+    "GET",
+    "/api/v1/runs/:runId/report/export",
+    "exportRunReport",
+    handlers.exportRunReport
   );
   registerHandlerRoute(
     server,

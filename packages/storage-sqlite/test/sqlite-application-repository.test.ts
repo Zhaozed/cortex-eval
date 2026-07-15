@@ -96,7 +96,7 @@ function sequentialDependencies(
 }
 
 describe("SQLite Application Repository", () => {
-  it("套件列表只内聚按创建时间和 ID 排序的最新平台 Run", async () => {
+  it("套件列表内聚按创建时间和 ID 排序的最新平台或完整离线导入 Run", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-repository-"));
     const storage = await initializeSqliteStorage({ projectRoot });
     openStorages.push(storage);
@@ -108,9 +108,9 @@ describe("SQLite Application Repository", () => {
         suite_snapshot_json, endpoint_snapshot_json, evaluator_snapshot_json,
         rubric_prompts_snapshot_json, run_context_hash, promptfoo_version,
         contract_versions_json, run_execution_limits_json, run_mode, status, stage,
-        artifact_manifest_json, created_at, updated_at
+        artifact_manifest_json, report_result_set_hash, created_at, updated_at
       ) VALUES (?, ?, ?, ?, 'NONE', 'suite-1', '{}', '{}', '{}', '[]', ?,
-        '0.121.18', '{}', '{}', 'STAGED', ?, ?, '{}', ?, ?)`
+        '0.121.18', '{}', '{}', 'STAGED', ?, ?, '{}', ?, ?, ?)`
     );
     insert.run(
       "run-old",
@@ -120,6 +120,7 @@ describe("SQLite Application Repository", () => {
       "a".repeat(64),
       "COMPLETED",
       "DONE",
+      null,
       "2026-01-02T00:00:00.000Z",
       "2026-01-02T00:01:00.000Z"
     );
@@ -131,8 +132,9 @@ describe("SQLite Application Repository", () => {
       "b".repeat(64),
       "RUNNING",
       "REST",
-      "2026-01-03T00:00:00.000Z",
-      "2026-01-03T00:01:00.000Z"
+      null,
+      "2026-01-05T00:00:00.000Z",
+      "2026-01-05T00:01:00.000Z"
     );
     insert.run(
       "run-import-newest",
@@ -142,6 +144,7 @@ describe("SQLite Application Repository", () => {
       "c".repeat(64),
       "COMPLETED",
       "DONE",
+      "d".repeat(64),
       "2026-01-04T00:00:00.000Z",
       "2026-01-04T00:01:00.000Z"
     );
@@ -159,12 +162,12 @@ describe("SQLite Application Repository", () => {
         caseCount: 0,
         revision: 0,
         updatedAt: NOW,
-        latestPlatformRun: {
-          id: "run-z-new",
-          sourceType: "PLATFORM",
-          status: "RUNNING",
-          stage: "REST",
-          updatedAt: "2026-01-03T00:01:00.000Z"
+        latestRun: {
+          id: "run-import-newest",
+          sourceType: "OFFLINE_IMPORT",
+          status: "COMPLETED",
+          stage: "DONE",
+          updatedAt: "2026-01-04T00:01:00.000Z"
         }
       }
     ]);

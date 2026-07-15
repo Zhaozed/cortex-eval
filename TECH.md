@@ -6,7 +6,7 @@
 
 产品行为和验收口径以 `REQ.md` 为准。本文档不包含具体实现代码。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P7 已完成，P8 尚未开始。Work Package v1 安全文件运行时、导出 API、REST/Eval/Pipeline CLI、离线 Retry/Force、严格 Raw/Normalized 读取及 Execution Import 身份幂等基础已经闭环。Report、Analysis、对外平台 Retry/Force、完整结果导入入口和 Canonical Export 尚未闭合。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P8 已完成，P9 尚未开始。Work Package v1 安全文件运行时、导出 API、REST/Eval/Report/Pipeline CLI、平台与离线 Retry/Force、严格 Raw/Normalized/Report 读取，以及完整 Execution Report Import 已闭环。Analysis、Analysis Import 和 Canonical Export 尚未闭合。
 
 ## 2. 总体结论
 
@@ -260,7 +260,7 @@ Test Suite 聚合包括当前 Test Suite 和 Cases。所有 Case 写入口共用
 4. 写入 Case 和筛选派生字段。
 5. 重算 Case Count 和 Suite Hash。
 
-Run 聚合包括 Run Log、Case Results 和 Eval Results。外部 REST、Promptfoo 和 LLM 调用在事务外执行；阶段开始、进度和阶段提交使用独立短事务。
+Run 聚合包括 Run Log、Case Results、Eval Results 和 Report Summary。外部 REST、Promptfoo 和 LLM 调用在事务外执行；阶段开始、进度和阶段提交使用独立短事务。
 
 Case Analysis 是独立事实。应用建议时由 Application 协调：
 
@@ -270,15 +270,15 @@ Case Analysis 是独立事实。应用建议时由 Application 协调：
 4. 调用 CaseDefinitionWriter。
 5. 写入分析决策和应用结果。
 
-结果导入由 `ImportExecutionResult` Use Case 负责：
+报告结果导入由 `ImportExecutionReport` Use Case 负责：
 
 1. 校验 Package、Execution 和来源身份。
 2. 校验规范化明细。
 3. 检查 `execution_id` 幂等。
 4. 从明细重算统计和哈希。
-5. 在一个事务中保存 Run、Case Results 和 Eval Results；同批存在分析结果时再校验并保存当前分析。
+5. 在一个事务中保存 Run、Case Results、Eval Results 和 Report Summary。P9 的分析结果使用独立导入分支。
 
-相同 Package ID、Execution ID 且 Result Set Hash 相同视为幂等成功；相同 Execution ID 对应不同 Package、结果哈希、Artifact Owner 或受控路径返回 `EXECUTION_RESULT_CONFLICT`。
+相同 Package ID、Execution ID、Evaluation/Report Result Set Hash 和完整 Artifact Manifest 视为幂等成功；相同 Execution ID 对应不同 Package、任一结果哈希、Artifact Owner、受控路径或版本返回 `EXECUTION_RESULT_CONFLICT`。身份由显式版本事实确定，不使用最大 ID、最大时间或 `select max` 推断。
 
 分析可以在报告之后单独导入。分析导入先通过 Execution ID 定位 Run，再校验 Final Case Result Hash 和 Analysis Input Hash；相同 Analysis Input Hash 幂等，不同输入按 Case Analysis Revision 条件更新当前分析。
 
@@ -792,7 +792,9 @@ Report JSON 包含：
 - 整体有效通过率、已评估通过率和覆盖率。
 - By Metric 统计。
 - 逐 Case REST、Eval、Assertion 和 Diff 结果。
-- Result Set Hash 和 Contract Version。
+- Report Result Set Hash 和 Contract Version。
+
+Run ID 或离线 Execution ID 是一次不可覆盖的执行版本。Evaluation Result Set Hash 绑定 Evaluation Owner、Evaluation Context 和规范化结果；Report Result Set Hash 独立绑定 Report Owner、Run/Evaluation Context、Evaluation Result Set Hash、冻结顺序的 Case Hash 和 Report Contract。不同执行、评估或报告版本不能互相覆盖，也不能由“最新记录”推断。
 
 ### 13.2 Metric 聚合
 
@@ -802,7 +804,7 @@ Case 内同名 Metric 聚合优先级：`FAIL`、`ERROR`、`PASS`、`SKIPPED`、
 
 ### 13.3 JSON Schema Diff
 
-对失败 `is-json` Assertion，使用锁定版本的 JSON Schema Validator 基于冻结 Schema 和 Provider Output 重新生成解释性 Diff：
+对失败 `is-json` Assertion，报告只读取并校验 Normalized Eval 中已经由 Importer 使用锁定版本 JSON Schema Validator 生成、且已纳入 Eval Result Hash 的解释性 Diff：
 
 - Instance Path。
 - Schema Path。
@@ -813,7 +815,7 @@ Case 内同名 Metric 聚合优先级：`FAIL`、`ERROR`、`PASS`、`SKIPPED`、
 
 Diff 保存 Validator Version、Schema Dialect 和 Diff Contract Version。
 
-Promptfoo Pass/Fail 是评估事实。Diff 只解释失败，不能修改状态。Validator 与 Promptfoo 判定不一致时保留 Promptfoo 状态并记录解释性差异 Error Code。
+Promptfoo Pass/Fail 是评估事实。Diff 只解释失败，不能修改状态。报告阶段不得重新运行 Validator 或改写 Diff；Validator 与 Promptfoo 判定不一致时保留 Promptfoo 状态并记录解释性差异 Error Code。
 
 ### 13.4 Markdown Renderer
 
@@ -909,12 +911,15 @@ Analysis Status 为 `PENDING | RUNNING | SUCCEEDED | ERROR`。Decision 为 `NO_P
 - `/llm-rubric-prompts`
 - `/case-analysis-prompts`
 - `/runs`
-- `/runs/:id/cases`
-- `/runs/:id/analysis`
-- `/runs/:id/retry-failed`
-- `/runs/:id/force`
+- `/runs/:id/rest-results`
+- `/runs/:id/evaluations`
+- `/runs/:id/report`
+- `/runs/:id/report/cases`
+- `/runs/:id/report/cases/:caseKey`
+- `/runs/:id/report/export`
+- `/runs/:id/reruns`
 - `/work-packages/export`
-- `/executions/import`
+- `/execution-results/import`
 
 列表使用不透明版本化 Cursor 分页，默认 50、最大 200。稳定排序必须包含内部 ID Tie-breaker；Case 默认使用 Ordinal。字段间过滤为 AND，同字段多值为 OR，文本搜索使用转义后的大小写不敏感字面子串，其他筛选使用精确成员。大 JSON 只在详情返回。写请求返回稳定 Error Code 和字段路径。
 
@@ -922,7 +927,7 @@ API 固定前缀为 `/api/v1`，同源默认地址为 `127.0.0.1:4310`。Fastify
 
 P3 当前只注册 Test Suite、Case、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 的资源 CRUD、Case 导入导出、配置验证与 Prompt 预览/引用查询。请求与成功响应均由严格 Zod DTO 投影为 Runtime/OpenAPI Schema；Host/Origin 拒绝可能发生在所有 Route，因此所有操作均声明闭合 403 响应。Case 导入逐项流式校验并写入独立 SQLite staging 文件，multipart 截断事实作为定义流结束条件参与最终提交，随后才在主库同一连接的短事务中整体替换；staging 不是业务表，失败、取消和完成后均按 owner 身份清理。Case 导出先把固定 Suite Revision 的 JSON 流写入 owner-only `0600` 临时文件，完整一致性校验成功后才打开 200 响应；正常完成、取消和准备失败均按 owner 身份清理，内存只保留单 Case 或流缓冲块。SQLite 在创建状态/db 目录或打开数据库前验证 `.cortex-eval`、`db` 与现有数据库/WAL/SHM 不是符号链接并保持 canonical 项目 containment；临时根执行相同约束。无 owner 的新目录未过 TTL 时视为可能仍在初始化，不隔离。
 
-P6 当前注册 Run 预检、创建、倒序分页、详情、逐 Case REST 结果、逐 Case Evaluation 结果、阶段启动、取消和有限期 SSE 进度。Start/Cancel 使用 Run Revision 条件写；Run Detail 使用不含冻结 Case 数组和 Prompt 正文的有界投影。进度、列表和详情都返回 Evaluation 总数、完成数、PASS、FAIL、Error 与 Not Evaluated 持久汇总；Promptfoo 批处理期间完成数保持 0，Evaluation 原子提交时一次写入完整分类。`READY/REST` 与 `READY/EVALUATION` 可按 Revision 启动；`PIPELINE` 在 REST 原子提交后以新 Revision自动抢占 Evaluation，Starter 正常返回失败或直接拒绝 Promise 时，只在交接 Revision 未变化时提交 `EVALUATION_STAGE_FAILED`，其他 Owner 已推进时不覆盖最新事实。Evaluation 结果通过 `/runs/:id/evaluations` 进行有界 Cursor 查询；SSE 只发送有持久 Revision 事实支撑的 Evaluation 开始和完成事件，不声明不存在逐 Case持久计数的 `EVALUATION_PROGRESS`。Report、Analysis、Retry/Force 和 Execution Route 仍不注册。
+P8 当前注册 Run 预检、创建、倒序分页、详情、逐 Case REST/Evaluation 结果、Report Overview/分页/详情/导出、阶段启动、取消、Retry/Force、Execution Report Import 和有限期 SSE 进度。Start/Cancel 使用 Run Revision 条件写；Run Detail 使用不含冻结 Case 数组和 Prompt 正文的有界投影。进度、列表和详情返回持久 REST/Evaluation 汇总；Report 统计只来自完整提交的规范化 DTO。`READY/REST`、`READY/EVALUATION` 与 `READY/REPORT` 可按 Revision 启动；`PIPELINE` 依次自动抢占三个阶段，交接失败只在固定 Revision 未变化时提交稳定错误。Evaluation 与 Report Case 结果使用有界 Cursor 查询；SSE 只发送有持久 Revision 事实支撑的事件。Analysis、Analysis Import 和 Canonical Export Route 仍不注册。
 
 ### 15.2 Web
 
@@ -936,7 +941,9 @@ Web 使用简体中文、浅色本地实验室仪表台视觉和桌面优先布�
 
 P4 当前注册 Dashboard 资源数量、Test Suite/Case 管理、Endpoint、LLM、LLM Rubric Prompt 和 Case Analysis Prompt 配置页面。Case 结构化编辑与完整 JSON 共享同一已校验 Draft，Assertion 保留完整闭合 JSON；默认每页 50 条，筛选和 Cursor 历史写入 URL。资源写入或删除发生 409 时先读取最新服务端 Snapshot，保留本地意图，并由用户显式选择最新 Revision 重试或采用 Snapshot；Case 编辑 Snapshot 与可见 Draft 分离，冲突待决时不重挂编辑器。若刷新得到稳定 `CASE_NOT_FOUND`，则进入显式 `REMOTE_CASE_DELETED` 状态，不构造 Case Revision：编辑流程先禁用详情 Query，再移除精确详情缓存并刷新 Suite/列表，持续只读展示本地 Draft；删除流程保留确认 Dialog。两者都没有重试动作，只能显式采用远端删除事实后关闭并解除离开门禁。该规则覆盖 Suite 元数据与删除、Case 编辑/创建/复制/删除/导入和四类配置的保存与删除，连续冲突每次重新读取事实，采用 Snapshot 后下一次写入使用其 Revision。Suite 创建/元数据、Case 非编辑写操作、Case 编辑和配置探测、预览、保存使用同步单飞锁，请求在途或冲突待决时冻结对应编辑面并阻止关闭编辑容器。页面级离开门禁同时拦截关闭按钮、Esc、侧栏、应用内返回、浏览器前进后退和页面卸载；应用 History 条目保存单调位置，受阻的已知条目遍历用 `history.go` 回到原位置，不追加条目或截断前进栈；从前进或后退进入第三方或旧版未知 State 时，以 `Navigation.currentEntry.index` 的同源绝对索引恢复原位置。只有写入结束、用户显式完成 Draft/Snapshot 决策，或互斥写入已经成功提交后，应用壳层才恢复或执行导航。配置重试在途仍保留冲突决策，操作层同时拒绝重复决策。Test Suite 删除影响预检本身单飞并占用页面写槽，期间禁用其他 Suite/Case 写入口；其他写入待决时反向禁用删除入口。Suite Snapshot 同步详情与所有已加载 Suite 列表；Case Snapshot 在显式采用前只同步 Case 列表，采用后再替换可见详情；缺少具体 Case Snapshot 时使 Case 列表失效重取。配置保存和删除冲突都同步详情与已加载的同类列表 Query，关闭重开或放弃删除不回退旧 Snapshot。Case 删除移除精确详情缓存，全量导入移除该 Suite 全部 Case 详情缓存；Test Suite 删除移除其详情和全部 Case Query，配置删除移除精确详情 Query，再刷新存活的 Dashboard 与列表。导入关闭、成功或放弃时同步清空原生文件输入，允许再次选择同一文件；导入和删除请求在途或冲突待决时取消按钮禁用。新建 Endpoint 默认 60 秒，新建 LLM 默认 `JSON_OBJECT`；Case Analysis Prompt 从 Contracts 闭合枚举展示六个允许变量。API Client 对成功与错误响应执行 Contracts 校验，取消收敛为稳定客户端错误；Case 和配置本地 Contracts 路径先映射到真实结构化字段、动态 Header、Provider 分支或 Prompt 消息控件，所有 Select 暴露焦点引用，`RUBRIC_PROMPT_IN_USE` 保留 Prompt Key 并映射到 `promptKey` 字段。探测、模板变量和其他字段失败在当前 Sheet/Dialog 内关联并聚焦最近的表单、结构化或完整 JSON 编辑器，请求锁释放后再恢复焦点；Suite 创建/编辑和批量导入错误同样保留字段路径、顺序与 Case ID。Rubric 引用读取在完成前不伪装为空集合，失败时提供显式重试；删除目标切换通过 Abort 与请求代次门禁拒绝迟到结果。
 
-P6 在 `/runs` 与 `/runs/:id` 上补充 Evaluation 启动、Pipeline 自动推进后的恢复、逐 Case Evaluation 结果和 Cursor 分页。详情页根据服务端 Stage 选择 REST 或 Evaluation 动作，展示 Assertion 状态、Metric、Score、Reason 与 Evaluation Error；运行时仍以 SSE 和查询刷新重新读取持久事实。Report、Analysis、Retry/Force 和工作包动作不显示。
+P8 在 `/runs` 与 `/runs/:id` 上补充 Report 启动、三阶段 Pipeline 恢复和 Retry/Force，并注册 `/runs/:id/report` 统一展示平台或离线导入报告。详情页根据服务端 Stage 选择 REST、Evaluation 或 Report 动作；Report 页面展示规范化 Summary、By Metric、过滤分页、Assertion/Diff、Evidence 和导出。运行时仍以 SSE 和查询刷新重新读取持久事实。Analysis 动作不显示。
+
+最近运行只包含 `report_result_set_hash` 非空、`DONE` 且状态为 `COMPLETED` 或 `COMPLETED_WITH_ERRORS` 的版本。Dashboard 的 Report Query Key 同时包含 Run ID、Status、Stage 和 Updated At，使同一 Run 的状态推进能够淘汰空结果或旧报告缓存。Report Artifact 发布后若观察到取消或中断，终态时间必须在观察该请求后重新获取；未提交 Artifact 的生成时间不能冒充取消或中断完成时间。
 
 Case 编辑使用显式 Session 同时冻结初始 Definition、Case Revision 与 Suite Revision。每次打开必须等待该 Case 本次详情 Query 成功且身份匹配；刷新失败时即使 Query 保留旧 data，也只展示读取错误。API Client 在 Zod 校验后通过请求上下文验证器继续约束请求已固定的身份：Suite 读取/更新匹配 ID；Case 列表、读取、创建、更新、复制和导入匹配 Suite、目标 Case Key 与 Definition Case ID；配置列表、读取、创建和更新匹配 Kind 及已固定的 ID。首次读取、普通写入和冲突刷新都拒绝契约有效但身份错配的响应，错误事实不能进入 Query 缓存、覆盖 Draft 或触发成功状态。Session 建立后不跟随后台 Query 改写，普通保存只使用 Session Revision；普通冲突显式采用服务端 Snapshot 时才创建新 Session。`REMOTE_CASE_DELETED` 保留原 Session 和同一编辑器实例，因此结构化/完整 JSON 模式、本地文本与 DOM 状态都不被重置。
 
@@ -948,7 +955,7 @@ Web Client 的服务端错误码联合直接从闭合 `ApiErrorResponseV1Schema`
 
 `Navigation.currentEntry.index` 是资源 Web 启动硬能力；缺少或无效时只渲染能力错误，不创建 Query 消费者、不挂载 Feature 或写入口。相邻 Test Suite 详情以 Suite ID 作为路由状态生命周期边界，切换时卸载上一 Suite 的筛选、Cursor、编辑器、冲突和请求状态。Case 创建与更新输入直接使用 Contracts Schema 推导类型，不在 Web API 契约层退化为 `unknown`。
 
-生产页面按 Feature 动态加载，静态资源由 Local Server 同源提供。脚本 CSP 只允许 `'self'`；Zod 的 JIT 在应用模块加载前通过同源静态配置关闭，不使用 `'unsafe-eval'`。宽度小于 1024px 只显示可读提示。Report 和 Analysis 页面在对应闭环前不注册路由、导航或 Dashboard 内容。
+生产页面按 Feature 动态加载，静态资源由 Local Server 同源提供。脚本 CSP 只允许 `'self'`；Zod 的 JIT 在应用模块加载前通过同源静态配置关闭，不使用 `'unsafe-eval'`。宽度小于 1024px 只显示可读提示。Report 已闭环注册，Analysis 在 P9 闭环前不注册路由、导航或 Dashboard 内容。
 
 ### 15.3 CLI
 
@@ -958,7 +965,7 @@ Web Client 的服务端错误码联合直接从闭合 `ApiErrorResponseV1Schema`
 
 CLI 用户文案从消息资源加载。`--json` 使用 NDJSON，stdout 只输出机器协议，诊断写 stderr；普通模式输出中文进度和结果路径。Commander 在已识别命令的参数解析阶段失败时也输出该命令的严格 `COMMAND_ERROR` NDJSON。Work Package 私有文件校验码在 CLI 边界显式归一为 `WORK_PACKAGE_INVALID`、`WORK_PACKAGE_HASH_MISMATCH` 或 `WORK_PACKAGE_PATH_INVALID`，不得泄漏为 `INTERNAL_ERROR`。退出码固定为 0 成功、1 Eval Fail、2 输入/配置错误、3 外部或阶段系统错误、4 冲突/锁、130 取消。
 
-P7 的 `pipeline run` 只串行执行 REST 与 Evaluation，并在 REST 外部调用和创建 Execution 前使用同一个命令期 Secret 快照一次校验两个阶段，同时读取完整 Evaluation 配置和 Rubric Prompt、验证 Case Prompt 引用、固定 Promptfoo 精确版本及实际需要的 Python/Ruby Runtime。P8 在 Report 闭环后扩展默认阶段集合；未闭环命令不注册。全复用重跑即使新 Raw 的 Promptfoo 原生退出码为 0，只要目标 Normalized 仍含 FAIL，CLI 仍返回 1。真实 Promptfoo 子进程取消收敛为 `EVALUATOR_CANCELLED`，阶段不登记部分 Artifact，CLI 返回 130。
+当前 `pipeline run` 串行执行 REST、Evaluation 与 Report，并在 REST 外部调用和创建 Execution 前使用同一个命令期 Secret 快照一次校验外部阶段，同时读取完整 Evaluation 配置和 Rubric Prompt、验证 Case Prompt 引用、固定 Promptfoo 精确版本及实际需要的 Python/Ruby Runtime。Report 从已提交规范化结果重算并写入 JSON/Markdown，不增加外部模型依赖。未闭环命令不注册。全复用重跑即使新 Raw 的 Promptfoo 原生退出码为 0，只要目标 Normalized 仍含 FAIL，CLI 仍返回 1。真实 Promptfoo 子进程取消收敛为 `EVALUATOR_CANCELLED`，阶段不登记部分 Artifact，CLI 返回 130。
 
 Work Package REST 命令在创建 Execution 前读取并校验完整 Endpoint、全部 Case 和 Retry 来源；Evaluation/Pipeline 使用可取消、可重放的磁盘 staging 输入。`package export` 在请求 Local API 前按 Owner、PID 启动身份和 TTL 恢复目标父目录中的失活 staging；成功响应在完整消费前失败或取消时主动取消未读 Body，回收失败不覆盖主错误。命令取消信号贯穿 REST 执行、Artifact 发布与阶段登记，以及 Runtime Preflight、Engine、Raw Artifact 复制、逐 Row 导入、Normalized 写入和最终提交。REST 阶段开始后取消收敛为 `REST_CANCELLED`；Evaluation 阶段开始前取消保持 `PENDING` 并返回输入取消，开始后收敛为 `EVALUATOR_CANCELLED`。REST/Raw/Normalized Writer 在原子发布时返回可持久 Descriptor 和仅供当前命令补偿的 device/inode 发布身份；阶段登记失败或发布后取消时先把 Execution 收敛为 `ERROR`，再同时复核固定槽位、Descriptor Hash/大小、发布身份和清理时稳定身份后删除。相同字节的新 inode 也视为替换对象并保留。异常退出后若发布身份已经丢失，Work Package 与平台启动恢复都保留未登记文件并报告稳定清理错误，不按固定路径或 durable Manifest 差集删除。Raw Source、staging、临时目录、Response Body 和导出 staging 清理失败只写脱敏安全事件或 CLI 外化警告，不得覆盖已经确定的成功、失败、目标冲突或取消。
 

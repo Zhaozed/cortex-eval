@@ -26,7 +26,10 @@ import type {
 import type { ConfigurationServiceDependencies } from "../../src/features/configurations/configuration-service.ts";
 import type {
   ExistingImportedExecution,
-  ImportedExecutionRecord
+  ExistingImportedExecutionReport,
+  ImportedExecutionRecord,
+  ImportedExecutionReportCase,
+  ImportedExecutionReportRecord
 } from "../../src/features/execution-imports/execution-import-models.ts";
 
 interface StoreState {
@@ -44,6 +47,8 @@ interface StoreState {
   activeResourceReferences: string[];
   /** Minimal imported Execution identities. */
   importedExecutions: ImportedExecutionRecord[];
+  /** Complete imported Report Run identities. */
+  importedExecutionReports: ImportedExecutionReportRecord[];
 }
 
 // Clone the mutable test state while retaining immutable Domain values.
@@ -56,6 +61,14 @@ function cloneState(state: StoreState): StoreState {
     rubricReferences: [...state.rubricReferences],
     activeResourceReferences: [...state.activeResourceReferences],
     importedExecutions: state.importedExecutions.map((item) => ({
+      ...item,
+      artifactManifest: {
+        ...item.artifactManifest,
+        owner: { ...item.artifactManifest.owner },
+        artifacts: item.artifactManifest.artifacts.map((artifact) => ({ ...artifact }))
+      }
+    })),
+    importedExecutionReports: state.importedExecutionReports.map((item) => ({
       ...item,
       artifactManifest: {
         ...item.artifactManifest,
@@ -116,7 +129,7 @@ class InMemoryTestSuiteRepository implements TestSuiteRepository {
       caseCount: item.caseCount,
       revision: item.revision,
       updatedAt: item.updatedAt,
-      latestPlatformRun: null
+      latestRun: null
     }));
     const last = items.at(-1);
     return Promise.resolve({
@@ -437,7 +450,8 @@ export class InMemoryApplicationStore implements TransactionManager, Clock, IdGe
     configurationResources: [],
     rubricReferences: [],
     activeResourceReferences: [],
-    importedExecutions: []
+    importedExecutions: [],
+    importedExecutionReports: []
   };
   #nextId = 1;
   #transactionCount = 0;
@@ -558,6 +572,34 @@ export class InMemoryApplicationStore implements TransactionManager, Clock, IdGe
         insertImportedExecution: (value: ImportedExecutionRecord): Promise<void> => {
           candidate.importedExecutions.push(value);
           return Promise.resolve();
+        },
+        getImportedExecutionReport: (
+          executionId: string
+        ): Promise<ExistingImportedExecutionReport | null> => {
+          const existing = candidate.importedExecutionReports.find(
+            (item) => item.executionId === executionId
+          );
+          return Promise.resolve(
+            existing === undefined
+              ? null
+              : {
+                  runId: existing.runId,
+                  sourceType: "OFFLINE_IMPORT",
+                  packageId: existing.packageId,
+                  restResultSetHash: existing.restResultSetHash,
+                  evaluationContextHash: existing.evaluationContextHash,
+                  evaluationResultSetHash: existing.evaluationResultSetHash,
+                  reportResultSetHash: existing.reportResultSetHash,
+                  artifactManifest: existing.artifactManifest
+                }
+          );
+        },
+        insertImportedExecutionReport: async (
+          value: ImportedExecutionReportRecord,
+          cases: AsyncIterable<ImportedExecutionReportCase>
+        ): Promise<void> => {
+          for await (const _item of cases) void _item;
+          candidate.importedExecutionReports.push(value);
         }
       }
     };

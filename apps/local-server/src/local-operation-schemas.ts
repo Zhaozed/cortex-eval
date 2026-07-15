@@ -33,6 +33,8 @@ import {
 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import {
   CreatePlatformRunRequestV1Schema,
+  CreatePlatformRerunRequestV1Schema,
+  PlatformRerunCreatedV1Schema,
   PlatformRunDetailV1Schema,
   PlatformRunPageV1Schema,
   RunCaseDetailV1Schema,
@@ -41,9 +43,17 @@ import {
   RunPreflightRequestV1Schema,
   RunPreflightV1Schema,
   RunProgressV1Schema,
+  RunReportCasePageV1Schema,
+  RunReportCaseV1Schema,
+  RunReportOverviewV1Schema,
   RunRevisionRequestV1Schema
 } from "@cortex-eval/contracts/src/run-api-contracts.ts";
 import { WorkPackageExportRequestV1Schema } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
+import { ReportArtifactV1Schema } from "@cortex-eval/contracts/src/artifact-contracts.ts";
+import {
+  ExecutionReportImportRequestV1Schema,
+  ExecutionReportImportResultV1Schema
+} from "@cortex-eval/contracts/src/result-import-contracts.ts";
 import type { FastifySchema } from "fastify";
 import type { z } from "zod";
 
@@ -90,9 +100,11 @@ function operationBodySchema(operationId: string): Record<string, unknown> | und
     previewAnalysisPrompt: PreviewAnalysisPromptRequestV1Schema,
     preflightRun: RunPreflightRequestV1Schema,
     createRun: CreatePlatformRunRequestV1Schema,
+    createRunRerun: CreatePlatformRerunRequestV1Schema,
     startRun: RunRevisionRequestV1Schema,
     cancelRun: RunRevisionRequestV1Schema,
-    exportWorkPackage: WorkPackageExportRequestV1Schema
+    exportWorkPackage: WorkPackageExportRequestV1Schema,
+    importExecutionReport: ExecutionReportImportRequestV1Schema
   };
   const schema = schemas[operationId];
   return schema === undefined ? undefined : projectRuntimeSchema(schema);
@@ -136,14 +148,20 @@ function operationResponseSchema(operationId: string): Record<string, unknown> {
     previewAnalysisPrompt: AnalysisPromptPreviewV1Schema,
     preflightRun: RunPreflightV1Schema,
     createRun: PlatformRunDetailV1Schema,
+    createRunRerun: PlatformRerunCreatedV1Schema,
     listRuns: PlatformRunPageV1Schema,
     getRun: PlatformRunDetailV1Schema,
     listRunCases: RunCasePageV1Schema,
     listRunEvaluations: RunEvalPageV1Schema,
+    getRunReport: RunReportOverviewV1Schema,
+    listRunReportCases: RunReportCasePageV1Schema,
+    getRunReportCase: RunReportCaseV1Schema,
+    exportRunReport: ReportArtifactV1Schema,
     getRunCase: RunCaseDetailV1Schema,
     startRun: RunProgressV1Schema,
     cancelRun: RunProgressV1Schema,
-    getRunProgress: RunProgressV1Schema
+    getRunProgress: RunProgressV1Schema,
+    importExecutionReport: ExecutionReportImportResultV1Schema
   };
   const schema = schemas[operationId];
   return schema === undefined ? EmptyResponseSchema : projectRuntimeSchema(schema);
@@ -160,7 +178,8 @@ function operationQuerySchema(operationId: string): Record<string, unknown> | un
     "listCASE_ANALYSIS_PROMPT",
     "listRuns",
     "listRunCases",
-    "listRunEvaluations"
+    "listRunEvaluations",
+    "listRunReportCases"
   ]);
   if (pageableOperations.has(operationId)) {
     const properties: Record<string, unknown> = {
@@ -182,6 +201,19 @@ function operationQuerySchema(operationId: string): Record<string, unknown> | un
     }
     if (operationId === "listRunCases" || operationId === "listRunEvaluations") {
       properties.limit = { type: "integer", minimum: 1, maximum: 100, default: 20 };
+    }
+    if (operationId === "listRunReportCases") {
+      const oneOrMany = {
+        anyOf: [{ type: "string" }, { type: "array", items: { type: "string" }, minItems: 1 }]
+      };
+      Object.assign(properties, {
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        restStatus: oneOrMany,
+        evalStatus: oneOrMany,
+        metric: oneOrMany,
+        businessModule: oneOrMany,
+        scenarioTag: oneOrMany
+      });
     }
     return { type: "object", additionalProperties: false, properties };
   }
@@ -219,18 +251,22 @@ export function localOperationSchema(
     .map((match) => match[1])
     .filter((value): value is string => value !== undefined);
   const successStatus =
-    operationId === "startRun" || operationId === "cancelRun"
-      ? 202
-      : method === "POST" && (operationId.startsWith("create") || operationId === "copyCase")
-        ? 201
-        : method === "DELETE"
-          ? 204
-          : 200;
+    operationId === "importExecutionReport"
+      ? 201
+      : operationId === "startRun" || operationId === "cancelRun"
+        ? 202
+        : method === "POST" && (operationId.startsWith("create") || operationId === "copyCase")
+          ? 201
+          : method === "DELETE"
+            ? 204
+            : 200;
   const apiErrorSchema = projectRuntimeSchema(ApiErrorResponseV1Schema);
   const successResponse =
     operationId === "exportWorkPackage"
       ? mediaTypeResponse("application/x-ndjson", operationResponseSchema(operationId))
-      : operationResponseSchema(operationId);
+      : operationId === "exportRunReport"
+        ? mediaTypeResponse("application/json", operationResponseSchema(operationId))
+        : operationResponseSchema(operationId);
   const errorResponse =
     operationId === "exportWorkPackage"
       ? mediaTypeResponse("application/json", apiErrorSchema)
@@ -259,6 +295,8 @@ export function localOperationSchema(
       413: errorResponse,
       422: errorResponse,
       ...(operationId === "exportWorkPackage" ? { 499: errorResponse } : {}),
+      ...(operationId === "exportRunReport" ? { 499: errorResponse } : {}),
+      ...(operationId === "importExecutionReport" ? { 499: errorResponse } : {}),
       ...(operationId === "validateEndpointConfig" || operationId === "validateLlmConfig"
         ? { 502: apiErrorSchema }
         : {}),

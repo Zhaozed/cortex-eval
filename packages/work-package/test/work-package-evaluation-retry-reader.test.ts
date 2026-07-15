@@ -387,6 +387,13 @@ describe("Work Package Evaluation retry reader", () => {
           new AbortController().signal
         )
       ).rejects.toThrow("WORK_PACKAGE_INVALID");
+      const reportResults = await session.prepareEvaluationResultsForReport(
+        SOURCE_ID,
+        restHashing,
+        evalHashing,
+        new AbortController().signal
+      );
+      await expect(collect(reportResults.results)).resolves.toHaveLength(1);
     } finally {
       await session.close();
     }

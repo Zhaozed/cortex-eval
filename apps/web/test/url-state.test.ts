@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildCaseListSearch, parseCaseListSearch, resolveWebRoute } from "../src/lib/web-route.ts";
 
 describe("Web 路由与 Case URL 状态", () => {
-  it("解析 P5 已闭环页面，未来 Report 和 Analysis 仍保持关闭", () => {
+  it("解析已闭环页面，仅未来 Analysis 保持关闭", () => {
     expect(resolveWebRoute("/")).toEqual({ kind: "DASHBOARD" });
     expect(resolveWebRoute("/test-suites")).toEqual({ kind: "TEST_SUITE_LIST" });
     expect(resolveWebRoute("/test-suites/suite%201")).toEqual({
@@ -13,6 +13,10 @@ describe("Web 路由与 Case URL 状态", () => {
     expect(resolveWebRoute("/endpoint-configs")).toEqual({ kind: "ENDPOINT_CONFIG_LIST" });
     expect(resolveWebRoute("/runs")).toEqual({ kind: "RUN_LIST" });
     expect(resolveWebRoute("/runs/run%201")).toEqual({ kind: "RUN_DETAIL", runId: "run 1" });
+    expect(resolveWebRoute("/runs/run%201/report")).toEqual({
+      kind: "RUN_REPORT",
+      runId: "run 1"
+    });
     expect(resolveWebRoute("/reports")).toBeNull();
     expect(resolveWebRoute("/analysis")).toBeNull();
   });

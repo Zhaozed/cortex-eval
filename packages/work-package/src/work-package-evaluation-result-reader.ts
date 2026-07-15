@@ -122,14 +122,18 @@ async function* verifiedEvaluationStream(
   input: PrepareWorkPackageEvaluationResultsInput,
   rawArtifact: EvaluationArtifact,
   normalizedArtifact: EvaluationArtifact,
-  verifyEvidence: boolean
+  options: {
+    readonly verifyEvidenceChain: boolean;
+    readonly verifyRawFile: boolean;
+  }
 ): AsyncGenerator<EvalCaseV1, EvaluationReadSummary> {
   try {
     const evidenceCache: EvidenceExecutionCache = new Map();
-    await Promise.all([
-      validateFileIntegrity(input.directory, rawArtifact),
-      validateFileIntegrity(input.directory, normalizedArtifact)
-    ]);
+    const integrityChecks = [validateFileIntegrity(input.directory, normalizedArtifact)];
+    if (options.verifyRawFile) {
+      integrityChecks.push(validateFileIntegrity(input.directory, rawArtifact));
+    }
+    await Promise.all(integrityChecks);
     const preparedRest = await prepareWorkPackageRestResults({
       directory: input.directory,
       manifest: input.manifest,
@@ -186,7 +190,7 @@ async function* verifiedEvaluationStream(
         evalResultHash: evalStep.value.evalResultHash
       });
       if (
-        verifyEvidence &&
+        options.verifyEvidenceChain &&
         !(await verifiedEvidenceChain(
           input,
           input.sourceExecution,
@@ -237,7 +241,7 @@ function loadVerifiedEvidenceExecution(
       { ...input, sourceExecution: execution },
       artifacts.rawArtifact,
       artifacts.normalizedArtifact,
-      false
+      { verifyEvidenceChain: false, verifyRawFile: true }
     );
     const cases = new Map<string, EvaluationEvidenceFact>();
     for (;;) {
@@ -305,21 +309,25 @@ async function validateCompleteStream(
 }
 
 /** Preflight complete Evaluation evidence, then expose a second verified semantic pass. */
-export async function prepareWorkPackageEvaluationResults(
-  input: PrepareWorkPackageEvaluationResultsInput
+async function prepareEvaluationResults(
+  input: PrepareWorkPackageEvaluationResultsInput,
+  options: {
+    readonly verifyEvidenceChain: boolean;
+    readonly verifyRawFile: boolean;
+  }
 ): Promise<PreparedWorkPackageEvaluationResults> {
   try {
     if (input.signal.aborted) throw new Error("REQUEST_ABORTED");
     const { rawArtifact, normalizedArtifact } = evaluationArtifacts(input.sourceExecution);
     const first = await validateCompleteStream(
-      verifiedEvaluationStream(input, rawArtifact, normalizedArtifact, true)
+      verifiedEvaluationStream(input, rawArtifact, normalizedArtifact, options)
     );
     return {
       ...first,
       rawArtifact,
       results: {
         [Symbol.asyncIterator]: async function* (): AsyncGenerator<EvalCaseV1> {
-          const stream = verifiedEvaluationStream(input, rawArtifact, normalizedArtifact, true);
+          const stream = verifiedEvaluationStream(input, rawArtifact, normalizedArtifact, options);
           for (;;) {
             const step = await stream.next();
             if (step.done) {
@@ -340,4 +348,24 @@ export async function prepareWorkPackageEvaluationResults(
     if (error instanceof Error && error.message === "WORK_PACKAGE_INVALID") throw error;
     throw invalid(error);
   }
+}
+
+/** Preflight complete Evaluation evidence for retry or platform result import. */
+export function prepareWorkPackageEvaluationResults(
+  input: PrepareWorkPackageEvaluationResultsInput
+): Promise<PreparedWorkPackageEvaluationResults> {
+  return prepareEvaluationResults(input, {
+    verifyEvidenceChain: true,
+    verifyRawFile: true
+  });
+}
+
+/** Read normalized Evaluation facts for Reporting without depending on Raw file availability. */
+export function prepareWorkPackageEvaluationResultsForReport(
+  input: PrepareWorkPackageEvaluationResultsInput
+): Promise<PreparedWorkPackageEvaluationResults> {
+  return prepareEvaluationResults(input, {
+    verifyEvidenceChain: false,
+    verifyRawFile: false
+  });
 }

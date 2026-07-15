@@ -25,12 +25,15 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   LocalPipelineCommandService,
   type PreparedEvaluationStageCommand,
+  type PreparedReportStageCommand,
   type PreparedRestStageCommand
 } from "../src/pipeline-command-service.ts";
 import { LocalEvaluationCommandService } from "../src/evaluation-command-service.ts";
 import { LocalRestCommandService } from "../src/rest-command-service.ts";
 import type { WorkPackageEvaluationRunResult } from "../src/work-package-evaluation-run-service.ts";
 import type { WorkPackageRestRunResult } from "../src/work-package-rest-run-service.ts";
+import type { WorkPackageReportRunResult } from "../src/work-package-report-run-service.ts";
+import { WorkPackageReportRunService } from "../src/work-package-report-run-service.ts";
 
 const EXECUTION_ID = "018f22aa-33bb-7ccc-8ddd-fffffffffff1";
 const RETRY_EXECUTION_ID = "018f22aa-33bb-7ccc-8ddd-fffffffffff2";
@@ -166,10 +169,40 @@ function evaluationStage(onRun: () => void): PreparedEvaluationStageCommand {
   };
 }
 
+function reportStage(onRun: () => void): PreparedReportStageCommand {
+  return {
+    run: (input): Promise<WorkPackageReportRunResult> => {
+      onRun();
+      expect(input.executionId).toBe(EXECUTION_ID);
+      return Promise.resolve({
+        packageId: "018f22aa-33bb-7ccc-8ddd-eeeeeeeeeeee",
+        executionId: EXECUTION_ID,
+        evaluationResultSetHash: "b".repeat(64),
+        reportResultSetHash: "c".repeat(64),
+        summary: {
+          total: 1,
+          restSucceeded: 1,
+          restError: 0,
+          evalPass: 0,
+          evalFail: 1,
+          evalError: 0,
+          notEvaluated: 0,
+          effectivePassRate: 0,
+          evaluatedPassRate: 0,
+          coverageRate: 1
+        },
+        reportJsonPath: `executions/${EXECUTION_ID}/report.json`,
+        reportMarkdownPath: `executions/${EXECUTION_ID}/report.md`
+      });
+    }
+  };
+}
+
 function service(
   inherited: Readonly<Record<string, string | undefined>>,
   restCommands: PreparedRestStageCommand,
-  evaluationCommands: PreparedEvaluationStageCommand
+  evaluationCommands: PreparedEvaluationStageCommand,
+  reportCommands: PreparedReportStageCommand = reportStage(() => undefined)
 ): LocalPipelineCommandService {
   let nonce = 0;
   return new LocalPipelineCommandService({
@@ -181,7 +214,8 @@ function service(
     },
     inheritedEnvironment: (): Readonly<Record<string, string | undefined>> => inherited,
     restCommands,
-    evaluationCommands
+    evaluationCommands,
+    reportCommands
   });
 }
 
@@ -199,6 +233,9 @@ describe("P7 local REST to Evaluation Pipeline command service", () => {
         stageCalls += 1;
       }),
       evaluationStage(() => {
+        stageCalls += 1;
+      }),
+      reportStage(() => {
         stageCalls += 1;
       })
     );
@@ -245,7 +282,8 @@ describe("P7 local REST to Evaluation Pipeline command service", () => {
       restStage(() => {
         restCalls += 1;
       }),
-      evaluation
+      evaluation,
+      reportStage(() => undefined)
     );
 
     await expect(
@@ -283,7 +321,8 @@ describe("P7 local REST to Evaluation Pipeline command service", () => {
     const pipeline = service(
       { GEMINI_API_KEY: "pipeline-secret" },
       restStage(() => order.push("REST")),
-      evaluationStage(() => order.push("EVALUATION"))
+      evaluationStage(() => order.push("EVALUATION")),
+      reportStage(() => order.push("REPORT"))
     );
 
     await expect(
@@ -301,9 +340,10 @@ describe("P7 local REST to Evaluation Pipeline command service", () => {
       restResultSetHash: HASH,
       promptfooExitCode: 100,
       evalFailCount: 1,
-      evaluationResultSetHash: "b".repeat(64)
+      evaluationResultSetHash: "b".repeat(64),
+      reportResultSetHash: "c".repeat(64)
     });
-    expect(order).toEqual(["REST", "EVALUATION"]);
+    expect(order).toEqual(["REST", "EVALUATION", "REPORT"]);
   });
 
   it("completes the real REST adapter and fixed Promptfoo process on one Execution", async () => {
@@ -371,7 +411,17 @@ describe("P7 local REST to Evaluation Pipeline command service", () => {
       processIdentity,
       inheritedEnvironment,
       restCommands,
-      evaluationCommands
+      evaluationCommands,
+      reportCommands: new WorkPackageReportRunService({
+        contextHasher,
+        caseHasher,
+        restHashing,
+        evalHashing,
+        processIdentity,
+        nonce: nextNonce,
+        now: (): string => NOW,
+        cleanupFailureSink: { record: (): Promise<void> => Promise.resolve() }
+      })
     });
 
     const result = await pipeline.run({
@@ -419,7 +469,7 @@ describe("P7 local REST to Evaluation Pipeline command service", () => {
         stages: {
           REST: { status: "SUCCEEDED" },
           EVALUATION: { status: "SUCCEEDED" },
-          REPORT: { status: "PENDING" },
+          REPORT: { status: "SUCCEEDED" },
           ANALYSIS: { status: "PENDING" }
         }
       });
@@ -428,7 +478,7 @@ describe("P7 local REST to Evaluation Pipeline command service", () => {
         stages: {
           REST: { status: "SUCCEEDED" },
           EVALUATION: { status: "SUCCEEDED" },
-          REPORT: { status: "PENDING" },
+          REPORT: { status: "SUCCEEDED" },
           ANALYSIS: { status: "PENDING" }
         }
       });

@@ -21,12 +21,17 @@ describe("Local API OpenAPI drift", () => {
       "/api/v1/runs/{runId}/start",
       "/api/v1/runs/{runId}/cancel",
       "/api/v1/runs/{runId}/events",
+      "/api/v1/runs/{runId}/report",
+      "/api/v1/runs/{runId}/report/cases",
+      "/api/v1/runs/{runId}/report/cases/{caseKey}",
+      "/api/v1/runs/{runId}/report/export",
+      "/api/v1/runs/{runId}/reruns",
+      "/api/v1/execution-results/import",
       "/api/v1/work-packages/export"
     ]) {
       expect(generated).toContain(`"${path}"`);
     }
-    expect(generated).not.toMatch(
-      /"\/api\/v1\/(?:executions|reports|analysis)|\/(?:evaluation|report|analysis|retry-failed|force)"/
-    );
+    expect(generated).not.toMatch(/"\/api\/v1\/(?:executions|reports|analysis)\b/);
+    expect(generated).not.toMatch(/\/runs\/\{runId\}\/analysis"/);
   });
 });

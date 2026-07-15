@@ -5,6 +5,11 @@ import type {
 } from "@cortex-eval/application/src/features/runs/platform-run-service.ts";
 import type { PlatformEvaluationService } from "@cortex-eval/application/src/features/evaluation/platform-evaluation-service.ts";
 import type { PlatformEvalCaseResult } from "@cortex-eval/application/src/features/evaluation/platform-eval-models.ts";
+import type {
+  PlatformReportService,
+  PlatformReportStartResult
+} from "@cortex-eval/application/src/features/reporting/platform-report-service.ts";
+import type { PlatformRerunService } from "@cortex-eval/application/src/features/runs/platform-rerun-service.ts";
 import {
   platformRunDetail,
   type PlatformRun,
@@ -20,6 +25,8 @@ import {
 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import {
   CreatePlatformRunRequestV1Schema,
+  CreatePlatformRerunRequestV1Schema,
+  PlatformRerunCreatedV1Schema,
   PlatformRunDetailV1Schema,
   PlatformRunListQueryV1Schema,
   PlatformRunPageV1Schema,
@@ -31,6 +38,10 @@ import {
   RunPreflightRequestV1Schema,
   RunPreflightV1Schema,
   RunProgressV1Schema,
+  RunReportCaseListQueryV1Schema,
+  RunReportCasePageV1Schema,
+  RunReportCaseV1Schema,
+  RunReportOverviewV1Schema,
   RunRevisionRequestV1Schema,
   decodePlatformRunCursorV1,
   decodeRunCaseCursorV1,
@@ -38,6 +49,11 @@ import {
   encodeRunCaseCursorV1
 } from "@cortex-eval/contracts/src/run-api-contracts.ts";
 import { UuidV7Schema } from "@cortex-eval/contracts/src/contracts-primitives.ts";
+import {
+  ExecutionReportImportRequestV1Schema,
+  ExecutionReportImportResultV1Schema
+} from "@cortex-eval/contracts/src/result-import-contracts.ts";
+import type { Readable } from "node:stream";
 import type { z } from "zod";
 
 import type {
@@ -46,6 +62,9 @@ import type {
   LocalApiHandlerResponse
 } from "./local-server.ts";
 import { mapCaseDefinitionToV1 } from "./resource-dto-mappers.ts";
+import { mapPlatformReportCaseToV1, mapRunReportContextToV1 } from "./report-dto-mappers.ts";
+import type { ExecutionReportImportService } from "./execution-report-import-service.ts";
+import { openImportedReportExport } from "./imported-report-export.ts";
 
 /** Narrow Run Application surface consumed by protocol handlers. */
 export type ApplicationRunServiceBoundary = Pick<
@@ -67,6 +86,29 @@ export type ApplicationRunServiceBoundary = Pick<
   readonly cancelEvaluation: PlatformEvaluationService["cancel"];
   /** Query normalized Evaluation results. */
   readonly queryEvalResults: PlatformEvaluationService["queryResults"];
+  /** Claim the closed Report stage. */
+  readonly startReport: PlatformReportService["start"];
+  /** Cancel one active Report owner. */
+  readonly cancelReport: PlatformReportService["cancel"];
+  /** Read one committed Report overview. */
+  readonly getReport: PlatformReportService["get"];
+  /** Check platform or imported Report Run existence. */
+  readonly hasReportRun: PlatformReportService["exists"];
+  /** Query committed complete Report Cases. */
+  readonly queryReportCases: PlatformReportService["queryCases"];
+  /** Read one committed complete Report Case. */
+  readonly getReportCase: PlatformReportService["getCase"];
+  /** Stream complete aligned normalized Report Cases. */
+  readonly streamReportCases: PlatformReportService["streamCases"];
+  /** Open one already integrity-verified immutable Report JSON stream. */
+  readonly openReportExport: (
+    manifest: PlatformRun["artifactManifest"],
+    signal: AbortSignal
+  ) => Promise<Readable | null>;
+  /** Create one new Retry/Force execution version. */
+  readonly createRerun: PlatformRerunService["create"];
+  /** Validate and atomically import one completed offline Report Execution. */
+  readonly importExecutionReport: ExecutionReportImportService["importReport"];
 };
 
 /** Closed P5 Run protocol handlers. */
@@ -75,6 +117,8 @@ export interface LocalRunHandlers {
   readonly preflightRun: LocalApiHandler;
   /** Create one frozen platform Run. */
   readonly createRun: LocalApiHandler;
+  /** Create one Retry/Force Run from a terminal source version. */
+  readonly createRunRerun: LocalApiHandler;
   /** List recent platform Runs. */
   readonly listRuns: LocalApiHandler;
   /** Read one bounded platform Run detail. */
@@ -85,6 +129,16 @@ export interface LocalRunHandlers {
   readonly getRunCase: LocalApiHandler;
   /** List normalized Evaluation results. */
   readonly listRunEvaluations: LocalApiHandler;
+  /** Read one committed Report overview. */
+  readonly getRunReport: LocalApiHandler;
+  /** List filtered committed Report Cases. */
+  readonly listRunReportCases: LocalApiHandler;
+  /** Read one committed complete Report Case. */
+  readonly getRunReportCase: LocalApiHandler;
+  /** Stream the committed normalized Report JSON. */
+  readonly exportRunReport: LocalApiHandler;
+  /** Import one complete offline Report as an immutable Run. */
+  readonly importExecutionReport: LocalApiHandler;
   /** Start only the closed REST stage. */
   readonly startRun: LocalApiHandler;
   /** Request cancellation. */
@@ -144,7 +198,8 @@ function runId(
 
 // Map one Application failure to the strict HTTP surface.
 function applicationError(
-  error: PlatformRunServiceError,
+  error:
+    PlatformRunServiceError | Extract<PlatformReportStartResult, { readonly ok: false }>["error"],
   requestId: string
 ): LocalApiHandlerResponse {
   if (error.code === "RUN_STATE_CONFLICT") {
@@ -173,12 +228,30 @@ function applicationError(
       })
     };
   }
+  if (error.code === "REPORT_RECONCILIATION_FAILED") {
+    return {
+      statusCode: 422,
+      body: errorBody({ code: "REPORT_RECONCILIATION_FAILED", requestId })
+    };
+  }
   const code: ApiErrorCode = error.code;
   const statusCode =
     code === "RUN_NOT_FOUND" || code === "SUITE_NOT_FOUND" || code === "CONFIGURATION_NOT_FOUND"
       ? 404
       : 422;
   return { statusCode, body: errorBody({ code, requestId }) };
+}
+
+// Return the public state conflict used when a Run exists but has no committed Report.
+function reportUnavailable(requestId: string): LocalApiHandlerResponse {
+  return {
+    statusCode: 409,
+    body: errorBody({
+      code: "RUN_STATE_CONFLICT",
+      requestId,
+      reason: "STAGE_UNAVAILABLE"
+    })
+  };
 }
 
 // Map clean Provider Output names to the strict transport contract.
@@ -402,6 +475,35 @@ export function createApplicationRunHandlers(
           }
         : applicationError(result.error, input.requestId);
     },
+    createRunRerun: async (input): Promise<LocalApiHandlerResponse> => {
+      const sourceRunId = runId(input);
+      if (!sourceRunId.ok) return sourceRunId.response;
+      const body = parse(CreatePlatformRerunRequestV1Schema, input.body, input.requestId);
+      if (!body.ok) return body.response;
+      const result = await service.createRerun({
+        sourceRunId: sourceRunId.value,
+        mode: body.value.mode
+      });
+      if (!result.ok) {
+        const code = result.error.code;
+        return {
+          statusCode: code === "RUN_NOT_FOUND" ? 404 : 422,
+          body: errorBody({ code, requestId: input.requestId })
+        };
+      }
+      return {
+        statusCode: 201,
+        body: PlatformRerunCreatedV1Schema.parse({
+          runId: result.run.id,
+          sourceRunId: result.run.sourceRunId,
+          rerunMode: result.run.rerunMode,
+          status: result.run.status,
+          stage: result.run.stage,
+          lockRevision: result.run.lockRevision,
+          counts: result.plan.counts
+        })
+      };
+    },
     listRuns: async (input): Promise<LocalApiHandlerResponse> => {
       const query = parse(PlatformRunListQueryV1Schema, input.query, input.requestId);
       if (!query.ok) return query.response;
@@ -555,6 +657,226 @@ export function createApplicationRunHandlers(
         })
       };
     },
+    getRunReport: async (input): Promise<LocalApiHandlerResponse> => {
+      const id = runId(input);
+      if (!id.ok) return id.response;
+      if (!(await service.hasReportRun(id.value))) {
+        return {
+          statusCode: 404,
+          body: errorBody({ code: "RUN_NOT_FOUND", requestId: input.requestId })
+        };
+      }
+      const overview = await service.getReport(id.value);
+      if (overview === null) return reportUnavailable(input.requestId);
+      const { run, report, artifactAvailability } = overview;
+      if (
+        run.completedAt === null ||
+        run.evaluationContextHash === null ||
+        run.evaluationResultSetHash === null ||
+        run.reportResultSetHash === null
+      ) {
+        return reportUnavailable(input.requestId);
+      }
+      return {
+        statusCode: 200,
+        body: RunReportOverviewV1Schema.parse({
+          runId: run.id,
+          sourceType: run.sourceType,
+          sourceRunId: run.sourceRunId,
+          rerunMode: run.rerunMode,
+          completedAt: run.completedAt,
+          context: mapRunReportContextToV1(run),
+          evaluationContextHash: run.evaluationContextHash,
+          evaluationResultSetHash: run.evaluationResultSetHash,
+          reportResultSetHash: run.reportResultSetHash,
+          summary: report.summary,
+          byMetric: report.byMetric,
+          artifactAvailability: artifactAvailability.map((item) => ({
+            kind: item.artifact.kind,
+            path: item.artifact.path,
+            status: item.status
+          }))
+        })
+      };
+    },
+    listRunReportCases: async (input): Promise<LocalApiHandlerResponse> => {
+      const id = runId(input);
+      if (!id.ok) return id.response;
+      if (!(await service.hasReportRun(id.value))) {
+        return {
+          statusCode: 404,
+          body: errorBody({ code: "RUN_NOT_FOUND", requestId: input.requestId })
+        };
+      }
+      const query = parse(RunReportCaseListQueryV1Schema, input.query, input.requestId);
+      if (!query.ok) return query.response;
+      let afterOrdinal;
+      try {
+        afterOrdinal =
+          query.value.cursor === undefined
+            ? undefined
+            : decodeRunCaseCursorV1(query.value.cursor).ordinal;
+      } catch (error) {
+        const code =
+          error instanceof Error && error.message === "CURSOR_VERSION_UNSUPPORTED"
+            ? "CURSOR_VERSION_UNSUPPORTED"
+            : "CURSOR_INVALID";
+        return { statusCode: 400, body: errorBody({ code, requestId: input.requestId }) };
+      }
+      const page = await service.queryReportCases({
+        runId: id.value,
+        limit: query.value.limit,
+        ...(afterOrdinal === undefined ? {} : { afterOrdinal }),
+        ...(query.value.restStatus === undefined ? {} : { restStatuses: query.value.restStatus }),
+        ...(query.value.evalStatus === undefined ? {} : { evalStatuses: query.value.evalStatus }),
+        ...(query.value.metric === undefined ? {} : { metrics: query.value.metric }),
+        ...(query.value.businessModule === undefined
+          ? {}
+          : { businessModules: query.value.businessModule }),
+        ...(query.value.scenarioTag === undefined ? {} : { scenarioTags: query.value.scenarioTag })
+      });
+      if (page === null) return reportUnavailable(input.requestId);
+      return {
+        statusCode: 200,
+        body: RunReportCasePageV1Schema.parse({
+          items: page.items.map(mapPlatformReportCaseToV1),
+          nextCursor:
+            page.nextCursor === null
+              ? null
+              : encodeRunCaseCursorV1({ version: 1, ordinal: page.nextCursor })
+        })
+      };
+    },
+    getRunReportCase: async (input): Promise<LocalApiHandlerResponse> => {
+      const id = runId(input);
+      if (!id.ok) return id.response;
+      if (!(await service.hasReportRun(id.value))) {
+        return {
+          statusCode: 404,
+          body: errorBody({ code: "RUN_NOT_FOUND", requestId: input.requestId })
+        };
+      }
+      const caseKey = input.params.caseKey;
+      if (caseKey === undefined || caseKey.trim() === "") {
+        return {
+          statusCode: 400,
+          body: errorBody({
+            code: "VALIDATION_FAILED",
+            requestId: input.requestId,
+            path: "caseKey"
+          })
+        };
+      }
+      if ((await service.getReport(id.value)) === null) return reportUnavailable(input.requestId);
+      const value = await service.getReportCase(id.value, caseKey);
+      return value === null
+        ? {
+            statusCode: 404,
+            body: errorBody({ code: "RUN_CASE_RESULT_NOT_FOUND", requestId: input.requestId })
+          }
+        : { statusCode: 200, body: RunReportCaseV1Schema.parse(mapPlatformReportCaseToV1(value)) };
+    },
+    exportRunReport: async (input): Promise<LocalApiHandlerResponse> => {
+      const id = runId(input);
+      if (!id.ok) return id.response;
+      if (!(await service.hasReportRun(id.value))) {
+        return {
+          statusCode: 404,
+          body: errorBody({ code: "RUN_NOT_FOUND", requestId: input.requestId })
+        };
+      }
+      const overview = await service.getReport(id.value);
+      if (overview === null) return reportUnavailable(input.requestId);
+      try {
+        if (overview.run.sourceType === "OFFLINE_IMPORT") {
+          return {
+            statusCode: 200,
+            headers: {
+              "content-type": "application/json; charset=utf-8",
+              "content-disposition": `attachment; filename="cortex-report-${id.value}.json"`
+            },
+            body: openImportedReportExport({
+              run: overview.run,
+              cases: service.streamReportCases(id.value),
+              signal: input.signal
+            })
+          };
+        }
+        const body = await service.openReportExport(overview.run.artifactManifest, input.signal);
+        if (body === null) {
+          return {
+            statusCode: 422,
+            body: errorBody({ code: "REPORT_RECONCILIATION_FAILED", requestId: input.requestId })
+          };
+        }
+        return {
+          statusCode: 200,
+          headers: {
+            "content-type": "application/json; charset=utf-8",
+            "content-disposition": `attachment; filename="cortex-report-${id.value}.json"`
+          },
+          body
+        };
+      } catch (error) {
+        if (error instanceof Error && error.message === "REQUEST_ABORTED") {
+          return {
+            statusCode: 499,
+            body: errorBody({ code: "REQUEST_ABORTED", requestId: input.requestId })
+          };
+        }
+        throw error;
+      }
+    },
+    importExecutionReport: async (input): Promise<LocalApiHandlerResponse> => {
+      const body = parse(ExecutionReportImportRequestV1Schema, input.body, input.requestId);
+      if (!body.ok) return body.response;
+      try {
+        const result = await service.importExecutionReport(body.value, input.signal);
+        if (!result.ok) {
+          return {
+            statusCode: 409,
+            body: errorBody({
+              code: "EXECUTION_RESULT_CONFLICT",
+              requestId: input.requestId
+            })
+          };
+        }
+        return {
+          statusCode: 201,
+          body: ExecutionReportImportResultV1Schema.parse({
+            contractVersion: "cortex.execution-report-import-result.v1",
+            ...result.value,
+            sourceType: "OFFLINE_IMPORT",
+            stage: "DONE"
+          })
+        };
+      } catch (error) {
+        if (error instanceof Error && error.message === "REQUEST_ABORTED") {
+          return {
+            statusCode: 499,
+            body: errorBody({ code: "REQUEST_ABORTED", requestId: input.requestId })
+          };
+        }
+        if (error instanceof Error && error.message === "WORK_PACKAGE_LOCKED") {
+          return {
+            statusCode: 409,
+            body: errorBody({ code: "WORK_PACKAGE_LOCKED", requestId: input.requestId })
+          };
+        }
+        if (
+          error instanceof Error &&
+          (error.message.startsWith("WORK_PACKAGE_") ||
+            error.message.startsWith("ARTIFACT_") ||
+            error.message === "REPORT_RECONCILIATION_FAILED")
+        ) {
+          return {
+            statusCode: 422,
+            body: errorBody({ code: "WORK_PACKAGE_INVALID", requestId: input.requestId })
+          };
+        }
+        throw error;
+      }
+    },
     startRun: async (input): Promise<LocalApiHandlerResponse> => {
       const id = runId(input);
       if (!id.ok) return id.response;
@@ -568,9 +890,11 @@ export function createApplicationRunHandlers(
         };
       }
       const result =
-        current.stage === "EVALUATION"
-          ? await service.startEvaluation({ runId: id.value, ...body.value })
-          : await service.start({ runId: id.value, ...body.value });
+        current.stage === "REPORT"
+          ? await service.startReport({ runId: id.value, ...body.value })
+          : current.stage === "EVALUATION"
+            ? await service.startEvaluation({ runId: id.value, ...body.value })
+            : await service.start({ runId: id.value, ...body.value });
       return result.ok
         ? { statusCode: 202, body: RunProgressV1Schema.parse(runProgress(result.run)) }
         : applicationError(result.error, input.requestId);
@@ -588,9 +912,11 @@ export function createApplicationRunHandlers(
         };
       }
       const result =
-        current.stage === "EVALUATION"
-          ? await service.cancelEvaluation({ runId: id.value, ...body.value })
-          : await service.cancel({ runId: id.value, ...body.value });
+        current.stage === "REPORT"
+          ? await service.cancelReport({ runId: id.value, ...body.value })
+          : current.stage === "EVALUATION"
+            ? await service.cancelEvaluation({ runId: id.value, ...body.value })
+            : await service.cancel({ runId: id.value, ...body.value });
       return result.ok
         ? { statusCode: 202, body: RunProgressV1Schema.parse(runProgress(result.run)) }
         : applicationError(result.error, input.requestId);

@@ -41,9 +41,15 @@ const runHandlers: LocalRunHandlers = {
   createRun: success,
   listRuns: success,
   getRun: success,
+  createRunRerun: success,
   listRunCases: success,
   getRunCase: success,
   listRunEvaluations: success,
+  getRunReport: success,
+  listRunReportCases: success,
+  getRunReportCase: success,
+  exportRunReport: success,
+  importExecutionReport: success,
   startRun: success,
   cancelRun: success,
   getRunProgress: success
@@ -196,6 +202,15 @@ describe("P3 OpenAPI contract", () => {
         headers: { host: "127.0.0.1:4310" }
       });
       const paths = jsonObjectProperty(parseJsonObject(response), "paths");
+      expect(Object.keys(paths)).toEqual(
+        expect.arrayContaining([
+          "/api/v1/runs/{runId}/report",
+          "/api/v1/runs/{runId}/reruns",
+          "/api/v1/runs/{runId}/report/cases",
+          "/api/v1/runs/{runId}/report/cases/{caseKey}",
+          "/api/v1/runs/{runId}/report/export"
+        ])
+      );
       const operation = jsonObjectProperty(
         jsonObjectProperty(paths, "/api/v1/runs/{runId}/events"),
         "get"
@@ -212,6 +227,25 @@ describe("P3 OpenAPI contract", () => {
         expect(errorContent["application/json"]).toBeDefined();
         expect(errorContent["text/event-stream"]).toBeUndefined();
       }
+      const reportExport = jsonObjectProperty(
+        jsonObjectProperty(paths, "/api/v1/runs/{runId}/report/export"),
+        "get"
+      );
+      const reportExportResponses = jsonObjectProperty(reportExport, "responses");
+      expect(Object.keys(reportExportResponses)).toEqual(expect.arrayContaining(["200", "499"]));
+      const reportExportContent = jsonObjectProperty(
+        jsonObjectProperty(reportExportResponses, "200"),
+        "content"
+      );
+      expect(reportExportContent["application/json"]).toBeDefined();
+      const resultImport = jsonObjectProperty(
+        jsonObjectProperty(paths, "/api/v1/execution-results/import"),
+        "post"
+      );
+      expect(resultImport.operationId).toBe("importExecutionReport");
+      expect(Object.keys(jsonObjectProperty(resultImport, "responses"))).toEqual(
+        expect.arrayContaining(["201", "409", "422", "499"])
+      );
     } finally {
       await p5Server.close();
     }

@@ -12,15 +12,17 @@
 
 ## 实现状态
 
-目标 Feature 尚未落地。
+P8 已落地平台与离线导入统一 Report 页面、Dashboard 报告指标、Run 来源标签、平台 Retry/Force 动作、服务端分页过滤、Case/Assertion/Diff 详情和 JSON 导出。
 
-## 目标代码落点
+## 代码落点
 
 `apps/web/src/features/reports`
 
 ## 当前代码事实入口
 
-尚无当前 Web 代码入口。
+- [report-page.tsx](../../apps/web/src/features/reports/report-page.tsx)：统一 Report Overview、过滤、详情、Evidence 和导出。
+- [dashboard-page.tsx](../../apps/web/src/features/dashboard/dashboard-page.tsx)：最近完整报告指标与最近运行。
+- [run-detail-page.tsx](../../apps/web/src/features/runs/run-detail-page.tsx)：平台 Report 入口和 Retry/Force 版本动作。
 
 ## 当前样例与测试入口
 
@@ -37,9 +39,15 @@ Raw Evidence 缺失或 Hash 损坏时显示明确状态，但报告列表、统�
 
 用户打开完整报告，查看总体与 Metric 统计，进入 Case 和 Assertion 详情，并导出规范化报告。不完整运行只显示已完成阶段事实。
 
+Dashboard 从最近完整报告 DTO 展示有效通过率、覆盖率和主要 Metric。主要 Metric 是 Reporting 已按 Metric 名称稳定排序后的第一项；没有 Metric 或分母为空时显示空值，不由 Web 猜测优先级。最近运行混合显示平台与离线导入来源，离线导入直接进入只读 Report；Test Suite 最近运行只在当前 Suite ID 关联存在时显示导入事实。
+
+Dashboard 的最近报告查询身份同时包含 Run ID、Status、Stage 和 Updated At。同一 Run 从运行中推进到 `DONE` 时必须使此前的空结果或旧报告缓存失效并重新读取完整 Report，不得仅以 Run ID 维持缓存。
+
+平台终态且冻结上下文完整的 Run 可创建 `RETRY_FAILED` 或 `FORCE` 新版本。页面展示来源 Run、模式、复用/执行数量和新 Run 链接；来源 Run 不修改。离线导入 Run 不提供可执行动作。
+
 ## 状态、事务与幂等
 
-报告是只读事实。空分母 Rate 显示为空，Error、Skipped 和 Not Evaluated 单独展示。过滤不改变原统计和结果哈希。
+报告是只读版本事实。空分母 Rate 显示为空，Error、Skipped 和 Not Evaluated 单独展示。过滤不改变原统计和结果哈希。Raw Evidence 状态只来自 Artifact 检查，不触发重新评估或报告重算。
 
 ## 错误收敛
 
@@ -51,4 +59,4 @@ Raw Evidence 缺失或 Hash 损坏时显示明确状态，但报告列表、统�
 
 ## 相关测试
 
-目标测试覆盖统计展示、空分母、过滤、Case 详情、Diff、脱敏上下文、不完整运行和导出。
+组件测试覆盖统计展示、空分母、过滤、Case 详情、Diff、脱敏上下文、来源、重跑和导出。生产 Playwright 使用真实 Work Package Report、真实导入 API 和 SQLite，验证离线报告进入 Dashboard、Run 列表、Report 和 Test Suite 最近运行。

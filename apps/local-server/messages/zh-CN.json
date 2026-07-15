@@ -12,6 +12,8 @@
   "RUN_REST_COMPLETED": "REST 阶段已完成",
   "RUN_EVALUATION_STARTED": "评估阶段已开始",
   "RUN_EVALUATION_COMPLETED": "评估阶段已完成",
+  "RUN_REPORT_STARTED": "报告阶段已开始",
+  "RUN_REPORT_COMPLETED": "报告阶段已完成",
   "RUN_CANCEL_REQUESTED": "运行取消已请求",
   "RUN_CANCELLED": "运行取消已完成",
   "LOG_WRITE_FALLBACK": "日志写入失败，已降级到标准错误"

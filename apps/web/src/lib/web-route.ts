@@ -3,6 +3,7 @@ export type WebRoute =
   | { readonly kind: "DASHBOARD" }
   | { readonly kind: "RUN_LIST" }
   | { readonly kind: "RUN_DETAIL"; readonly runId: string }
+  | { readonly kind: "RUN_REPORT"; readonly runId: string }
   | { readonly kind: "TEST_SUITE_LIST" }
   | { readonly kind: "TEST_SUITE_DETAIL"; readonly suiteId: string }
   | { readonly kind: "ENDPOINT_CONFIG_LIST" }
@@ -49,6 +50,11 @@ export function resolveWebRoute(pathname: string): WebRoute | null {
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   if (normalized === "/") return { kind: "DASHBOARD" };
   if (normalized === "/runs") return { kind: "RUN_LIST" };
+  const reportMatch = /^\/runs\/([^/]+)\/report$/.exec(normalized);
+  if (reportMatch?.[1] !== undefined) {
+    const runId = decodePathComponent(reportMatch[1]);
+    return runId === null ? null : { kind: "RUN_REPORT", runId };
+  }
   const runMatch = /^\/runs\/([^/]+)$/.exec(normalized);
   if (runMatch?.[1] !== undefined) {
     const runId = decodePathComponent(runMatch[1]);

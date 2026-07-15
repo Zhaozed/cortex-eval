@@ -2,7 +2,7 @@
 
 ## 状态与依赖
 
-- 状态：`PENDING`
+- 状态：`COMPLETED`
 - 依赖：P7
 
 ## 目标
@@ -21,6 +21,9 @@
 - 实现报告分页过滤、Case/Assertion 详情、导出和 Evidence 存在/缺失/损坏展示。
 - 为 Dashboard 注册最近完整报告的有效通过率、覆盖率和主要 Metric 指标卡，数据来自规范化 Report DTO。
 - `result import` 成功后扩展最近运行 Dashboard、Run 列表来源标签和测试集最近运行状态，区分平台本地运行与离线导入。
+- 保持 Case Assert 构建开放：覆盖 Promptfoo 全部 Assert 表示不限制 Case Assert 构建，不要求平台复现或限制 Assert 执行；Report 不调用或干预 Bridge。
+- 显式区分 Run/Execution 执行版本、Evaluation 版本和 Report 版本；导入只使用 Execution/Package/Result Set Hash/Manifest 身份，不使用 `select max`、最大时间或最近记录推断。
+- 离线导入始终保留冻结 Suite Snapshot；只有当前数据库存在同 ID Suite 时建立最近运行关联，不从名称或快照猜测。
 
 ## TDD 与验证
 
@@ -40,6 +43,16 @@
 - `spec/APPLICATION/RUNS.md`
 - `spec/APPLICATION/EXECUTION_IMPORTS.md`
 - `spec/TEST.md`
+- `spec/SYSTEM_OVERVIEW.md`
+- `spec/INTERNAL_BEHAVIOR.md`
+- `spec/WEB/RUNS.md`
+- `spec/WEB/TEST_SUITES.md`
+- `spec/APPLICATION/TEST_SUITES.md`
+- `spec/PACKAGES/STORAGE_SQLITE.md`
+- `spec/PACKAGES/WORK_PACKAGE.md`
+- `spec/ENTRYPOINTS/LOCAL_SERVER.md`
+- `spec/ENTRYPOINTS/CLI.md`
+- `spec/DECISION_LOG.md`
 
 ## 完成标准
 

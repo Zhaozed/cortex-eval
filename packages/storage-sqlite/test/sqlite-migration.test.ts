@@ -159,6 +159,27 @@ describe("SQLite 初始化与 Migration", () => {
     ]);
   });
 
+  it("为 REST、Evaluation 与 Report 分别保存不可混淆的结果版本", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-"));
+    const storage = await initializeSqliteStorage({ projectRoot });
+    openStorages.push(storage);
+
+    const database = new Database(storage.databasePath, { readonly: true });
+    const columns = database.prepare("PRAGMA table_info(run_log)").all() as {
+      readonly name: string;
+    }[];
+    database.close();
+
+    expect(columns.map((item) => item.name)).toEqual(
+      expect.arrayContaining([
+        "result_set_hash",
+        "evaluation_context_hash",
+        "evaluation_result_set_hash",
+        "report_result_set_hash"
+      ])
+    );
+  });
+
   it("从不可变 P5 002 Schema 升级时只新增三类 Evaluation 计数", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-storage-upgrade-"));
     const databasePath = resolveDefaultDatabasePath(projectRoot);

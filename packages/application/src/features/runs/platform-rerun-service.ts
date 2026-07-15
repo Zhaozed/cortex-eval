@@ -90,7 +90,13 @@ export class PlatformRerunService {
   public async create(input: CreatePlatformRerunInput): Promise<CreatePlatformRerunResult> {
     const source = await this.#readSource(input.sourceRunId);
     if (source === null) return { ok: false, error: { code: "RUN_NOT_FOUND" } };
-    if (source.restResults.length !== source.run.suite.cases.length) {
+    if (
+      source.run.status === "READY" ||
+      source.run.status === "RUNNING" ||
+      source.run.stage !== "DONE" ||
+      source.run.completedAt === null ||
+      source.restResults.length !== source.run.suite.cases.length
+    ) {
       return { ok: false, error: { code: "RERUN_SOURCE_INCOMPLETE" } };
     }
     const evaluations =
@@ -139,6 +145,10 @@ export class PlatformRerunService {
       evalErrorCount: 0,
       evalNotEvaluatedCount: 0,
       resultSetHash: null,
+      evaluationContextHash: null,
+      evaluationResultSetHash: null,
+      reportResultSetHash: null,
+      reportSummary: null,
       artifactManifest: {
         contractVersion: "cortex.artifact-manifest.v1",
         owner: { kind: "RUN", id: runId },

@@ -163,23 +163,34 @@ export function TestSuiteListPage({
         cell: ({ row }): ReactElement => <Badge variant="outline">{row.original.caseCount}</Badge>
       },
       {
-        id: "latestPlatformRun",
+        id: "latestRun",
         header: message("testSuites.latestRun"),
         cell: ({ row }): ReactElement => {
-          const run = row.original.latestPlatformRun;
+          const run = row.original.latestRun;
           if (run === null) return <Badge variant="secondary">{message("testSuites.noRun")}</Badge>;
+          const runPath =
+            run.sourceType === "OFFLINE_IMPORT"
+              ? `/runs/${encodeURIComponent(run.id)}/report`
+              : `/runs/${encodeURIComponent(run.id)}`;
           return (
-            <Badge asChild variant="accent">
-              <a
-                href={`/runs/${encodeURIComponent(run.id)}`}
-                onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-                  event.preventDefault();
-                  onNavigate(`/runs/${encodeURIComponent(run.id)}`);
-                }}
-              >
-                {runStatusLabel(run.status)}
-              </a>
-            </Badge>
+            <div className="tag-list">
+              <Badge variant="outline">
+                {run.sourceType === "PLATFORM"
+                  ? message("runs.platform")
+                  : message("runs.offlineImport")}
+              </Badge>
+              <Badge asChild variant="accent">
+                <a
+                  href={runPath}
+                  onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+                    event.preventDefault();
+                    onNavigate(runPath);
+                  }}
+                >
+                  {runStatusLabel(run.status)}
+                </a>
+              </Badge>
+            </div>
           );
         }
       },

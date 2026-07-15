@@ -10,6 +10,8 @@ import type {
 import type {
   PlatformNormalizedEvalArtifactInput,
   PlatformRawPromptfooArtifactInput,
+  PlatformReportArtifactInput,
+  PlatformReportArtifactWriteResult,
   PlatformRestArtifactInput,
   PlatformRestArtifactWriteResult,
   PublishedRunArtifact,
@@ -71,7 +73,10 @@ export class MemoryPlatformEvalRepository implements PlatformEvalRepository {
       evalFailCount,
       evalErrorCount,
       evalNotEvaluatedCount,
-      resultSetHash: input.resultSetHash,
+      evaluationContextHash: input.evaluationContextHash,
+      evaluationResultSetHash: input.resultSetHash,
+      reportResultSetHash: null,
+      reportSummary: null,
       artifactManifest: {
         ...run.artifactManifest,
         artifacts: [...run.artifactManifest.artifacts, ...input.artifactManifest.artifacts]
@@ -90,7 +95,8 @@ export class MemoryPlatformEvalRepository implements PlatformEvalRepository {
         evalFailCount,
         evalErrorCount,
         evalNotEvaluatedCount,
-        resultSetHash: input.resultSetHash
+        evaluationContextHash: input.evaluationContextHash,
+        evaluationResultSetHash: input.resultSetHash
       }
     });
   }
@@ -216,6 +222,35 @@ export class MemoryArtifacts implements RunArtifactStore {
         contractVersion: "cortex.platform-normalized-eval.v1"
       },
       publicationIdentity: `memory:${input.runId}:normalized`
+    };
+  }
+
+  /** Consume and return deterministic Report pair integrity facts. */
+  public async writeReport(
+    input: PlatformReportArtifactInput
+  ): Promise<PlatformReportArtifactWriteResult> {
+    for await (const item of input.cases) void item;
+    return {
+      json: {
+        descriptor: {
+          kind: "REPORT_JSON",
+          path: `runs/${input.run.id}/report.json`,
+          expectedSha256: "e".repeat(64),
+          expectedSizeBytes: 140,
+          contractVersion: "cortex.report.v1"
+        },
+        publicationIdentity: `memory:${input.run.id}:report-json`
+      },
+      markdown: {
+        descriptor: {
+          kind: "REPORT_MARKDOWN",
+          path: `runs/${input.run.id}/report.md`,
+          expectedSha256: "f".repeat(64),
+          expectedSizeBytes: 90,
+          contractVersion: "cortex.report-markdown.v1"
+        },
+        publicationIdentity: `memory:${input.run.id}:report-markdown`
+      }
     };
   }
 

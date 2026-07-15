@@ -9,7 +9,8 @@ import type {
 import {
   PlatformEvaluationService,
   type PlatformEvaluationBusinessEvent,
-  type PlatformEvaluationServiceDependencies
+  type PlatformEvaluationServiceDependencies,
+  type PlatformReportStageStarter
 } from "../src/features/evaluation/platform-evaluation-service.ts";
 import type {
   PlatformRunResourceReader,
@@ -18,6 +19,8 @@ import type {
 import type {
   PlatformNormalizedEvalArtifactInput,
   PlatformRawPromptfooArtifactInput,
+  PlatformReportArtifactInput,
+  PlatformReportArtifactWriteResult,
   PlatformRestArtifactWriteResult,
   PublishedRunArtifact,
   RunArtifactAvailability,
@@ -131,6 +134,14 @@ class EvaluationArtifacts implements RunArtifactStore {
       },
       publicationIdentity: "memory:normalized"
     };
+  }
+
+  /** Report is outside these Evaluation tests. */
+  public writeReport(
+    input: PlatformReportArtifactInput
+  ): Promise<PlatformReportArtifactWriteResult> {
+    void input;
+    return Promise.reject(new Error("UNEXPECTED_REPORT_WRITE"));
   }
 
   /** Capture rollback removals. */
@@ -308,6 +319,105 @@ function evaluationDependencies(
 }
 
 describe("Platform Evaluation Application 编排", () => {
+  it("PIPELINE 在 Evaluation 提交后以独立 Evaluation 版本启动 Report", async () => {
+    const runs = new MemoryPlatformRunStore();
+    runs.values.set(RUN_ID, { ...evaluationRun(), runMode: "PIPELINE" });
+    runs.results.set(`${RUN_ID}:case-1`, restResult);
+    const transactions = new RunTransactions(runs);
+    const starts: { readonly runId: string; readonly expectedRevision: number }[] = [];
+    const service = new PlatformEvaluationService({
+      ...evaluationDependencies(runs, new SuccessfulEvaluationEngine(transactions)),
+      pipelineReportStarter: {
+        start: (input): Promise<{ readonly ok: true }> => {
+          starts.push(input);
+          return Promise.resolve({ ok: true });
+        }
+      }
+    });
+
+    await service.start({ runId: RUN_ID, expectedRevision: 2 });
+    await service.waitForIdle();
+
+    expect(starts).toEqual([{ runId: RUN_ID, expectedRevision: 4 }]);
+    const progress = await runs.getPlatformRunProgress(RUN_ID);
+    expect(typeof progress?.resultSetHash).toBe("string");
+    expect(progress?.evaluationContextHash).toBe("f".repeat(64));
+    expect(typeof progress?.evaluationResultSetHash).toBe("string");
+  });
+
+  it("PIPELINE Report 交接拒绝或抛错时只让未变化的 READY Revision 失败", async () => {
+    for (const mode of ["REJECT", "THROW"] as const) {
+      const runs = new MemoryPlatformRunStore();
+      runs.values.set(RUN_ID, { ...evaluationRun(), runMode: "PIPELINE" });
+      runs.results.set(`${RUN_ID}:case-1`, restResult);
+      const transactions = new RunTransactions(runs);
+      const service = new PlatformEvaluationService({
+        ...evaluationDependencies(runs, new SuccessfulEvaluationEngine(transactions)),
+        pipelineReportStarter: {
+          start: (): ReturnType<PlatformReportStageStarter["start"]> =>
+            mode === "REJECT"
+              ? Promise.resolve({
+                  ok: false as const,
+                  error: {
+                    code: "RUN_STATE_CONFLICT" as const,
+                    reason: "STATE_OR_REVISION" as const
+                  }
+                })
+              : Promise.reject(new Error("TEST_REPORT_START_FAILED"))
+        }
+      });
+
+      await service.start({ runId: RUN_ID, expectedRevision: 2 });
+      await service.waitForIdle();
+
+      await expect(runs.getPlatformRunProgress(RUN_ID)).resolves.toMatchObject({
+        status: "FAILED",
+        stage: "DONE",
+        errorCode: "REPORT_STAGE_FAILED"
+      });
+    }
+  });
+
+  it("PIPELINE Report 交接竞争中保留已经抢占的新 Owner", async () => {
+    const runs = new MemoryPlatformRunStore();
+    runs.values.set(RUN_ID, { ...evaluationRun(), runMode: "PIPELINE" });
+    runs.results.set(`${RUN_ID}:case-1`, restResult);
+    const transactions = new RunTransactions(runs);
+    const service = new PlatformEvaluationService({
+      ...evaluationDependencies(runs, new SuccessfulEvaluationEngine(transactions)),
+      pipelineReportStarter: {
+        start: (): ReturnType<PlatformReportStageStarter["start"]> => {
+          const current = runs.values.get(RUN_ID);
+          if (current !== undefined) {
+            runs.values.set(RUN_ID, {
+              ...current,
+              status: "RUNNING",
+              stage: "REPORT",
+              lockRevision: current.lockRevision + 1
+            });
+          }
+          return Promise.resolve({
+            ok: false as const,
+            error: {
+              code: "RUN_STATE_CONFLICT" as const,
+              reason: "STATE_OR_REVISION" as const
+            }
+          });
+        }
+      }
+    });
+
+    await service.start({ runId: RUN_ID, expectedRevision: 2 });
+    await service.waitForIdle();
+
+    await expect(runs.getPlatformRunProgress(RUN_ID)).resolves.toMatchObject({
+      status: "RUNNING",
+      stage: "REPORT",
+      lockRevision: 5,
+      errorCode: null
+    });
+  });
+
   it("Preflight 只接收 REST 成功且未复用、确实会进入 Promptfoo 的 Case", async () => {
     const runs = new MemoryPlatformRunStore();
     runs.values.set(RUN_ID, evaluationRun());

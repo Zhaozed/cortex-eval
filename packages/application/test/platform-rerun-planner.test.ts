@@ -209,8 +209,8 @@ function sourceRun(withEvalArtifacts = true): PlatformRun {
       evalConcurrency: 2
     },
     runMode: "STAGED",
-    status: "READY",
-    stage: withEvalArtifacts ? "REPORT" : "EVALUATION",
+    status: "FAILED",
+    stage: "DONE",
     lockRevision: 4,
     cancelRequestedAt: null,
     restCompletedCount: rests.length,
@@ -221,15 +221,19 @@ function sourceRun(withEvalArtifacts = true): PlatformRun {
     evalErrorCount: 0,
     evalNotEvaluatedCount: 0,
     resultSetHash: HASH,
+    evaluationContextHash: null,
+    evaluationResultSetHash: null,
+    reportResultSetHash: null,
+    reportSummary: null,
     artifactManifest: {
       contractVersion: "cortex.artifact-manifest.v1",
       owner: { kind: "RUN", id: SOURCE_RUN_ID },
       artifacts
     },
-    errorCode: null,
-    errorMessage: null,
+    errorCode: "EVALUATION_STAGE_FAILED",
+    errorMessage: "evaluation failed",
     startedAt: NOW,
-    completedAt: null,
+    completedAt: NOW,
     createdAt: NOW,
     updatedAt: NOW
   };
@@ -622,6 +626,39 @@ describe("平台失败重跑选择计划", () => {
     await expect(
       service.create({ sourceRunId: SOURCE_RUN_ID, mode: "RETRY_FAILED" })
     ).resolves.toEqual({ ok: false, error: { code: "RERUN_SOURCE_INCOMPLETE" } });
+  });
+
+  it("内部重跑拒绝仍处于 READY 或 RUNNING 的来源版本", async () => {
+    for (const status of ["READY", "RUNNING"] as const) {
+      const runs = new MemoryPlatformRunStore();
+      const source = sourceRun();
+      runs.values.set(SOURCE_RUN_ID, {
+        ...source,
+        status,
+        stage: "REPORT",
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null
+      });
+      for (const frozen of source.suite.cases) {
+        runs.results.set(
+          `${SOURCE_RUN_ID}:${frozen.caseKey}`,
+          restResult(frozen.caseKey, frozen.ordinal, "SUCCEEDED")
+        );
+      }
+      const service = new PlatformRerunService({
+        runTransactionManager: runTransactions(runs),
+        evalTransactionManager: evalTransactions([]),
+        artifactStore: sourceArtifacts(source),
+        idGenerator: { nextId: (): string => TARGET_RUN_ID },
+        clock: { now: (): string => NOW }
+      });
+
+      await expect(service.create({ sourceRunId: SOURCE_RUN_ID, mode: "FORCE" })).resolves.toEqual({
+        ok: false,
+        error: { code: "RERUN_SOURCE_INCOMPLETE" }
+      });
+    }
   });
 
   it("内部重跑拒绝不前进的来源 Evaluation Cursor", async () => {

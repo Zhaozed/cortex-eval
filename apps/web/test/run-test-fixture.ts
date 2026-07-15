@@ -5,7 +5,9 @@ import type {
   RunCasePage,
   RunEvalPage,
   RunPreflight,
-  RunProgress
+  RunProgress,
+  RunReportCase,
+  RunReportOverview
 } from "../src/lib/run-api.ts";
 
 /** Stable Run fixture identity. */
@@ -279,6 +281,97 @@ export const runEvalPage: RunEvalPage = {
     }
   ],
   nextCursor: null
+};
+
+// Read the deterministic first Evaluation fixture without using a type assertion.
+function reportEvaluation(): RunEvalPage["items"][number]["result"] {
+  const item = runEvalPage.items[0];
+  if (item === undefined) throw new Error("RUN_EVAL_FIXTURE_MISSING");
+  return item.result;
+}
+
+/** Complete imported Report overview fixture. */
+export const runReportOverview: RunReportOverview = {
+  runId: RUN_ID,
+  sourceType: "OFFLINE_IMPORT",
+  sourceRunId: null,
+  rerunMode: "NONE",
+  completedAt: RUN_TIME,
+  context: {
+    contractVersion: "cortex.report-context.v1",
+    runContextHash: HASH,
+    suite: { sourceId: SUITE_ID, name: "客服回归集", suiteHash: HASH },
+    endpoint: {
+      sourceId: ENDPOINT_ID,
+      name: "客服 Endpoint",
+      configHash: HASH,
+      config: runDetail().endpoint.config
+    },
+    evaluator: {
+      sourceId: EVALUATOR_ID,
+      name: "Gemini Evaluator",
+      configHash: HASH,
+      config: runDetail().evaluator.config
+    },
+    rubricPrompts: [],
+    promptfooVersion: "0.121.18",
+    runExecutionLimits: runDetail().runExecutionLimits
+  },
+  evaluationContextHash: HASH,
+  evaluationResultSetHash: HASH,
+  reportResultSetHash: HASH,
+  summary: {
+    total: 1,
+    restSucceeded: 1,
+    restError: 0,
+    evalPass: 1,
+    evalFail: 0,
+    evalError: 0,
+    notEvaluated: 0,
+    effectivePassRate: 1,
+    evaluatedPassRate: 1,
+    coverageRate: 1
+  },
+  byMetric: [
+    {
+      metric: "quality",
+      pass: 1,
+      fail: 0,
+      error: 0,
+      skipped: 0,
+      notEvaluated: 0,
+      passRate: 1
+    }
+  ],
+  artifactAvailability: [
+    {
+      kind: "RAW_PROMPTFOO_EVIDENCE",
+      path: `executions/${RUN_ID}/promptfoo-raw.json`,
+      status: "MISSING"
+    }
+  ]
+};
+
+/** Complete normalized Report Case fixture with one Assertion and missing Raw evidence. */
+export const runReportCase: RunReportCase = {
+  caseKey: "case-1",
+  ordinal: 0,
+  definitionHash: HASH,
+  definition: runCaseDetail.definition,
+  rest: {
+    caseKey: "case-1",
+    ordinal: 0,
+    caseDefinitionHash: HASH,
+    status: "SUCCEEDED",
+    httpStatus: 200,
+    providerOutput: runCaseDetail.providerOutput,
+    durationMs: runCaseDetail.durationMs,
+    completedAt: RUN_TIME,
+    resultHash: HASH,
+    provenance: null
+  },
+  evaluation: reportEvaluation(),
+  rawEvidenceStatus: "MISSING"
 };
 
 /** Convert one detail into its mutation progress projection. */

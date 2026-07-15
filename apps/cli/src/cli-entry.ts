@@ -19,6 +19,8 @@ import { LocalEvaluationCommandService } from "./evaluation-command-service.ts";
 import { HttpPackageCommandService, MacOsCliProcessIdentity } from "./package-command-service.ts";
 import { LocalPipelineCommandService } from "./pipeline-command-service.ts";
 import { LocalRestCommandService } from "./rest-command-service.ts";
+import { HttpResultImportCommandService } from "./result-import-command-service.ts";
+import { WorkPackageReportRunService } from "./work-package-report-run-service.ts";
 
 const signalController = new AbortController();
 const cancel = (): void => signalController.abort();
@@ -77,6 +79,21 @@ const evaluationCommands = new LocalEvaluationCommandService({
     }
   }
 });
+const reportCommands = new WorkPackageReportRunService({
+  contextHasher: cliExecutionContextHasher,
+  caseHasher: cliCaseDefinitionHasher,
+  restHashing: cliRestSemanticHashing,
+  evalHashing: cliEvalSemanticHashing,
+  processIdentity,
+  nonce: randomUUID,
+  now,
+  cleanupFailureSink: {
+    record: (): Promise<void> => {
+      process.stderr.write(`${cliMessages.REPORT_ARTIFACT_CLEANUP_FAILED}\n`);
+      return Promise.resolve();
+    }
+  }
+});
 const pipelineCommands = new LocalPipelineCommandService({
   contextHasher: cliExecutionContextHasher,
   nonce: randomUUID,
@@ -84,8 +101,10 @@ const pipelineCommands = new LocalPipelineCommandService({
   processIdentity,
   inheritedEnvironment: (): NodeJS.ProcessEnv => process.env,
   restCommands,
-  evaluationCommands
+  evaluationCommands,
+  reportCommands
 });
+const resultCommands = new HttpResultImportCommandService();
 const processArguments = process.argv.slice(2);
 const commandArguments =
   processArguments[0] === "--" ? processArguments.slice(1) : processArguments;
@@ -95,7 +114,9 @@ try {
     packageCommands,
     restCommands,
     evaluationCommands,
+    reportCommands,
     pipelineCommands,
+    resultCommands,
     output: {
       stdout: (value): boolean => process.stdout.write(value),
       stderr: (value): boolean => process.stderr.write(value)

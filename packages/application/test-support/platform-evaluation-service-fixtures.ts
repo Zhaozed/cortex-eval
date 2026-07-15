@@ -119,6 +119,10 @@ export function evaluationRun(): PlatformRun {
     evalErrorCount: 0,
     evalNotEvaluatedCount: 0,
     resultSetHash: restResultSetHash,
+    evaluationContextHash: null,
+    evaluationResultSetHash: null,
+    reportResultSetHash: null,
+    reportSummary: null,
     artifactManifest: {
       contractVersion: "cortex.artifact-manifest.v1",
       owner: { kind: "RUN", id: RUN_ID },

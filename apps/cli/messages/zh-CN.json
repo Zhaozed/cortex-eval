@@ -29,10 +29,19 @@
   "EVALUATION_RUN_COMPLETED": "评估阶段已完成",
   "EVALUATION_EXECUTION_ID": "已有 REST 成功的 Execution ID",
   "EVALUATION_ENV_FILE": "从工作包外的所有者私有 Env 文件读取 Evaluator Secret",
+  "REPORT_DESCRIPTION": "生成离线规范化报告",
+  "REPORT_BUILD_DESCRIPTION": "对已有 Evaluation Execution 生成 JSON 与 Markdown 报告",
+  "REPORT_BUILD_COMPLETED": "报告阶段已完成",
+  "REPORT_EXECUTION_ID": "已有 Evaluation 成功的 Execution ID",
+  "RESULT_DESCRIPTION": "导入离线 Execution 结果",
+  "RESULT_IMPORT_DESCRIPTION": "对账并导入已有 Execution 的完整 Report 版本",
+  "RESULT_IMPORT_COMPLETED": "Execution Report 已导入",
+  "RESULT_EXECUTION_ID": "已有 Report 成功的 Execution ID",
   "PIPELINE_DESCRIPTION": "按顺序执行离线工作包阶段",
-  "PIPELINE_RUN_DESCRIPTION": "创建新的 Execution 并依次执行 REST 和 Evaluation",
-  "PIPELINE_RUN_COMPLETED": "REST 与评估阶段已完成",
+  "PIPELINE_RUN_DESCRIPTION": "创建新的 Execution 并依次执行 REST、Evaluation 和 Report",
+  "PIPELINE_RUN_COMPLETED": "REST、评估与报告阶段已完成",
   "CLI_INPUT_INVALID": "命令输入无效",
   "WORK_PACKAGE_TEMP_CLEANUP_FAILED": "工作包临时目录清理失败",
-  "EVALUATION_RAW_CLEANUP_FAILED": "评估原始临时资源清理失败"
+  "EVALUATION_RAW_CLEANUP_FAILED": "评估原始临时资源清理失败",
+  "REPORT_ARTIFACT_CLEANUP_FAILED": "报告产物清理失败"
 }

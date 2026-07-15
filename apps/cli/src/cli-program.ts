@@ -12,10 +12,12 @@ import {
   WorkPackageExportRequestV1Schema,
   type WorkPackageExportRequestV1
 } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
+import type { ExecutionReportImportResultV1 } from "@cortex-eval/contracts/src/result-import-contracts.ts";
 import type { WorkPackageValidationSummary } from "@cortex-eval/work-package/src/work-package-execution-session.ts";
 import type { ReceivedWorkPackage } from "@cortex-eval/work-package/src/work-package-export-receiver.ts";
 import type { WorkPackageRestRunResult } from "./work-package-rest-run-service.ts";
 import type { WorkPackageEvaluationRunResult } from "./work-package-evaluation-run-service.ts";
+import type { WorkPackageReportRunResult } from "./work-package-report-run-service.ts";
 import type { WorkPackagePipelineRunResult } from "./pipeline-command-service.ts";
 import { Command, CommanderError } from "commander";
 
@@ -90,6 +92,40 @@ export interface EvaluationCommandService {
   readonly run: (input: EvaluationRunCommandInput) => Promise<WorkPackageEvaluationRunResult>;
 }
 
+/** Cleaned `report build` use-case input independent of Commander. */
+export interface ReportRunCommandInput {
+  /** Existing Work Package directory. */
+  readonly packagePath: string;
+  /** Existing Execution whose Evaluation stage succeeded. */
+  readonly executionId: string;
+  /** Command cancellation signal. */
+  readonly signal: AbortSignal;
+}
+
+/** Closed offline Report command use case. */
+export interface ReportCommandService {
+  /** Generate and register immutable Report JSON plus Markdown. */
+  readonly run: (input: ReportRunCommandInput) => Promise<WorkPackageReportRunResult>;
+}
+
+/** Cleaned `result import` input independent of Commander and HTTP details. */
+export interface ResultImportCommandInput {
+  /** Existing Work Package directory. */
+  readonly packagePath: string;
+  /** Existing Execution whose Report stage is complete. */
+  readonly executionId: string;
+  /** Command cancellation signal. */
+  readonly signal: AbortSignal;
+}
+
+/** Closed platform Report import use case. */
+export interface ResultImportCommandService {
+  /** Reconcile and atomically import one complete offline Report version. */
+  readonly importReport: (
+    input: ResultImportCommandInput
+  ) => Promise<ExecutionReportImportResultV1>;
+}
+
 /** Cleaned current REST to Evaluation Pipeline input. */
 export type PipelineRunCommandInput = RestRunCommandInput;
 
@@ -107,8 +143,12 @@ export interface CliDependencies {
   readonly restCommands: RestCommandService;
   /** Closed offline Evaluation capability. */
   readonly evaluationCommands: EvaluationCommandService;
+  /** Closed offline Report capability. */
+  readonly reportCommands: ReportCommandService;
   /** Closed current REST to Evaluation Pipeline capability. */
   readonly pipelineCommands: PipelineCommandService;
+  /** Closed Report import capability. */
+  readonly resultCommands: ResultImportCommandService;
   /** Explicit output sinks. */
   readonly output: CliOutput;
   /** Optional process cancellation signal. */
@@ -130,7 +170,14 @@ interface ExportOptions {
   readonly output: string;
 }
 
-type CliCommand = "package export" | "package validate" | "rest run" | "eval run" | "pipeline run";
+type CliCommand =
+  | "package export"
+  | "package validate"
+  | "rest run"
+  | "eval run"
+  | "report build"
+  | "pipeline run"
+  | "result import";
 
 const ERROR_CODE_SET = new Set<string>(ERROR_CODES);
 const HELP_TITLES: Readonly<Record<string, string>> = cliMessages.CLI_HELP_TITLES;
@@ -276,6 +323,46 @@ function evaluationRunInput(
   };
 }
 
+// Clean one Report command before it enters the offline use case.
+function reportRunInput(
+  packagePath: unknown,
+  value: unknown,
+  signal: AbortSignal
+): ReportRunCommandInput {
+  if (
+    typeof packagePath !== "string" ||
+    packagePath.length === 0 ||
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    throw new Error("VALIDATION_FAILED");
+  }
+  const executionId = (value as Readonly<Record<string, unknown>>).executionId;
+  if (!UuidV7Schema.safeParse(executionId).success) throw new Error("VALIDATION_FAILED");
+  return { packagePath, executionId: executionId as string, signal };
+}
+
+// Clean one Result import command before it crosses the Local API boundary.
+function resultImportInput(
+  packagePath: unknown,
+  value: unknown,
+  signal: AbortSignal
+): ResultImportCommandInput {
+  if (
+    typeof packagePath !== "string" ||
+    packagePath.length === 0 ||
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    throw new Error("VALIDATION_FAILED");
+  }
+  const executionId = (value as Readonly<Record<string, unknown>>).executionId;
+  if (!UuidV7Schema.safeParse(executionId).success) throw new Error("VALIDATION_FAILED");
+  return { packagePath, executionId: executionId as string, signal };
+}
+
 // Read one inherited boolean flag without accepting truthy coercion.
 function machineOutput(command: Command): boolean {
   const dirty: unknown = command.optsWithGlobals();
@@ -303,7 +390,9 @@ function commandFromArguments(arguments_: readonly string[]): CliCommand | null 
     pair === "package validate" ||
     pair === "rest run" ||
     pair === "eval run" ||
-    pair === "pipeline run"
+    pair === "report build" ||
+    pair === "pipeline run" ||
+    pair === "result import"
   ) {
     return pair;
   }
@@ -328,6 +417,7 @@ function exitCode(code: ErrorCode): 2 | 3 | 4 | 130 {
     code === "PROVIDER_REQUEST_FAILED" ||
     code === "PROMPTFOO_PROCESS_ERROR" ||
     code === "EVALUATION_STAGE_FAILED" ||
+    code === "REPORT_RECONCILIATION_FAILED" ||
     code === "ARTIFACT_WRITE_FAILED" ||
     code === "INTERNAL_ERROR"
   ) {
@@ -365,7 +455,13 @@ function emitError(
 ): 2 | 3 | 4 | 130 {
   const status = exitCode(code);
   if (json) {
-    if (command === "rest run" || command === "eval run" || command === "pipeline run") {
+    if (
+      command === "rest run" ||
+      command === "eval run" ||
+      command === "report build" ||
+      command === "pipeline run" ||
+      command === "result import"
+    ) {
       emitExecutionMachine(output, {
         contractVersion: "cortex.cli-execution-event.v1",
         type: "COMMAND_ERROR",
@@ -530,6 +626,66 @@ function buildProgram(
         }
       }
     );
+  const reportCommand = program.command("report").description(cliMessages.REPORT_DESCRIPTION);
+  reportCommand
+    .command("build")
+    .description(cliMessages.REPORT_BUILD_DESCRIPTION)
+    .argument("<path>")
+    .requiredOption("--execution-id <id>", cliMessages.REPORT_EXECUTION_ID)
+    .action(
+      async (packagePath: unknown, dirtyOptions: unknown, command: Command): Promise<void> => {
+        state.command = "report build";
+        state.json = machineOutput(command);
+        const input = reportRunInput(packagePath, dirtyOptions, controller.signal);
+        const result = await dependencies.reportCommands.run(input);
+        if (state.json) {
+          emitExecutionMachine(dependencies.output, {
+            contractVersion: "cortex.cli-execution-event.v1",
+            type: "REPORT_COMPLETED",
+            ...result
+          });
+        } else {
+          dependencies.output.stdout(
+            `${cliMessages.REPORT_BUILD_COMPLETED} ${result.executionId} ${result.reportMarkdownPath}\n`
+          );
+        }
+      }
+    );
+  const resultCommand = program.command("result").description(cliMessages.RESULT_DESCRIPTION);
+  resultCommand
+    .command("import")
+    .description(cliMessages.RESULT_IMPORT_DESCRIPTION)
+    .argument("<path>")
+    .requiredOption("--execution-id <id>", cliMessages.RESULT_EXECUTION_ID)
+    .action(
+      async (packagePath: unknown, dirtyOptions: unknown, command: Command): Promise<void> => {
+        state.command = "result import";
+        state.json = machineOutput(command);
+        const input = resultImportInput(packagePath, dirtyOptions, controller.signal);
+        const result = await dependencies.resultCommands.importReport(input);
+        if (state.json) {
+          emitExecutionMachine(dependencies.output, {
+            contractVersion: "cortex.cli-execution-event.v1",
+            type: "REPORT_IMPORTED",
+            runId: result.runId,
+            packageId: result.packageId,
+            executionId: result.executionId,
+            idempotent: result.idempotent,
+            sourceType: result.sourceType,
+            status: result.status,
+            stage: result.stage,
+            restResultSetHash: result.restResultSetHash,
+            evaluationContextHash: result.evaluationContextHash,
+            evaluationResultSetHash: result.evaluationResultSetHash,
+            reportResultSetHash: result.reportResultSetHash
+          });
+        } else {
+          dependencies.output.stdout(
+            `${cliMessages.RESULT_IMPORT_COMPLETED} ${result.executionId} ${result.runId}\n`
+          );
+        }
+      }
+    );
   const pipelineCommand = program.command("pipeline").description(cliMessages.PIPELINE_DESCRIPTION);
   pipelineCommand
     .command("run")
@@ -556,7 +712,7 @@ function buildProgram(
           });
         } else {
           dependencies.output.stdout(
-            `${cliMessages.PIPELINE_RUN_COMPLETED} ${result.executionId} ${result.normalizedArtifactPath}\n`
+            `${cliMessages.PIPELINE_RUN_COMPLETED} ${result.executionId} ${result.reportMarkdownPath}\n`
           );
         }
       }

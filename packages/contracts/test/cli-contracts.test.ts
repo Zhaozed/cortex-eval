@@ -103,8 +103,84 @@ describe("CLI machine output contracts", () => {
         evalErrorCount: 0,
         evaluationResultSetHash: HASH,
         rawArtifactPath: `executions/${ID}/promptfoo-raw.json`,
-        normalizedArtifactPath: `executions/${ID}/normalized-eval.json`
+        normalizedArtifactPath: `executions/${ID}/normalized-eval.json`,
+        reportResultSetHash: "b".repeat(64),
+        reportSummary: {
+          total: 1,
+          restSucceeded: 1,
+          restError: 0,
+          evalPass: 0,
+          evalFail: 1,
+          evalError: 0,
+          notEvaluated: 0,
+          effectivePassRate: 0,
+          evaluatedPassRate: 0,
+          coverageRate: 1
+        },
+        reportJsonPath: `executions/${ID}/report.json`,
+        reportMarkdownPath: `executions/${ID}/report.md`
       })
     ).toMatchObject({ type: "PIPELINE_COMPLETED", promptfooExitCode: 100 });
+  });
+
+  it("binds Report completion to distinct Evaluation and Report versions", () => {
+    expect(
+      CliExecutionEventV1Schema.parse({
+        contractVersion: "cortex.cli-execution-event.v1",
+        type: "REPORT_COMPLETED",
+        packageId: ID,
+        executionId: ID,
+        evaluationResultSetHash: HASH,
+        reportResultSetHash: "b".repeat(64),
+        summary: {
+          total: 1,
+          restSucceeded: 1,
+          restError: 0,
+          evalPass: 1,
+          evalFail: 0,
+          evalError: 0,
+          notEvaluated: 0,
+          effectivePassRate: 1,
+          evaluatedPassRate: 1,
+          coverageRate: 1
+        },
+        reportJsonPath: `executions/${ID}/report.json`,
+        reportMarkdownPath: `executions/${ID}/report.md`
+      })
+    ).toMatchObject({ type: "REPORT_COMPLETED", reportResultSetHash: "b".repeat(64) });
+  });
+
+  it("binds Report import to one Execution and four independent stage versions", () => {
+    expect(
+      CliExecutionEventV1Schema.parse({
+        contractVersion: "cortex.cli-execution-event.v1",
+        type: "REPORT_IMPORTED",
+        runId: ID,
+        packageId: ID,
+        executionId: ID,
+        idempotent: false,
+        sourceType: "OFFLINE_IMPORT",
+        status: "COMPLETED",
+        stage: "DONE",
+        restResultSetHash: HASH,
+        evaluationContextHash: "b".repeat(64),
+        evaluationResultSetHash: "c".repeat(64),
+        reportResultSetHash: "d".repeat(64)
+      })
+    ).toMatchObject({
+      type: "REPORT_IMPORTED",
+      executionId: ID,
+      evaluationContextHash: "b".repeat(64),
+      reportResultSetHash: "d".repeat(64)
+    });
+    expect(
+      CliExecutionEventV1Schema.parse({
+        contractVersion: "cortex.cli-execution-event.v1",
+        type: "COMMAND_ERROR",
+        command: "result import",
+        code: "EXECUTION_RESULT_CONFLICT",
+        exitCode: 4
+      })
+    ).toMatchObject({ command: "result import", exitCode: 4 });
   });
 });

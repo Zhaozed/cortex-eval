@@ -56,7 +56,7 @@ async function startStub(): Promise<string> {
   return `http://127.0.0.1:${address.port}`;
 }
 
-async function waitForEvaluationCommit(
+async function waitForPipelineCommit(
   server: FastifyInstance,
   runId: string
 ): Promise<Readonly<Record<string, unknown>>> {
@@ -70,13 +70,13 @@ async function waitForEvaluationCommit(
     });
     const body = parseJsonObject(response);
     latest = body;
-    if (body.stage === "REPORT") return body;
+    if (body.stage === "DONE") return body;
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
   throw new Error(`TEST_RUN_TIMEOUT:${JSON.stringify(latest)}`);
 }
 
-describe("P6 real Run API", () => {
+describe("P8 real Run API", () => {
   it("真实 SQLite/HTTP 闭合 REST、Promptfoo 非模型 Assert、Evaluation Artifact 与结果查询", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-run-api-"));
     roots.push(projectRoot);
@@ -165,15 +165,17 @@ describe("P6 real Run API", () => {
       payload: { expectedRevision: 0 }
     });
     expect(started.statusCode).toBe(202);
-    const completed = await waitForEvaluationCommit(server, runId);
+    const completed = await waitForPipelineCommit(server, runId);
     expect(completed).toMatchObject({
-      status: "READY",
-      stage: "REPORT",
+      status: "COMPLETED",
+      stage: "DONE",
       rest: { total: 1, completed: 1, succeeded: 1, error: 0 },
       artifactAvailability: [
         { kind: "REST_RESULTS", status: "PRESENT" },
         { kind: "RAW_PROMPTFOO_EVIDENCE", status: "PRESENT" },
-        { kind: "NORMALIZED_EVAL_RESULTS", status: "PRESENT" }
+        { kind: "NORMALIZED_EVAL_RESULTS", status: "PRESENT" },
+        { kind: "REPORT_JSON", status: "PRESENT" },
+        { kind: "REPORT_MARKDOWN", status: "PRESENT" }
       ]
     });
     const cases = await server.inject({

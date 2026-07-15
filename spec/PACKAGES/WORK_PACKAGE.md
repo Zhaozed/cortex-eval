@@ -12,7 +12,7 @@ Package 依赖 Contracts Schema、文件系统和安全 Hash 工具，实现 Wor
 
 ## 实现状态
 
-P7 已落地 `packages/work-package` 文件运行时、平台导出接收、包校验、Execution 生命周期、REST/Raw/Normalized Artifact、Retry 证据读取和 Evaluation Import 严格读取基础。Report 与 Analysis 文件槽位已经冻结在 Work Package v1，但对应 Writer、命令和完整平台导入入口分别等待 P8、P9。
+P7 已落地 `packages/work-package` 文件运行时、平台导出接收、包校验、Execution 生命周期、REST/Raw/Normalized Artifact、Retry 证据读取和 Evaluation Import 严格读取基础。P8 在不修改 Work Package v1 Manifest 的前提下补齐 Report JSON/Markdown Writer、Report Reader、完整平台导入 Reader 和取消/大小门禁。Analysis 槽位保持冻结，Writer 与命令等待 P9。
 
 ## 代码事实入口
 
@@ -23,6 +23,9 @@ P7 已落地 `packages/work-package` 文件运行时、平台导出接收、包�
 - [work-package-export-receiver.ts](../../packages/work-package/src/work-package-export-receiver.ts)：Manifest-first 流式导出接收。
 - [work-package-execution-session.ts](../../packages/work-package/src/work-package-execution-session.ts)：Execution、阶段状态、锁和 Artifact 提交。
 - [work-package-evaluation-result-reader.ts](../../packages/work-package/src/work-package-evaluation-result-reader.ts)：Evaluation Artifact 双遍严格读取与语义对账。
+- [work-package-report-artifact-writer.ts](../../packages/work-package/src/work-package-report-artifact-writer.ts)：Report JSON/Markdown 成对不可变发布。
+- [work-package-report-reader.ts](../../packages/work-package/src/work-package-report-reader.ts)：离线 Report 构建输入的规范化读取。
+- [work-package-report-import-reader.ts](../../packages/work-package/src/work-package-report-import-reader.ts)：平台导入前的 Report 双遍对账。
 
 ## 当前样例与测试入口
 
@@ -50,7 +53,7 @@ REST 单阶段命令在创建 Execution 前完整读取并校验 Endpoint、全�
 
 ## 状态、事务与幂等
 
-Manifest 创建后不可修改。每次运行、失败重跑和 Force 都使用新 Execution ID；Run/Execution 身份是执行版本，Raw/Normalized/Result Set Hash 是绑定该身份和 Evaluation Context 的评估版本。成功阶段产物不可覆盖。
+Manifest 创建后不可修改。每次运行、失败重跑和 Force 都使用新 Execution ID；Run/Execution 身份是执行版本，Raw/Normalized/Evaluation Result Set Hash 是绑定该身份和 Evaluation Context 的评估版本，Report Result Set Hash 再绑定 Execution Owner、Evaluation 版本、Run Context 和 Report Contract。成功阶段产物不可覆盖。
 
 `--retry-failed` 复制 REST `SUCCEEDED` 和证据完整且对齐的 Eval `PASS/FAIL`；其余事实重新执行。`--force` 全量执行。两者保存来源与复用 Hash。只有 Package ID、Execution ID、Result Set Hash 和规范化 Artifact Manifest 全部相同的平台登记才是幂等；任一身份冲突均拒绝。
 
@@ -66,4 +69,4 @@ Import 任一身份、Owner、路径、顺序、Base Hash、REST/Eval/Raw 关系
 
 目录与普通文件仅当前用户可访问。日志记录 Package ID、Execution ID、阶段、文件 Hash 和 Error Code，不记录 Secret 与敏感正文。`.env.example` 只含空值 Key 与用途；用户 Env 文件不属于工作包，也不参与 Hash 或导入。
 
-Golden Manifest Hash 固定为 `e840ce500481b6f92393b1efe6d9022c1ceebd9fbbeaf713d03c9e2f6ee54178`。P8/P9 必须在不修改 Work Package v1 Manifest 的前提下补充 Report/Analysis 能力；若协议无法满足，必须新建版本而不是静默修改 Fixture。
+Golden Manifest Hash 固定为 `e840ce500481b6f92393b1efe6d9022c1ceebd9fbbeaf713d03c9e2f6ee54178`。P8 已在不修改 Work Package v1 Manifest 的前提下补充 Report；P9 对 Analysis 也必须遵守同一约束。若协议无法满足，必须新建版本而不是静默修改 Fixture。

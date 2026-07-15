@@ -14,7 +14,7 @@ Feature 内部用例、局部事务、状态变化和错误归对应 Feature 文
 
 ## 实现状态
 
-P2 已落地 Application 基础 Package、资源 Port、Kysely 托管事务边界、Test Suite/Case/Configuration 用例和离线 Execution 身份幂等原语。P3 补充受控 staging Port、流式 Case 导入、Revision 一致导出和外部配置验证 Adapter 契约。P5 补充平台 Run 预检/冻结、REST 阶段编排、逐 Case 结果、Artifact、取消、恢复和查询 Port。Evaluation、完整 Execution Result 导入、Reporting 和 Case Analysis 仍按后续阶段落地。
+P2 已落地 Application 基础 Package、资源 Port、Kysely 托管事务边界、Test Suite/Case/Configuration 用例和离线 Execution 身份幂等原语。P3 补充受控 staging Port、流式 Case 导入、Revision 一致导出和外部配置验证 Adapter 契约。P5–P8 补充平台 Run 预检/冻结、REST/Evaluation/Report 编排、逐 Case 结果、Artifact、取消、恢复、版本化 Retry/Force、统一查询和完整 Execution Report Import。Case Analysis 按 P9 落地。
 
 ## 目标代码落点
 
@@ -29,9 +29,11 @@ P2 已落地 Application 基础 Package、资源 Port、Kysely 托管事务边�
 - [configuration-service.ts](../../packages/application/src/features/configurations/configuration-service.ts)：四类配置资源用例。
 - [streaming-case-import-service.ts](../../packages/application/src/features/test-suites/streaming-case-import-service.ts)：逐项 staging 与最终原子提交。
 - [case-export-service.ts](../../packages/application/src/features/test-suites/case-export-service.ts)：Revision 一致、背压感知导出。
-- [import-execution-identity.ts](../../packages/application/src/features/execution-imports/import-execution-identity.ts)：P2 限定的 Execution 身份幂等原语。
-- [platform-run-service.ts](../../packages/application/src/features/runs/platform-run-service.ts)：P5 Run 冻结、REST 编排、取消与恢复。
-- [platform-run-ports.ts](../../packages/application/src/features/runs/platform-run-ports.ts)：P5 Run 短事务和 Repository Port。
+- [import-execution-identity.ts](../../packages/application/src/features/execution-imports/import-execution-identity.ts)：Execution 身份幂等原语。
+- [import-execution-report.ts](../../packages/application/src/features/execution-imports/import-execution-report.ts)：完整离线报告对账与事务导入。
+- [platform-run-service.ts](../../packages/application/src/features/runs/platform-run-service.ts)：Run 冻结、REST 编排、取消与恢复。
+- [platform-run-ports.ts](../../packages/application/src/features/runs/platform-run-ports.ts)：Run 短事务和 Repository Port。
+- [platform-report-service.ts](../../packages/application/src/features/reporting/platform-report-service.ts)：平台与离线统一报告构建和查询。
 
 ## 当前样例与测试入口
 

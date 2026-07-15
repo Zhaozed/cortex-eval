@@ -62,6 +62,12 @@ export interface PlatformEvaluationEventSink {
   readonly record: (event: PlatformEvaluationBusinessEvent) => Promise<void>;
 }
 
+/** Narrow next-stage starter used only by automatic PIPELINE handoff. */
+export interface PlatformReportStageStarter {
+  /** Claim the exact READY/REPORT Revision or return a closed failure. */
+  readonly start: (input: PlatformRunRevisionInput) => Promise<{ readonly ok: boolean }>;
+}
+
 /** Explicit dependencies for the platform Evaluation use case. */
 export interface PlatformEvaluationServiceDependencies {
   /** Short Run transaction boundary for claim, cancellation and failure. */
@@ -80,6 +86,8 @@ export interface PlatformEvaluationServiceDependencies {
   readonly messageResolver: PlatformRunMessageResolver;
   /** Resilient safe lifecycle event sink. */
   readonly eventSink: PlatformEvaluationEventSink;
+  /** Automatic Report starter for PIPELINE Runs. */
+  readonly pipelineReportStarter?: PlatformReportStageStarter | undefined;
   /** Cross-process cancellation observation interval. */
   readonly cancellationPollMs?: number | undefined;
 }
@@ -137,6 +145,8 @@ export class PlatformEvaluationService {
   readonly #messages: PlatformRunMessageResolver;
   /** Safe event sink. */
   readonly #events: PlatformEvaluationEventSink;
+  /** Next-stage starter used after a successful PIPELINE Evaluation commit. */
+  readonly #pipelineReportStarter: PlatformReportStageStarter | undefined;
   /** Cancellation polling interval. */
   readonly #pollMs: number;
   /** Active Evaluation Abort controllers. */
@@ -160,6 +170,7 @@ export class PlatformEvaluationService {
     this.#clock = dependencies.clock;
     this.#messages = dependencies.messageResolver;
     this.#events = dependencies.eventSink;
+    this.#pipelineReportStarter = dependencies.pipelineReportStarter;
     this.#pollMs = poll;
   }
 
@@ -449,6 +460,18 @@ export class PlatformEvaluationService {
       }
       uncommitted.length = 0;
       await this.#recordEvent("RUN_EVALUATION_COMPLETED", run.id, completedAt);
+      if (run.runMode === "PIPELINE" && this.#pipelineReportStarter !== undefined) {
+        try {
+          const started = await this.#pipelineReportStarter.start({
+            runId: run.id,
+            expectedRevision: committed.progress.lockRevision
+          });
+          if (started.ok) return;
+        } catch {
+          // The exact handoff Revision prevents this owner from overriding a raced claimant.
+        }
+        await this.#settlePipelineReportStartFailure(run.id, committed.progress.lockRevision);
+      }
     } finally {
       if (rawToDispose !== undefined) {
         await disposeFrozenEvaluationRaw(rawToDispose).catch(async () => {
@@ -459,6 +482,28 @@ export class PlatformEvaluationService {
       await poll.catch(() => undefined);
       await this.#removeUncommitted(uncommitted);
     }
+  }
+
+  // Fail only the unchanged automatic REPORT handoff; preserve a concurrently claimed owner.
+  async #settlePipelineReportStartFailure(runId: string, expectedRevision: number): Promise<void> {
+    const completedAt = this.#clock.now();
+    await this.#runTransactions.execute(async (transaction) => {
+      const current = await transaction.runs.getPlatformRunProgress(runId);
+      if (
+        current?.status !== "READY" ||
+        current.stage !== "REPORT" ||
+        current.lockRevision !== expectedRevision
+      ) {
+        return;
+      }
+      await transaction.runs.failRun({
+        runId,
+        expectedRevision,
+        errorCode: "REPORT_STAGE_FAILED",
+        errorMessage: this.#messages.message("REPORT_STAGE_FAILED"),
+        completedAt
+      });
+    });
   }
 
   // Load only PASS/FAIL source Eval facts backed by complete immutable source artifacts.

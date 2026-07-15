@@ -32,7 +32,7 @@ const ALLOWED_DEPENDENCIES: Readonly<Record<ArchitecturePackage, readonly Archit
     contracts: [],
     "storage-sqlite": ["application", "domain"],
     "evaluation-adapters": ["application", "contracts"],
-    "work-package": ["application", "contracts"],
+    "work-package": ["application", "contracts", "reporting", "domain"],
     "local-server": [
       "application",
       "contracts",

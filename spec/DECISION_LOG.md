@@ -14,7 +14,7 @@
 - P2 SQLite 入口：[packages/storage-sqlite/src](../packages/storage-sqlite/src)
 - P3 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
 - P4 Web 入口：[apps/web/src](../apps/web/src)
-- P7 CLI 与 Work Package 已落地；Reporting 完整入口等待 P8。
+- P8 Reporting、平台重跑和完整 Execution Report Import 已完成；P9 Analysis 尚未开始。
 
 ## 单文件 SQLite
 
@@ -107,6 +107,36 @@ Manifest 是离线协议身份，随实现阶段变化会让已导出的包失�
 ### 状态
 
 生效。Golden Manifest Hash 为 `e840ce500481b6f92393b1efe6d9022c1ceebd9fbbeaf713d03c9e2f6ee54178`。
+
+## P8 Report v1 完整事实例外与报告版本
+
+### 决策
+
+Work Package v1 Manifest、Artifact 槽位、Contract Version 字符串和 Golden Manifest 字节继续冻结不变。由于 `cortex.report.v1` 在 P7 结束时尚无 Writer、Importer、对外入口或已生成实例，P8 获准一次性原地补全其此前仅占位的内容 Schema，不新建会迫使 Manifest 漂移的 `cortex.report.v2`。
+
+完整 Report JSON 同时支持平台 Run 与离线 Execution Owner；离线报告另带 Package ID，平台报告明确为空。报告保存脱敏冻结上下文、完整 Case Definition、REST、Eval、Assertion、Metric 和既有 Diff 事实，并显式区分 Evaluation Result Set Hash 与 Report Result Set Hash。Report Result Set Hash 输入 Owner、Run Context Hash、Evaluation Context Hash、Evaluation Result Set Hash 和有序 Case 的 REST/Eval/Final Hash，因此每个 Run/Execution 和每次 Evaluation 都是独立版本。
+
+Reporting 只校验和复制 Normalized Eval 中已有的 Diff，不重新运行 Validator、不改写 Diff，也不干预 Promptfoo Assert 执行。Markdown 仅由完成对账的 Report JSON 单向派生。
+
+### 原因
+
+旧占位 Schema 只有统计与三个 Case Hash，无法满足 REQ/TECH 对完整 Report JSON、平台 Run 身份、脱敏上下文、逐 Assertion/Diff 展示和结果导入重算的强约束。保持旧结构会缩小目标；另建版本则会修改已经冻结的 Work Package v1 Manifest。当前尚无 Report 实例，因此在不改变 Manifest 协议身份的前提下补全内容是唯一同时满足两组约束的路径。
+
+### 代码影响
+
+Contracts 使用显式 `RUN | EXECUTION` Owner 联合和独立 Evaluation/Report Result Set Hash。Reporting 使用按 Ordinal 增量对账和 Hash，只保留整体计数与按 Metric 紧凑状态；Report Writer 负责流式输出完整 Case 事实。平台与离线入口只有在 Writer、Importer、API、CLI、Web 和门禁全部闭环后一起注册。
+
+### 测试影响
+
+Golden Manifest Hash 必须保持不变。契约测试覆盖两类 Owner、Package 绑定、完整 REST/Eval/Assertion/Metric/Diff、Case 对齐和 Metric 唯一；聚合测试覆盖不同执行与评估版本产生不同报告哈希、空分母、错序和状态矛盾。后续阶段测试继续覆盖流式写入、完整导入重算、平台/离线同口径、发布补偿和性能。
+
+### 排障影响
+
+报告差异先核对 Owner、Run/Evaluation Context、Evaluation Result Set Hash 和有序 Case Hash；Diff 展示异常回查 Normalized Eval Artifact，不在报告阶段重新计算 Validator 结果。Manifest Hash 变化视为协议回归，不以更新 Golden Fixture吸收。
+
+### 状态
+
+生效；这是 `cortex.report.v1` 在首个实例产生前唯一允许的内容补全例外。
 
 ## P4 资源 Web、冲突 Draft 与严格同源静态边界
 
@@ -1029,6 +1059,96 @@ REST Artifact Port 接受带预期总数的 `AsyncIterable`，按稳定 Cursor �
 ### 排障影响
 
 进度或写入变慢时先检查是否误用完整 `getPlatformRun`；Artifact 内存异常先检查 Cursor 与 `AsyncIterable` 是否被聚合。关闭卡住或终态错误时检查 Owner 中断门禁、轮询错误和最终 settlement，不通过放宽 Shutdown 语义规避。
+
+### 状态
+
+生效。
+
+## P8 Report 版本、纯聚合与双遍导入
+
+### 决策
+
+Report 是 Evaluation 之后的独立版本事实。每个 Run ID 或离线 Execution ID 表示一次不可覆盖的执行版本；Evaluation Result Set Hash 绑定 Evaluation Owner、上下文与契约，Report Result Set Hash 再绑定 Report Owner、Run/Evaluation Context、Evaluation Result Set Hash、按冻结顺序对齐的 Case 结果和 Report Contract。不得以最大 ID、最大时间、最近记录或 `select max` 推断任何导入版本。
+
+Reporting 只消费已经规范化的 REST/Eval/Diff/Metric 事实，不读取 Raw Promptfoo，不调用 Bridge，也不复现或限制 Promptfoo Assertion 执行。Evaluation 已按 `FAIL > ERROR > PASS > SKIPPED > NOT_EVALUATED` 把同 Case 同 Metric 聚合为唯一事实；Reporting 对重复 Metric 直接拒绝。Case Assert 构建继续不设类型白名单，Bridge 继续只转发一次 Evaluation 调用期的冻结 Evaluator 请求，不接收 Assertion/Metric 身份。
+
+JSON Report 是 Canonical 导入事实，Markdown 只做单向派生。平台 Report Import 对工作包执行两遍文件与语义读取，从明细重算 Summary 和 Report Result Set Hash，再在单一 SQLite 事务中写入 Run、REST 与 Eval。离线导入总是保存冻结 Suite Snapshot；只有当前数据库存在同 ID Suite 时才建立可空关联，不存在时仍保存为独立历史报告。
+
+### 原因
+
+执行、评估和报告的输入与契约边界不同，必须分别具有可验证版本。让 Bridge 或 Reporting 识别 Assertion 会重复 Promptfoo 的评分职责；信任工作包 Summary、Markdown 或“最新记录”会让文件替换、并发导入或历史资源变化产生不可对账事实。
+
+### 代码影响
+
+`packages/reporting` 提供有界聚合、Report Result Set Hash 和 Markdown Renderer；Application 通过 Reporting 边界编排平台与离线报告。Work Package 使用 v1 已冻结 Report 槽位写入 JSON/Markdown，导入 Reader 在预检和实际消费时分别校验文件。SQLite 的 Execution ID 唯一约束串行化导入竞争，Summary、Hash、完整 Manifest 和明细在事务内共同决定新建、幂等或冲突。
+
+### 测试影响
+
+测试覆盖三个 Rate、空分母、同 Case 同 Metric 唯一性、Owner/上下文/版本 Hash、顺序/缺失/篡改、Raw Evidence 缺失或损坏不改变规范化报告、双遍替换拒绝、Summary 重算、导入整体回滚和当前 Suite 存在/缺失两种关联。固定 1,000 Case 的 JSON 与 Markdown 联合生成在 macOS ARM64 上使用 5 秒失败门禁。
+
+### 排障影响
+
+报告不一致先核对 Owner、Run/Evaluation Context、Evaluation Result Set Hash、Case Ordinal/Key、Eval/Final Hash 和规范化 Metric，不向 Bridge 增加身份字段，也不从 Markdown、Raw 或最新数据库行恢复业务事实。导入冲突先核对 Execution ID、Package ID、两类 Result Set Hash 和完整 Manifest。
+
+### 状态
+
+生效。
+
+## P8 统一最近运行、主要 Metric 与重跑版本
+
+### 决策
+
+Dashboard 和 Run 列表统一展示具有完整 Report 的平台与离线导入 Run，并显式显示来源。Test Suite 最近运行只包含平台 Run 或确实通过同 ID 建立当前 Suite 关联的离线导入 Run，按 `created_at DESC, id DESC` 稳定排序；这取代 P5“只聚合 PLATFORM”的阶段性规则。
+
+“具有完整 Report”是显式资格条件：`report_result_set_hash` 非空、Stage 为 `DONE`，且 Status 为 `COMPLETED` 或 `COMPLETED_WITH_ERRORS`。平台与离线导入使用相同条件，不把运行中、失败、取消或只有部分阶段事实的 Run 放入最近报告视图。
+
+Dashboard 的主要 Metric 是 Reporting 已按 Metric 名称稳定排序后的第一项，直接使用其 `passRate`；没有 Metric 或空分母时保持空值，不额外引入配置或启发式优先级。
+
+平台 `RetryRunFailed` 与 `ForceRun` 只接受具有完整冻结上下文且不处于 `READY/RUNNING` 的平台来源。两者创建新 Run 版本并记录 Source Run/Rerun Mode；Retry 复用经 Artifact 与 Provenance 对账的成功事实并执行其余 Case，Force 全量执行。来源 Run 永不修改，离线导入 Run 不暴露执行动作。
+
+### 原因
+
+用户需要在同一历史视图中区分执行来源，而不是把离线报告隐藏或冒充平台执行。主要 Metric 若由 Web 自行选择会与 CLI/Report DTO 分叉。重跑若覆盖来源或复用不完整上下文会破坏版本可追溯性。
+
+### 代码影响
+
+最近运行查询只返回完整 Report，小投影包含 Source Type、Report Summary 和稳定 Cursor。离线导入仅在当前 Suite 存在时保存 `suite_id`；Web 为离线记录链接只读报告。Retry/Force 响应返回新 Run、来源、模式、复用与执行数量。
+
+Dashboard 的最近 Report Query Key 包含 Run ID、Status、Stage 和 Updated At，保证同一 Run ID 的版本推进会重新读取报告。Report Writer 返回后若观察到跨进程取消或 Runtime 中断，Application 丢弃未提交输出，并在观察请求后重新取时提交终态；不得用较早的 Artifact 生成时间回填取消或中断时间。
+
+### 测试影响
+
+Repository、API、Web 组件和真实 Playwright 覆盖平台/离线排序、来源标签、Dashboard 三项指标、Suite 关联、离线报告跳转和平台 Retry/Force 新版本；测试同时证明来源不变、Force 全量、Retry 的失败/缺失/新成功分支和新 Result Set Hash。
+
+### 排障影响
+
+最近运行遗漏先检查 Report 是否完整、`source_type`、`suite_id` 关联和创建时间/ID Cursor；主要 Metric 异常先检查 `byMetric` 稳定排序，不在 Web 增加二次选择。重跑异常先核对来源冻结上下文、Artifact 可用性、Provenance 和模式计数。
+
+### 状态
+
+生效。
+
+## P8 Reporting 依赖边界
+
+### 决策
+
+Work Package 可以依赖 Reporting 与 Domain，以复用同一纯报告算法；依赖方向固定为 `work-package -> reporting -> domain`。Storage SQLite 不直接依赖 Reporting，通过 Application 提供的报告聚合边界完成导入对账。
+
+### 原因
+
+平台、离线 CLI 与导入必须使用同一统计和 Hash 算法。纯函数向内依赖不会污染 Domain；让 Storage 直接导入 Reporting 会绕过 Application 的用例与事务职责。
+
+### 代码影响
+
+架构门禁显式允许 Work Package 到 Reporting/Domain 的单向依赖，并继续禁止 Reporting 依赖 Application、Contracts 或 Infrastructure。SQLite 只实现 Application Port，报告聚合由 Application 边界注入。
+
+### 测试影响
+
+架构测试验证允许链和所有反向禁用边；平台、CLI 与导入测试使用相同输入得到相同 Summary 与 Report Result Set Hash。
+
+### 排障影响
+
+出现重复聚合逻辑时先检查是否绕过 Application Reporting Boundary；不得通过放宽 Domain 或让 Storage 直接导入 Reporting 解决。
 
 ### 状态
 

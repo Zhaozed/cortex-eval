@@ -12,10 +12,15 @@ import {
   PlatformRunService,
   type PlatformRunBusinessEvent
 } from "@cortex-eval/application/src/features/runs/platform-run-service.ts";
+import { PlatformRerunService } from "@cortex-eval/application/src/features/runs/platform-rerun-service.ts";
 import {
   PlatformEvaluationService,
   type PlatformEvaluationBusinessEvent
 } from "@cortex-eval/application/src/features/evaluation/platform-evaluation-service.ts";
+import {
+  PlatformReportService,
+  type PlatformReportBusinessEvent
+} from "@cortex-eval/application/src/features/reporting/platform-report-service.ts";
 import zhCnMessages from "@cortex-eval/contracts/messages/zh-CN.json" with { type: "json" };
 import { FetchRestExecutor } from "@cortex-eval/evaluation-adapters/src/fetch-rest-executor.ts";
 import { PlatformPromptfooEvaluationEngine } from "@cortex-eval/evaluation-adapters/src/platform-promptfoo-evaluation-engine.ts";
@@ -50,6 +55,7 @@ import { FileCaseExportBodyPreparer } from "./case-export-staging.ts";
 import { LocalRunArtifactStore } from "./run-artifact-store.ts";
 import { WorkPackageExportService } from "./work-package-export-service.ts";
 import { createWorkPackageExportHandler } from "./work-package-export-handler.ts";
+import { ExecutionReportImportService } from "./execution-report-import-service.ts";
 
 /** Local Server composition options. */
 export interface LocalServerRuntimeOptions {
@@ -77,6 +83,7 @@ export class LocalServerRuntime {
   readonly #businessLogger: ResilientBusinessLogger;
   readonly #runs: PlatformRunService;
   readonly #evaluations: PlatformEvaluationService;
+  readonly #reports: PlatformReportService;
   #closed = false;
 
   /** Bind one Fastify instance and its owned storage. */
@@ -85,7 +92,8 @@ export class LocalServerRuntime {
     storage: SqliteStorage,
     businessLogger: ResilientBusinessLogger,
     runs: PlatformRunService,
-    evaluations: PlatformEvaluationService
+    evaluations: PlatformEvaluationService,
+    reports: PlatformReportService
   ) {
     this.server = server;
     this.databasePath = storage.databasePath;
@@ -93,6 +101,7 @@ export class LocalServerRuntime {
     this.#businessLogger = businessLogger;
     this.#runs = runs;
     this.#evaluations = evaluations;
+    this.#reports = reports;
   }
 
   /** Listen on the fixed current loopback address and default port. */
@@ -107,6 +116,7 @@ export class LocalServerRuntime {
     await this.server.close();
     await this.#runs.shutdown();
     await this.#evaluations.shutdown();
+    await this.#reports.shutdown();
     await this.#businessLogger.flush();
     await this.#storage.close();
   }
@@ -194,7 +204,10 @@ export async function createLocalServerRuntime(
     });
     const runTransactionManager = storage.createRunTransactionManager();
     const lifecycleEventSink = {
-      record: (event: PlatformRunBusinessEvent | PlatformEvaluationBusinessEvent): Promise<void> =>
+      record: (
+        event:
+          PlatformRunBusinessEvent | PlatformEvaluationBusinessEvent | PlatformReportBusinessEvent
+      ): Promise<void> =>
         businessLogger.record({
           event: event.event,
           timestamp: event.timestamp,
@@ -212,6 +225,14 @@ export async function createLocalServerRuntime(
     // Warm only the fixed Promptfoo version attestation. Each Run still rechecks the exact binary
     // identity before trusting it, while an unavailable runtime remains a Run preflight failure.
     await runtimePreflight.check([], new AbortController().signal);
+    const reports = new PlatformReportService({
+      runTransactionManager,
+      evalTransactionManager: storage.createEvalTransactionManager(),
+      artifactStore,
+      clock,
+      messageResolver: { message: runMessage },
+      eventSink: lifecycleEventSink
+    });
     const evaluations = new PlatformEvaluationService({
       runTransactionManager,
       evalTransactionManager: storage.createEvalTransactionManager(),
@@ -229,7 +250,8 @@ export async function createLocalServerRuntime(
       artifactStore,
       clock,
       messageResolver: { message: runMessage },
-      eventSink: lifecycleEventSink
+      eventSink: lifecycleEventSink,
+      pipelineReportStarter: reports
     });
     const runs = new PlatformRunService({
       transactionManager: runTransactionManager,
@@ -242,6 +264,20 @@ export async function createLocalServerRuntime(
       messageResolver: { message: runMessage },
       eventSink: lifecycleEventSink,
       pipelineEvaluationStarter: evaluations
+    });
+    const reruns = new PlatformRerunService({
+      runTransactionManager,
+      evalTransactionManager: storage.createEvalTransactionManager(),
+      artifactStore,
+      idGenerator,
+      clock
+    });
+    const reportImports = new ExecutionReportImportService({
+      transactionManager,
+      idGenerator,
+      clock,
+      processIdentity: processLiveness,
+      nonce: randomUUID
     });
     await runs.initialize();
     const resourceHandlers = createApplicationResourceHandlers({
@@ -265,7 +301,17 @@ export async function createLocalServerRuntime(
       cancel: runs.cancel.bind(runs),
       startEvaluation: evaluations.start.bind(evaluations),
       cancelEvaluation: evaluations.cancel.bind(evaluations),
-      queryEvalResults: evaluations.queryResults.bind(evaluations)
+      queryEvalResults: evaluations.queryResults.bind(evaluations),
+      startReport: reports.start.bind(reports),
+      cancelReport: reports.cancel.bind(reports),
+      getReport: reports.get.bind(reports),
+      hasReportRun: reports.exists.bind(reports),
+      queryReportCases: reports.queryCases.bind(reports),
+      getReportCase: reports.getCase.bind(reports),
+      streamReportCases: reports.streamCases.bind(reports),
+      openReportExport: artifactStore.openReportJson.bind(artifactStore),
+      createRerun: reruns.create.bind(reruns),
+      importExecutionReport: reportImports.importReport.bind(reportImports)
     };
     const server = buildLocalServer({
       requestIdGenerator: idGenerator,
@@ -282,7 +328,7 @@ export async function createLocalServerRuntime(
       businessLogger,
       ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot })
     });
-    return new LocalServerRuntime(server, storage, businessLogger, runs, evaluations);
+    return new LocalServerRuntime(server, storage, businessLogger, runs, evaluations, reports);
   } catch (error) {
     await storage.close();
     throw error;

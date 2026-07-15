@@ -12,7 +12,7 @@ Entrypoint、Web、CLI、Work Package 和 Importer 使用 Contracts。Domain 不
 
 ## 实现状态
 
-P1 已落地纯 Contracts Package；P3–P5 补充资源与 Run/REST API。P6 新增使用 `runId + runContextHash` 的平台 Raw Promptfoo 和 Normalized Eval Artifact，避免伪造离线 Package/Execution 身份。Evaluator Bridge、Work Package v1、Result Import、Analysis 和 Canonical Export 仍是纯协议。
+P1 已落地纯 Contracts Package；P3–P6 补充资源、Run/REST/Evaluation API 和使用 `runId + runContextHash` 的平台 Raw/Normalized Eval Artifact。P8 已注册 Report、Retry/Force、统一最近运行和 Execution Report Import 契约。Analysis、Analysis Import 和 Canonical Export 仍是尚未注册的纯协议。
 
 Contracts 只冻结协议，不代表对应 API、CLI、Web 或文件运行时已经注册。P7–P9 只能实现 v1 Writer、Reader、Importer 和能力注册，不能修改 Work Package v1 Schema。
 
@@ -28,6 +28,7 @@ Contracts 只冻结协议，不代表对应 API、CLI、Web 或文件运行时�
 - [error-contracts.ts](../../packages/contracts/src/error-contracts.ts)：稳定 Error Code。
 - [resource-api-contracts.ts](../../packages/contracts/src/resource-api-contracts.ts)：P3 资源 Request/Response、Cursor、分页和闭合 API Error。
 - [run-api-contracts.ts](../../packages/contracts/src/run-api-contracts.ts)：Run Request/Response、Cursor、REST/Evaluation 分类进度、Case 结果和 SSE Envelope。
+- [result-import-contracts.ts](../../packages/contracts/src/result-import-contracts.ts)：完整 Execution Report Import 请求、结果和版本身份。
 
 ## 当前样例与测试入口
 
@@ -55,7 +56,7 @@ Work Package v1 首版即包含 REST、Eval、Report 和 Analysis 的全部输�
 
 ## 状态、事务与幂等
 
-Contracts 不执行事务。协议身份显式携带 Package ID、Execution ID、Case Key、Hash、Revision 和 Contract Version。Raw/Normalized Evaluation Artifact 显式携带 Evaluation Context Hash；Promptfoo `0.121.18` Raw Artifact 的原生退出码只接受 `0 | 100`。Result Set Hash 绑定 Run/Execution Owner 与该 Context，不把可复用单 Case语义 Hash误当执行版本。Normalized Artifact 的 Case 数组按连续 Ordinal 排列且 Case Key 唯一；Writer 在提交边界验证该集合约束，Schema 不接受已经写坏的公开事实。`EVALUATION_ERROR` 只携带进入 Hash 的稳定 Error Code，不把中文文案或第三方错误正文写入跨进程事实；展示层使用自己的消息资源。兼容性由版本化 Schema 决定，不通过宽泛可空字段猜测旧格式。
+Contracts 不执行事务。协议身份显式携带 Package ID、Execution ID、Case Key、Hash、Revision 和 Contract Version。Raw/Normalized Evaluation Artifact 显式携带 Evaluation Context Hash；Promptfoo `0.121.18` Raw Artifact 的原生退出码只接受 `0 | 100`。Evaluation Result Set Hash 绑定 Run/Execution Owner 与该 Context；Report Result Set Hash 再绑定 Report Owner、Evaluation 版本和 Report Contract，不把可复用单 Case语义 Hash误当执行或报告版本。Normalized Artifact 的 Case 数组按连续 Ordinal 排列且 Case Key 唯一；Writer 在提交边界验证该集合约束，Schema 不接受已经写坏的公开事实。`EVALUATION_ERROR` 只携带进入 Hash 的稳定 Error Code，不把中文文案或第三方错误正文写入跨进程事实；展示层使用自己的消息资源。兼容性由版本化 Schema 决定，不通过宽泛可空字段猜测旧格式。
 
 ## 错误收敛
 

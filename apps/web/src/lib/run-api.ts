@@ -1,8 +1,10 @@
 import type {
+  CreatePlatformRerunRequestV1Schema,
   CreatePlatformRunRequestV1Schema,
   RunPreflightRequestV1Schema
 } from "@cortex-eval/contracts/src/run-api-contracts.ts";
 import {
+  PlatformRerunCreatedV1Schema,
   PlatformRunDetailV1Schema,
   PlatformRunPageV1Schema,
   RunCaseDetailV1Schema,
@@ -10,6 +12,9 @@ import {
   RunEvalPageV1Schema,
   RunPreflightV1Schema,
   RunProgressV1Schema,
+  RunReportCasePageV1Schema,
+  RunReportCaseV1Schema,
+  RunReportOverviewV1Schema,
   RunStreamEnvelopeV1Schema
 } from "@cortex-eval/contracts/src/run-api-contracts.ts";
 import type { z } from "zod";
@@ -30,12 +35,22 @@ export type RunCasePage = z.infer<typeof RunCasePageV1Schema>;
 export type RunCaseDetail = z.infer<typeof RunCaseDetailV1Schema>;
 /** Validated normalized Evaluation result page. */
 export type RunEvalPage = z.infer<typeof RunEvalPageV1Schema>;
+/** Validated complete Report overview. */
+export type RunReportOverview = z.infer<typeof RunReportOverviewV1Schema>;
+/** Validated filtered Report Case page. */
+export type RunReportCasePage = z.infer<typeof RunReportCasePageV1Schema>;
+/** Validated complete Report Case detail. */
+export type RunReportCase = z.infer<typeof RunReportCaseV1Schema>;
+/** Validated newly created Retry/Force Run link. */
+export type PlatformRerunCreated = z.infer<typeof PlatformRerunCreatedV1Schema>;
 /** Validated Run progress returned by state mutations. */
 export type RunProgress = z.infer<typeof RunProgressV1Schema>;
 /** Validated snapshot-first SSE envelope. */
 export type RunStreamEnvelope = z.infer<typeof RunStreamEnvelopeV1Schema>;
 /** Validated platform Run creation input. */
 export type CreatePlatformRunInput = z.infer<typeof CreatePlatformRunRequestV1Schema>;
+/** Validated Retry/Force mode. */
+export type PlatformRerunMode = z.infer<typeof CreatePlatformRerunRequestV1Schema>["mode"];
 
 /** Bounded recent Run page arguments. */
 export interface RunPageInput {
@@ -49,6 +64,20 @@ export interface RunPageInput {
 export interface RunCasePageInput extends RunPageInput {
   /** Owning Run identity. */
   readonly runId: string;
+}
+
+/** Bounded Report Case page arguments with server-side combination filters. */
+export interface RunReportCasePageInput extends RunCasePageInput {
+  /** Selected REST statuses with OR semantics. */
+  readonly restStatus: readonly ("SUCCEEDED" | "ERROR")[];
+  /** Selected Evaluation statuses with OR semantics. */
+  readonly evalStatus: readonly ("PASS" | "FAIL" | "EVALUATION_ERROR" | "NOT_EVALUATED")[];
+  /** Selected Metric keys with OR semantics. */
+  readonly metrics: readonly string[];
+  /** Selected business modules with OR semantics. */
+  readonly businessModules: readonly string[];
+  /** Selected scenario tags with OR semantics. */
+  readonly scenarioTags: readonly string[];
 }
 
 /** Minimal named-event source used by the Run client. */
@@ -87,6 +116,25 @@ export interface RunApi {
   readonly listEvaluations: (input: RunCasePageInput, signal: AbortSignal) => Promise<RunEvalPage>;
   /** Read one durable real REST Case result. */
   readonly getCase: (runId: string, caseKey: string, signal: AbortSignal) => Promise<RunCaseDetail>;
+  /** Read one complete committed platform or imported Report overview. */
+  readonly getReport: (runId: string, signal: AbortSignal) => Promise<RunReportOverview>;
+  /** List filtered complete Report Cases. */
+  readonly listReportCases: (
+    input: RunReportCasePageInput,
+    signal: AbortSignal
+  ) => Promise<RunReportCasePage>;
+  /** Read one complete normalized Report Case. */
+  readonly getReportCase: (
+    runId: string,
+    caseKey: string,
+    signal: AbortSignal
+  ) => Promise<RunReportCase>;
+  /** Create one new Retry/Force Run from an immutable platform source. */
+  readonly createRerun: (
+    sourceRunId: string,
+    mode: PlatformRerunMode,
+    signal: AbortSignal
+  ) => Promise<PlatformRerunCreated>;
   /** Start the currently registered REST stage. */
   readonly start: (
     runId: string,
@@ -222,6 +270,47 @@ export function createRunApi(
         { signal },
         fetcher,
         (output) => output.runId === runId && output.caseKey === caseKey
+      ),
+    getReport: (runId, signal) =>
+      apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(runId)}/report`,
+        RunReportOverviewV1Schema,
+        { signal },
+        fetcher,
+        (output) => output.runId === runId
+      ),
+    listReportCases: (input, signal): Promise<RunReportCasePage> => {
+      const search = buildApiSearch({
+        limit: input.limit,
+        cursor: input.cursor,
+        restStatus: input.restStatus,
+        evalStatus: input.evalStatus,
+        metric: input.metrics,
+        businessModule: input.businessModules,
+        scenarioTag: input.scenarioTags
+      });
+      return apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(input.runId)}/report/cases?${search.toString()}`,
+        RunReportCasePageV1Schema,
+        { signal },
+        fetcher
+      );
+    },
+    getReportCase: (runId, caseKey, signal) =>
+      apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(runId)}/report/cases/${encodeURIComponent(caseKey)}`,
+        RunReportCaseV1Schema,
+        { signal },
+        fetcher,
+        (output) => output.caseKey === caseKey
+      ),
+    createRerun: (sourceRunId, mode, signal) =>
+      apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(sourceRunId)}/reruns`,
+        PlatformRerunCreatedV1Schema,
+        jsonRequest({ mode }, signal),
+        fetcher,
+        (output) => output.sourceRunId === sourceRunId && output.rerunMode === mode
       ),
     start: (runId, expectedRevision, signal) =>
       apiRequestJson(

@@ -29,9 +29,13 @@ import {
 } from "./secure-work-package-directory.ts";
 import {
   validateLockedWorkPackageDirectory,
-  type ValidatedWorkPackage
+  type ValidatedWorkPackage,
+  type WorkPackageValidationOptions
 } from "./work-package-validator.ts";
-import { WorkPackageInputReader } from "./work-package-input-reader.ts";
+import {
+  WorkPackageInputReader,
+  type WorkPackageCaseDefinitionHasher
+} from "./work-package-input-reader.ts";
 import { recoverInterruptedWorkPackageExecutions } from "./work-package-execution-recovery.ts";
 import {
   prepareWorkPackageEvaluationRetryResults,
@@ -39,6 +43,7 @@ import {
 } from "./work-package-evaluation-retry-reader.ts";
 import {
   prepareWorkPackageEvaluationResults,
+  prepareWorkPackageEvaluationResultsForReport,
   type PreparedWorkPackageEvaluationResults
 } from "./work-package-evaluation-result-reader.ts";
 import {
@@ -47,6 +52,10 @@ import {
   type PreparedWorkPackageRestResults,
   type WorkPackageRestSemanticHashing
 } from "./work-package-rest-retry-reader.ts";
+import {
+  prepareWorkPackageReportImport,
+  type PreparedWorkPackageReportImport
+} from "./work-package-report-import-reader.ts";
 import type { OfflineRestCaseResult } from "@cortex-eval/application/src/features/runs/offline-rest-execution-service.ts";
 
 type WorkPackageStage = "REST" | "EVALUATION" | "REPORT" | "ANALYSIS";
@@ -162,6 +171,8 @@ export interface OpenWorkPackageExecutionSessionInput {
   readonly contextHasher: WorkPackageExecutionContextHasher;
   /** Collision-resistant temporary name source. */
   readonly nonce?: (() => string) | undefined;
+  /** Explicit operation-scoped Artifact integrity policy. */
+  readonly validationOptions?: WorkPackageValidationOptions | undefined;
 }
 
 /** Safe package identity summary returned by validation commands. */
@@ -374,6 +385,47 @@ export class WorkPackageExecutionSession {
       sourceExecution: this.#requireExecution(executionId),
       readExecution: (sourceExecutionId): ExecutionV1 | null =>
         this.#executions.get(sourceExecutionId) ?? null,
+      restHashing,
+      evalHashing,
+      signal
+    });
+  }
+
+  /** Stream complete normalized Evaluation facts for Reporting without requiring Raw bytes. */
+  public prepareEvaluationResultsForReport(
+    executionId: string,
+    restHashing: WorkPackageRestSemanticHashing,
+    evalHashing: WorkPackageEvalSemanticHashing,
+    signal: AbortSignal
+  ): Promise<PreparedWorkPackageEvaluationResults> {
+    this.#requireOpen();
+    return prepareWorkPackageEvaluationResultsForReport({
+      directory: this.#directory,
+      manifest: this.#validated.manifest,
+      sourceExecution: this.#requireExecution(executionId),
+      readExecution: (sourceExecutionId): ExecutionV1 | null =>
+        this.#executions.get(sourceExecutionId) ?? null,
+      restHashing,
+      evalHashing,
+      signal
+    });
+  }
+
+  /** Preflight a completed Report and expose a second strict import pass. */
+  public prepareReportImport(
+    executionId: string,
+    caseHasher: WorkPackageCaseDefinitionHasher,
+    restHashing: WorkPackageRestSemanticHashing,
+    evalHashing: WorkPackageEvalSemanticHashing,
+    signal: AbortSignal
+  ): Promise<PreparedWorkPackageReportImport> {
+    this.#requireOpen();
+    return prepareWorkPackageReportImport({
+      directory: this.#directory,
+      manifest: this.#validated.manifest,
+      execution: this.#requireExecution(executionId),
+      inputs: this.#inputs,
+      caseHasher,
       restHashing,
       evalHashing,
       signal
@@ -647,7 +699,7 @@ export async function openWorkPackageExecutionSession(
   try {
     lock = await directory.acquireLock(input.owner);
     await recoverInterruptedWorkPackageExecutions(directory, input.owner.acquiredAt, nonce);
-    const validated = await validateLockedWorkPackageDirectory(directory);
+    const validated = await validateLockedWorkPackageDirectory(directory, input.validationOptions);
     return new WorkPackageExecutionSession({
       directory,
       lock,

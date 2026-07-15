@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Play, RefreshCw, Square } from "lucide-react";
+import { ArrowLeft, FileChartColumn, Play, RefreshCw, RotateCcw, Square } from "lucide-react";
 import { useEffect, useState, type ReactElement } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert.tsx";
@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow
 } from "../../components/ui/table.tsx";
-import type { RunApi } from "../../lib/run-api.ts";
+import type { PlatformRerunMode, RunApi } from "../../lib/run-api.ts";
 import { formatMessage, message } from "../../messages/messages.ts";
 import { selectRunProgressView } from "./run-progress-view.ts";
 import { displayRunDate, runStageLabel, runStatusLabel } from "./run-ui.ts";
@@ -43,6 +43,13 @@ function evaluationErrorMessage(code: string): string {
     return message("runs.evaluationErrors.PROMPTFOO_ASSERTION_EXECUTION_ERROR");
   }
   return message("runs.evaluationErrors.UNKNOWN");
+}
+
+// Resolve the current registered stage action without nested presentation branching.
+function startStageLabel(stage: "REST" | "EVALUATION" | "REPORT" | "DONE"): string {
+  if (stage === "REST") return message("runs.startRest");
+  if (stage === "EVALUATION") return message("runs.startEvaluation");
+  return message("runs.startReport");
 }
 
 // Refresh all consumers of a changed durable Run fact.
@@ -103,6 +110,17 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
       api.cancel(runId, expectedRevision, new AbortController().signal),
     onSuccess: async () => invalidateRunFacts(queryClient, runId)
   });
+  const rerun = useMutation({
+    mutationFn: (mode: PlatformRerunMode) =>
+      api.createRerun(runId, mode, new AbortController().signal),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["runs", "list"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["test-suites", "list"] })
+      ]);
+    }
+  });
 
   useEffect(() => {
     if (detail.data?.status !== "RUNNING") return undefined;
@@ -133,8 +151,18 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
   const progressPercent =
     currentProgress.total === 0 ? 0 : (currentProgress.completed / currentProgress.total) * 100;
   const canStartCurrentStage =
-    run.status === "READY" && (run.stage === "REST" || run.stage === "EVALUATION");
+    run.status === "READY" &&
+    (run.stage === "REST" || run.stage === "EVALUATION" || run.stage === "REPORT");
   const canCancel = run.status === "RUNNING" && run.cancelRequestedAt === null;
+  const canRerun =
+    run.status !== "READY" &&
+    run.status !== "RUNNING" &&
+    run.stage === "DONE" &&
+    run.completedAt !== null &&
+    run.rest.completed === run.rest.total;
+  const canViewReport = run.artifactAvailability.some(
+    (artifact) => artifact.kind === "REPORT_JSON"
+  );
 
   return (
     <section className="page-stack">
@@ -168,11 +196,7 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
                 onClick={() => start.mutate(run.lockRevision)}
               >
                 <Play aria-hidden="true" />
-                {start.isPending
-                  ? message("runs.starting")
-                  : run.stage === "REST"
-                    ? message("runs.startRest")
-                    : message("runs.startEvaluation")}
+                {start.isPending ? message("runs.starting") : startStageLabel(run.stage)}
               </Button>
             ) : null}
             {canCancel ? (
@@ -185,6 +209,42 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
                 <Square aria-hidden="true" />
                 {cancel.isPending ? message("runs.cancelling") : message("runs.cancel")}
               </Button>
+            ) : null}
+            {canViewReport ? (
+              <Button asChild type="button" variant="outline">
+                <a
+                  href={`/runs/${encodeURIComponent(run.id)}/report`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    onNavigate(`/runs/${encodeURIComponent(run.id)}/report`);
+                  }}
+                >
+                  <FileChartColumn aria-hidden="true" />
+                  {message("runs.viewReport")}
+                </a>
+              </Button>
+            ) : null}
+            {canRerun ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={rerun.isPending}
+                  onClick={() => rerun.mutate("RETRY_FAILED")}
+                >
+                  <RotateCcw aria-hidden="true" />
+                  {message("runs.retryFailed")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={rerun.isPending}
+                  onClick={() => rerun.mutate("FORCE")}
+                >
+                  <RotateCcw aria-hidden="true" />
+                  {message("runs.forceRerun")}
+                </Button>
+              </>
             ) : null}
           </div>
         </div>
@@ -243,7 +303,7 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
           <AlertDescription>{message("runs.cancelRequestedDescription")}</AlertDescription>
         </Alert>
       ) : null}
-      {run.status === "READY" && run.stage !== "REST" && run.stage !== "EVALUATION" ? (
+      {run.status === "READY" && run.stage === "DONE" ? (
         <Alert>
           <AlertTitle>{message("runs.stageNotRegisteredTitle")}</AlertTitle>
           <AlertDescription>{message("runs.stageNotRegisteredDescription")}</AlertDescription>
@@ -260,6 +320,42 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
           <AlertTitle>{message("runs.mutationError")}</AlertTitle>
         </Alert>
       ) : null}
+      {rerun.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>{message("runs.rerunError")}</AlertTitle>
+        </Alert>
+      ) : null}
+      {rerun.data === undefined ? null : (
+        <Alert>
+          <AlertTitle>{message("runs.rerunCreated")}</AlertTitle>
+          <AlertDescription>
+            <span>
+              {message("runs.sourceRun")}: {rerun.data.sourceRunId}
+            </span>
+            <span>
+              {message("runs.rerunMode")}: {rerun.data.rerunMode}
+            </span>
+            <span>
+              {formatMessage("runs.rerunCounts", {
+                reuseRest: rerun.data.counts.reuseRest,
+                executeRest: rerun.data.counts.executeRest,
+                reuseEval: rerun.data.counts.reuseEval,
+                executeEval: rerun.data.counts.executeEval
+              })}
+            </span>
+            <a
+              className="resource-link"
+              href={`/runs/${encodeURIComponent(rerun.data.runId)}`}
+              onClick={(event) => {
+                event.preventDefault();
+                onNavigate(`/runs/${encodeURIComponent(rerun.data.runId)}`);
+              }}
+            >
+              {rerun.data.runId}
+            </a>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <section className="data-panel" aria-labelledby="run-cases-heading">
         <div className="run-panel-heading">

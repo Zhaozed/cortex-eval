@@ -1,5 +1,6 @@
 import type {
   ClaimRunStageResult,
+  CompleteReportStageInput,
   CompleteRestStageInput,
   FailPlatformRunInput,
   PlatformRunRepository,
@@ -19,6 +20,7 @@ import type {
   RunArtifactManifest,
   StoredRestCaseResult
 } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
+import type { ImportedReportRun } from "@cortex-eval/application/src/features/execution-imports/execution-import-models.ts";
 import type {
   ConfigurationResource,
   ConfigurationResourceKind
@@ -35,19 +37,22 @@ import {
   mapPlatformRunProgressRow,
   mapPlatformRunRow,
   mapRunManifest,
+  platformRunInsertValues
+} from "./sqlite-platform-run-mappers.ts";
+import { mapImportedReportRunRow } from "./sqlite-imported-report-mappers.ts";
+import {
   mapStoredRestResult,
   platformRestResultHashMatches,
-  platformRunInsertValues,
   requireRunTimestamp,
   restResultInsertValues
-} from "./sqlite-platform-run-mappers.ts";
+} from "./sqlite-platform-rest-mappers.ts";
 import {
   SqliteConfigurationRepository,
-  SqliteTestSuiteRepository,
-  SqliteTransactionConflictError
+  SqliteTestSuiteRepository
 } from "./sqlite-application-repositories.ts";
 import { SqliteRowInvalidError } from "./sqlite-row-mappers.ts";
 import type { SqliteDatabaseSchema } from "./sqlite-schema.ts";
+import { SqliteTransactionConflictError } from "./sqlite-transaction-manager.ts";
 
 /** Kysely implementation of transaction-bound platform Run persistence. */
 export class SqlitePlatformRunRepository implements PlatformRunRepository {
@@ -140,6 +145,18 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
     return row === undefined ? null : mapPlatformRunRow(row);
   }
 
+  /** Read one complete imported Report history without mapping it as executable. */
+  public async getImportedReportRun(runId: string): Promise<ImportedReportRun | null> {
+    const row = await this.#database
+      .selectFrom("run_log")
+      .selectAll()
+      .where("id", "=", runId)
+      .where("source_type", "=", "OFFLINE_IMPORT")
+      .where("report_result_set_hash", "is not", null)
+      .executeTakeFirst();
+    return row === undefined ? null : mapImportedReportRunRow(row);
+  }
+
   /** Read one bounded detail without selecting the Suite Case array or Prompt messages. */
   public async getPlatformRunDetail(runId: string): Promise<PlatformRunDetail | null> {
     const row = await this.#database
@@ -168,6 +185,9 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         "eval_error_count",
         "eval_not_evaluated_count",
         "result_set_hash",
+        "evaluation_context_hash",
+        "evaluation_result_set_hash",
+        "report_result_set_hash",
         "artifact_manifest_json",
         "error_code",
         "error_message",
@@ -216,6 +236,9 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         "eval_error_count",
         "eval_not_evaluated_count",
         "result_set_hash",
+        "evaluation_context_hash",
+        "evaluation_result_set_hash",
+        "report_result_set_hash",
         "artifact_manifest_json",
         "error_code",
         "error_message",
@@ -242,6 +265,7 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
       .selectFrom("run_log")
       .select([
         "id",
+        "source_type",
         "run_mode",
         "status",
         "stage",
@@ -258,11 +282,14 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         "updated_at",
         sql<string>`json_extract(suite_snapshot_json, '$.id')`.as("snapshot_suite_id"),
         sql<string>`json_extract(suite_snapshot_json, '$.name')`.as("snapshot_suite_name"),
-        sql<number>`json_array_length(json_extract(suite_snapshot_json, '$.cases'))`.as(
-          "snapshot_case_count"
-        )
+        sql<number>`coalesce(
+          json_array_length(json_extract(suite_snapshot_json, '$.cases')),
+          json_extract(suite_snapshot_json, '$.caseCount')
+        )`.as("snapshot_case_count")
       ])
-      .where("source_type", "=", "PLATFORM")
+      .where("report_result_set_hash", "is not", null)
+      .where("stage", "=", "DONE")
+      .where("status", "in", ["COMPLETED", "COMPLETED_WITH_ERRORS"])
       .orderBy("created_at", "desc")
       .orderBy("id", "desc")
       .limit(query.limit + 1);
@@ -292,7 +319,7 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
       }
       return {
         id: row.id,
-        sourceType: "PLATFORM" as const,
+        sourceType: row.source_type,
         suiteId: row.snapshot_suite_id,
         suiteName: row.snapshot_suite_name,
         runMode: row.run_mode,
@@ -499,6 +526,96 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
       .returning("id")
       .executeTakeFirst();
     return result === undefined ? null : this.getPlatformRunProgress(result.id);
+  }
+
+  /** Atomically append the Report pair and finish one platform Run. */
+  public async completeReportStage(
+    input: CompleteReportStageInput
+  ): Promise<PlatformRunProgress | null> {
+    requireRunTimestamp(input.completedAt);
+    const reportManifestJson = canonicalJson({
+      contractVersion: input.artifactManifest.contractVersion,
+      owner: { ...input.artifactManifest.owner },
+      artifacts: input.artifactManifest.artifacts.map((item) => ({ ...item }))
+    });
+    const reportManifest = mapRunManifest(reportManifestJson, input.runId);
+    if (
+      reportManifest.artifacts.length !== 2 ||
+      reportManifest.artifacts[0]?.kind !== "REPORT_JSON" ||
+      reportManifest.artifacts[1]?.kind !== "REPORT_MARKDOWN"
+    ) {
+      return null;
+    }
+    const run = await this.#database
+      .selectFrom("run_log")
+      .select([
+        "status",
+        "stage",
+        "lock_revision",
+        "cancel_requested_at",
+        "eval_completed_count",
+        "eval_pass_count",
+        "eval_fail_count",
+        "eval_error_count",
+        "eval_not_evaluated_count",
+        "evaluation_context_hash",
+        "evaluation_result_set_hash",
+        "artifact_manifest_json"
+      ])
+      .where("id", "=", input.runId)
+      .where("source_type", "=", "PLATFORM")
+      .executeTakeFirst();
+    const summary = input.aggregation.summary;
+    if (
+      run?.status !== "RUNNING" ||
+      run.stage !== "REPORT" ||
+      run.lock_revision !== input.expectedRevision ||
+      run.cancel_requested_at !== null ||
+      run.evaluation_context_hash === null ||
+      run.evaluation_result_set_hash === null ||
+      summary.total !== run.eval_completed_count ||
+      summary.evalPass !== run.eval_pass_count ||
+      summary.evalFail !== run.eval_fail_count ||
+      summary.evalError !== run.eval_error_count ||
+      summary.notEvaluated !== run.eval_not_evaluated_count
+    ) {
+      return null;
+    }
+    const existingManifest = mapRunManifest(run.artifact_manifest_json, input.runId);
+    const manifestJson = canonicalJson({
+      contractVersion: existingManifest.contractVersion,
+      owner: { ...existingManifest.owner },
+      artifacts: [
+        ...existingManifest.artifacts.map((item) => ({ ...item })),
+        ...reportManifest.artifacts.map((item) => ({ ...item }))
+      ]
+    });
+    mapRunManifest(manifestJson, input.runId);
+    const completedWithErrors = summary.restError + summary.evalError + summary.notEvaluated > 0;
+    const updated = await this.#database
+      .updateTable("run_log")
+      .set({
+        status: completedWithErrors ? "COMPLETED_WITH_ERRORS" : "COMPLETED",
+        stage: "DONE",
+        lock_revision: input.expectedRevision + 1,
+        summary_json: canonicalJson({
+          summary: { ...summary },
+          byMetric: input.aggregation.byMetric.map((item) => ({ ...item }))
+        }),
+        report_result_set_hash: input.aggregation.reportResultSetHash,
+        artifact_manifest_json: manifestJson,
+        completed_at: input.completedAt,
+        updated_at: input.completedAt
+      })
+      .where("id", "=", input.runId)
+      .where("source_type", "=", "PLATFORM")
+      .where("status", "=", "RUNNING")
+      .where("stage", "=", "REPORT")
+      .where("lock_revision", "=", input.expectedRevision)
+      .where("cancel_requested_at", "is", null)
+      .executeTakeFirst();
+    if (Number(updated.numUpdatedRows) !== 1) throw new SqliteTransactionConflictError();
+    return this.getPlatformRunProgress(input.runId);
   }
 
   /** Commit final cancellation after the owner settled dispatched work. */

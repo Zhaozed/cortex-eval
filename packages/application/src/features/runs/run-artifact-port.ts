@@ -5,6 +5,9 @@ import type {
 } from "./platform-run-models.ts";
 import type { PlatformEvalCaseResult } from "../evaluation/platform-eval-models.ts";
 import type { FrozenEvaluationRaw } from "../evaluation/frozen-evaluation-engine.ts";
+import type { FrozenRunCase } from "./run-rest-models.ts";
+import type { ReportAggregationResult } from "@cortex-eval/reporting/src/report-aggregation.ts";
+import type { PlatformRun } from "./platform-run-models.ts";
 
 /** Complete immutable platform REST Artifact input. */
 export interface PlatformRestArtifactInput {
@@ -70,6 +73,40 @@ export interface PlatformNormalizedEvalArtifactInput {
   readonly cases: AsyncIterable<PlatformEvalCaseResult>;
 }
 
+/** One complete aligned platform Case consumed by both Report writers. */
+export interface PlatformReportArtifactCaseInput {
+  /** Frozen Case definition and identity. */
+  readonly testCase: FrozenRunCase;
+  /** Complete normalized REST fact. */
+  readonly rest: StoredRestCaseResult;
+  /** Complete normalized Evaluation fact. */
+  readonly evaluation: PlatformEvalCaseResult;
+}
+
+/** Immutable platform Report Artifact pair input. */
+export interface PlatformReportArtifactInput {
+  /** Owning platform Run and complete safe frozen context. */
+  readonly run: PlatformRun;
+  /** Shared Report completion timestamp. */
+  readonly completedAt: string;
+  /** Complete bounded aggregation and owner-bound Report identity. */
+  readonly aggregation: ReportAggregationResult;
+  /** Expected exact frozen Case count. */
+  readonly expectedTotal: number;
+  /** Owning Report cancellation signal. */
+  readonly signal: AbortSignal;
+  /** Single-use ordered complete Report Case stream. */
+  readonly cases: AsyncIterable<PlatformReportArtifactCaseInput>;
+}
+
+/** Atomically published JSON and Markdown Report pair. */
+export interface PlatformReportArtifactWriteResult {
+  /** Complete immutable Report JSON publication. */
+  readonly json: PublishedRunArtifact;
+  /** Complete immutable Report Markdown publication. */
+  readonly markdown: PublishedRunArtifact;
+}
+
 /** Current immutable Artifact file availability. */
 export interface RunArtifactAvailability {
   /** Expected Artifact descriptor. */
@@ -90,6 +127,8 @@ export interface RunArtifactStore {
   writeNormalizedEvalResults(
     input: PlatformNormalizedEvalArtifactInput
   ): Promise<PublishedRunArtifact>;
+  /** Atomically publish JSON and Markdown from one reconciled Case stream. */
+  writeReport(input: PlatformReportArtifactInput): Promise<PlatformReportArtifactWriteResult>;
   /** Remove only one uncommitted owner artifact after a failed database CAS. */
   removeUncommitted(artifact: PublishedRunArtifact): Promise<void>;
   /** Inspect expected immutable files without changing database facts. */

@@ -39,11 +39,11 @@ describe("测试集列表页面", () => {
             caseCount: suite.caseCount,
             revision: suite.revision,
             updatedAt: suite.updatedAt,
-            latestPlatformRun: {
+            latestRun: {
               id: "018f0f4e-7b7a-7cc0-8000-000000000009",
-              sourceType: "PLATFORM",
-              status: "RUNNING",
-              stage: "REST",
+              sourceType: "OFFLINE_IMPORT",
+              status: "COMPLETED",
+              stage: "DONE",
               updatedAt: suite.updatedAt
             }
           }
@@ -63,8 +63,9 @@ describe("测试集列表页面", () => {
     await userEvent.click(await screen.findByRole("link", { name: "客服回归集" }));
     expect(onNavigate).toHaveBeenCalledWith(`/test-suites/${suite.id}`);
     expect(screen.getByRole("cell", { name: "4" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("link", { name: "运行中" }));
-    expect(onNavigate).toHaveBeenCalledWith("/runs/018f0f4e-7b7a-7cc0-8000-000000000009");
+    expect(screen.getByText("离线导入")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("link", { name: "已完成" }));
+    expect(onNavigate).toHaveBeenCalledWith("/runs/018f0f4e-7b7a-7cc0-8000-000000000009/report");
   });
 
   it("通过 Sheet 创建测试集并在成功后进入详情", async () => {
@@ -156,7 +157,7 @@ describe("测试集列表页面", () => {
               caseCount: suite.caseCount,
               revision: suite.revision,
               updatedAt: suite.updatedAt,
-              latestPlatformRun: null
+              latestRun: null
             }
           ],
           nextCursor: url.includes("cursor=next") ? null : "next"

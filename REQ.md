@@ -4,7 +4,7 @@
 
 本文档定义 Cortex Eval 本地版的产品目标、使用方式、业务对象、用户流程、UI 与 CLI 能力、报告口径、异常行为和验收标准。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P7 已完成，P8 尚未开始。平台与离线 REST→Evaluation、Work Package v1 导出/校验、安全文件运行时、REST/Eval/Pipeline CLI、离线 Retry/Force、Raw/Normalized Artifact 及 Execution Import 严格读取与幂等冲突基础已经闭环。文件或目录发布只有在父目录同步后成功；发布后同步失败撤销可见目标。阶段登记失败只凭当前命令持有的非持久发布身份补偿未登记 Artifact；身份已丢失的启动恢复保留文件并报告，不按路径猜测删除。Report、Analysis、对外平台 Retry/Force、完整 Execution Result Import 入口和 Canonical Export 尚未闭合。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P8 已完成，P9 尚未开始。平台与离线 REST→Evaluation→Report、Work Package v1 导出/校验、安全文件运行时、REST/Eval/Report/Pipeline CLI、平台与离线 Retry/Force、Raw/Normalized/Report Artifact，以及完整 Execution Report Import 已闭环。文件或目录发布只有在父目录同步后成功；发布后同步失败撤销可见目标。阶段登记失败只凭当前命令持有的非持久发布身份补偿未登记 Artifact；身份已丢失的启动恢复保留文件并报告，不按路径猜测删除。Analysis、Analysis Import 和 Canonical Export 尚未闭合。
 
 技术选型、项目架构、模块边界、数据字段、工作包协议、事务、并发和测试设计以 `TECH.md` 为准。本文档不包含具体实现代码。
 
@@ -421,7 +421,7 @@ CLI 从当前进程环境或用户显式指定的 Env 文件读取 Secret。Env 
 
 Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式设置阶段列表。Analysis 只有显式选择并指定 Case 范围时执行。阶段列表必须满足 Artifact 依赖，系统不自动补跑未选择阶段。
 
-P7 当前注册的离线 `pipeline run` 只执行已经闭环的 REST 和 Evaluation；P8 在 Report Writer 与对账闭环后把默认 Pipeline 扩展到 Report。CLI Help 不提前展示 `report build`、`analyze run`、`result import` 或 `data export`。
+当前注册的离线 `pipeline run` 默认执行 REST、Evaluation 和 Report；`report build` 与 `result import` 已在 Report Writer、双遍读取和平台事务闭环后注册。CLI Help 不提前展示尚未闭环的 `analyze run` 或 `data export`。
 
 离线 Pipeline 包含 Analysis 时必须已有或同时选择 Report，并提供 Analyzer、Analysis Prompt 和 `failed | errors | all` Selector。Analysis 失败使 CLI 返回阶段系统错误，但不改变已完成 Report JSON、Markdown 或导入事实。无可分析 Case 时 Analysis 以零结果成功结束。
 

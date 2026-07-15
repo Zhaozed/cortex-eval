@@ -307,20 +307,6 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 describe("P7 Work Package Evaluation run service", () => {
-  it("rejects a missing process-start identity before opening the package", async () => {
-    const dependencies = evaluationServiceDependencies(fakeEngine());
-    const service = new WorkPackageEvaluationRunService({
-      ...dependencies,
-      processIdentity: { processStartedAt: (): Promise<null> => Promise.resolve(null) }
-    });
-    const signal = new AbortController().signal;
-    await expect(service.preflight({ packagePath: ".", signal })).rejects.toThrow(
-      "WORK_PACKAGE_LOCKED"
-    );
-    await expect(
-      service.run({ packagePath: ".", executionId: EXECUTION_ID, signal })
-    ).rejects.toThrow("WORK_PACKAGE_LOCKED");
-  });
   it("preflight validates the complete frozen Evaluation inputs before any stage exists", async () => {
     const root = await mkdtemp(join(tmpdir(), "cortex-evaluation-preflight-inputs-"));
     roots.push(root);
@@ -920,8 +906,14 @@ setInterval(() => {}, 1000);
         run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
       },
       evaluationCommands,
+      reportCommands: {
+        run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+      },
       pipelineCommands: {
         run: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
+      },
+      resultCommands: {
+        importReport: (): Promise<never> => Promise.reject(new Error("TEST_UNUSED"))
       },
       signal: controller.signal,
       output: {

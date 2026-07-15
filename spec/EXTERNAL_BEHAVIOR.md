@@ -2,15 +2,15 @@
 
 ## 当前实现边界
 
-当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST 与 Evaluation、查看两阶段逐 Case 结果和进度、取消及刷新恢复。`PIPELINE` 在 REST 提交后自动进入 Evaluation；`STAGED` 可按 Stage 显式启动。Local Server 另提供已闭环的 Work Package v1 流式导出 API；CLI 已注册包导出/校验、离线 REST、Evaluation 和当前 REST→Evaluation Pipeline，并支持 `--retry-failed` 与 `--force` 创建新 Execution。Report、Analysis、对外平台 Retry/Force、完整结果导入入口和 Canonical Export 尚未暴露。
+当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST、Evaluation 与 Report、查看逐 Case 结果、取消、刷新恢复、创建 Retry/Force 新版本，以及查询和导出统一 Report。`PIPELINE` 自动推进到 Report；`STAGED` 可按 Stage 显式启动。Local Server 另提供 Work Package v1 流式导出与完整 Execution Report Import API；CLI 已注册包导出/校验、离线 REST、Evaluation、Report、REST→Evaluation→Report Pipeline、`result import`，并支持 `--retry-failed` 与 `--force` 创建新 Execution。Analysis、Analysis Import 和 Canonical Export 尚未暴露。
 
 ## 使用方式
 
-本地平台当前允许用户通过 Web 管理资源并执行 REST 与 Evaluation；目标中的 Report、Analysis 和完整结果导入由后续阶段闭环。平台 CLI 当前通过本地 HTTP API 导出工作包，尚不注册结果导入命令。
+本地平台当前允许用户通过 Web 管理资源并执行 REST、Evaluation 与 Report，查看平台或离线导入报告，并对终态平台 Run 创建 Retry/Force 新版本。平台 CLI 通过本地 HTTP API 导出工作包和导入完整 Execution Report。
 
-离线 CLI 工作包冻结全部非秘密输入。当前阶段命令可以独立执行 REST、Evaluation，也可以执行 REST→Evaluation Pipeline；Report 与 Analysis 命令尚未注册。
+离线 CLI 工作包冻结全部非秘密输入。当前命令可以独立执行 REST、Evaluation、Report，也可以执行 REST→Evaluation→Report Pipeline；Analysis 命令尚未注册。
 
-当前 Pipeline 固定执行 REST 与 Evaluation。后续阶段闭环后才扩展 Report 和显式 Analysis。失败重跑和 `--force` 都创建新的 Execution，不覆盖来源。
+当前 Pipeline 固定执行 REST、Evaluation 与 Report。后续阶段闭环后才扩展显式 Analysis。失败重跑和 `--force` 都创建新的 Execution，不覆盖来源。
 
 ## 资源行为
 
@@ -20,12 +20,12 @@
 - 全量 Case 替换必须整体校验、整体提交，不允许部分成功。
 - 被当前 Case 引用的 Rubric Prompt 不允许删除或修改 Prompt Key。
 - Secret 只展示环境变量引用名称，不返回展开值。
-- Web Dashboard 展示六类当前资源数量和最近平台 Run；Test Suite 列表显示对应最新平台 Run 状态。Case 筛选、Cursor 和历史页状态可由 URL 刷新恢复；跨 Test Suite 详情导航不复用上一 Suite 的页面状态。写冲突保留 Draft 并展示最新 Snapshot，不自动覆盖；冲突刷新确认远端 Case 已删除时保留只读 Draft 或删除意图，不再重取详情，也不提供无效重试，只有显式采用删除事实后才关闭。写入或冲突待决时，关闭、Esc、应用导航、浏览器历史和页面卸载均不能隐式丢弃 Draft。浏览器缺少 `Navigation.currentEntry.index` 时只显示能力错误，不挂载资源或 Run 页面。
+- Web Dashboard 展示六类当前资源数量、最近平台或离线导入 Run，以及最新完整报告的有效通过率、覆盖率和按 Metric 名称稳定排序后的首个主要 Metric；Test Suite 列表显示对应最新完整 Run 状态。Case 筛选、Cursor 和历史页状态可由 URL 刷新恢复；跨 Test Suite 详情导航不复用上一 Suite 的页面状态。写冲突保留 Draft 并展示最新 Snapshot，不自动覆盖；冲突刷新确认远端 Case 已删除时保留只读 Draft 或删除意图，不再重取详情，也不提供无效重试，只有显式采用删除事实后才关闭。写入或冲突待决时，关闭、Esc、应用导航、浏览器历史和页面卸载均不能隐式丢弃 Draft。浏览器缺少 `Navigation.currentEntry.index` 时只显示能力错误，不挂载资源或 Run 页面。
 
 ## 运行行为
 
-- 用户可以创建 `STAGED` 或 `PIPELINE` Run；`STAGED` 分阶段启动，`PIPELINE` 在 REST 提交后自动启动 Evaluation。
-- REST 与 Evaluation 执行中和完成后都可查看真实逐 Case 结果；Evaluation 完成后进入 `READY/REPORT`。
+- 用户可以创建 `STAGED` 或 `PIPELINE` Run；`STAGED` 分阶段启动，`PIPELINE` 在 REST 提交后自动启动 Evaluation，并在 Evaluation 提交后自动生成 Report。
+- REST 与 Evaluation 执行中和完成后都可查看真实逐 Case 结果；Report 完整提交后进入 `COMPLETED/DONE` 或 `COMPLETED_WITH_ERRORS/DONE`。
 - 部分或全部 REST Error 都保存为真实 Case 事实并完成 REST 阶段。
 - 页面刷新不影响后端执行和已完成事实。
 - 同一时刻只有一个平台运行阶段可以处于 `RUNNING`。
@@ -53,6 +53,10 @@ Case 构建不按 Assertion 类型设置平台白名单，Promptfoo `0.121.18` �
 一条 Case 对同名 Metric 最多计数一次。失败 `is-json` 展示约束路径、预期约束和实际值；`llm-rubric` 展示 Pass、Score、Reason、Metric 和 Weight。
 
 JSON Report 是导入事实，Markdown 只由规范化 JSON 派生，不能反向导入。
+
+每次平台 Run 或离线 Execution 都是独立执行版本；Evaluation Result Set Hash 与 Report Result Set Hash 分别绑定各自契约、冻结上下文和 Owner，不能以时间、最大 ID 或 `select max` 推断版本。离线导入保留冻结快照；仅当平台仍存在同 ID 当前 Test Suite 时建立当前 Suite 关联，不存在时仍可作为独立历史报告查看。
+
+完整报告 API 提供 Overview、服务端 Cursor 分页与 REST/Eval/Metric/业务模块/场景标签组合过滤、Case/Assertion/Diff 详情和 Canonical JSON 导出。Raw Evidence 为 `PRESENT`、`MISSING`、`CORRUPTED` 或 `ABSENT` 只影响排障展示，不改变已经提交的规范化报告。
 
 ## Analysis 可见语义
 

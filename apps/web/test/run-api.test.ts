@@ -196,6 +196,162 @@ describe("Run API Client", () => {
     ).rejects.toMatchObject({ code: "CLIENT_RESPONSE_INVALID" });
   });
 
+  it("严格读取 Report、编码组合过滤并绑定 Report 与重跑身份", async () => {
+    const hash = "a".repeat(64);
+    const overview = {
+      runId: RUN_ID,
+      sourceType: "OFFLINE_IMPORT",
+      sourceRunId: null,
+      rerunMode: "NONE",
+      completedAt: TIME,
+      context: {
+        contractVersion: "cortex.report-context.v1",
+        runContextHash: hash,
+        suite: { sourceId: SUITE_ID, name: "客服回归集", suiteHash: hash },
+        endpoint: {
+          sourceId: ENDPOINT_ID,
+          name: "客服 Endpoint",
+          configHash: hash,
+          config: runDetail().endpoint.config
+        },
+        evaluator: {
+          sourceId: EVALUATOR_ID,
+          name: "Gemini Evaluator",
+          configHash: hash,
+          config: runDetail().evaluator.config
+        },
+        rubricPrompts: [],
+        promptfooVersion: "0.121.18",
+        runExecutionLimits: runDetail().runExecutionLimits
+      },
+      evaluationContextHash: hash,
+      evaluationResultSetHash: hash,
+      reportResultSetHash: hash,
+      summary: {
+        total: 1,
+        restSucceeded: 1,
+        restError: 0,
+        evalPass: 1,
+        evalFail: 0,
+        evalError: 0,
+        notEvaluated: 0,
+        effectivePassRate: 1,
+        evaluatedPassRate: 1,
+        coverageRate: 1
+      },
+      byMetric: [
+        {
+          metric: "quality",
+          pass: 1,
+          fail: 0,
+          error: 0,
+          skipped: 0,
+          notEvaluated: 0,
+          passRate: 1
+        }
+      ],
+      artifactAvailability: [
+        {
+          kind: "RAW_PROMPTFOO_EVIDENCE",
+          path: `executions/${RUN_ID}/promptfoo-raw.json`,
+          status: "MISSING"
+        }
+      ]
+    } as const;
+    const reportCase = {
+      caseKey: "case-1",
+      ordinal: 0,
+      definitionHash: hash,
+      definition: {
+        contractVersion: "cortex.case-definition.v1",
+        description: "客服请求",
+        threshold: 1,
+        vars: { task: "route", request_body: { input: "你好" } },
+        metadata: {
+          req_id: "req-1",
+          task_id: "task-1",
+          case_id: "case-1",
+          business_module: "客服",
+          scenario_tag: "smoke"
+        },
+        assert: [{ type: "equals", metric: "quality", value: true, weight: 1 }]
+      },
+      rest: {
+        caseKey: "case-1",
+        ordinal: 0,
+        caseDefinitionHash: hash,
+        status: "SUCCEEDED",
+        httpStatus: 200,
+        providerOutput: {
+          ok: true,
+          task_name: "route",
+          resolved_config: {},
+          parsed_output: { reply: "你好" }
+        },
+        durationMs: 25,
+        completedAt: TIME,
+        resultHash: hash,
+        provenance: null
+      },
+      evaluation: runEvalPage.items[0]?.result,
+      rawEvidenceStatus: "MISSING"
+    } as const;
+    const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url === `/api/v1/runs/${RUN_ID}/report`) return Promise.resolve(response(overview));
+      if (url.includes("/report/cases?")) {
+        return Promise.resolve(response({ items: [reportCase], nextCursor: null }));
+      }
+      if (url.endsWith("/report/cases/case-1")) return Promise.resolve(response(reportCase));
+      if (url.endsWith("/reruns")) {
+        return Promise.resolve(
+          response(
+            {
+              runId: SUITE_ID,
+              sourceRunId: RUN_ID,
+              rerunMode: "RETRY_FAILED",
+              status: "READY",
+              stage: "REST",
+              lockRevision: 0,
+              counts: { reuseRest: 1, executeRest: 0, reuseEval: 1, executeEval: 0 }
+            },
+            201
+          )
+        );
+      }
+      return Promise.resolve(response({ invalid: true }));
+    });
+    const api = createRunApi(fetcher);
+    const signal = new AbortController().signal;
+
+    await expect(api.getReport(RUN_ID, signal)).resolves.toEqual(overview);
+    await expect(
+      api.listReportCases(
+        {
+          runId: RUN_ID,
+          limit: 20,
+          cursor: null,
+          restStatus: ["SUCCEEDED"],
+          evalStatus: ["PASS", "FAIL"],
+          metrics: ["quality"],
+          businessModules: ["客服"],
+          scenarioTags: ["smoke"]
+        },
+        signal
+      )
+    ).resolves.toEqual({ items: [reportCase], nextCursor: null });
+    await expect(api.getReportCase(RUN_ID, "case-1", signal)).resolves.toEqual(reportCase);
+    await expect(api.createRerun(RUN_ID, "RETRY_FAILED", signal)).resolves.toMatchObject({
+      sourceRunId: RUN_ID,
+      rerunMode: "RETRY_FAILED"
+    });
+
+    expect(requestUrl(fetcher.mock.calls[1]?.[0] ?? "")).toBe(
+      `/api/v1/runs/${RUN_ID}/report/cases?businessModule=%E5%AE%A2%E6%9C%8D&evalStatus=PASS&evalStatus=FAIL&limit=20&metric=quality&restStatus=SUCCEEDED&scenarioTag=smoke`
+    );
+    expect(requestBody(fetcher.mock.calls[3]?.[1])).toBe(JSON.stringify({ mode: "RETRY_FAILED" }));
+  });
+
   it("只把身份匹配且符合契约的 SSE Envelope 交给页面", () => {
     const source = new FakeRunEventSource();
     const onEnvelope = vi.fn();

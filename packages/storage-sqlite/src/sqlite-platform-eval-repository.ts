@@ -16,16 +16,17 @@ import {
 } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 import { type Kysely } from "kysely";
 
-import { mapRunManifest, requireRunTimestamp } from "./sqlite-platform-run-mappers.ts";
+import { mapRunManifest } from "./sqlite-platform-run-mappers.ts";
+import { requireRunTimestamp } from "./sqlite-platform-rest-mappers.ts";
 import {
   evalResultInsertValues,
   mapPlatformEvalResult,
   platformEvalResultHashMatches,
   type EvalResultRowProjection
 } from "./sqlite-platform-eval-mappers.ts";
-import { SqliteTransactionConflictError } from "./sqlite-application-repositories.ts";
 import { SqliteRowInvalidError } from "./sqlite-row-mappers.ts";
 import type { SqliteDatabaseSchema } from "./sqlite-schema.ts";
+import { SqliteTransactionConflictError } from "./sqlite-transaction-manager.ts";
 
 // Return whether an external error is one of the only retryable SQLite lock conflicts.
 function isSqliteBusy(error: unknown): boolean {
@@ -257,7 +258,8 @@ export class SqlitePlatformEvalRepository implements PlatformEvalRepository {
         eval_fail_count: evalFailCount,
         eval_error_count: evalErrorCount,
         eval_not_evaluated_count: evalNotEvaluatedCount,
-        result_set_hash: input.resultSetHash,
+        evaluation_context_hash: input.evaluationContextHash,
+        evaluation_result_set_hash: input.resultSetHash,
         artifact_manifest_json: manifestJson,
         updated_at: input.updatedAt
       })
@@ -283,7 +285,8 @@ export class SqlitePlatformEvalRepository implements PlatformEvalRepository {
         evalFailCount,
         evalErrorCount,
         evalNotEvaluatedCount,
-        resultSetHash: input.resultSetHash
+        evaluationContextHash: input.evaluationContextHash,
+        evaluationResultSetHash: input.resultSetHash
       }
     };
   }

@@ -15,7 +15,10 @@ import type {
 } from "./features/configurations/configuration-models.ts";
 import type {
   ExistingImportedExecution,
-  ImportedExecutionRecord
+  ExistingImportedExecutionReport,
+  ImportedExecutionRecord,
+  ImportedExecutionReportCase,
+  ImportedExecutionReportRecord
 } from "./features/execution-imports/execution-import-models.ts";
 
 /** Test Suite persistence operations available inside one transaction. */
@@ -64,6 +67,13 @@ export interface RunReferenceRepository {
   getImportedExecution(executionId: string): Promise<ExistingImportedExecution | null>;
   /** Insert one already-validated minimal imported Run fact. */
   insertImportedExecution(value: ImportedExecutionRecord): Promise<void>;
+  /** Read one existing complete offline Report import identity. */
+  getImportedExecutionReport(executionId: string): Promise<ExistingImportedExecutionReport | null>;
+  /** Atomically insert one complete imported Run and its ordered Case facts. */
+  insertImportedExecutionReport(
+    value: ImportedExecutionReportRecord,
+    cases: AsyncIterable<ImportedExecutionReportCase>
+  ): Promise<void>;
 }
 
 /** Conditional Suite aggregate update. */

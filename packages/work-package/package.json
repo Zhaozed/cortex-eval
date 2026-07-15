@@ -9,6 +9,8 @@
   "dependencies": {
     "@cortex-eval/application": "workspace:*",
     "@cortex-eval/contracts": "workspace:*",
+    "@cortex-eval/domain": "workspace:*",
+    "@cortex-eval/reporting": "workspace:*",
     "zod": "4.4.3"
   }
 }

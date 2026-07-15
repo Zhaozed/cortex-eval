@@ -14,6 +14,12 @@ import {
   type WorkPackageLock,
   type WorkPackageLockOwner
 } from "./secure-work-package-directory.ts";
+
+/** Artifact integrity policy for one explicitly scoped package operation. */
+export interface WorkPackageValidationOptions {
+  /** Allow Reporting to ignore unavailable Raw bytes while still validating their descriptor. */
+  readonly allowRawEvidenceUnavailable?: boolean | undefined;
+}
 import { validateFileIntegrity } from "./work-package-file-integrity.ts";
 import { validateWorkPackageManifestPolicy } from "./work-package-manifest-policy.ts";
 
@@ -103,7 +109,8 @@ async function validateExecution(
   directory: SecureWorkPackageDirectory,
   manifest: WorkPackageManifestV1,
   entries: readonly SecureDirectoryEntry[],
-  executionId: string
+  executionId: string,
+  options: WorkPackageValidationOptions
 ): Promise<ValidatedWorkPackageExecution> {
   const statePath = `executions/${executionId}/execution.json`;
   const stateBytes = await directory.readFileBounded(
@@ -138,6 +145,12 @@ async function validateExecution(
     throw new Error("WORK_PACKAGE_ARTIFACT_ORPHAN");
   }
   for (const artifact of registered.values()) {
+    if (
+      options.allowRawEvidenceUnavailable === true &&
+      artifact.kind === "RAW_PROMPTFOO_EVIDENCE"
+    ) {
+      continue;
+    }
     await validateFileIntegrity(directory, artifact);
   }
   return {
@@ -185,7 +198,8 @@ function validateTreeShape(
 
 /** Validate one already opened package while its caller owns the stable lock. */
 export async function validateLockedWorkPackageDirectory(
-  directory: SecureWorkPackageDirectory
+  directory: SecureWorkPackageDirectory,
+  options: WorkPackageValidationOptions = {}
 ): Promise<ValidatedWorkPackage> {
   const manifestBytes = await directory.readFileBounded(
     "manifest.json",
@@ -217,7 +231,7 @@ export async function validateLockedWorkPackageDirectory(
   const identities = validateTreeShape(entries, manifest);
   const executions: ValidatedWorkPackageExecution[] = [];
   for (const executionId of identities) {
-    executions.push(await validateExecution(directory, manifest, entries, executionId));
+    executions.push(await validateExecution(directory, manifest, entries, executionId, options));
   }
   return {
     manifest,

@@ -12,7 +12,7 @@ Test Suite 聚合包含当前 Suite 和 Cases。所有 Case 写入口共用同�
 
 全量 Case 导入只把单项保留在内存，逐项写外部 staging 并增量计算 Suite Hash；最终主库事务重新校验 Suite Revision 与 Rubric 引用后整体替换。导出冻结 Revision，并以 `(ordinal,id)` 顺序逐项读取，避免混合版本和完整数组常驻内存。
 
-Run 聚合包含 Run Log、Case Results 和 Eval Results。P5 已实现 Run 冻结、REST 阶段开始、逐 Case进度、Artifact 和最终提交；每一步使用独立条件事务，外部执行不跨事务。
+Run 聚合包含 Run Log、Case Results、Eval Results 和 Report Summary。平台 REST/Evaluation/Report 每一步使用独立条件事务，外部执行与 Artifact 发布不跨事务；Report 只在完整明细、JSON/Markdown 和 Hash 对账后提交终态。离线 Report Import 在文件双遍校验完成后以一个事务写入完整终态聚合。
 
 Case Analysis 是独立事实。应用建议时按 Analysis、Suite、Case、Rubric Prompt 的稳定顺序锁定和校验，再调用 Case 写入流程。
 
@@ -35,7 +35,7 @@ Case 业务身份使用测试集内唯一的 `metadata.case_id`，内部 ID 与�
 
 离线 Execution Context 使用独立 `cortex.execution-context.v1` 哈希输入。输入包含 Package ID、Manifest Hash、Run Execution Limits 和 Analysis Execution Limits；任一限制变化都形成不同 Execution Context Hash。
 
-相同 Package ID、Execution ID、Result Set Hash 与规范化 Artifact Manifest 的导入幂等；相同 Execution ID 对应不同 Package、结果，或 Manifest 的版本、Owner、Kind、路径、Hash、大小、Payload Contract Version 任一不同均冲突。相同 Analysis Input Hash 的分析导入幂等，不同输入按当前分析 Revision 条件更新。
+相同 Package ID、Execution ID、Evaluation/Report Result Set Hash 与规范化 Artifact Manifest 的导入幂等；相同 Execution ID 对应不同 Package、结果，或 Manifest 的版本、Owner、Kind、路径、Hash、大小、Payload Contract Version 任一不同均冲突。导入身份只由这些显式版本事实确定，禁止以 `select max`、最大时间或最近记录推断。相同 Analysis Input Hash 的分析导入幂等，不同输入按当前分析 Revision 条件更新。
 
 失败重跑和 `--force` 都创建新的 Run/Execution。新身份可以记录来源和复用结果 Hash，但不得修改来源 Run/Execution 或已完成 Artifact。
 
@@ -53,7 +53,7 @@ Case 业务身份使用测试集内唯一的 `metadata.case_id`，内部 ID 与�
 
 ## 快照与数据保留
 
-运行冻结当前资源的脱敏快照。冻结后资源修改或删除不影响历史运行。来源资源删除后，历史 Run 可以清空来源 ID，但快照保持完整。
+运行冻结当前资源的脱敏快照。冻结后资源修改或删除不影响历史运行。来源资源删除后，历史 Run 可以清空来源 ID，但快照保持完整。离线导入只在当前数据库存在同 ID Suite 时建立可空关联；缺少当前 Suite 不阻止历史报告导入，也不从快照名称猜测关联。
 
 Artifact 预期 Kind、相对路径、Hash、大小和 Contract Version 保存在 Run Artifact Manifest。文件存在性按需校验；Raw 文件缺失或损坏不改变已经落库的规范化结果和报告事实。
 

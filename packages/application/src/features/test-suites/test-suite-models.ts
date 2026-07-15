@@ -36,16 +36,16 @@ export interface TestSuiteSummary {
   readonly revision: number;
   /** Last update time. */
   readonly updatedAt: string;
-  /** Latest platform-created Run for this Suite; imported history is excluded. */
-  readonly latestPlatformRun: LatestPlatformRunReference | null;
+  /** Latest reportable platform or complete offline-import Run for this Suite. */
+  readonly latestRun: LatestRunReference | null;
 }
 
-/** Small latest platform Run reference embedded in one Suite summary. */
-export interface LatestPlatformRunReference {
+/** Small latest reportable Run reference embedded in one Suite summary. */
+export interface LatestRunReference {
   /** Internal Run identity. */
   readonly id: string;
   /** Strict source discriminator. */
-  readonly sourceType: "PLATFORM";
+  readonly sourceType: "PLATFORM" | "OFFLINE_IMPORT";
   /** Current lifecycle status. */
   readonly status: RunStatus;
   /** Current or terminal pipeline stage. */

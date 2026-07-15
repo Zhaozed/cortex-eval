@@ -2,7 +2,7 @@
 
 ## 模块职责
 
-该 Feature 提供平台 Run 预检、创建、REST/Evaluation 启动、进度、两阶段逐 Case 结果、取消和刷新恢复界面。当前不提供 Report、Analysis 或重跑动作。
+该 Feature 提供平台 Run 预检、创建、REST/Evaluation/Report 启动、进度、逐 Case 结果、取消、刷新恢复和版本化重跑界面。Analysis 仍未注册。
 
 模块不在浏览器推进状态机，不直接控制 REST 请求，也不把缓存视为运行事实。
 
@@ -12,7 +12,7 @@
 
 ## 实现状态
 
-已注册 `/runs`、`/runs/:id`、导航和 Dashboard 最近平台 Run 卡片。详情支持 Evaluation 启动、结果查询及 Pipeline 自动推进后的刷新恢复。Report、Analysis、Retry/Force 和 Work Package 入口保持未注册。
+已注册 `/runs`、`/runs/:id`、`/runs/:id/report`、导航和 Dashboard 统一最近 Run/最新报告卡片。详情支持 REST/Evaluation/Report 启动、结果查询、Pipeline 自动推进后的刷新恢复，以及终态平台 Run 的 Retry/Force。离线导入 Run 直接进入只读 Report；Analysis 保持未注册。
 
 ## 代码落点
 
@@ -21,7 +21,7 @@
 ## 当前代码事实入口
 
 - [run-list-page.tsx](../../apps/web/src/features/runs/run-list-page.tsx)：资源选择、预检门禁、执行限制和 Run 列表。
-- [run-detail-page.tsx](../../apps/web/src/features/runs/run-detail-page.tsx)：状态、REST/Evaluation 分类进度、逐 Case 结果、启动与取消。
+- [run-detail-page.tsx](../../apps/web/src/features/runs/run-detail-page.tsx)：状态、REST/Evaluation 分类进度、逐 Case 结果、阶段启动、取消和重跑。
 - [run-ui.ts](../../apps/web/src/features/runs/run-ui.ts)：状态和阶段的展示映射。
 - [run-api.ts](../../apps/web/src/lib/run-api.ts)：严格 Run API、身份校验、Cursor 和 SSE Envelope 边界。
 
@@ -35,7 +35,7 @@
 
 创建运行时选择 Test Suite、Endpoint、Evaluator 和 `STAGED`/`PIPELINE` 模式，可覆盖 `RunExecutionLimitsV1`。页面先调用 Preflight，展示 Case 数、Rubric 依赖、REST/Evaluation 所需 Env Key、Endpoint 超时和将被冻结的并发限制；选择改变、重新预检或卸载会 Abort 旧请求，并以单调请求代次和当前选择键共同拒绝迟到成功。重新预检在发请求前失效上一代事实；本代在途或失败时不展示旧事实、不允许创建。只有当前选择与当前代对应的预检成功后才能创建。
 
-Run 列表使用服务端倒序 Cursor。详情只展示有界冻结摘要、阶段计数、Artifact 可用性和真实已完成 REST/Evaluation Case 结果，不加载冻结 Case 数组或 Prompt 正文。Evaluation 表逐 Case 展示 Status、Score、Reason、Evaluation Error、Metric；每条 Assertion 展示 Type、Metric、Status、Weight、Score 和 Reason。空值明确显示为无，不把错误文案推断成状态。
+Run 列表使用服务端倒序 Cursor，统一展示平台与完整离线导入来源。平台详情只展示有界冻结摘要、阶段计数、Artifact 可用性和真实已完成 REST/Evaluation Case 结果，不加载冻结 Case 数组或 Prompt 正文；离线导入链接直接进入报告。Evaluation 表逐 Case 展示 Status、Score、Reason、Evaluation Error、Metric；每条 Assertion 展示 Type、Metric、Status、Weight、Score 和 Reason。空值明确显示为无，不把错误文案推断成状态。
 
 ## 核心流程
 
@@ -46,11 +46,11 @@ Run 列表使用服务端倒序 Cursor。详情只展示有界冻结摘要、阶
 4. `RUNNING` 时页面订阅有限期 SSE，并保留查询刷新。每个 Snapshot/Event 必须通过 Schema 且绑定当前 Run ID；流结束、重连或错误只触发重新查询，不在浏览器推断新状态。
 5. Cancel 携带最新 Revision。页面显示服务端已确认的取消请求和最终状态，不提前伪造 `CANCELLED`。
 
-`STAGED` REST 完成后页面显示 `READY/EVALUATION` 并允许按最新 Revision 启动；Evaluation 完成后显示 `READY/REPORT`，不出现未闭环 Report 动作。
+`STAGED` REST 完成后页面显示 `READY/EVALUATION` 并允许按最新 Revision 启动；Evaluation 完成后显示 `READY/REPORT` 并允许生成 Report。终态平台 Run 在冻结上下文完整时显示 Retry Failed 与 Force，创建新版本后展示复用/执行计数和新 Run 链接，来源保持不变。
 
 ## 状态、事务与幂等
 
-浏览器刷新或路由切换后重新查询 Run。`READY/REST` 或 `READY/EVALUATION` 显示对应阶段启动，`RUNNING` 显示取消；`READY/REPORT` 和终态不提供未闭环动作。重复点击由客户端单飞与服务端 Revision/状态条件共同收敛。
+浏览器刷新或路由切换后重新查询 Run。`READY/REST`、`READY/EVALUATION` 或 `READY/REPORT` 显示对应阶段启动，`RUNNING` 显示取消；终态平台 Run 只提供创建新版本的动作，离线导入不提供执行动作。重复点击由客户端单飞与服务端 Revision/状态条件共同收敛。
 
 ## 错误收敛
 
@@ -58,8 +58,8 @@ Run 列表使用服务端倒序 Cursor。详情只展示有界冻结摘要、阶
 
 ## 观测与验收
 
-REST 展示总数、完成、成功和错误；逐 Case 表只显示真实结果。Dashboard 和 Test Suite 聚合只使用平台 `sourceType=PLATFORM` 事实。页面刷新不影响执行，部分或全部 REST Error 均按服务端事实展示。
+REST 展示总数、完成、成功和错误；逐 Case 表只显示真实结果。Dashboard 和 Run 列表显式区分 `PLATFORM` 与 `OFFLINE_IMPORT`；Test Suite 只聚合确实关联当前 Suite 的完整 Run。页面刷新不影响执行，部分或全部 REST Error 均按服务端事实展示。
 
 ## 相关测试
 
-当前测试覆盖预检门禁、选择改变 Abort、迟到响应拒绝、创建参数和身份、Run 列表、详情、REST/Evaluation 启动与取消 Revision、Pipeline 刷新恢复、SSE 身份、两阶段逐 Case 结果、导航、Dashboard 和未来动作隔离。Report、Analysis 和 Retry/Force 随后续阶段补充。
+当前测试覆盖预检门禁、选择改变 Abort、迟到响应拒绝、创建参数和身份、统一 Run 列表、详情、REST/Evaluation/Report 启动与取消 Revision、Pipeline 刷新恢复、SSE 身份、逐 Case 结果、导航、Dashboard、离线报告链接和 Retry/Force。Analysis 动作保持隔离。

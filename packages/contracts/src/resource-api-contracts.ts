@@ -65,10 +65,10 @@ export const TestSuiteSummaryV1Schema = z.strictObject({
   caseCount: z.number().int().nonnegative(),
   revision: z.number().int().nonnegative(),
   updatedAt: UtcDateTimeSchema,
-  latestPlatformRun: z
+  latestRun: z
     .strictObject({
       id: UuidV7Schema,
-      sourceType: z.literal("PLATFORM"),
+      sourceType: z.enum(["PLATFORM", "OFFLINE_IMPORT"]),
       status: RunStatusV1Schema,
       stage: RunStageV1Schema,
       updatedAt: UtcDateTimeSchema
@@ -469,7 +469,11 @@ const PlainErrorSchema = z.strictObject({
     "RUN_NOT_FOUND",
     "RUN_SUITE_EMPTY",
     "RUN_CASE_RESULT_NOT_FOUND",
+    "RERUN_SOURCE_INCOMPLETE",
+    "REPORT_RECONCILIATION_FAILED",
     "WORK_PACKAGE_INVALID",
+    "WORK_PACKAGE_LOCKED",
+    "EXECUTION_RESULT_CONFLICT",
     "CONFIGURATION_NOT_FOUND",
     "CONFIGURATION_KIND_CONFLICT",
     "RESOURCE_IN_ACTIVE_RUN",

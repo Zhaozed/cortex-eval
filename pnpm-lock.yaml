@@ -93,6 +93,9 @@ importers:
       '@cortex-eval/evaluation-adapters':
         specifier: workspace:*
         version: link:../../packages/evaluation-adapters
+      '@cortex-eval/reporting':
+        specifier: workspace:*
+        version: link:../../packages/reporting
       '@cortex-eval/storage-sqlite':
         specifier: workspace:*
         version: link:../../packages/storage-sqlite
@@ -317,6 +320,12 @@ importers:
       '@cortex-eval/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@cortex-eval/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@cortex-eval/reporting':
+        specifier: workspace:*
+        version: link:../reporting
       zod:
         specifier: 4.4.3
         version: 4.4.3

@@ -9,7 +9,8 @@ import { Progress } from "../../components/ui/progress.tsx";
 import { countCursorResources, resourceDashboardContributions } from "../feature-registry.ts";
 import { formatMessage, message, type MessageKey } from "../../messages/messages.ts";
 import { resourceKeys, type ConfigurationKind, type ResourceApi } from "../../lib/resource-api.ts";
-import type { RunApi } from "../../lib/run-api.ts";
+import { ApiClientError } from "../../lib/api-client.ts";
+import type { PlatformRunPage, RunApi, RunReportOverview } from "../../lib/run-api.ts";
 import { displayRunDate, runStageLabel, runStatusLabel } from "../runs/run-ui.ts";
 
 /** Exact P4 resource counts displayed by Dashboard contributions. */
@@ -88,6 +89,43 @@ async function loadDashboardCounts(
   };
 }
 
+// Read the newest committed Report among the bounded newest Run facts.
+async function loadLatestReport(
+  api: RunApi,
+  page: PlatformRunPage,
+  signal: AbortSignal
+): Promise<RunReportOverview | null> {
+  const candidates = page.items.filter(
+    (run) =>
+      run.stage === "DONE" && (run.status === "COMPLETED" || run.status === "COMPLETED_WITH_ERRORS")
+  );
+  for (const run of candidates) {
+    try {
+      return await api.getReport(run.id, signal);
+    } catch (error) {
+      if (
+        error instanceof ApiClientError &&
+        (error.code === "RUN_STATE_CONFLICT" || error.code === "RUN_NOT_FOUND")
+      ) {
+        continue;
+      }
+      throw error;
+    }
+  }
+  return null;
+}
+
+// Render an exact stored Rate without manufacturing a zero for an empty denominator.
+function reportRate(value: number | null): string {
+  return value === null ? message("reports.rateUnavailable") : `${(value * 100).toFixed(1)}%`;
+}
+
+// Route imported history directly to its Report while retaining platform Run detail.
+function dashboardRunPath(run: PlatformRunPage["items"][number]): string {
+  const id = encodeURIComponent(run.id);
+  return run.sourceType === "OFFLINE_IMPORT" ? `/runs/${id}/report` : `/runs/${id}`;
+}
+
 /** Resource counts and recent platform Run facts registered through P5. */
 export function DashboardPage({ api, runApi, onNavigate }: DashboardPageProps): ReactElement {
   const query = useQuery({
@@ -95,10 +133,22 @@ export function DashboardPage({ api, runApi, onNavigate }: DashboardPageProps): 
     queryFn: ({ signal }) => loadDashboardCounts(api, signal)
   });
   const runs = useQuery({
-    queryKey: ["dashboard", "recent-platform-runs"] as const,
-    queryFn: ({ signal }) => runApi.listRuns({ limit: 5, cursor: null }, signal),
+    queryKey: ["dashboard", "recent-runs"] as const,
+    queryFn: ({ signal }) => runApi.listRuns({ limit: 50, cursor: null }, signal),
     refetchInterval: (current) =>
       current.state.data?.items.some((run) => run.status === "RUNNING") === true ? 1_000 : false
+  });
+  const latestReport = useQuery({
+    queryKey: [
+      "dashboard",
+      "latest-report",
+      runs.data?.items.map((run) => [run.id, run.status, run.stage, run.updatedAt]) ?? []
+    ] as const,
+    queryFn: ({ signal }) => {
+      if (runs.data === undefined) return Promise.resolve(null);
+      return loadLatestReport(runApi, runs.data, signal);
+    },
+    enabled: runs.data !== undefined
   });
 
   if (query.isPending) {
@@ -159,13 +209,50 @@ export function DashboardPage({ api, runApi, onNavigate }: DashboardPageProps): 
           </article>
         ))}
       </div>
+      <section className="dashboard-runs" aria-labelledby="dashboard-report-heading">
+        <div className="section-heading compact">
+          <div>
+            <p className="eyebrow">{message("dashboard.reportEyebrow")}</p>
+            <h2 id="dashboard-report-heading">{message("dashboard.latestReport")}</h2>
+          </div>
+        </div>
+        {latestReport.isPending && runs.data !== undefined ? (
+          <Progress aria-label={message("dashboard.reportLoading")} />
+        ) : null}
+        {latestReport.isError ? (
+          <Alert variant="destructive">
+            <AlertTitle>{message("dashboard.reportError")}</AlertTitle>
+          </Alert>
+        ) : null}
+        {latestReport.data === null ? (
+          <p className="empty-state">{message("dashboard.reportEmpty")}</p>
+        ) : null}
+        {latestReport.data === undefined || latestReport.data === null ? null : (
+          <div className="resource-count-grid report-summary-grid">
+            <article className="count-card" data-testid="latest-report-effective-rate">
+              <span>{message("reports.effectivePassRate")}</span>
+              <strong>{reportRate(latestReport.data.summary.effectivePassRate)}</strong>
+            </article>
+            <article className="count-card" data-testid="latest-report-coverage-rate">
+              <span>{message("reports.coverageRate")}</span>
+              <strong>{reportRate(latestReport.data.summary.coverageRate)}</strong>
+            </article>
+            <article className="count-card" data-testid="latest-report-primary-metric">
+              <span>
+                {latestReport.data.byMetric[0]?.metric ?? message("dashboard.primaryMetricEmpty")}
+              </span>
+              <strong>{reportRate(latestReport.data.byMetric[0]?.passRate ?? null)}</strong>
+            </article>
+          </div>
+        )}
+      </section>
       <section className="dashboard-runs" aria-labelledby="dashboard-runs-heading">
         <div className="section-heading compact">
           <div>
             <p className="eyebrow">{message("dashboard.runsEyebrow")}</p>
             <h2 id="dashboard-runs-heading">{message("dashboard.recentRuns")}</h2>
           </div>
-          <Badge variant="outline">{message("runs.platform")}</Badge>
+          <Badge variant="outline">{message("dashboard.allSources")}</Badge>
         </div>
         {runs.isPending ? <Progress aria-label={message("dashboard.runsLoading")} /> : null}
         {runs.isError ? (
@@ -182,14 +269,14 @@ export function DashboardPage({ api, runApi, onNavigate }: DashboardPageProps): 
         ) : null}
         {runs.data === undefined || runs.data.items.length === 0 ? null : (
           <div className="dashboard-run-grid">
-            {runs.data.items.map((run) => (
+            {runs.data.items.slice(0, 5).map((run) => (
               <a
                 key={run.id}
-                href={`/runs/${encodeURIComponent(run.id)}`}
+                href={dashboardRunPath(run)}
                 className="dashboard-run-card"
                 onClick={(event: MouseEvent<HTMLAnchorElement>) => {
                   event.preventDefault();
-                  onNavigate(`/runs/${encodeURIComponent(run.id)}`);
+                  onNavigate(dashboardRunPath(run));
                 }}
               >
                 <div className="count-card-topline">
@@ -197,6 +284,11 @@ export function DashboardPage({ api, runApi, onNavigate }: DashboardPageProps): 
                   <Badge variant="accent">{runStatusLabel(run.status)}</Badge>
                 </div>
                 <strong>{run.suiteName}</strong>
+                <Badge variant="outline">
+                  {run.sourceType === "PLATFORM"
+                    ? message("runs.platform")
+                    : message("runs.offlineImport")}
+                </Badge>
                 <span>
                   {formatMessage("runs.progressCount", {
                     completed: run.rest.completed,

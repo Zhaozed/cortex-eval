@@ -2,10 +2,9 @@ import type {
   PlatformRun,
   PlatformRunDetail,
   PlatformRunProgress,
-  RunArtifactManifest,
-  StoredRestCaseResult
+  RunArtifactManifest
 } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
-import type { RestExecutionErrorType } from "@cortex-eval/application/src/features/runs/run-rest-models.ts";
+import type { ImportedExecutionArtifactManifest } from "@cortex-eval/application/src/features/execution-imports/execution-import-models.ts";
 import {
   canonicalJson,
   type DomainJsonObject,
@@ -17,11 +16,7 @@ import type {
   CaseDefinition,
   ProviderOutput
 } from "@cortex-eval/domain/src/domain-evaluation.ts";
-import {
-  hashCaseDefinition,
-  hashRestResult,
-  hashRunContext
-} from "@cortex-eval/domain/src/domain-hash-inputs.ts";
+import { hashCaseDefinition, hashRunContext } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 import {
   hashEndpointConfig,
   hashLlmConfig,
@@ -43,10 +38,10 @@ import type { Insertable, Selectable } from "kysely";
 import { z } from "zod";
 
 import { SqliteRowInvalidError } from "./sqlite-row-mappers.ts";
-import type { CaseResultTable, RunLogTable } from "./sqlite-schema.ts";
+import type { RunLogTable } from "./sqlite-schema.ts";
 
-const Sha256Schema = z.string().regex(/^[0-9a-f]{64}$/);
-const UtcDateTimeSchema = z.string().refine((value) => {
+export const Sha256Schema = z.string().regex(/^[0-9a-f]{64}$/);
+export const UtcDateTimeSchema = z.string().refine((value) => {
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value;
 });
@@ -97,7 +92,7 @@ const PersistedAssertionSchema: z.ZodType<PersistedAssertionV1> = z.lazy(() =>
     assert: z.array(PersistedAssertionSchema).min(1).optional()
   })
 );
-const CaseDefinitionV1Schema = z.strictObject({
+export const CaseDefinitionV1Schema = z.strictObject({
   contractVersion: z.literal("cortex.case-definition.v1"),
   description: z.string().trim().min(1),
   threshold: z.number().min(0).max(1),
@@ -163,7 +158,7 @@ const PromptDefinitionV1Schema = z.strictObject({
     .array(z.strictObject({ role: z.enum(["SYSTEM", "USER", "ASSISTANT"]), content: z.string() }))
     .min(1)
 });
-const ProviderOutputV1Schema = z.discriminatedUnion("ok", [
+export const ProviderOutputV1Schema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
     task_name: z.string().trim().min(1),
@@ -232,6 +227,14 @@ const SuiteSnapshotSchema = z.strictObject({
   suiteHash: Sha256Schema,
   cases: z.array(FrozenCaseSchema).min(1)
 });
+export const ImportedSuiteSnapshotSchema = z.strictObject({
+  contractVersion: z.literal("cortex.run-snapshot.v1"),
+  kind: z.literal("IMPORTED_SUITE"),
+  id: SnapshotIdentitySchema,
+  name: z.string().trim().min(1),
+  suiteHash: Sha256Schema,
+  caseCount: z.number().int().positive()
+});
 const EndpointSnapshotSchema = z.strictObject({
   contractVersion: z.literal("cortex.run-snapshot.v1"),
   kind: z.literal("ENDPOINT"),
@@ -265,7 +268,15 @@ const ContractVersionsSchema = z.strictObject({
   caseDefinition: z.literal("cortex.case-definition.v1"),
   platformRestResults: z.literal("cortex.platform-rest-results.v1")
 });
-const ExecutionLimitsSchema = z.strictObject({
+export const ImportedContractVersionsSchema = z.strictObject({
+  caseDefinition: z.literal("cortex.case-definition.v1"),
+  restResults: z.literal("cortex.rest-results.v1"),
+  normalizedEval: z.literal("cortex.normalized-eval.v1"),
+  report: z.literal("cortex.report.v1"),
+  analysisInput: z.literal("cortex.analysis-input.v1"),
+  analysisOutput: z.literal("cortex.analysis-output.v1")
+});
+export const ExecutionLimitsSchema = z.strictObject({
   contractVersion: z.literal("cortex.run-execution-limits.v1"),
   restConcurrency: z.number().int().min(1).max(64),
   evalConcurrency: z.number().int().min(1).max(16)
@@ -278,6 +289,32 @@ const RubricPromptSummariesSchema = z.array(
     promptKey: z.string().trim().min(1)
   })
 );
+const NullableRateSchema = z.number().min(0).max(1).nullable();
+export const PersistedReportSummarySchema = z.strictObject({
+  summary: z.strictObject({
+    total: z.number().int().nonnegative(),
+    restSucceeded: z.number().int().nonnegative(),
+    restError: z.number().int().nonnegative(),
+    evalPass: z.number().int().nonnegative(),
+    evalFail: z.number().int().nonnegative(),
+    evalError: z.number().int().nonnegative(),
+    notEvaluated: z.number().int().nonnegative(),
+    effectivePassRate: NullableRateSchema,
+    evaluatedPassRate: NullableRateSchema,
+    coverageRate: NullableRateSchema
+  }),
+  byMetric: z.array(
+    z.strictObject({
+      metric: z.string().trim().min(1),
+      pass: z.number().int().nonnegative(),
+      fail: z.number().int().nonnegative(),
+      error: z.number().int().nonnegative(),
+      skipped: z.number().int().nonnegative(),
+      notEvaluated: z.number().int().nonnegative(),
+      passRate: NullableRateSchema
+    })
+  )
+});
 
 /** Selected small Run state columns without frozen JSON payloads. */
 export interface PlatformRunProgressRowProjection {
@@ -296,6 +333,9 @@ export interface PlatformRunProgressRowProjection {
   readonly eval_error_count: number;
   readonly eval_not_evaluated_count: number;
   readonly result_set_hash: string | null;
+  readonly evaluation_context_hash: string | null;
+  readonly evaluation_result_set_hash: string | null;
+  readonly report_result_set_hash: string | null;
   readonly artifact_manifest_json: string;
   readonly error_code: string | null;
   readonly error_message: string | null;
@@ -336,7 +376,10 @@ interface EvaluationCounterProjection {
 }
 
 // Validate one dirty persistence-boundary Evaluation summary against its frozen total.
-function hasValidEvaluationCounters(row: EvaluationCounterProjection, total: number): boolean {
+export function hasValidEvaluationCounters(
+  row: EvaluationCounterProjection,
+  total: number
+): boolean {
   const counters = [
     row.eval_completed_count,
     row.eval_pass_count,
@@ -354,7 +397,7 @@ function hasValidEvaluationCounters(row: EvaluationCounterProjection, total: num
 }
 
 // Parse one strict JSON boundary contract without exposing Zod details upstream.
-function parseJson<T>(schema: z.ZodType<T>, serialized: string): T {
+export function parseJson<T>(schema: z.ZodType<T>, serialized: string): T {
   try {
     return schema.parse(JSON.parse(serialized) as unknown);
   } catch {
@@ -379,7 +422,7 @@ function assertionFromV1(value: CaseDefinitionV1["assert"][number]): AssertionDe
 }
 
 // Map one strict transport Case into the clean Domain model.
-function caseFromV1(value: CaseDefinitionV1): CaseDefinition {
+export function caseFromV1(value: CaseDefinitionV1): CaseDefinition {
   return {
     caseKey: value.metadata.case_id,
     description: value.description,
@@ -418,7 +461,9 @@ function promptFromV1(value: z.infer<typeof PromptDefinitionV1Schema>): PromptDe
 }
 
 // Map a transport Provider Output to clean Domain names.
-function providerOutputFromV1(value: z.infer<typeof ProviderOutputV1Schema>): ProviderOutput {
+export function providerOutputFromV1(
+  value: z.infer<typeof ProviderOutputV1Schema>
+): ProviderOutput {
   if (!value.ok) return { ok: false, errorMessage: value.err_msg };
   return {
     ok: true,
@@ -429,7 +474,7 @@ function providerOutputFromV1(value: z.infer<typeof ProviderOutputV1Schema>): Pr
 }
 
 // Map a clean Provider Output to the persisted strict transport projection.
-function providerOutputToV1(value: ProviderOutput): DomainJsonObject {
+export function providerOutputToV1(value: ProviderOutput): DomainJsonObject {
   return value.ok
     ? {
         ok: true,
@@ -517,7 +562,7 @@ function mapSuite(serialized: string): PlatformRun["suite"] {
 }
 
 // Parse and revalidate one frozen Endpoint snapshot.
-function mapEndpoint(serialized: string): PlatformRun["endpoint"] {
+export function mapEndpoint(serialized: string): PlatformRun["endpoint"] {
   const value = parseJson(EndpointSnapshotSchema, serialized);
   const definition = endpointFromV1(value.definition);
   if (!validateEndpointConfig(definition).ok) throw new SqliteRowInvalidError();
@@ -530,7 +575,7 @@ function mapEndpoint(serialized: string): PlatformRun["endpoint"] {
 }
 
 // Parse and revalidate one frozen Evaluator snapshot.
-function mapEvaluator(serialized: string): PlatformRun["evaluator"] {
+export function mapEvaluator(serialized: string): PlatformRun["evaluator"] {
   const value = parseJson(EvaluatorSnapshotSchema, serialized);
   const definition = evaluatorFromV1(value.definition);
   if (!validateLlmConfig(definition).ok) throw new SqliteRowInvalidError();
@@ -540,7 +585,7 @@ function mapEvaluator(serialized: string): PlatformRun["evaluator"] {
 }
 
 // Parse and revalidate the complete frozen Rubric Prompt set.
-function mapRubricPrompts(serialized: string): PlatformRun["rubricPrompts"] {
+export function mapRubricPrompts(serialized: string): PlatformRun["rubricPrompts"] {
   const value = parseJson(RubricPromptsSnapshotSchema, serialized);
   return value.items.map((item) => {
     const definition = promptFromV1(item.definition);
@@ -559,6 +604,62 @@ function mapRubricPrompts(serialized: string): PlatformRun["rubricPrompts"] {
       definition
     };
   });
+}
+
+/** Serialize one cleaned frozen Endpoint through the same stable snapshot contract. */
+export function frozenEndpointSnapshotJson(value: PlatformRun["endpoint"]): DomainJsonObject {
+  return {
+    contractVersion: "cortex.run-snapshot.v1",
+    kind: "ENDPOINT",
+    sourceId: value.sourceId,
+    name: value.name,
+    configHash: value.configHash,
+    definition: endpointToV1(value.definition)
+  };
+}
+
+/** Serialize one cleaned frozen Evaluator through the same stable snapshot contract. */
+export function frozenEvaluatorSnapshotJson(value: PlatformRun["evaluator"]): DomainJsonObject {
+  return {
+    contractVersion: "cortex.run-snapshot.v1",
+    kind: "EVALUATOR",
+    sourceId: value.sourceId,
+    name: value.name,
+    configHash: value.configHash,
+    definition: evaluatorToV1(value.definition)
+  };
+}
+
+/** Serialize cleaned frozen Rubric Prompts through the same stable snapshot contract. */
+export function frozenRubricPromptsSnapshotJson(
+  values: PlatformRun["rubricPrompts"]
+): DomainJsonObject {
+  return {
+    contractVersion: "cortex.run-snapshot.v1",
+    kind: "RUBRIC_PROMPTS",
+    items: values.map((item) => ({
+      sourceId: item.sourceId,
+      name: item.name,
+      promptHash: item.promptHash,
+      definition: promptToV1(item.definition)
+    }))
+  };
+}
+
+// Parse one imported Execution-owned Manifest and bind it to the exact Execution identity.
+export function mapImportedManifest(
+  serialized: string,
+  executionId: string
+): ImportedExecutionArtifactManifest {
+  const value = parseJson(ArtifactManifestV1Schema, serialized);
+  if (value.owner.kind !== "EXECUTION" || value.owner.id !== executionId) {
+    throw new SqliteRowInvalidError();
+  }
+  return {
+    contractVersion: value.contractVersion,
+    owner: value.owner,
+    artifacts: value.artifacts
+  };
 }
 
 // Parse one complete Run-owned Manifest and reject an owner mismatch.
@@ -606,6 +707,9 @@ export function mapPlatformRunProgressRow(
     evalErrorCount: row.eval_error_count,
     evalNotEvaluatedCount: row.eval_not_evaluated_count,
     resultSetHash: row.result_set_hash,
+    evaluationContextHash: row.evaluation_context_hash,
+    evaluationResultSetHash: row.evaluation_result_set_hash,
+    reportResultSetHash: row.report_result_set_hash,
     artifactManifest: mapRunManifest(row.artifact_manifest_json, row.id),
     errorCode: row.error_code,
     errorMessage: row.error_message,
@@ -689,6 +793,8 @@ export function mapPlatformRunRow(row: Selectable<RunLogTable>): PlatformRun {
   const rubricPrompts = mapRubricPrompts(row.rubric_prompts_snapshot_json);
   const contractVersions = parseJson(ContractVersionsSchema, row.contract_versions_json);
   const runExecutionLimits = parseJson(ExecutionLimitsSchema, row.run_execution_limits_json);
+  const reportSummary =
+    row.summary_json === null ? null : parseJson(PersistedReportSummarySchema, row.summary_json);
   const rubricPromptSetHash = hashRubricPromptSet({
     contractVersion: "cortex.rubric-prompt-set.v1",
     prompts: rubricPrompts.map((item) => ({
@@ -708,7 +814,8 @@ export function mapPlatformRunRow(row: Selectable<RunLogTable>): PlatformRun {
   if (
     contextHash !== row.run_context_hash ||
     row.promptfoo_version !== "0.121.18" ||
-    !hasValidEvaluationCounters(row, suite.cases.length)
+    !hasValidEvaluationCounters(row, suite.cases.length) ||
+    (reportSummary === null) !== (row.report_result_set_hash === null)
   ) {
     throw new SqliteRowInvalidError();
   }
@@ -738,6 +845,10 @@ export function mapPlatformRunRow(row: Selectable<RunLogTable>): PlatformRun {
     evalErrorCount: row.eval_error_count,
     evalNotEvaluatedCount: row.eval_not_evaluated_count,
     resultSetHash: row.result_set_hash,
+    evaluationContextHash: row.evaluation_context_hash,
+    evaluationResultSetHash: row.evaluation_result_set_hash,
+    reportResultSetHash: row.report_result_set_hash,
+    reportSummary,
     artifactManifest: mapRunManifest(row.artifact_manifest_json, row.id),
     errorCode: row.error_code,
     errorMessage: row.error_message,
@@ -815,8 +926,17 @@ export function platformRunInsertValues(value: PlatformRun): Insertable<RunLogTa
     eval_fail_count: value.evalFailCount,
     eval_error_count: value.evalErrorCount,
     eval_not_evaluated_count: value.evalNotEvaluatedCount,
-    summary_json: null,
+    summary_json:
+      value.reportSummary === null
+        ? null
+        : canonicalJson({
+            summary: { ...value.reportSummary.summary },
+            byMetric: value.reportSummary.byMetric.map((item) => ({ ...item }))
+          }),
     result_set_hash: value.resultSetHash,
+    evaluation_context_hash: value.evaluationContextHash,
+    evaluation_result_set_hash: value.evaluationResultSetHash,
+    report_result_set_hash: value.reportResultSetHash,
     artifact_manifest_json: canonicalJson({
       contractVersion: value.artifactManifest.contractVersion,
       owner: { ...value.artifactManifest.owner },
@@ -829,155 +949,4 @@ export function platformRunInsertValues(value: PlatformRun): Insertable<RunLogTa
     created_at: value.createdAt,
     updated_at: value.updatedAt
   };
-}
-
-/** Map and validate one persisted REST Case result row. */
-export function mapStoredRestResult(row: Selectable<CaseResultTable>): StoredRestCaseResult {
-  const definitionV1 = parseJson(CaseDefinitionV1Schema, row.case_definition_json);
-  const definition = caseFromV1(definitionV1);
-  if (definition.caseKey !== row.case_key) throw new SqliteRowInvalidError();
-  const provenance = mapRestProvenance(row);
-  if (row.rest_status === "SUCCEEDED") {
-    if (
-      row.provider_output_json === null ||
-      row.http_status === null ||
-      row.error_type !== null ||
-      row.error_message !== null
-    ) {
-      throw new SqliteRowInvalidError();
-    }
-    const providerOutput = providerOutputFromV1(
-      parseJson(ProviderOutputV1Schema, row.provider_output_json)
-    );
-    const result: StoredRestCaseResult = {
-      runId: row.run_id,
-      caseKey: row.case_key,
-      ordinal: row.ordinal,
-      definition,
-      caseDefinitionHash: row.case_definition_hash,
-      status: "SUCCEEDED",
-      httpStatus: row.http_status,
-      providerOutput,
-      errorType: null,
-      errorMessage: null,
-      durationMs: row.duration_ms,
-      completedAt: row.completed_at,
-      resultHash: row.run_result_hash,
-      provenance
-    };
-    if (!platformRestResultHashMatches(result)) throw new SqliteRowInvalidError();
-    return result;
-  }
-  const errorType = restErrorType(row.error_type);
-  if (row.provider_output_json !== null || row.error_message === null) {
-    throw new SqliteRowInvalidError();
-  }
-  const result: StoredRestCaseResult = {
-    runId: row.run_id,
-    caseKey: row.case_key,
-    ordinal: row.ordinal,
-    definition,
-    caseDefinitionHash: row.case_definition_hash,
-    status: "ERROR",
-    httpStatus: row.http_status,
-    providerOutput: null,
-    errorType,
-    errorMessage: row.error_message,
-    durationMs: row.duration_ms,
-    completedAt: row.completed_at,
-    resultHash: row.run_result_hash,
-    provenance
-  };
-  if (!platformRestResultHashMatches(result)) throw new SqliteRowInvalidError();
-  return result;
-}
-
-/** Recompute one REST semantic hash before accepting a caller or persisted row. */
-export function platformRestResultHashMatches(value: StoredRestCaseResult): boolean {
-  const resultHash =
-    value.status === "SUCCEEDED"
-      ? hashRestResult({
-          contractVersion: "cortex.rest-result.v1",
-          caseKey: value.caseKey,
-          caseDefinitionHash: value.caseDefinitionHash,
-          result: {
-            status: "SUCCEEDED",
-            httpStatus: value.httpStatus,
-            providerOutput: value.providerOutput
-          }
-        })
-      : hashRestResult({
-          contractVersion: "cortex.rest-result.v1",
-          caseKey: value.caseKey,
-          caseDefinitionHash: value.caseDefinitionHash,
-          result: {
-            status: "ERROR",
-            httpStatus: value.httpStatus,
-            errorType: value.errorType
-          }
-        });
-  return resultHash === value.resultHash;
-}
-
-// Convert the three nullable persistence columns into one closed provenance fact.
-function mapRestProvenance(row: Selectable<CaseResultTable>): StoredRestCaseResult["provenance"] {
-  const sourceHash = row.reused_result_hash;
-  const runId = row.reused_from_run_id;
-  const executionId = row.reused_from_execution_id;
-  if (sourceHash === null) {
-    if (runId !== null || executionId !== null) throw new SqliteRowInvalidError();
-    return null;
-  }
-  if (!Sha256Schema.safeParse(sourceHash).success || (runId === null) === (executionId === null)) {
-    throw new SqliteRowInvalidError();
-  }
-  if (runId !== null) {
-    return { sourceKind: "RUN", sourceId: runId, sourceResultHash: sourceHash };
-  }
-  if (executionId === null) throw new SqliteRowInvalidError();
-  return { sourceKind: "EXECUTION", sourceId: executionId, sourceResultHash: sourceHash };
-}
-
-// Narrow one persisted error type into the closed Application union.
-function restErrorType(value: string | null): RestExecutionErrorType {
-  const supported = new Set([
-    "TIMEOUT",
-    "NETWORK",
-    "HTTP_STATUS",
-    "RESPONSE_PARSE",
-    "PROVIDER_OUTPUT_INVALID",
-    "TEMPLATE_INPUT",
-    "CANCELLED"
-  ]);
-  if (value === null || !supported.has(value)) throw new SqliteRowInvalidError();
-  return value as RestExecutionErrorType;
-}
-
-/** Convert one already-valid REST result into exact insert values. */
-export function restResultInsertValues(value: StoredRestCaseResult): Insertable<CaseResultTable> {
-  return {
-    run_id: value.runId,
-    case_key: value.caseKey,
-    ordinal: value.ordinal,
-    case_definition_json: canonicalJson(caseDefinitionJson(value.definition)),
-    case_definition_hash: value.caseDefinitionHash,
-    rest_status: value.status,
-    http_status: value.httpStatus,
-    provider_output_json:
-      value.status === "SUCCEEDED" ? canonicalJson(providerOutputToV1(value.providerOutput)) : null,
-    duration_ms: value.durationMs,
-    error_type: value.errorType,
-    error_message: value.errorMessage,
-    completed_at: value.completedAt,
-    run_result_hash: value.resultHash,
-    reused_from_run_id: value.provenance?.sourceKind === "RUN" ? value.provenance.sourceId : null,
-    reused_from_execution_id:
-      value.provenance?.sourceKind === "EXECUTION" ? value.provenance.sourceId : null,
-    reused_result_hash: value.provenance?.sourceResultHash ?? null
-  };
-}
-
-/** Validate one complete timestamp before a Run write is attempted. */
-export function requireRunTimestamp(value: string): void {
-  if (!UtcDateTimeSchema.safeParse(value).success) throw new SqliteRowInvalidError();
 }
