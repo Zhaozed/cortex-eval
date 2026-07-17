@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { input } from "zod";
 
-import { ExecutionV1Schema, WorkPackageManifestV1Schema } from "../src/work-package-contracts.ts";
+import { ExecutionV2Schema, WorkPackageManifestV2Schema } from "../src/work-package-contracts.ts";
 
 const ID = "018f1e2d-3c4b-7abc-8def-0123456789ab";
 const HASH = "a".repeat(64);
@@ -11,15 +11,15 @@ function file(path: string): { path: string; sha256: string; sizeBytes: number }
   return { path, sha256: HASH, sizeBytes: 10 };
 }
 
-function manifest(): input<typeof WorkPackageManifestV1Schema> {
+function manifest(): input<typeof WorkPackageManifestV2Schema> {
   return {
-    contractVersion: "cortex.work-package-manifest.v1",
+    contractVersion: "cortex.work-package-manifest.v2",
     packageId: ID,
     createdAt: TIME,
     sourceSuite: { suiteId: ID, suiteHash: HASH },
     cases: [{ caseKey: "case-1", ordinal: 0, baseDefinitionHash: HASH }],
     inputs: {
-      tests: file("inputs/tests.json"),
+      tests: file("inputs/tests.jsonl"),
       endpoint: file("inputs/endpoint.json"),
       evaluator: file("inputs/evaluator.json"),
       analyzer: file("inputs/analyzer.json"),
@@ -43,8 +43,8 @@ function manifest(): input<typeof WorkPackageManifestV1Schema> {
     promptfoo: { version: "0.121.18", generationContractVersion: "cortex.promptfoo-generation.v1" },
     contractVersions: {
       caseDefinition: "cortex.case-definition.v1",
-      restResults: "cortex.rest-results.v1",
-      normalizedEval: "cortex.normalized-eval.v1",
+      restResults: "cortex.rest-results-jsonl.v1",
+      normalizedEval: "cortex.normalized-eval-jsonl.v1",
       report: "cortex.report.v1",
       analysisInput: "cortex.analysis-input.v1",
       analysisOutput: "cortex.analysis-output.v1"
@@ -80,16 +80,16 @@ function manifest(): input<typeof WorkPackageManifestV1Schema> {
     },
     artifactSlots: {
       REST_RESULTS: {
-        path: "executions/{execution_id}/rest-results.json",
-        contractVersion: "cortex.rest-results.v1"
+        path: "executions/{execution_id}/rest-results.jsonl",
+        contractVersion: "cortex.rest-results-jsonl.v1"
       },
       RAW_PROMPTFOO_EVIDENCE: {
         path: "executions/{execution_id}/promptfoo-raw.json",
         contractVersion: "promptfoo.0.121.18"
       },
       NORMALIZED_EVAL_RESULTS: {
-        path: "executions/{execution_id}/normalized-eval.json",
-        contractVersion: "cortex.normalized-eval.v1"
+        path: "executions/{execution_id}/normalized-eval.jsonl",
+        contractVersion: "cortex.normalized-eval-jsonl.v1"
       },
       REPORT_JSON: {
         path: "executions/{execution_id}/report.json",
@@ -107,13 +107,19 @@ function manifest(): input<typeof WorkPackageManifestV1Schema> {
   };
 }
 
-describe("Work Package v1", () => {
+describe("Work Package v2", () => {
   it("一次冻结四阶段输入、依赖图和全部产物槽位", () => {
-    expect(WorkPackageManifestV1Schema.parse(manifest()).packageId).toBe(ID);
+    expect(WorkPackageManifestV2Schema.parse(manifest()).packageId).toBe(ID);
   });
 
   it("拒绝未知版本、逃逸路径、重复 Case 和展开 Secret", () => {
     const valid = manifest();
+    expect(
+      WorkPackageManifestV2Schema.safeParse({
+        ...valid,
+        contractVersion: "cortex.work-package-manifest.v1"
+      }).success
+    ).toBe(false);
     const firstCase = valid.cases.at(0);
     if (firstCase === undefined) throw new Error("fixture case missing");
     const value = {
@@ -123,13 +129,13 @@ describe("Work Package v1", () => {
       cases: [...valid.cases, firstCase],
       apiKey: "secret"
     };
-    expect(WorkPackageManifestV1Schema.safeParse(value).success).toBe(false);
+    expect(WorkPackageManifestV2Schema.safeParse(value).success).toBe(false);
   });
 
   it("拒绝输入文件路径和 Rubric Prompt 身份重复", () => {
     const duplicatePath = manifest();
     duplicatePath.inputs.evaluator.path = duplicatePath.inputs.endpoint.path;
-    expect(WorkPackageManifestV1Schema.safeParse(duplicatePath).success).toBe(false);
+    expect(WorkPackageManifestV2Schema.safeParse(duplicatePath).success).toBe(false);
 
     const duplicatePrompt = manifest();
     const firstPrompt = duplicatePrompt.inputs.rubricPrompts[0];
@@ -138,14 +144,14 @@ describe("Work Package v1", () => {
       ...firstPrompt,
       path: "inputs/rubrics/duplicate.json"
     });
-    expect(WorkPackageManifestV1Schema.safeParse(duplicatePrompt).success).toBe(false);
+    expect(WorkPackageManifestV2Schema.safeParse(duplicatePrompt).success).toBe(false);
   });
 });
 
-describe("Execution v1", () => {
+describe("Execution v2", () => {
   it("冻结身份、限制、上下文哈希、阶段状态和输出文件", () => {
     const value = {
-      contractVersion: "cortex.execution.v1",
+      contractVersion: "cortex.execution.v2",
       packageId: ID,
       executionId: ID,
       createdAt: TIME,
@@ -193,22 +199,22 @@ describe("Execution v1", () => {
         }
       }
     };
-    expect(ExecutionV1Schema.parse(value).executionContextHash).toBe(HASH);
+    expect(ExecutionV2Schema.parse(value).executionContextHash).toBe(HASH);
     expect(
-      ExecutionV1Schema.safeParse({
+      ExecutionV2Schema.safeParse({
         ...value,
         runExecutionLimits: { ...value.runExecutionLimits, restConcurrency: 65 }
       }).success
     ).toBe(false);
     const restArtifact = {
       kind: "REST_RESULTS",
-      path: `executions/${ID}/rest-results.json`,
+      path: `executions/${ID}/rest-results.jsonl`,
       sha256: HASH,
       sizeBytes: 1,
-      contractVersion: "cortex.rest-results.v1"
+      contractVersion: "cortex.rest-results-jsonl.v1"
     } as const;
     expect(
-      ExecutionV1Schema.safeParse({
+      ExecutionV2Schema.safeParse({
         ...value,
         startedAt: TIME,
         stages: {
@@ -224,7 +230,7 @@ describe("Execution v1", () => {
       }).success
     ).toBe(false);
     expect(
-      ExecutionV1Schema.safeParse({
+      ExecutionV2Schema.safeParse({
         ...value,
         startedAt: TIME,
         completedAt: TIME,
@@ -241,7 +247,7 @@ describe("Execution v1", () => {
       }).success
     ).toBe(false);
     expect(
-      ExecutionV1Schema.safeParse({
+      ExecutionV2Schema.safeParse({
         ...value,
         startedAt: TIME,
         stages: {
@@ -261,10 +267,10 @@ describe("Execution v1", () => {
               },
               {
                 kind: "NORMALIZED_EVAL_RESULTS",
-                path: `executions/${ID}/normalized-eval.json`,
+                path: `executions/${ID}/normalized-eval.jsonl`,
                 sha256: HASH,
                 sizeBytes: 1,
-                contractVersion: "cortex.normalized-eval.v1"
+                contractVersion: "cortex.normalized-eval-jsonl.v1"
               }
             ]
           }
@@ -272,13 +278,13 @@ describe("Execution v1", () => {
       }).success
     ).toBe(false);
     expect(
-      ExecutionV1Schema.safeParse({
+      ExecutionV2Schema.safeParse({
         ...value,
         rerun: { mode: "FORCE", sourceExecutionId: ID }
       }).success
     ).toBe(false);
     expect(
-      ExecutionV1Schema.safeParse({
+      ExecutionV2Schema.safeParse({
         ...value,
         stages: {
           ...value.stages,
@@ -301,7 +307,7 @@ describe("Execution v1", () => {
       }).success
     ).toBe(false);
     expect(
-      ExecutionV1Schema.safeParse({
+      ExecutionV2Schema.safeParse({
         ...value,
         stages: {
           ...value.stages,
@@ -316,7 +322,7 @@ describe("Execution v1", () => {
       }).success
     ).toBe(false);
     expect(
-      ExecutionV1Schema.safeParse({
+      ExecutionV2Schema.safeParse({
         ...value,
         stages: {
           ...value.stages,

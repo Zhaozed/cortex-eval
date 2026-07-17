@@ -2,7 +2,7 @@ import { chmod, cp, lstat, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
-const GOLDEN_SOURCE = fileURLToPath(new URL("../test-fixtures/work-package-v1/", import.meta.url));
+const GOLDEN_SOURCE = fileURLToPath(new URL("../test-fixtures/work-package-v2/", import.meta.url));
 
 // Apply the runtime owner-only profile after copying Git-owned fixture bytes.
 async function hardenFixtureTree(path: string): Promise<void> {
@@ -22,7 +22,7 @@ async function hardenFixtureTree(path: string): Promise<void> {
   }
 }
 
-/** Copy the frozen P7 Golden Package into one disposable owner-only runtime directory. */
+/** Copy the frozen v2 Golden Package into one disposable owner-only runtime directory. */
 export async function materializeGoldenWorkPackage(targetPath: string): Promise<void> {
   await cp(GOLDEN_SOURCE, targetPath, { recursive: true, errorOnExist: true, force: false });
   await hardenFixtureTree(targetPath);

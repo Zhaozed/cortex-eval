@@ -244,8 +244,8 @@ function importedReportRun(): ImportedReportRun {
     promptfooVersion: "0.121.18",
     contractVersions: {
       caseDefinition: "cortex.case-definition.v1",
-      restResults: "cortex.rest-results.v1",
-      normalizedEval: "cortex.normalized-eval.v1",
+      restResults: "cortex.rest-results-jsonl.v1",
+      normalizedEval: "cortex.normalized-eval-jsonl.v1",
       report: "cortex.report.v1",
       analysisInput: "cortex.analysis-input.v1",
       analysisOutput: "cortex.analysis-output.v1"

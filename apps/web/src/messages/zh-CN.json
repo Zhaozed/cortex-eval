@@ -450,7 +450,7 @@
   "testSuites.deleteTitle": "删除测试集？",
   "testSuites.deleteDescription": "将删除当前测试集及其中 {count} 个 Case。此操作不会修改历史运行快照。",
   "testSuites.activeRunBlocked": "测试集正在被运行使用，当前不能删除。",
-  "testSuites.import": "导入 Cases JSON",
+  "testSuites.import": "导入 Cases JSON/JSONL",
   "testSuites.importTitle": "全量替换当前 Cases？",
   "testSuites.importDescription": "文件 {filename} 将整体校验并原子替换当前 {count} 个 Case；失败不会部分写入。",
   "testSuites.importConfirm": "确认导入并替换",

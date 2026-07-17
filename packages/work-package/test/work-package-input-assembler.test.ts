@@ -186,7 +186,7 @@ describe("Work Package input assembler", () => {
     const parsed = [];
     for await (const item of readCanonicalTests(
       (async function* (): AsyncGenerator<Buffer> {
-        yield await readFile(join(root, "inputs/tests.json"));
+        yield await readFile(join(root, "inputs/tests.jsonl"));
       })()
     )) {
       parsed.push(item.metadata.case_id);

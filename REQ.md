@@ -74,7 +74,7 @@ CLI 不直接打开平台 SQLite。平台导出和结果导入均通过本地 HT
 
 ### 5.1 测试集
 
-`test_suite/current/cases/loona_promptfoo_tests.json` 是当前测试集样例。输入是 Promptfoo JSON 数组，每个元素是一条测试 Case。
+`test_suite/current/cases/loona_promptfoo_tests.jsonl` 是当前测试集样例。默认输入为 JSONL，每个非空行是一条 Promptfoo 测试 Case；显式 `.json` 文件仍可作为旧数组格式导入。
 
 测试集保存当前 Case 集合，不保存历史版本。导入可以创建新测试集，也可以全量替换指定测试集的当前 Cases。全量替换必须整体校验、整体提交，不能部分成功。
 
@@ -181,7 +181,7 @@ Case Analysis Prompt 单独管理，不与 LLM Rubric Prompt 混表。
 
 ### 5.8 REST 结果
 
-`test_suite/current/run_result/test_example.json` 是当前已提交的 REST 结果样例。
+`test_suite/current/run_result/test_example.json` 是历史 REST 结果契约样例。新的本地执行统一使用 `rest run` 或 `pipeline run` CLI；REST 阶段在 Work Package 中生成 `executions/<execution-id>/rest-results.jsonl`，不再维护独立 REST 获取脚本。
 
 HTTP 2xx 响应必须解析为 JSON 对象，并满足以下业务结构之一。
 
@@ -203,7 +203,7 @@ HTTP 非 2xx、网络错误、超时、JSON 解析失败或结构校验失败才
 
 ### 5.9 Promptfoo 结果
 
-`test_suite/current/eval_result/test_example.json` 是当前已提交的 Promptfoo 完整结果样例。
+`test_suite/current/eval_result/test_example.json` 是历史 Promptfoo 完整结果契约样例；本地 Eval 默认生成 `eval_result/loona_promptfoo_results.jsonl`。
 
 系统从原始结果中提取并校验稳定事实：
 
@@ -373,7 +373,7 @@ Case 创建、复制、删除或导入在用户显式使用最新 Revision 重�
 
 工作包不得包含任何 API Key、Authorization 值或其他 Secret 展开值。
 
-Work Package v1 运行时按 UTF-8 原始字节执行固定上限：Manifest 256 MiB、单个 Execution 4 MiB、每个配置/Prompt/`.env.example` 8 MiB、Canonical Tests 总计 1.25 GiB、单个 Canonical Test Case 16 MiB、单个 REST Result Case 32 MiB、单个 Normalized Eval Case 32 MiB、单个 Report Case 80 MiB、单个 Analysis Result Case 80 MiB、单个 Promptfoo Raw Result Row 64 MiB、解码后的单个 JSON String Token 16 MiB。REST、Normalized、Report、Analysis 和 Raw Artifact 不新增总文件上限，必须流式计算 Hash、复制和存在性；REST/Normalized/Report/Analysis 按 Case 流式解析，真实 Promptfoo Raw 在私有临时目录中完成版本、JSON、逐 Row、字符串和 Capability 校验后，以可回收流分别写入 Artifact 和逐 Row 导入，不得再次整文件 `readFile + JSON.parse`；Raw Retry 只校验已登记的 Hash、大小和 Descriptor，不重新整文件解析。Case 超限收敛为 `WORK_PACKAGE_INVALID`，REST 超限为 `ARTIFACT_WRITE_FAILED`，Raw 超限为 `PROMPTFOO_PROCESS_ERROR`，Normalized 超限为 `EVALUATION_STAGE_FAILED`。
+Work Package v2 运行时按 UTF-8 原始字节执行固定上限：Manifest 256 MiB、单个 Execution 4 MiB、每个配置/Prompt/`.env.example` 8 MiB、Canonical Tests 总计 1.25 GiB、单个 Canonical Test Case 16 MiB、单个 REST Result Case 32 MiB、单个 Normalized Eval Case 32 MiB、单个 JSONL 控制行 16 KiB、单个 Report Case 80 MiB、单个 Analysis Result Case 80 MiB、单个 Promptfoo Raw Result Row 64 MiB、解码后的单个 JSON String Token 16 MiB。REST 与 Normalized JSONL 的总文件上限由冻结 Case 数量和逐行上限计算，并在读取已登记 Descriptor 后预检；Canonical Tests、REST、Normalized、Report、Analysis 和 Raw 必须流式计算 Hash、复制和存在性。JSONL 必须使用 UTF-8、LF 结尾、每行一个完整对象，不接受空行、CRLF 或未终止尾行。真实 Promptfoo Raw 在私有临时目录中完成版本、JSON、逐 Row、字符串和 Capability 校验后，以可回收流分别写入 Artifact 和逐 Row 导入，不得再次整文件 `readFile + JSON.parse`；Raw Retry 只校验已登记的 Hash、大小和 Descriptor，不重新整文件解析。Case 超限收敛为 `WORK_PACKAGE_INVALID`，REST 超限为 `ARTIFACT_WRITE_FAILED`，Raw 超限为 `PROMPTFOO_PROCESS_ERROR`，Normalized 超限为 `EVALUATION_STAGE_FAILED`。
 
 离线 Evaluation 不得把最大 1.25 GiB 的 Case、REST、复用结果、Promptfoo 导入结果或最终结果聚合为数组/Map。命令在 owner-only 私有 SQLite 中按 128 Case 批次暂存强类型投影，以 Ordinal 顺序提供可重放 Case Source；Promptfoo 配置使用两遍输入并流式写入，Raw 逐 Row 导入，最终 Normalized 结果按 Ordinal 直接流式提交。内存只允许保留一个大 Case/结果及必要的紧凑身份证据。
 
@@ -486,7 +486,7 @@ Pipeline 默认执行 REST、Evaluation 和 Report，也可以显式设置阶段
 
 平台 Run ID 和离线 Execution ID 是每次执行的不可变版本身份；重试和 Force 必须创建新身份，不覆盖来源执行。单 Case Eval Result Hash 只表示可复用的规范化语义事实，不包含延迟、Token Usage、Cost 或 Raw Artifact Hash/大小等执行观测与完整性事实；Eval Result Set Hash 必须额外输入 Run/Execution 身份和 Evaluation Context Hash。每次 Evaluation 的 Raw/Normalized Artifact 都显式保存同一个 Evaluation Context Hash，并与 Result Set Hash 共同构成绑定该执行身份、冻结 Evaluator、Promptfoo/生成契约版本和 Case Definition Hash 的不可变评估版本。即使全部 Case 复用来源 Eval，新的 Retry/Force 身份也必须生成不同的 Result Set Hash。当前不保存 Eval Attempt 历史。
 
-Normalized Eval Artifact 的 `cases` 必须按冻结 Ordinal 从 `0` 连续排列，Case Key 在集合内唯一。Writer 必须在原子提交前同时校验公开 Schema、顺序、唯一性、Owner、Evaluation Context Hash 与 Result Set Hash；不得通过排序后校验 Hash、再把乱序输入原样落盘。
+Normalized Eval JSONL Artifact 使用 `HEADER → CASE × N → FOOTER` 协议；`CASE.value` 必须按冻结 Ordinal 从 `0` 连续排列，Case Key 在集合内唯一。Writer 必须在原子提交前同时校验公开 Schema、顺序、唯一性、Owner、Evaluation Context Hash 与 Result Set Hash；不得通过排序后校验 Hash、再把乱序输入原样落盘。
 
 Provider-dependent Assertion 通过 Evaluation 调用期级 Bridge v2 使用冻结 Evaluator。该调用期只存在于当前进程，不持久化 Attempt ID；Capability 绑定一个 Run/Execution、Evaluation Context Hash、Evaluator Config Hash、TTL、并发和确定性总调用预算。Bridge 不接收或识别 Case、Assertion、Metric 或组件身份，不参与 Promptfoo 评分与聚合。排队请求在获得并发槽后、调用 Evaluator 前必须重新校验关闭状态与 TTL，过期请求不得触发模型调用。官方 SDK 没有返回完整 Token Usage 时保持 `null`，Promptfoo Provider 不伪造零计数；Bridge 超时或关闭必须主动 Abort，并由自身受控竞速返回终态，不能依赖上游 Promise 配合结束。
 

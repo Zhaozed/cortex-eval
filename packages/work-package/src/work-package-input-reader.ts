@@ -27,7 +27,7 @@ import {
   AnalysisPromptDefinitionV1Schema,
   PromptDefinitionV1Schema
 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
-import type { WorkPackageManifestV1 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
+import type { WorkPackageManifestV2 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import { WORK_PACKAGE_RUNTIME_LIMITS } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
 
 import { readCanonicalTests } from "./canonical-tests-stream-reader.ts";
@@ -133,10 +133,10 @@ export class WorkPackageInputReader {
   /** Stable package directory. */
   readonly #directory: SecureWorkPackageDirectory;
   /** Fully validated immutable Manifest. */
-  readonly #manifest: WorkPackageManifestV1;
+  readonly #manifest: WorkPackageManifestV2;
 
   /** Bind one already validated package directory and Manifest. */
-  public constructor(directory: SecureWorkPackageDirectory, manifest: WorkPackageManifestV1) {
+  public constructor(directory: SecureWorkPackageDirectory, manifest: WorkPackageManifestV2) {
     this.#directory = directory;
     this.#manifest = manifest;
   }
@@ -166,7 +166,11 @@ export class WorkPackageInputReader {
       this.#manifest.inputs.tests.path,
       WORK_PACKAGE_RUNTIME_LIMITS.canonicalTestsBytes
     );
-    for await (const value of readCanonicalTests(bytes, signal)) {
+    for await (const value of readCanonicalTests(
+      bytes,
+      signal,
+      this.#manifest.inputs.tests.sizeBytes
+    )) {
       const expected = this.#manifest.cases[ordinal];
       if (expected?.caseKey !== value.metadata.case_id) {
         throw new Error("WORK_PACKAGE_INVALID");

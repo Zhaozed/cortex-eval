@@ -46,7 +46,7 @@ describe("CLI machine output contracts", () => {
         executionId: ID,
         restErrorCount: 1,
         resultSetHash: HASH,
-        artifactPath: `executions/${ID}/rest-results.json`
+        artifactPath: `executions/${ID}/rest-results.jsonl`
       })
     ).toMatchObject({ type: "REST_COMPLETED", restErrorCount: 1 });
     expect(
@@ -83,7 +83,7 @@ describe("CLI machine output contracts", () => {
         evalErrorCount: 0,
         resultSetHash: HASH,
         rawArtifactPath: `executions/${ID}/promptfoo-raw.json`,
-        normalizedArtifactPath: `executions/${ID}/normalized-eval.json`
+        normalizedArtifactPath: `executions/${ID}/normalized-eval.jsonl`
       })
     ).toMatchObject({ type: "EVALUATION_COMPLETED", promptfooExitCode: 100 });
   });
@@ -97,13 +97,13 @@ describe("CLI machine output contracts", () => {
         executionId: ID,
         restErrorCount: 0,
         restResultSetHash: HASH,
-        restArtifactPath: `executions/${ID}/rest-results.json`,
+        restArtifactPath: `executions/${ID}/rest-results.jsonl`,
         promptfooExitCode: 100,
         evalFailCount: 1,
         evalErrorCount: 0,
         evaluationResultSetHash: HASH,
         rawArtifactPath: `executions/${ID}/promptfoo-raw.json`,
-        normalizedArtifactPath: `executions/${ID}/normalized-eval.json`,
+        normalizedArtifactPath: `executions/${ID}/normalized-eval.jsonl`,
         reportResultSetHash: "b".repeat(64),
         reportSummary: {
           total: 1,

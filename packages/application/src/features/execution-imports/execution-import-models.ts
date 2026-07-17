@@ -139,9 +139,9 @@ export interface ImportedRunContractVersions {
   /** Case definition contract. */
   readonly caseDefinition: "cortex.case-definition.v1";
   /** Offline REST result contract. */
-  readonly restResults: "cortex.rest-results.v1";
+  readonly restResults: "cortex.rest-results-jsonl.v1";
   /** Normalized Evaluation contract. */
-  readonly normalizedEval: "cortex.normalized-eval.v1";
+  readonly normalizedEval: "cortex.normalized-eval-jsonl.v1";
   /** Report contract. */
   readonly report: "cortex.report.v1";
   /** Analysis input contract. */

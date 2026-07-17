@@ -4,7 +4,6 @@ import { join } from "node:path";
 
 import {
   type EvalCaseV1,
-  NormalizedEvalArtifactV1Schema,
   RawPromptfooEvidenceArtifactV1Schema
 } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import { hashExecutionContext } from "../../domain/src/domain-hash-inputs.ts";
@@ -93,7 +92,7 @@ async function openEvaluationSession(
   await restWriter.append(Buffer.from("{}\n", "utf8"));
   const restPublished = await restWriter.commit();
   await session.completeStage(EXECUTION_ID, "REST", REST_COMPLETED_AT, [
-    publishedStageArtifact(restPublished, "REST_RESULTS", "cortex.rest-results.v1")
+    publishedStageArtifact(restPublished, "REST_RESULTS", "cortex.rest-results-jsonl.v1")
   ]);
   await session.startStage(EXECUTION_ID, "EVALUATION", EVAL_STARTED_AT);
   return session;
@@ -185,7 +184,7 @@ describe("Work Package Evaluation Artifact writers", () => {
       await restWriter.append(Buffer.from("{}\n", "utf8"));
       const restPublished = await restWriter.commit();
       await session.completeStage(EXECUTION_ID, "REST", REST_COMPLETED_AT, [
-        publishedStageArtifact(restPublished, "REST_RESULTS", "cortex.rest-results.v1")
+        publishedStageArtifact(restPublished, "REST_RESULTS", "cortex.rest-results-jsonl.v1")
       ]);
       await session.startStage(EXECUTION_ID, "EVALUATION", EVAL_STARTED_AT);
 
@@ -225,21 +224,28 @@ describe("Work Package Evaluation Artifact writers", () => {
           await readFile(join(root, `executions/${EXECUTION_ID}/promptfoo-raw.json`), "utf8")
         ) as unknown
       );
-      const normalizedValue = NormalizedEvalArtifactV1Schema.parse(
-        JSON.parse(
-          await readFile(join(root, `executions/${EXECUTION_ID}/normalized-eval.json`), "utf8")
-        ) as unknown
-      );
+      const normalizedRecords = (
+        await readFile(join(root, `executions/${EXECUTION_ID}/normalized-eval.jsonl`), "utf8")
+      )
+        .trimEnd()
+        .split("\n")
+        .map(
+          (line) => JSON.parse(line) as { readonly recordType: string; readonly value?: unknown }
+        );
       expect(rawValue).toMatchObject({
         packageId: WORK_PACKAGE_FIXTURE_ID,
         executionId: EXECUTION_ID,
         evaluationContextHash: HASH
       });
-      expect(normalizedValue).toMatchObject({
+      expect(normalizedRecords[0]).toMatchObject({
         packageId: WORK_PACKAGE_FIXTURE_ID,
         executionId: EXECUTION_ID,
-        evaluationContextHash: HASH,
-        cases: [{ caseKey: "case-1", ordinal: 0, status: "PASS" }]
+        evaluationContextHash: HASH
+      });
+      expect(normalizedRecords[1]?.value).toMatchObject({
+        caseKey: "case-1",
+        ordinal: 0,
+        status: "PASS"
       });
     } finally {
       await session.close();
@@ -272,7 +278,7 @@ describe("Work Package Evaluation Artifact writers", () => {
       await restWriter.append(Buffer.from("{}\n", "utf8"));
       const restPublished = await restWriter.commit();
       await session.completeStage(EXECUTION_ID, "REST", REST_COMPLETED_AT, [
-        publishedStageArtifact(restPublished, "REST_RESULTS", "cortex.rest-results.v1")
+        publishedStageArtifact(restPublished, "REST_RESULTS", "cortex.rest-results-jsonl.v1")
       ]);
       await session.startStage(EXECUTION_ID, "EVALUATION", EVAL_STARTED_AT);
       const writer = await WorkPackageNormalizedEvalArtifactWriter.create(

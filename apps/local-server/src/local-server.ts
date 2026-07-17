@@ -160,6 +160,20 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 /** Exact maximum multipart Case JSON file bytes. */
 export const MAX_CASE_IMPORT_BYTES = 200 * 1024 * 1024;
 
+const CASE_IMPORT_JSON_MEDIA_TYPES = new Set([
+  "application/json",
+  "application/x-ndjson",
+  "application/ndjson",
+  "application/jsonl"
+]);
+
+// Accept generic browser file media types only when the filename identifies JSONL.
+function caseImportFileIsSupported(filename: string, mimetype: string): boolean {
+  if (CASE_IMPORT_JSON_MEDIA_TYPES.has(mimetype)) return true;
+  if (!filename.toLowerCase().endsWith(".jsonl")) return false;
+  return mimetype === "application/octet-stream" || mimetype === "text/plain";
+}
+
 // Read all raw header values so duplicate Host/Origin headers cannot be collapsed safely.
 function rawHeaderValues(request: FastifyRequest, headerName: string): readonly string[] {
   const result: string[] = [];
@@ -538,7 +552,10 @@ function registerMultipartImportRoute(
         const part = await request.file({
           limits: { fileSize: MAX_CASE_IMPORT_BYTES, files: 1, fields: 0, parts: 1 }
         });
-        if (part?.fieldname !== "file" || part.mimetype !== "application/json") {
+        if (
+          part?.fieldname !== "file" ||
+          !caseImportFileIsSupported(part.filename, part.mimetype)
+        ) {
           sendValidationError(reply, request.id, "file");
           return;
         }

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { chmod, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -8,9 +8,8 @@ import type {
   FrozenEvaluationEngine,
   FrozenEvaluationEngineResult
 } from "@cortex-eval/application/src/features/evaluation/frozen-evaluation-engine.ts";
-import { NormalizedEvalArtifactV1Schema } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import type { ErrorCode } from "@cortex-eval/contracts/src/error-contracts.ts";
-import type { ExecutionV1 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
+import type { ExecutionV2 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import { caseDefinitionJson } from "@cortex-eval/domain/src/domain-case-projection.ts";
 import {
   hashCaseDefinition,
@@ -50,6 +49,7 @@ import {
   fakeEngineCaseSource,
   waitForFile
 } from "../test-support/evaluation-run-test-support.ts";
+import { readNormalizedEvalJsonlForTest } from "../test-support/normalized-eval-jsonl-test-reader.ts";
 
 const EXECUTION_ID = "018f22aa-33bb-7ccc-8ddd-fffffffffff1";
 const CREATED_AT = "2026-07-14T07:00:00.000Z";
@@ -57,6 +57,7 @@ const REST_COMPLETED_AT = "2026-07-14T07:01:00.000Z";
 const EVAL_COMPLETED_AT = "2026-07-14T07:03:00.000Z";
 const EVALUATION_CONTEXT_HASH = "f".repeat(64);
 const roots: string[] = [];
+
 const contextHasher = {
   hash: (input: WorkPackageExecutionContextHashInput): string =>
     hashExecutionContext({
@@ -276,7 +277,7 @@ function evaluationService(engine: FrozenEvaluationEngine): WorkPackageEvaluatio
   return new WorkPackageEvaluationRunService(evaluationServiceDependencies(engine));
 }
 
-async function readExecution(root: string, executionId: string): Promise<ExecutionV1> {
+async function readExecution(root: string, executionId: string): Promise<ExecutionV2> {
   const session = await openWorkPackageExecutionSession({
     rootPath: root,
     owner: {
@@ -362,12 +363,10 @@ describe("P7 Work Package Evaluation run service", () => {
       evalFailCount: 1,
       evalErrorCount: 0,
       rawArtifactPath: `executions/${EXECUTION_ID}/promptfoo-raw.json`,
-      normalizedArtifactPath: `executions/${EXECUTION_ID}/normalized-eval.json`
+      normalizedArtifactPath: `executions/${EXECUTION_ID}/normalized-eval.jsonl`
     });
-    const normalized = NormalizedEvalArtifactV1Schema.parse(
-      JSON.parse(
-        await readFile(join(root, `executions/${EXECUTION_ID}/normalized-eval.json`), "utf8")
-      ) as unknown
+    const normalized = await readNormalizedEvalJsonlForTest(
+      join(root, `executions/${EXECUTION_ID}/normalized-eval.jsonl`)
     );
     expect(normalized).toMatchObject({
       evaluationContextHash: EVALUATION_CONTEXT_HASH,
@@ -468,10 +467,8 @@ describe("P7 Work Package Evaluation run service", () => {
       executionId: targetExecutionId,
       signal: new AbortController().signal
     });
-    const normalized = NormalizedEvalArtifactV1Schema.parse(
-      JSON.parse(
-        await readFile(join(root, `executions/${targetExecutionId}/normalized-eval.json`), "utf8")
-      ) as unknown
+    const normalized = await readNormalizedEvalJsonlForTest(
+      join(root, `executions/${targetExecutionId}/normalized-eval.jsonl`)
     );
     expect(normalized).toMatchObject({
       evaluationContextHash: targetContextHash,
@@ -735,7 +732,7 @@ describe("P7 Work Package Evaluation run service", () => {
   it("removes both published Evaluation artifacts when cancellation wins before registration", async () => {
     const root = await preparedPackage();
     const controller = new AbortController();
-    const normalizedPath = join(root, "executions", EXECUTION_ID, "normalized-eval.json");
+    const normalizedPath = join(root, "executions", EXECUTION_ID, "normalized-eval.jsonl");
     const signal = new Proxy(controller.signal, {
       get: (target, property): unknown => {
         if (property === "aborted" && existsSync(normalizedPath)) controller.abort();

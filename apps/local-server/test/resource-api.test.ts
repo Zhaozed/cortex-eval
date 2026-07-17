@@ -345,12 +345,16 @@ describe("P3 资源 API", () => {
     });
     const suiteId = jsonStringProperty(parseJsonObject(suiteResponse), "id");
     const boundary = "cortex-import-boundary";
-    const multipart = (value: unknown): Buffer =>
+    const multipart = (
+      value: unknown,
+      filename = "cases.json",
+      mediaType = "application/json"
+    ): Buffer =>
       Buffer.from(
         `--${boundary}\r\n` +
-          'Content-Disposition: form-data; name="file"; filename="cases.json"\r\n' +
-          "Content-Type: application/json\r\n\r\n" +
-          `${JSON.stringify(value)}\r\n` +
+          `Content-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
+          `Content-Type: ${mediaType}\r\n\r\n` +
+          `${typeof value === "string" ? value : JSON.stringify(value)}\r\n` +
           `--${boundary}--\r\n`
       );
     const imported = await server.inject({
@@ -360,14 +364,26 @@ describe("P3 资源 API", () => {
         ...hostHeaders,
         "content-type": `multipart/form-data; boundary=${boundary}`
       },
-      payload: multipart([caseDefinition])
+      payload: multipart([{ ...caseDefinition, contractVersion: undefined }])
     });
     expect(imported.statusCode).toBe(200);
     expect(imported.json()).toMatchObject({ count: 1, suite: { revision: 1 } });
 
-    const invalid = await server.inject({
+    const jsonlImported = await server.inject({
       method: "POST",
       url: `/api/v1/test-suites/${suiteId}/import?expectedRevision=1`,
+      headers: {
+        ...hostHeaders,
+        "content-type": `multipart/form-data; boundary=${boundary}`
+      },
+      payload: multipart(JSON.stringify(caseDefinition), "cases.jsonl", "application/x-ndjson")
+    });
+    expect(jsonlImported.statusCode).toBe(200);
+    expect(jsonlImported.json()).toMatchObject({ count: 1, suite: { revision: 2 } });
+
+    const invalid = await server.inject({
+      method: "POST",
+      url: `/api/v1/test-suites/${suiteId}/import?expectedRevision=2`,
       headers: {
         ...hostHeaders,
         "content-type": `multipart/form-data; boundary=${boundary}`

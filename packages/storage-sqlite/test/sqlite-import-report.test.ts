@@ -249,8 +249,8 @@ describe("SQLite Execution Report 完整导入", () => {
       runContextHash: CONTEXT_HASH,
       contractVersions: {
         caseDefinition: "cortex.case-definition.v1" as const,
-        restResults: "cortex.rest-results.v1" as const,
-        normalizedEval: "cortex.normalized-eval.v1" as const,
+        restResults: "cortex.rest-results-jsonl.v1" as const,
+        normalizedEval: "cortex.normalized-eval-jsonl.v1" as const,
         report: "cortex.report.v1" as const,
         analysisInput: "cortex.analysis-input.v1" as const,
         analysisOutput: "cortex.analysis-output.v1" as const
@@ -264,8 +264,8 @@ describe("SQLite Execution Report 完整导入", () => {
         contractVersion: "cortex.artifact-manifest.v1" as const,
         owner: { kind: "EXECUTION" as const, id: EXECUTION_ID },
         artifacts: [
-          ["REST_RESULTS", "rest-results.json", "cortex.rest-results.v1"],
-          ["NORMALIZED_EVAL_RESULTS", "normalized-eval.json", "cortex.normalized-eval.v1"],
+          ["REST_RESULTS", "rest-results.jsonl", "cortex.rest-results-jsonl.v1"],
+          ["NORMALIZED_EVAL_RESULTS", "normalized-eval.jsonl", "cortex.normalized-eval-jsonl.v1"],
           ["REPORT_JSON", "report.json", "cortex.report.v1"],
           ["REPORT_MARKDOWN", "report.md", "cortex.report-markdown.v1"]
         ].map(([kind, fileName, contractVersion]) => ({
@@ -346,8 +346,29 @@ describe("SQLite Execution Report 完整导入", () => {
       executionId: EXECUTION_ID,
       suite: { id: PACKAGE_ID, name: "Imported Suite", caseCount: 1 },
       evaluationContextHash: EVALUATION_CONTEXT_HASH,
-      reportResultSetHash: value.report.reportResultSetHash
+      reportResultSetHash: value.report.reportResultSetHash,
+      contractVersions: {
+        restResults: "cortex.rest-results-jsonl.v1",
+        normalizedEval: "cortex.normalized-eval-jsonl.v1"
+      }
     });
+    expect(imported?.artifactManifest).toMatchObject({
+      owner: { kind: "EXECUTION", id: EXECUTION_ID }
+    });
+    expect(imported?.artifactManifest.artifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "REST_RESULTS",
+          path: `executions/${EXECUTION_ID}/rest-results.jsonl`,
+          contractVersion: "cortex.rest-results-jsonl.v1"
+        }),
+        expect.objectContaining({
+          kind: "NORMALIZED_EVAL_RESULTS",
+          path: `executions/${EXECUTION_ID}/normalized-eval.jsonl`,
+          contractVersion: "cortex.normalized-eval-jsonl.v1"
+        })
+      ])
+    );
     const page = await manager.execute(async (transaction) =>
       transaction.runs.queryPlatformRuns({ limit: 10 })
     );

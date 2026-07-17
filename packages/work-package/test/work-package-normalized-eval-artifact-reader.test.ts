@@ -31,15 +31,23 @@ function result(caseKey = "case-1", ordinal = 0): unknown {
 }
 
 function artifact(cases: readonly unknown[], executionId = EXECUTION_ID): string {
-  return `${JSON.stringify({
-    cases,
-    completedAt: "2026-07-14T07:03:00.000Z",
-    contractVersion: "cortex.normalized-eval.v1",
-    evaluationContextHash: HASH,
-    executionId,
-    packageId: PACKAGE_ID,
-    resultSetHash: HASH
-  })}\n`;
+  return (
+    [
+      JSON.stringify({
+        recordType: "HEADER",
+        contractVersion: "cortex.normalized-eval-jsonl.v1",
+        evaluationContextHash: HASH,
+        executionId,
+        packageId: PACKAGE_ID
+      }),
+      ...cases.map((value) => JSON.stringify({ recordType: "CASE", value })),
+      JSON.stringify({
+        recordType: "FOOTER",
+        completedAt: "2026-07-14T07:03:00.000Z",
+        resultSetHash: HASH
+      })
+    ].join("\n") + "\n"
+  );
 }
 
 function bytes(executionId = EXECUTION_ID): Buffer {
@@ -64,12 +72,17 @@ async function readAll(value: Buffer): Promise<{
   }
 }
 
-async function probeCaseByteGate(payloadBytes: number, onTail: () => void): Promise<void> {
+async function probeCaseByteGate(lineBytes: number, onTail: () => void): Promise<void> {
+  const casePrefix = Buffer.from('{"recordType":"CASE","value":{', "utf8");
   function* input(): Generator<Uint8Array> {
-    yield Buffer.from('{"cases":[{', "utf8");
-    yield Buffer.alloc(payloadBytes, 0x61);
+    yield Buffer.from(
+      `${JSON.stringify({ recordType: "HEADER", contractVersion: "cortex.normalized-eval-jsonl.v1", packageId: PACKAGE_ID, executionId: EXECUTION_ID, evaluationContextHash: HASH })}\n`,
+      "utf8"
+    );
+    yield casePrefix;
+    yield Buffer.alloc(lineBytes - casePrefix.byteLength, 0x61);
     onTail();
-    yield Buffer.from("}]}", "utf8");
+    yield Buffer.from("}}\n", "utf8");
   }
   const reader = readWorkPackageNormalizedEvalArtifact(input(), {
     packageId: PACKAGE_ID,
@@ -118,7 +131,7 @@ describe("Work Package Normalized Eval Artifact reader", () => {
   it("allows exactly 32 MiB through the Case byte gate and rejects the next byte before parse", async () => {
     let exactTailRead = false;
     await expect(
-      probeCaseByteGate(WORK_PACKAGE_RUNTIME_LIMITS.normalizedEvalCaseBytes - 1, () => {
+      probeCaseByteGate(WORK_PACKAGE_RUNTIME_LIMITS.normalizedEvalCaseBytes, () => {
         exactTailRead = true;
       })
     ).rejects.toThrow("WORK_PACKAGE_INVALID");
@@ -126,7 +139,7 @@ describe("Work Package Normalized Eval Artifact reader", () => {
 
     let overTailRead = false;
     await expect(
-      probeCaseByteGate(WORK_PACKAGE_RUNTIME_LIMITS.normalizedEvalCaseBytes, () => {
+      probeCaseByteGate(WORK_PACKAGE_RUNTIME_LIMITS.normalizedEvalCaseBytes + 1, () => {
         overTailRead = true;
       })
     ).rejects.toThrow("WORK_PACKAGE_INVALID");

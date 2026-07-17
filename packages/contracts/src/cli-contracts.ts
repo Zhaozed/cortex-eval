@@ -73,7 +73,7 @@ const RestCompletedEventV1Schema = z.strictObject({
   artifactPath: z
     .string()
     .regex(
-      /^executions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/rest-results\.json$/
+      /^executions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/rest-results\.jsonl$/
     )
 });
 
@@ -94,7 +94,7 @@ const EvaluationCompletedEventV1Schema = z.strictObject({
   normalizedArtifactPath: z
     .string()
     .regex(
-      /^executions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/normalized-eval\.json$/
+      /^executions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/normalized-eval\.jsonl$/
     )
 });
 
@@ -124,7 +124,7 @@ const PipelineCompletedEventV1Schema = z.strictObject({
   restArtifactPath: z
     .string()
     .regex(
-      /^executions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/rest-results\.json$/
+      /^executions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/rest-results\.jsonl$/
     ),
   promptfooExitCode: z.union([z.literal(0), z.literal(100)]),
   evalFailCount: z.number().int().nonnegative(),
@@ -138,7 +138,7 @@ const PipelineCompletedEventV1Schema = z.strictObject({
   normalizedArtifactPath: z
     .string()
     .regex(
-      /^executions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/normalized-eval\.json$/
+      /^executions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/normalized-eval\.jsonl$/
     ),
   reportResultSetHash: Sha256Schema,
   reportSummary: ReportSummaryV1Schema,

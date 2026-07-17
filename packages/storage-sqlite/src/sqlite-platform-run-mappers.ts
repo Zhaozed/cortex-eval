@@ -273,8 +273,8 @@ const ContractVersionsSchema = z.strictObject({
 });
 export const ImportedContractVersionsSchema = z.strictObject({
   caseDefinition: z.literal("cortex.case-definition.v1"),
-  restResults: z.literal("cortex.rest-results.v1"),
-  normalizedEval: z.literal("cortex.normalized-eval.v1"),
+  restResults: z.literal("cortex.rest-results-jsonl.v1"),
+  normalizedEval: z.literal("cortex.normalized-eval-jsonl.v1"),
   report: z.literal("cortex.report.v1"),
   analysisInput: z.literal("cortex.analysis-input.v1"),
   analysisOutput: z.literal("cortex.analysis-output.v1")

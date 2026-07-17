@@ -1,10 +1,27 @@
-import type { Readable } from "node:stream";
+import type { Duplex, Readable } from "node:stream";
 
-import { CaseDefinitionV1Schema } from "@cortex-eval/contracts/src/case-contracts.ts";
+import {
+  CASE_DEFINITION_V1,
+  CaseDefinitionV1Schema
+} from "@cortex-eval/contracts/src/case-contracts.ts";
 import type { CaseDefinition } from "@cortex-eval/domain/src/domain-evaluation.ts";
+import asStream from "stream-chain/asStream.js";
+import { none } from "stream-chain/defs.js";
+import gen from "stream-chain/gen.js";
+import { jsonlParser } from "stream-chain/jsonl/parser.js";
+import fixUtf8Stream from "stream-chain/utils/fixUtf8Stream.js";
+import lines from "stream-chain/utils/lines.js";
 import { streamArray } from "stream-json/streamers/stream-array.js";
 
 import { mapCaseDefinitionFromV1 } from "./resource-dto-mappers.ts";
+
+/** Supported streamed Case import encodings. */
+export enum CaseImportFormat {
+  /** One top-level JSON array. */
+  JSON_ARRAY = "JSON_ARRAY",
+  /** One JSON Case value per non-empty line. */
+  JSON_LINES = "JSON_LINES"
+}
 
 /** Stable streamed JSON boundary failure. */
 export class CaseImportJsonError extends Error {
@@ -50,6 +67,27 @@ function caseKey(value: unknown): string {
   return typeof key === "string" ? key : "";
 }
 
+// Default only an omitted import protocol version; explicit versions remain strictly validated.
+function defaultCaseImportContractVersion(value: unknown): unknown {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return value;
+  const source = value as Readonly<Record<string, unknown>>;
+  if (Object.hasOwn(source, "contractVersion")) return source;
+  return { ...source, contractVersion: CASE_DEFINITION_V1 };
+}
+
+// Skip whitespace-only JSONL lines without suppressing malformed non-empty records.
+function skipJsonlWhitespaceLine(line: string): string | typeof none {
+  return line.trim().length === 0 ? none : line;
+}
+
+// Compose UTF-8, line splitting and JSONL stages with strict blank-line handling.
+function jsonlCaseParserStream(): Duplex {
+  return asStream(gen(fixUtf8Stream(), lines(), skipJsonlWhitespaceLine, jsonlParser()), {
+    writableObjectMode: false,
+    readableObjectMode: true
+  });
+}
+
 // Decode one stream-array item shape without trusting library output as business data.
 function streamItem(value: unknown): { readonly key: number; readonly value: unknown } | null {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
@@ -62,16 +100,20 @@ function throwIfImportAborted(signal: AbortSignal): void {
   if (signal.aborted) throw new CaseImportJsonError("CASE_IMPORT_CANCELLED");
 }
 
-/** Parse a top-level Case Definition array with backpressure and per-item validation. */
+/** Parse one Case Definition stream with backpressure and per-item validation. */
 export async function* parseCaseDefinitionStream(
   source: Readable,
-  signal: AbortSignal
+  signal: AbortSignal,
+  format: CaseImportFormat = CaseImportFormat.JSON_ARRAY
 ): AsyncGenerator<CaseDefinition, void, void> {
   if (signal.aborted) {
     source.destroy();
     throw new CaseImportJsonError("CASE_IMPORT_CANCELLED");
   }
-  const pipeline = streamArray.withParserAsStream();
+  const pipeline =
+    format === CaseImportFormat.JSON_LINES
+      ? jsonlCaseParserStream()
+      : streamArray.withParserAsStream();
   const abort = (): void => {
     source.destroy();
     pipeline.destroy();
@@ -83,7 +125,7 @@ export async function* parseCaseDefinitionStream(
       throwIfImportAborted(signal);
       const item = streamItem(dirtyItem);
       if (item === null) throw new CaseImportJsonError("VALIDATION_FAILED");
-      const parsed = CaseDefinitionV1Schema.safeParse(item.value);
+      const parsed = CaseDefinitionV1Schema.safeParse(defaultCaseImportContractVersion(item.value));
       if (!parsed.success) {
         const path = parsed.error.issues[0]?.path.join(".") ?? "item";
         throw new CaseImportJsonError(

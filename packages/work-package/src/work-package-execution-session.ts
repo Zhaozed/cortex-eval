@@ -13,8 +13,8 @@ import {
   type RunExecutionLimitsV1
 } from "@cortex-eval/contracts/src/execution-limit-contracts.ts";
 import {
-  ExecutionV1Schema,
-  type ExecutionV1
+  ExecutionV2Schema,
+  type ExecutionV2
 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import { WORK_PACKAGE_RUNTIME_LIMITS } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
 
@@ -201,8 +201,8 @@ const ARTIFACT_SLOTS: Readonly<
 > = {
   REST_RESULTS: {
     stage: "REST",
-    fileName: "rest-results.json",
-    contractVersion: "cortex.rest-results.v1"
+    fileName: "rest-results.jsonl",
+    contractVersion: "cortex.rest-results-jsonl.v1"
   },
   RAW_PROMPTFOO_EVIDENCE: {
     stage: "EVALUATION",
@@ -211,8 +211,8 @@ const ARTIFACT_SLOTS: Readonly<
   },
   NORMALIZED_EVAL_RESULTS: {
     stage: "EVALUATION",
-    fileName: "normalized-eval.json",
-    contractVersion: "cortex.normalized-eval.v1"
+    fileName: "normalized-eval.jsonl",
+    contractVersion: "cortex.normalized-eval-jsonl.v1"
   },
   REPORT_JSON: {
     stage: "REPORT",
@@ -247,8 +247,8 @@ const PENDING_STAGE = {
 };
 
 // Serialize one validated mutable state within the fixed Execution byte limit.
-function executionBytes(execution: ExecutionV1): Buffer {
-  const parsed = ExecutionV1Schema.parse(execution);
+function executionBytes(execution: ExecutionV2): Buffer {
+  const parsed = ExecutionV2Schema.parse(execution);
   const bytes = Buffer.from(`${JSON.stringify(parsed)}\n`, "utf8");
   if (bytes.byteLength > WORK_PACKAGE_RUNTIME_LIMITS.executionBytes) {
     throw new Error("WORK_PACKAGE_INVALID");
@@ -257,7 +257,7 @@ function executionBytes(execution: ExecutionV1): Buffer {
 }
 
 // Return the outer completion time only after every stage has reached a terminal state.
-function executionCompletedAt(stages: ExecutionV1["stages"], completedAt: string): string | null {
+function executionCompletedAt(stages: ExecutionV2["stages"], completedAt: string): string | null {
   const incomplete = Object.values(stages).some(
     (stage) => stage.status === "PENDING" || stage.status === "RUNNING"
   );
@@ -277,7 +277,7 @@ export class WorkPackageExecutionSession {
   /** Temporary name source. */
   readonly #nonce: () => string;
   /** Current validated Execution states. */
-  readonly #executions = new Map<string, ExecutionV1>();
+  readonly #executions = new Map<string, ExecutionV2>();
   /** Narrow immutable input reader. */
   readonly #inputs: WorkPackageInputReader;
   #closed = false;
@@ -319,7 +319,7 @@ export class WorkPackageExecutionSession {
   }
 
   /** Return one cleaned Execution state without reading a caller-controlled path. */
-  public readExecution(executionId: string): ExecutionV1 | null {
+  public readExecution(executionId: string): ExecutionV2 | null {
     this.#requireOpen();
     return this.#executions.get(executionId) ?? null;
   }
@@ -368,7 +368,7 @@ export class WorkPackageExecutionSession {
       directory: this.#directory,
       manifest: this.#validated.manifest,
       targetExecution: this.#requireExecution(targetExecutionId),
-      readExecution: (executionId): ExecutionV1 | null => this.#executions.get(executionId) ?? null,
+      readExecution: (executionId): ExecutionV2 | null => this.#executions.get(executionId) ?? null,
       restHashing,
       evalHashing,
       signal
@@ -387,7 +387,7 @@ export class WorkPackageExecutionSession {
       directory: this.#directory,
       manifest: this.#validated.manifest,
       sourceExecution: this.#requireExecution(executionId),
-      readExecution: (sourceExecutionId): ExecutionV1 | null =>
+      readExecution: (sourceExecutionId): ExecutionV2 | null =>
         this.#executions.get(sourceExecutionId) ?? null,
       restHashing,
       evalHashing,
@@ -407,7 +407,7 @@ export class WorkPackageExecutionSession {
       directory: this.#directory,
       manifest: this.#validated.manifest,
       sourceExecution: this.#requireExecution(executionId),
-      readExecution: (sourceExecutionId): ExecutionV1 | null =>
+      readExecution: (sourceExecutionId): ExecutionV2 | null =>
         this.#executions.get(sourceExecutionId) ?? null,
       restHashing,
       evalHashing,
@@ -458,7 +458,7 @@ export class WorkPackageExecutionSession {
   }
 
   /** Create one new Execution identity before any stage starts. */
-  public async createExecution(input: CreateWorkPackageExecutionInput): Promise<ExecutionV1> {
+  public async createExecution(input: CreateWorkPackageExecutionInput): Promise<ExecutionV2> {
     this.#requireOpen();
     const executionId = UuidV7Schema.parse(input.executionId);
     const createdAt = UtcDateTimeSchema.parse(input.createdAt);
@@ -484,8 +484,8 @@ export class WorkPackageExecutionSession {
       runExecutionLimits,
       analysisExecutionLimits
     });
-    const execution = ExecutionV1Schema.parse({
-      contractVersion: "cortex.execution.v1",
+    const execution = ExecutionV2Schema.parse({
+      contractVersion: "cortex.execution.v2",
       packageId: this.#validated.manifest.packageId,
       executionId,
       createdAt,
@@ -516,7 +516,7 @@ export class WorkPackageExecutionSession {
     executionId: string,
     stageName: WorkPackageStage,
     startedAt: string
-  ): Promise<ExecutionV1> {
+  ): Promise<ExecutionV2> {
     this.#requireOpen();
     const execution = this.#requireExecution(executionId);
     const stage = execution.stages[stageName];
@@ -530,7 +530,7 @@ export class WorkPackageExecutionSession {
       throw new Error("RUN_STATE_CONFLICT");
     }
     const timestamp = UtcDateTimeSchema.parse(startedAt);
-    const next = ExecutionV1Schema.parse({
+    const next = ExecutionV2Schema.parse({
       ...execution,
       startedAt: execution.startedAt ?? timestamp,
       stages: {
@@ -572,7 +572,7 @@ export class WorkPackageExecutionSession {
     stageName: WorkPackageStage,
     completedAt: string,
     artifacts: readonly PublishedStageArtifact[]
-  ): Promise<ExecutionV1> {
+  ): Promise<ExecutionV2> {
     this.#requireOpen();
     const execution = this.#requireExecution(executionId);
     const stage = execution.stages[stageName];
@@ -597,7 +597,7 @@ export class WorkPackageExecutionSession {
         artifacts: durableArtifacts
       }
     };
-    const next = ExecutionV1Schema.parse({
+    const next = ExecutionV2Schema.parse({
       ...execution,
       completedAt: executionCompletedAt(stages, timestamp),
       stages
@@ -639,7 +639,7 @@ export class WorkPackageExecutionSession {
     stageName: WorkPackageStage,
     completedAt: string,
     errorCode: ErrorCode
-  ): Promise<ExecutionV1> {
+  ): Promise<ExecutionV2> {
     this.#requireOpen();
     const execution = this.#requireExecution(executionId);
     const stage = execution.stages[stageName];
@@ -657,7 +657,7 @@ export class WorkPackageExecutionSession {
         artifacts: []
       }
     };
-    const next = ExecutionV1Schema.parse({
+    const next = ExecutionV2Schema.parse({
       ...execution,
       completedAt: executionCompletedAt(stages, timestamp),
       stages
@@ -677,7 +677,7 @@ export class WorkPackageExecutionSession {
   }
 
   // Persist one complete mutable state replacement and update the in-session projection.
-  async #replaceExecution(execution: ExecutionV1): Promise<ExecutionV1> {
+  async #replaceExecution(execution: ExecutionV2): Promise<ExecutionV2> {
     await this.#directory.replaceMutableFile(
       `executions/${execution.executionId}/execution.json`,
       executionBytes(execution),
@@ -688,7 +688,7 @@ export class WorkPackageExecutionSession {
   }
 
   // Require one validated Execution without leaking map mutation to callers.
-  #requireExecution(executionId: string): ExecutionV1 {
+  #requireExecution(executionId: string): ExecutionV2 {
     const parsedId = UuidV7Schema.parse(executionId);
     const execution = this.#executions.get(parsedId);
     if (execution === undefined) throw new Error("WORK_PACKAGE_INVALID");
@@ -696,7 +696,7 @@ export class WorkPackageExecutionSession {
   }
 
   // Recompute every loaded Execution hash before any mutation is allowed.
-  #validateExecutionContext(execution: ExecutionV1): void {
+  #validateExecutionContext(execution: ExecutionV2): void {
     const expected = this.#contextHasher.hash({
       contractVersion: "cortex.execution-context.v1",
       packageId: execution.packageId,

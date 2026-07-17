@@ -1,7 +1,7 @@
 import type { EvalCaseV1 } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import type {
-  ExecutionV1,
-  WorkPackageManifestV1
+  ExecutionV2,
+  WorkPackageManifestV2
 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 
 import type { SecureWorkPackageDirectory } from "./secure-work-package-directory.ts";
@@ -13,7 +13,7 @@ import {
   type WorkPackageRestSemanticHashing
 } from "./work-package-rest-retry-reader.ts";
 
-type EvaluationArtifact = ExecutionV1["stages"]["EVALUATION"]["artifacts"][number];
+type EvaluationArtifact = ExecutionV2["stages"]["EVALUATION"]["artifacts"][number];
 
 /** Strictly verified ordinary Execution Evaluation facts for import or retry. */
 export interface PreparedWorkPackageEvaluationResults {
@@ -32,11 +32,11 @@ export interface PrepareWorkPackageEvaluationResultsInput {
   /** Stable package directory owned by the caller's lock session. */
   readonly directory: SecureWorkPackageDirectory;
   /** Frozen package Manifest. */
-  readonly manifest: WorkPackageManifestV1;
+  readonly manifest: WorkPackageManifestV2;
   /** Validated source Execution. */
-  readonly sourceExecution: ExecutionV1;
+  readonly sourceExecution: ExecutionV2;
   /** Read another validated Execution state by identity. */
-  readonly readExecution: (executionId: string) => ExecutionV1 | null;
+  readonly readExecution: (executionId: string) => ExecutionV2 | null;
   /** Pure REST semantic hash Ports. */
   readonly restHashing: WorkPackageRestSemanticHashing;
   /** Pure Eval semantic hash Ports. */
@@ -148,6 +148,7 @@ async function* verifiedEvaluationStream(
         packageId: input.manifest.packageId,
         executionId: input.sourceExecution.executionId,
         expectedCaseCount: input.manifest.cases.length,
+        expectedSizeBytes: normalizedArtifact.sizeBytes,
         signal: input.signal
       }
     );
@@ -211,7 +212,7 @@ async function* verifiedEvaluationStream(
 }
 
 // Resolve the exact registered artifacts for one completed Evaluation version.
-function evaluationArtifacts(execution: ExecutionV1): {
+function evaluationArtifacts(execution: ExecutionV2): {
   readonly rawArtifact: EvaluationArtifact;
   readonly normalizedArtifact: EvaluationArtifact;
 } {
@@ -230,7 +231,7 @@ function evaluationArtifacts(execution: ExecutionV1): {
 // Fully verify one source version once while retaining only compact identity facts.
 function loadVerifiedEvidenceExecution(
   input: PrepareWorkPackageEvaluationResultsInput,
-  execution: ExecutionV1,
+  execution: ExecutionV2,
   cache: EvidenceExecutionCache
 ): Promise<VerifiedEvidenceExecution> {
   const existing = cache.get(execution.executionId);
@@ -265,7 +266,7 @@ function loadVerifiedEvidenceExecution(
 // Follow copied-result provenance until the exact present ancestor Raw is reached.
 async function verifiedEvidenceChain(
   input: PrepareWorkPackageEvaluationResultsInput,
-  execution: ExecutionV1,
+  execution: ExecutionV2,
   result: EvaluationEvidenceFact,
   rawArtifact: EvaluationArtifact,
   visited: ReadonlySet<string>,

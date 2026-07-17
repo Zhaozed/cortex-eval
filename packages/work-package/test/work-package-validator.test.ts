@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { ExecutionV1 } from "../../contracts/src/work-package-contracts.ts";
+import type { ExecutionV2 } from "../../contracts/src/work-package-contracts.ts";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -31,7 +31,7 @@ function owner(): WorkPackageLockOwner {
   } as const;
 }
 
-function pendingExecution(): ExecutionV1 {
+function pendingExecution(): ExecutionV2 {
   const pending = {
     status: "PENDING" as const,
     startedAt: null,
@@ -40,7 +40,7 @@ function pendingExecution(): ExecutionV1 {
     artifacts: []
   };
   return {
-    contractVersion: "cortex.execution.v1",
+    contractVersion: "cortex.execution.v2",
     packageId: WORK_PACKAGE_FIXTURE_ID,
     executionId: EXECUTION_ID,
     createdAt: "2026-07-14T01:00:00.000Z",

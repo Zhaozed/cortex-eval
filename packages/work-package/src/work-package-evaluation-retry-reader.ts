@@ -1,7 +1,7 @@
 import type { EvalCaseV1 } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import type {
-  ExecutionV1,
-  WorkPackageManifestV1
+  ExecutionV2,
+  WorkPackageManifestV2
 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 
 import type { SecureWorkPackageDirectory } from "./secure-work-package-directory.ts";
@@ -56,11 +56,11 @@ export interface PrepareWorkPackageEvaluationRetryInput {
   /** Stable package directory owned by the caller's lock session. */
   readonly directory: SecureWorkPackageDirectory;
   /** Frozen package Manifest. */
-  readonly manifest: WorkPackageManifestV1;
+  readonly manifest: WorkPackageManifestV2;
   /** New retry Execution whose REST stage already completed. */
-  readonly targetExecution: ExecutionV1;
+  readonly targetExecution: ExecutionV2;
   /** Read another validated Execution state by identity. */
-  readonly readExecution: (executionId: string) => ExecutionV1 | null;
+  readonly readExecution: (executionId: string) => ExecutionV2 | null;
   /** Pure REST semantic hash Ports. */
   readonly restHashing: WorkPackageRestSemanticHashing;
   /** Pure Eval semantic hash Ports. */

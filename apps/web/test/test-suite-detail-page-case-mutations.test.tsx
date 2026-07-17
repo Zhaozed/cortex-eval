@@ -60,7 +60,8 @@ describe("测试集详情页 Case 资源写操作", () => {
       </QueryClientProvider>
     );
 
-    const input = await screen.findByLabelText("导入 Cases JSON");
+    const input = await screen.findByLabelText("导入 Cases JSON/JSONL");
+    expect(input).toHaveAttribute("accept", "application/json,application/x-ndjson,.json,.jsonl");
     await userEvent.upload(input, new File(["[]"], "cases.json", { type: "application/json" }));
     await userEvent.click(screen.getByRole("button", { name: "确认导入并替换" }));
 
@@ -148,7 +149,7 @@ describe("测试集详情页 Case 资源写操作", () => {
     );
 
     await userEvent.upload(
-      screen.getByLabelText("导入 Cases JSON"),
+      screen.getByLabelText("导入 Cases JSON/JSONL"),
       new File(["[]"], "cases.json", { type: "application/json" })
     );
     await userEvent.click(screen.getByRole("button", { name: "确认导入并替换" }));
@@ -271,7 +272,7 @@ describe("测试集详情页 Case 资源写操作", () => {
     );
 
     await userEvent.upload(
-      screen.getByLabelText("导入 Cases JSON"),
+      screen.getByLabelText("导入 Cases JSON/JSONL"),
       new File(["[]"], "cases.json", { type: "application/json" })
     );
     await userEvent.click(screen.getByRole("button", { name: "确认导入并替换" }));
@@ -285,7 +286,7 @@ describe("测试集详情页 Case 资源写操作", () => {
         screen.queryByRole("heading", { name: "全量替换当前 Cases？" })
       ).not.toBeInTheDocument()
     );
-    expect(screen.getByLabelText("导入 Cases JSON")).toHaveValue("");
+    expect(screen.getByLabelText("导入 Cases JSON/JSONL")).toHaveValue("");
 
     expect(attempts).toEqual(
       new Map([
@@ -374,7 +375,7 @@ describe("测试集详情页 Case 资源写操作", () => {
       }
       if (operation === "IMPORT") {
         await userEvent.upload(
-          screen.getByLabelText("导入 Cases JSON"),
+          screen.getByLabelText("导入 Cases JSON/JSONL"),
           new File(["[]"], "retained-cases.json", { type: "application/json" })
         );
         await userEvent.click(screen.getByRole("button", { name: "确认导入并替换" }));
@@ -432,7 +433,7 @@ describe("测试集详情页 Case 资源写操作", () => {
         expect(retryUrl).toContain("expectedCaseRevision=4");
       }
       if (operation === "IMPORT") {
-        const fileInput = screen.getByLabelText<HTMLInputElement>("导入 Cases JSON");
+        const fileInput = screen.getByLabelText<HTMLInputElement>("导入 Cases JSON/JSONL");
         expect(fileInput.files?.[0]?.name).toBe("retained-cases.json");
         expect(
           within(owner as HTMLElement).getByRole("button", { name: "确认导入并替换" })

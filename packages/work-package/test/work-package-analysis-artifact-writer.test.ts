@@ -82,7 +82,7 @@ async function openAnalysisSession(
     session,
     "REST",
     "REST_RESULTS",
-    "cortex.rest-results.v1",
+    "cortex.rest-results-jsonl.v1",
     "2026-07-14T07:01:00.000Z"
   );
   await session.startStage(EXECUTION_ID, "EVALUATION", "2026-07-14T07:02:00.000Z");
@@ -106,7 +106,7 @@ async function openAnalysisSession(
   const evaluation = publishedStageArtifact(
     await evalWriter.commit(),
     "NORMALIZED_EVAL_RESULTS",
-    "cortex.normalized-eval.v1"
+    "cortex.normalized-eval-jsonl.v1"
   );
   await session.completeStage(EXECUTION_ID, "EVALUATION", "2026-07-14T07:03:00.000Z", [
     raw,

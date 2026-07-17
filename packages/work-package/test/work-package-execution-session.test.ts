@@ -80,7 +80,7 @@ describe("Work Package Execution session", () => {
       const artifact = publishedStageArtifact(
         await writer.commit(),
         "REST_RESULTS",
-        "cortex.rest-results.v1"
+        "cortex.rest-results-jsonl.v1"
       );
       const path = join(root, artifact.path);
       await unlink(path);
@@ -168,14 +168,14 @@ describe("Work Package Execution session", () => {
       const artifact = publishedStageArtifact(
         await writer.commit(),
         "REST_RESULTS",
-        "cortex.rest-results.v1"
+        "cortex.rest-results-jsonl.v1"
       );
       const completed = await session.completeStage(EXECUTION_ID, "REST", COMPLETED_AT, [artifact]);
       expect(completed.stages.REST).toMatchObject({
         status: "SUCCEEDED",
         startedAt: STARTED_AT,
         completedAt: COMPLETED_AT,
-        artifacts: [{ path: `executions/${EXECUTION_ID}/rest-results.json` }]
+        artifacts: [{ path: `executions/${EXECUTION_ID}/rest-results.jsonl` }]
       });
       await expect(session.startStage(EXECUTION_ID, "REST", STARTED_AT)).rejects.toThrow(
         "ARTIFACT_ALREADY_COMMITTED"
@@ -257,9 +257,9 @@ describe("Work Package Execution session", () => {
         nonce: () => `execution_recovery_${String(++nonce).padStart(2, "0")}`
       })
     ).rejects.toThrow("TEMP_CLEANUP_FAILED");
-    await expect(access(join(root, "executions", EXECUTION_ID, "rest-results.json"))).resolves.toBe(
-      undefined
-    );
+    await expect(
+      access(join(root, "executions", EXECUTION_ID, "rest-results.jsonl"))
+    ).resolves.toBe(undefined);
   });
 
   it("recovers a running stage with no published Artifact to an empty error state", async () => {

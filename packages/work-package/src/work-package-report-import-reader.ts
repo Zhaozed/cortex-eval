@@ -13,8 +13,8 @@ import type {
 import type { DomainJsonValue } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 import { canonicalJson } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 import type {
-  ExecutionV1,
-  WorkPackageManifestV1
+  ExecutionV2,
+  WorkPackageManifestV2
 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import type { ReportCaseV1 } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 
@@ -96,9 +96,9 @@ export interface PrepareWorkPackageReportImportInput {
   /** Stable package directory. */
   readonly directory: SecureWorkPackageDirectory;
   /** Fully validated immutable Manifest. */
-  readonly manifest: WorkPackageManifestV1;
+  readonly manifest: WorkPackageManifestV2;
   /** Fully validated Execution state. */
-  readonly execution: ExecutionV1;
+  readonly execution: ExecutionV2;
   /** Narrow immutable input reader. */
   readonly inputs: WorkPackageInputReader;
   /** Pure Case Definition hashing. */
@@ -123,7 +123,7 @@ function sameJson(left: unknown, right: unknown): boolean {
 }
 
 // Require exactly the two fixed Report stage slots.
-function reportArtifacts(execution: ExecutionV1): {
+function reportArtifacts(execution: ExecutionV2): {
   readonly json: ReportStageArtifact;
   readonly markdown: ReportStageArtifact;
 } {
@@ -141,7 +141,7 @@ function reportArtifacts(execution: ExecutionV1): {
 }
 
 // Convert all registered P8 result slots into one immutable import identity.
-function artifactManifest(execution: ExecutionV1): ImportedExecutionArtifactManifest {
+function artifactManifest(execution: ExecutionV2): ImportedExecutionArtifactManifest {
   const artifacts = [
     ...execution.stages.REST.artifacts,
     ...execution.stages.EVALUATION.artifacts,

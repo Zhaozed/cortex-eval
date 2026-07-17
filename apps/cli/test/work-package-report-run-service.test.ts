@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import type { EvalCaseV1 } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import { ReportArtifactV1Schema } from "@cortex-eval/contracts/src/artifact-contracts.ts";
-import { ExecutionV1Schema } from "@cortex-eval/contracts/src/work-package-contracts.ts";
+import { ExecutionV2Schema } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import { openWorkPackageExecutionSession } from "@cortex-eval/work-package/src/work-package-execution-session.ts";
 import { WorkPackageNormalizedEvalArtifactWriter } from "@cortex-eval/work-package/src/work-package-normalized-eval-artifact-writer.ts";
 import { writeWorkPackageRawPromptfooArtifact } from "@cortex-eval/work-package/src/work-package-raw-promptfoo-artifact-writer.ts";
@@ -232,7 +232,7 @@ describe("Work Package Report Run Service", () => {
     );
     expect(report.cases[0]?.evaluation.rawEvidence?.present).toBe(true);
     expect(await readFile(join(root, result.reportMarkdownPath), "utf8")).toContain("not matched");
-    const execution = ExecutionV1Schema.parse(
+    const execution = ExecutionV2Schema.parse(
       JSON.parse(
         await readFile(join(root, `executions/${EXECUTION_ID}/execution.json`), "utf8")
       ) as unknown
@@ -291,7 +291,7 @@ describe("Work Package Report Run Service", () => {
         signal: controller.signal
       })
     ).rejects.toThrow("REQUEST_ABORTED");
-    const execution = ExecutionV1Schema.parse(
+    const execution = ExecutionV2Schema.parse(
       JSON.parse(
         await readFile(join(root, `executions/${EXECUTION_ID}/execution.json`), "utf8")
       ) as unknown

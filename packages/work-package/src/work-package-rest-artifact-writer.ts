@@ -8,6 +8,11 @@ import {
   UtcDateTimeSchema
 } from "@cortex-eval/contracts/src/contracts-primitives.ts";
 import { WORK_PACKAGE_RUNTIME_LIMITS } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
+import {
+  WorkPackageRestJsonlCaseV1Schema,
+  WorkPackageRestJsonlFooterV1Schema,
+  WorkPackageRestJsonlHeaderV1Schema
+} from "@cortex-eval/contracts/src/work-package-contracts.ts";
 
 import type { ImmutableFileWriter } from "./secure-work-package-directory.ts";
 import type {
@@ -60,10 +65,6 @@ export function workPackageRestArtifactCase(value: OfflineRestCaseResult): RestA
 export class WorkPackageRestArtifactWriter {
   /** Underlying immutable file writer. */
   readonly #writer: ImmutableFileWriter;
-  /** Owning immutable Package identity. */
-  readonly #packageId: string;
-  /** Owning immutable Execution identity. */
-  readonly #executionId: string;
   /** Frozen Manifest identity lookup owned by the locked Session. */
   readonly #expectedCaseKey: (ordinal: number) => string | null;
   /** Next required Case ordinal. */
@@ -73,17 +74,13 @@ export class WorkPackageRestArtifactWriter {
   /** Construct only through the running REST stage factory. */
   private constructor(
     writer: ImmutableFileWriter,
-    packageId: string,
-    executionId: string,
     expectedCaseKey: (ordinal: number) => string | null
   ) {
     this.#writer = writer;
-    this.#packageId = packageId;
-    this.#executionId = executionId;
     this.#expectedCaseKey = expectedCaseKey;
   }
 
-  /** Open the fixed REST Artifact slot and write its bounded array prefix. */
+  /** Open the fixed REST Artifact slot and write its JSONL header. */
   public static async create(
     session: WorkPackageExecutionSession,
     executionId: string
@@ -94,12 +91,15 @@ export class WorkPackageRestArtifactWriter {
       Number.MAX_SAFE_INTEGER
     );
     try {
-      await writer.append(Buffer.from('{"cases":[', "utf8"));
-      return new WorkPackageRestArtifactWriter(
-        writer,
-        session.packageSummary.packageId,
-        executionId,
-        (ordinal): string | null => session.inputs.expectedCaseKey(ordinal)
+      const header = WorkPackageRestJsonlHeaderV1Schema.parse({
+        recordType: "HEADER",
+        contractVersion: "cortex.rest-results-jsonl.v1",
+        packageId: session.packageSummary.packageId,
+        executionId
+      });
+      await writer.append(Buffer.from(`${JSON.stringify(header)}\n`, "utf8"));
+      return new WorkPackageRestArtifactWriter(writer, (ordinal): string | null =>
+        session.inputs.expectedCaseKey(ordinal)
       );
     } catch (error) {
       await writer.abort();
@@ -124,11 +124,11 @@ export class WorkPackageRestArtifactWriter {
       if (error instanceof Error && error.message === "ARTIFACT_WRITE_FAILED") throw error;
       throw new Error("ARTIFACT_WRITE_FAILED", { cause: error });
     }
-    const bytes = Buffer.from(JSON.stringify(clean), "utf8");
-    if (bytes.byteLength > WORK_PACKAGE_RUNTIME_LIMITS.restResultCaseBytes) {
+    const record = WorkPackageRestJsonlCaseV1Schema.parse({ recordType: "CASE", value: clean });
+    const bytes = Buffer.from(`${JSON.stringify(record)}\n`, "utf8");
+    if (bytes.byteLength > WORK_PACKAGE_RUNTIME_LIMITS.restResultCaseBytes + 1) {
       throw new Error("ARTIFACT_WRITE_FAILED");
     }
-    if (this.#nextOrdinal > 0) await this.#writer.append(Buffer.from(",", "utf8"));
     await this.#writer.append(bytes);
     this.#nextOrdinal += 1;
   }
@@ -141,17 +141,16 @@ export class WorkPackageRestArtifactWriter {
     }
     const cleanCompletedAt = UtcDateTimeSchema.parse(completedAt);
     const cleanResultSetHash = Sha256Schema.parse(resultSetHash);
-    const trailer =
-      `],"completedAt":${JSON.stringify(cleanCompletedAt)},` +
-      '"contractVersion":"cortex.rest-results.v1",' +
-      `"executionId":${JSON.stringify(this.#executionId)},` +
-      `"packageId":${JSON.stringify(this.#packageId)},` +
-      `"resultSetHash":${JSON.stringify(cleanResultSetHash)}}\n`;
+    const footer = WorkPackageRestJsonlFooterV1Schema.parse({
+      recordType: "FOOTER",
+      completedAt: cleanCompletedAt,
+      resultSetHash: cleanResultSetHash
+    });
     try {
-      await this.#writer.append(Buffer.from(trailer, "utf8"));
+      await this.#writer.append(Buffer.from(`${JSON.stringify(footer)}\n`, "utf8"));
       const published = await this.#writer.commit();
       this.#closed = true;
-      return publishedStageArtifact(published, "REST_RESULTS", "cortex.rest-results.v1");
+      return publishedStageArtifact(published, "REST_RESULTS", "cortex.rest-results-jsonl.v1");
     } catch (error) {
       await this.#writer.abort();
       this.#closed = true;

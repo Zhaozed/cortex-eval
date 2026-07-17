@@ -7,14 +7,14 @@ describe("Work Package materialized path policy", () => {
     expect(
       validateMaterializedFilePaths([
         "manifest.json",
-        "inputs/tests.json",
+        "inputs/tests.jsonl",
         "prompts/rubric/quality.json"
       ])
-    ).toEqual(["manifest.json", "inputs/tests.json", "prompts/rubric/quality.json"]);
+    ).toEqual(["manifest.json", "inputs/tests.jsonl", "prompts/rubric/quality.json"]);
   });
 
   it.each([
-    ["inputs/tests.json", "INPUTS/tests.json"],
+    ["inputs/tests.jsonl", "INPUTS/tests.jsonl"],
     ["a", "a/b"],
     ["a/b", "a"],
     ["manifest.json", "manifest.json"]

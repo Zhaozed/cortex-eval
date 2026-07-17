@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import type { WorkPackageManifestV1 } from "../../contracts/src/work-package-contracts.ts";
+import type { WorkPackageManifestV2 } from "../../contracts/src/work-package-contracts.ts";
 import type { CaseDefinition } from "../../domain/src/domain-evaluation.ts";
 import { workPackageCaseDefinitionHasher } from "../src/work-package-domain-hashing.ts";
 import { expectedRubricPromptPath } from "../src/work-package-manifest-policy.ts";
@@ -29,7 +29,7 @@ function hash(value: Uint8Array): string {
 export async function materializeWorkPackageFixture(
   root: string,
   options: MaterializeWorkPackageFixtureOptions = {}
-): Promise<WorkPackageManifestV1> {
+): Promise<WorkPackageManifestV2> {
   const caseCount = options.caseCount ?? 1;
   if (!Number.isInteger(caseCount) || caseCount < 1 || caseCount > 1_000) {
     throw new Error("WORK_PACKAGE_FIXTURE_CASE_COUNT_INVALID");
@@ -72,7 +72,7 @@ export async function materializeWorkPackageFixture(
     };
   });
   const files = {
-    tests: Buffer.from(`${JSON.stringify(cases.map((item) => item.transport))}\n`),
+    tests: Buffer.from(cases.map((item) => JSON.stringify(item.transport)).join("\n") + "\n"),
     endpoint: Buffer.from(
       `${JSON.stringify({
         contractVersion: "cortex.endpoint-config.v1",
@@ -133,7 +133,7 @@ export async function materializeWorkPackageFixture(
   const rubricPath = expectedRubricPromptPath("quality");
   const descriptors = {
     tests: {
-      path: "inputs/tests.json",
+      path: "inputs/tests.jsonl",
       sha256: hash(files.tests),
       sizeBytes: files.tests.byteLength
     },
@@ -164,8 +164,8 @@ export async function materializeWorkPackageFixture(
       sizeBytes: files.envExample.byteLength
     }
   } as const;
-  const manifest: WorkPackageManifestV1 = {
-    contractVersion: "cortex.work-package-manifest.v1",
+  const manifest: WorkPackageManifestV2 = {
+    contractVersion: "cortex.work-package-manifest.v2",
     packageId: WORK_PACKAGE_FIXTURE_ID,
     createdAt: "2026-07-14T00:00:00.000Z",
     sourceSuite: { suiteId: WORK_PACKAGE_FIXTURE_ID, suiteHash: hash(files.tests) },
@@ -213,8 +213,8 @@ export async function materializeWorkPackageFixture(
     },
     contractVersions: {
       caseDefinition: "cortex.case-definition.v1",
-      restResults: "cortex.rest-results.v1",
-      normalizedEval: "cortex.normalized-eval.v1",
+      restResults: "cortex.rest-results-jsonl.v1",
+      normalizedEval: "cortex.normalized-eval-jsonl.v1",
       report: "cortex.report.v1",
       analysisInput: "cortex.analysis-input.v1",
       analysisOutput: "cortex.analysis-output.v1"
@@ -253,16 +253,16 @@ export async function materializeWorkPackageFixture(
     },
     artifactSlots: {
       REST_RESULTS: {
-        path: "executions/{execution_id}/rest-results.json",
-        contractVersion: "cortex.rest-results.v1"
+        path: "executions/{execution_id}/rest-results.jsonl",
+        contractVersion: "cortex.rest-results-jsonl.v1"
       },
       RAW_PROMPTFOO_EVIDENCE: {
         path: "executions/{execution_id}/promptfoo-raw.json",
         contractVersion: "promptfoo.0.121.18"
       },
       NORMALIZED_EVAL_RESULTS: {
-        path: "executions/{execution_id}/normalized-eval.json",
-        contractVersion: "cortex.normalized-eval.v1"
+        path: "executions/{execution_id}/normalized-eval.jsonl",
+        contractVersion: "cortex.normalized-eval-jsonl.v1"
       },
       REPORT_JSON: {
         path: "executions/{execution_id}/report.json",

@@ -12,11 +12,11 @@ Package 依赖 Contracts Schema、文件系统和安全 Hash 工具，实现 Wor
 
 ## 实现状态
 
-P7 已落地 `packages/work-package` 文件运行时、平台导出接收、包校验、Execution 生命周期、REST/Raw/Normalized Artifact、Retry 证据读取和 Evaluation Import 严格读取基础。P8 在不修改 Work Package v1 Manifest 的前提下补齐 Report JSON/Markdown Writer、Report Reader、完整平台导入 Reader 和取消/大小门禁。P9 使用既有 Analysis 槽位补齐流式 Writer、严格 Artifact Reader、双遍 Import Reader 和命令闭环，Manifest v1 与 Golden Hash 均未修改。
+当前文件运行时已闭环 Work Package/Execution v2、JSONL Tests、REST/Raw/Normalized Artifact、Retry 证据读取、Report/Analysis Writer 与 Reader，以及完整平台导入。REST 与 Normalized Eval 使用独立的 JSONL Transport Contract v1；Report、Analysis 和 Raw 的文件协议保持不变。旧 Work Package v1 不进入兼容分支。
 
 ## 代码事实入口
 
-- [work-package-contracts.ts](../../packages/contracts/src/work-package-contracts.ts)：不可修改的 Manifest v1 与 Execution v1 Schema。
+- [work-package-contracts.ts](../../packages/contracts/src/work-package-contracts.ts)：当前 Manifest v2 与 Execution v2 Schema。
 - [work-package-runtime-contracts.ts](../../packages/contracts/src/work-package-runtime-contracts.ts)：文件运行时上限和运行结果契约。
 - [artifact-contracts.ts](../../packages/contracts/src/artifact-contracts.ts)：阶段 Artifact 与 Artifact Manifest Schema。
 - [secure-work-package-directory.ts](../../packages/work-package/src/secure-work-package-directory.ts)：安全目录和不可跟随路径边界。
@@ -32,13 +32,13 @@ P7 已落地 `packages/work-package` 文件运行时、平台导出接收、包�
 
 ## 当前样例与测试入口
 
-- [work-package-v1](../../packages/work-package/test-fixtures/work-package-v1)：无 Secret、固定 Manifest Hash 的 Golden Work Package v1。
+- [work-package-v2](../../packages/work-package/test-fixtures/work-package-v2)：无 Secret、固定 Manifest Hash 的 Golden Work Package v2。
 - [packages/work-package/test](../../packages/work-package/test)：文件安全、导出、Execution、Artifact、Retry、大小边界和 Golden Fixture。
 - [apps/cli/test](../../apps/cli/test)：真实命令和阶段闭环。
 
 ## 对外接口
 
-Manifest v1 保存 Package 身份、来源 Suite 与 Hash、Case Base Hashes、Endpoint、Evaluator、Analyzer、两类 Prompt、Promptfoo 与 Contract Version、全部阶段 Env Keys、Run/Analysis Execution Limits 默认值与范围、最终阶段依赖图、全部 Artifact 槽位和输入文件 Hash。
+Manifest v2 保存 Package 身份、来源 Suite 与 Hash、Case Base Hashes、Endpoint、Evaluator、Analyzer、两类 Prompt、Promptfoo 与 Contract Version、全部阶段 Env Keys、Run/Analysis Execution Limits 默认值与范围、最终阶段依赖图、全部 Artifact 槽位和输入文件 Hash。
 
 每个 `executions/<execution_id>/execution.json` 保存独立执行身份、冻结限制、Execution Context Hash、来源 Execution、阶段状态、时间、Error Code 和输出描述符。Artifact 分为 REST Results、Raw Promptfoo Evidence、Normalized Eval、Report JSON、Report Markdown 和 Analysis Results。
 
@@ -74,4 +74,4 @@ Import 任一身份、Owner、路径、顺序、Base Hash、REST/Eval/Raw 关系
 
 目录与普通文件仅当前用户可访问。日志记录 Package ID、Execution ID、阶段、文件 Hash 和 Error Code，不记录 Secret 与敏感正文。`.env.example` 只含空值 Key 与用途；用户 Env 文件不属于工作包，也不参与 Hash 或导入。
 
-Golden Manifest Hash 固定为 `e840ce500481b6f92393b1efe6d9022c1ceebd9fbbeaf713d03c9e2f6ee54178`。P8 已在不修改 Work Package v1 Manifest 的前提下补充 Report；P9 对 Analysis 也必须遵守同一约束。若协议无法满足，必须新建版本而不是静默修改 Fixture。
+当前 v2 Golden Manifest Hash 固定为 `9f618b2173cde449b8ecf0d86e117c13732b147dd1257219e3493e44b586c86e`。Tests、REST 与 Normalized Eval 的 JSONL 文件协议已经冻结；若协议无法满足，必须新建版本而不是静默修改 Fixture。

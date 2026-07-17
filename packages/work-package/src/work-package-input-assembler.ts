@@ -20,7 +20,7 @@ import {
   type AnalysisPromptDefinitionV1,
   type PromptDefinitionV1
 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
-import type { WorkPackageManifestV1 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
+import type { WorkPackageManifestV2 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import { WORK_PACKAGE_RUNTIME_LIMITS } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
 
 import {
@@ -131,13 +131,13 @@ function sortedUnique(values: Iterable<string>): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
-function envExample(required: WorkPackageManifestV1["requiredEnvKeys"]): Buffer {
+function envExample(required: WorkPackageManifestV2["requiredEnvKeys"]): Buffer {
   const keys = sortedUnique(Object.values(required).flat());
   return Buffer.from(keys.map((key) => `${key}=\n`).join(""), "utf8");
 }
 
 function staticManifestFields(): Pick<
-  WorkPackageManifestV1,
+  WorkPackageManifestV2,
   "promptfoo" | "contractVersions" | "stageGraph" | "artifactSlots"
 > {
   return {
@@ -147,8 +147,8 @@ function staticManifestFields(): Pick<
     },
     contractVersions: {
       caseDefinition: "cortex.case-definition.v1",
-      restResults: "cortex.rest-results.v1",
-      normalizedEval: "cortex.normalized-eval.v1",
+      restResults: "cortex.rest-results-jsonl.v1",
+      normalizedEval: "cortex.normalized-eval-jsonl.v1",
       report: "cortex.report.v1",
       analysisInput: "cortex.analysis-input.v1",
       analysisOutput: "cortex.analysis-output.v1"
@@ -161,16 +161,16 @@ function staticManifestFields(): Pick<
     },
     artifactSlots: {
       REST_RESULTS: {
-        path: "executions/{execution_id}/rest-results.json",
-        contractVersion: "cortex.rest-results.v1"
+        path: "executions/{execution_id}/rest-results.jsonl",
+        contractVersion: "cortex.rest-results-jsonl.v1"
       },
       RAW_PROMPTFOO_EVIDENCE: {
         path: "executions/{execution_id}/promptfoo-raw.json",
         contractVersion: "promptfoo.0.121.18"
       },
       NORMALIZED_EVAL_RESULTS: {
-        path: "executions/{execution_id}/normalized-eval.json",
-        contractVersion: "cortex.normalized-eval.v1"
+        path: "executions/{execution_id}/normalized-eval.jsonl",
+        contractVersion: "cortex.normalized-eval-jsonl.v1"
       },
       REPORT_JSON: {
         path: "executions/{execution_id}/report.json",
@@ -188,12 +188,12 @@ function staticManifestFields(): Pick<
   };
 }
 
-/** Assemble complete immutable v1 inputs without retaining the Tests file in memory. */
+/** Assemble complete immutable v2 inputs without retaining the Tests file in memory. */
 export async function assembleWorkPackageInputs(
   directory: SecureWorkPackageDirectory,
   source: WorkPackageInputAssembly,
   nonce: string
-): Promise<WorkPackageManifestV1> {
+): Promise<WorkPackageManifestV2> {
   const endpoint = EndpointConfigV1Schema.parse(source.endpoint.definition);
   const evaluator = LlmConfigV1Schema.parse(source.evaluator.definition);
   const analyzer = LlmConfigV1Schema.parse(source.analyzer.definition);
@@ -212,26 +212,24 @@ export async function assembleWorkPackageInputs(
   }
 
   const testsWriter = await directory.createComputedFileWriter(
-    "inputs/tests.json",
+    "inputs/tests.jsonl",
     WORK_PACKAGE_RUNTIME_LIMITS.canonicalTestsBytes,
     writerNonce(nonce, "tests")
   );
-  const manifestCases: WorkPackageManifestV1["cases"] = [];
+  const manifestCases: WorkPackageManifestV2["cases"] = [];
   const caseKeys = new Set<string>();
   const referencedPrompts = new Set<string>();
-  await testsWriter.append(Buffer.from("[", "utf8"));
   try {
     for await (const item of source.cases) {
       requireActive(source.signal);
       const definition = CaseDefinitionV1Schema.parse(item.definition);
       const ordinal = manifestCases.length;
-      const caseBytes = Buffer.from(JSON.stringify(definition), "utf8");
-      if (caseBytes.byteLength > WORK_PACKAGE_RUNTIME_LIMITS.canonicalCaseBytes) {
+      const caseBytes = Buffer.from(`${JSON.stringify(definition)}\n`, "utf8");
+      if (caseBytes.byteLength > WORK_PACKAGE_RUNTIME_LIMITS.canonicalCaseBytes + 1) {
         throw new Error("WORK_PACKAGE_INVALID");
       }
       if (caseKeys.has(definition.metadata.case_id)) throw new Error("WORK_PACKAGE_INVALID");
       caseKeys.add(definition.metadata.case_id);
-      if (ordinal > 0) await testsWriter.append(Buffer.from(",", "utf8"));
       await testsWriter.append(caseBytes);
       manifestCases.push({
         caseKey: definition.metadata.case_id,
@@ -240,7 +238,6 @@ export async function assembleWorkPackageInputs(
       });
       collectPromptReferences(definition.assert, referencedPrompts);
     }
-    await testsWriter.append(Buffer.from("]\n", "utf8"));
   } catch (error) {
     await testsWriter.abort();
     throw error;
@@ -307,7 +304,7 @@ export async function assembleWorkPackageInputs(
   const envExampleFile = (await envWriter.commit()).integrity;
 
   const manifest = validateWorkPackageManifestPolicy({
-    contractVersion: "cortex.work-package-manifest.v1",
+    contractVersion: "cortex.work-package-manifest.v2",
     packageId: source.packageId,
     createdAt: source.createdAt,
     sourceSuite: {

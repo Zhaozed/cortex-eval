@@ -405,7 +405,7 @@ export function TestSuiteDetailPage({
           ref={importInput}
           className="sr-only"
           type="file"
-          accept="application/json,.json"
+          accept="application/json,application/x-ndjson,.json,.jsonl"
           aria-label={message("testSuites.import")}
           disabled={suiteDeleteBlocked}
           onChange={(event) => {

@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 
 import { UuidV7Schema } from "@cortex-eval/contracts/src/contracts-primitives.ts";
 import {
-  ExecutionV1Schema,
-  type ExecutionV1,
-  type WorkPackageManifestV1
+  ExecutionV2Schema,
+  type ExecutionV2,
+  type WorkPackageManifestV2
 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import { WORK_PACKAGE_RUNTIME_LIMITS } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
 
@@ -24,9 +24,9 @@ import { validateFileIntegrity } from "./work-package-file-integrity.ts";
 import { validateWorkPackageManifestPolicy } from "./work-package-manifest-policy.ts";
 
 const ARTIFACT_FILE_NAMES = new Set([
-  "rest-results.json",
+  "rest-results.jsonl",
   "promptfoo-raw.json",
-  "normalized-eval.json",
+  "normalized-eval.jsonl",
   "report.json",
   "report.md",
   "analysis-results.json"
@@ -37,7 +37,7 @@ export interface ValidatedWorkPackageExecution {
   /** Frozen Execution identity. */
   readonly executionId: string;
   /** Fully cleaned Execution state. */
-  readonly execution: ExecutionV1;
+  readonly execution: ExecutionV2;
   /** Hash of the exact mutable state bytes read under the package lock. */
   readonly executionSha256: string;
 }
@@ -45,7 +45,7 @@ export interface ValidatedWorkPackageExecution {
 /** Complete package validation result used by CLI stage commands. */
 export interface ValidatedWorkPackage {
   /** Fully cleaned immutable Manifest. */
-  readonly manifest: WorkPackageManifestV1;
+  readonly manifest: WorkPackageManifestV2;
   /** Hash of the exact Manifest file bytes. */
   readonly manifestSha256: string;
   /** Exact Manifest file byte count used by export framing. */
@@ -107,7 +107,7 @@ function executionIds(entries: readonly SecureDirectoryEntry[]): readonly string
 // Verify one dynamic Execution and every artifact registered in its state.
 async function validateExecution(
   directory: SecureWorkPackageDirectory,
-  manifest: WorkPackageManifestV1,
+  manifest: WorkPackageManifestV2,
   entries: readonly SecureDirectoryEntry[],
   executionId: string,
   options: WorkPackageValidationOptions
@@ -117,9 +117,9 @@ async function validateExecution(
     statePath,
     WORK_PACKAGE_RUNTIME_LIMITS.executionBytes
   );
-  let execution: ExecutionV1;
+  let execution: ExecutionV2;
   try {
-    execution = ExecutionV1Schema.parse(parseJson(stateBytes));
+    execution = ExecutionV2Schema.parse(parseJson(stateBytes));
   } catch {
     throw new Error("WORK_PACKAGE_INVALID");
   }
@@ -163,7 +163,7 @@ async function validateExecution(
 // Require owner-only directories and reject every symlink before content validation.
 function validateTreeShape(
   entries: readonly SecureDirectoryEntry[],
-  manifest: WorkPackageManifestV1
+  manifest: WorkPackageManifestV2
 ): readonly string[] {
   if (entries.some((entry) => entry.kind === "SYMLINK" || entry.kind === "OTHER")) {
     throw new Error("WORK_PACKAGE_PATH_INVALID");
@@ -205,7 +205,7 @@ export async function validateLockedWorkPackageDirectory(
     "manifest.json",
     WORK_PACKAGE_RUNTIME_LIMITS.manifestBytes
   );
-  let manifest: WorkPackageManifestV1;
+  let manifest: WorkPackageManifestV2;
   try {
     manifest = validateWorkPackageManifestPolicy(parseJson(manifestBytes));
   } catch (error) {

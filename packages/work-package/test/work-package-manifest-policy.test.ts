@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { WorkPackageManifestV1 } from "../../contracts/src/work-package-contracts.ts";
+import type { WorkPackageManifestV2 } from "../../contracts/src/work-package-contracts.ts";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -19,15 +19,15 @@ function file(path: string, sizeBytes = 1): { path: string; sha256: string; size
   return { path, sha256: HASH, sizeBytes };
 }
 
-function manifest(): WorkPackageManifestV1 {
+function manifest(): WorkPackageManifestV2 {
   return {
-    contractVersion: "cortex.work-package-manifest.v1",
+    contractVersion: "cortex.work-package-manifest.v2",
     packageId: ID,
     createdAt: "2026-07-14T00:00:00.000Z",
     sourceSuite: { suiteId: ID, suiteHash: HASH },
     cases: [{ caseKey: "case-1", ordinal: 0, baseDefinitionHash: HASH }],
     inputs: {
-      tests: file("inputs/tests.json"),
+      tests: file("inputs/tests.jsonl"),
       endpoint: file("inputs/endpoint.json"),
       evaluator: file("inputs/evaluator.json"),
       analyzer: file("inputs/analyzer.json"),
@@ -58,8 +58,8 @@ function manifest(): WorkPackageManifestV1 {
     },
     contractVersions: {
       caseDefinition: "cortex.case-definition.v1",
-      restResults: "cortex.rest-results.v1",
-      normalizedEval: "cortex.normalized-eval.v1",
+      restResults: "cortex.rest-results-jsonl.v1",
+      normalizedEval: "cortex.normalized-eval-jsonl.v1",
       report: "cortex.report.v1",
       analysisInput: "cortex.analysis-input.v1",
       analysisOutput: "cortex.analysis-output.v1"
@@ -93,16 +93,16 @@ function manifest(): WorkPackageManifestV1 {
     },
     artifactSlots: {
       REST_RESULTS: {
-        path: "executions/{execution_id}/rest-results.json",
-        contractVersion: "cortex.rest-results.v1"
+        path: "executions/{execution_id}/rest-results.jsonl",
+        contractVersion: "cortex.rest-results-jsonl.v1"
       },
       RAW_PROMPTFOO_EVIDENCE: {
         path: "executions/{execution_id}/promptfoo-raw.json",
         contractVersion: "promptfoo.0.121.18"
       },
       NORMALIZED_EVAL_RESULTS: {
-        path: "executions/{execution_id}/normalized-eval.json",
-        contractVersion: "cortex.normalized-eval.v1"
+        path: "executions/{execution_id}/normalized-eval.jsonl",
+        contractVersion: "cortex.normalized-eval-jsonl.v1"
       },
       REPORT_JSON: {
         path: "executions/{execution_id}/report.json",

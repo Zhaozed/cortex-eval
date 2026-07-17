@@ -16,6 +16,28 @@
 - P4 Web 入口：[apps/web/src](../apps/web/src)
 - P9 Analysis、平台与离线执行、当前决策和完整 Execution Analysis Import 已完成完整门禁与独立变更复审；P10 Canonical Export API/CLI、双重对账、确定性硬化门禁和独立变更复审已闭环，同一次完整发布调用中的真实 Gemini Rubric 与 Analyzer 已通过。
 
+## Work Package v2 JSONL 文件协议
+
+### 决策
+
+离线文件运行时只接受 `cortex.work-package-manifest.v2` 与 `cortex.execution.v2`。Canonical Tests 默认使用 `inputs/tests.jsonl`；REST 与 Normalized Eval 分别使用 `cortex.rest-results-jsonl.v1` 和 `cortex.normalized-eval-jsonl.v1`，记录顺序固定为 `HEADER → CASE × N → FOOTER`。Raw Promptfoo、Report 与 Analysis 的文件格式保持不变，不兼容读取旧 Work Package v1。
+
+### 原因
+
+JSONL 允许测试、REST 与 Eval 逐 Case 有界读写，避免数组 Envelope 需要自定义 JSON 状态机。Manifest/Execution 升级避免原地改变已冻结 v1；Transport Contract Version 与 `cortex.rest-result-set.v1`、`cortex.eval-result-set.v1` 等 Domain Hash Version 分离。
+
+### 代码影响
+
+CLI `rest run` 取代独立本地 REST 脚本，并继续提供请求、并发、失败事实、Retry/Force 和 Artifact 落盘能力。Report、Analysis、结果导入和 SQLite Artifact Manifest 读取新的 JSONL Descriptor 与 Contract Version。
+
+### 测试影响
+
+覆盖 LF 终止、无换行超限、控制行/Case/总文件上限、取消、身份与顺序、CLI 机器事件以及 SQLite 导入回读。
+
+### 状态
+
+生效。
+
 ## 单文件 SQLite
 
 ### 决策

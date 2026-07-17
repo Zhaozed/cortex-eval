@@ -61,7 +61,11 @@ import type {
   LocalMultipartFile,
   LocalResourceHandlers
 } from "./local-server.ts";
-import { CaseImportJsonError, parseCaseDefinitionStream } from "./case-import-json-stream.ts";
+import {
+  CaseImportFormat,
+  CaseImportJsonError,
+  parseCaseDefinitionStream
+} from "./case-import-json-stream.ts";
 import type { CaseExportBodyPreparer } from "./case-export-staging.ts";
 import {
   mapAnalysisPromptDefinitionFromV1,
@@ -473,7 +477,15 @@ async function* parseBoundedCaseDefinitionStream(
   signal: AbortSignal
 ): AsyncGenerator<ReturnType<typeof mapCaseDefinitionFromV1>, void, void> {
   if (file.truncated()) throw new CaseImportJsonError("CASE_IMPORT_TOO_LARGE");
-  yield* parseCaseDefinitionStream(file.stream, signal);
+  const filename = file.filename.toLowerCase();
+  const format =
+    filename.endsWith(".jsonl") ||
+    file.mimetype === "application/x-ndjson" ||
+    file.mimetype === "application/ndjson" ||
+    file.mimetype === "application/jsonl"
+      ? CaseImportFormat.JSON_LINES
+      : CaseImportFormat.JSON_ARRAY;
+  yield* parseCaseDefinitionStream(file.stream, signal, format);
   if (file.truncated()) throw new CaseImportJsonError("CASE_IMPORT_TOO_LARGE");
 }
 

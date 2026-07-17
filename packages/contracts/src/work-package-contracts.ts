@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { FileIntegrityV1Schema } from "./artifact-contracts.ts";
+import {
+  EvalCaseV1Schema,
+  FileIntegrityV1Schema,
+  RestArtifactCaseV1Schema
+} from "./artifact-contracts.ts";
 import {
   BusinessKeySchema,
   Sha256Schema,
@@ -52,10 +56,10 @@ const ExecutionLimitPolicyV1Schema = z.strictObject({
   })
 });
 
-/** Immutable complete Work Package Manifest v1. */
-export const WorkPackageManifestV1Schema = z
+/** Immutable complete Work Package Manifest v2. */
+export const WorkPackageManifestV2Schema = z
   .strictObject({
-    contractVersion: z.literal("cortex.work-package-manifest.v1"),
+    contractVersion: z.literal("cortex.work-package-manifest.v2"),
     packageId: UuidV7Schema,
     createdAt: UtcDateTimeSchema,
     sourceSuite: z.strictObject({ suiteId: UuidV7Schema, suiteHash: Sha256Schema }),
@@ -90,8 +94,8 @@ export const WorkPackageManifestV1Schema = z
     }),
     contractVersions: z.strictObject({
       caseDefinition: z.literal("cortex.case-definition.v1"),
-      restResults: z.literal("cortex.rest-results.v1"),
-      normalizedEval: z.literal("cortex.normalized-eval.v1"),
+      restResults: z.literal("cortex.rest-results-jsonl.v1"),
+      normalizedEval: z.literal("cortex.normalized-eval-jsonl.v1"),
       report: z.literal("cortex.report.v1"),
       analysisInput: z.literal("cortex.analysis-input.v1"),
       analysisOutput: z.literal("cortex.analysis-output.v1")
@@ -106,16 +110,16 @@ export const WorkPackageManifestV1Schema = z
     stageGraph: StageGraphV1Schema,
     artifactSlots: z.strictObject({
       REST_RESULTS: artifactSlotV1Schema(
-        "executions/{execution_id}/rest-results.json",
-        "cortex.rest-results.v1"
+        "executions/{execution_id}/rest-results.jsonl",
+        "cortex.rest-results-jsonl.v1"
       ),
       RAW_PROMPTFOO_EVIDENCE: artifactSlotV1Schema(
         "executions/{execution_id}/promptfoo-raw.json",
         "promptfoo.0.121.18"
       ),
       NORMALIZED_EVAL_RESULTS: artifactSlotV1Schema(
-        "executions/{execution_id}/normalized-eval.json",
-        "cortex.normalized-eval.v1"
+        "executions/{execution_id}/normalized-eval.jsonl",
+        "cortex.normalized-eval-jsonl.v1"
       ),
       REPORT_JSON: artifactSlotV1Schema(
         "executions/{execution_id}/report.json",
@@ -246,8 +250,8 @@ const EXECUTION_STAGE_ARTIFACTS = {
   REST: [
     {
       kind: "REST_RESULTS",
-      fileName: "rest-results.json",
-      contractVersion: "cortex.rest-results.v1"
+      fileName: "rest-results.jsonl",
+      contractVersion: "cortex.rest-results-jsonl.v1"
     }
   ],
   EVALUATION: [
@@ -258,8 +262,8 @@ const EXECUTION_STAGE_ARTIFACTS = {
     },
     {
       kind: "NORMALIZED_EVAL_RESULTS",
-      fileName: "normalized-eval.json",
-      contractVersion: "cortex.normalized-eval.v1"
+      fileName: "normalized-eval.jsonl",
+      contractVersion: "cortex.normalized-eval-jsonl.v1"
     }
   ],
   REPORT: [
@@ -280,9 +284,9 @@ const EXECUTION_STAGE_ARTIFACTS = {
 } as const;
 
 /** Mutable state for one immutable Execution identity. */
-export const ExecutionV1Schema = z
+export const ExecutionV2Schema = z
   .strictObject({
-    contractVersion: z.literal("cortex.execution.v1"),
+    contractVersion: z.literal("cortex.execution.v2"),
     packageId: UuidV7Schema,
     executionId: UuidV7Schema,
     createdAt: UtcDateTimeSchema,
@@ -385,7 +389,50 @@ export const ExecutionV1Schema = z
   });
 
 /** Exported Manifest DTO. */
-export type WorkPackageManifestV1 = z.infer<typeof WorkPackageManifestV1Schema>;
+export type WorkPackageManifestV2 = z.infer<typeof WorkPackageManifestV2Schema>;
 
 /** Exported Execution DTO. */
-export type ExecutionV1 = z.infer<typeof ExecutionV1Schema>;
+export type ExecutionV2 = z.infer<typeof ExecutionV2Schema>;
+
+/** Header of a REST JSONL Artifact. It binds all following Case records to one Execution. */
+export const WorkPackageRestJsonlHeaderV1Schema = z.strictObject({
+  recordType: z.literal("HEADER"),
+  contractVersion: z.literal("cortex.rest-results-jsonl.v1"),
+  packageId: UuidV7Schema,
+  executionId: UuidV7Schema
+});
+
+/** One REST JSONL Case record. */
+export const WorkPackageRestJsonlCaseV1Schema = z.strictObject({
+  recordType: z.literal("CASE"),
+  value: RestArtifactCaseV1Schema
+});
+
+/** Footer of a complete REST JSONL Artifact. */
+export const WorkPackageRestJsonlFooterV1Schema = z.strictObject({
+  recordType: z.literal("FOOTER"),
+  completedAt: UtcDateTimeSchema,
+  resultSetHash: Sha256Schema
+});
+
+/** Header of a Normalized Eval JSONL Artifact. */
+export const WorkPackageNormalizedEvalJsonlHeaderV1Schema = z.strictObject({
+  recordType: z.literal("HEADER"),
+  contractVersion: z.literal("cortex.normalized-eval-jsonl.v1"),
+  packageId: UuidV7Schema,
+  executionId: UuidV7Schema,
+  evaluationContextHash: Sha256Schema
+});
+
+/** One Normalized Eval JSONL Case record. */
+export const WorkPackageNormalizedEvalJsonlCaseV1Schema = z.strictObject({
+  recordType: z.literal("CASE"),
+  value: EvalCaseV1Schema
+});
+
+/** Footer of a complete Normalized Eval JSONL Artifact. */
+export const WorkPackageNormalizedEvalJsonlFooterV1Schema = z.strictObject({
+  recordType: z.literal("FOOTER"),
+  completedAt: UtcDateTimeSchema,
+  resultSetHash: Sha256Schema
+});

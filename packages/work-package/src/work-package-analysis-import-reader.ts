@@ -9,8 +9,8 @@ import type {
 import type { ImportedExecutionReportCase } from "@cortex-eval/application/src/features/execution-imports/execution-import-models.ts";
 import type { AnalysisResultCaseV1 } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import type {
-  ExecutionV1,
-  WorkPackageManifestV1
+  ExecutionV2,
+  WorkPackageManifestV2
 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import type { AnalysisSelector } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 
@@ -56,7 +56,7 @@ export interface PreparedWorkPackageAnalysisImport {
   /** Frozen Prompt input used to recompute every Analysis Input Hash. */
   readonly prompt: FrozenCaseAnalysisPrompt;
   /** Frozen Analysis concurrency identity. */
-  readonly analysisExecutionLimits: ExecutionV1["analysisExecutionLimits"];
+  readonly analysisExecutionLimits: ExecutionV2["analysisExecutionLimits"];
   /** Exact registered Analysis Artifact identity. */
   readonly artifact: AnalysisStageArtifact;
   /** Offline Analysis completion time. */
@@ -70,9 +70,9 @@ export interface PrepareWorkPackageAnalysisImportInput {
   /** Stable package directory. */
   readonly directory: SecureWorkPackageDirectory;
   /** Fully validated immutable Manifest. */
-  readonly manifest: WorkPackageManifestV1;
+  readonly manifest: WorkPackageManifestV2;
   /** Fully validated Execution state. */
-  readonly execution: ExecutionV1;
+  readonly execution: ExecutionV2;
   /** Narrow immutable input reader. */
   readonly inputs: WorkPackageInputReader;
   /** Pure Case Definition hashing. */
@@ -92,7 +92,7 @@ function invalid(cause?: unknown): Error {
 }
 
 // Require the exact immutable Analysis stage slot.
-function analysisArtifact(execution: ExecutionV1): AnalysisStageArtifact {
+function analysisArtifact(execution: ExecutionV2): AnalysisStageArtifact {
   const stage = execution.stages.ANALYSIS;
   if (stage.status !== "SUCCEEDED" || stage.completedAt === null || stage.artifacts.length !== 1) {
     throw invalid();

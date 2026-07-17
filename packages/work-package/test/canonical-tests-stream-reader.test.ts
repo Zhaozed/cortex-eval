@@ -35,31 +35,29 @@ async function collect(input: AsyncIterable<Uint8Array>): Promise<readonly CaseD
 }
 
 describe("Canonical Tests streaming reader", () => {
-  it("parses fragmented UTF-8 JSON arrays in exact source order", async () => {
+  it("parses fragmented UTF-8 JSONL in exact source order", async () => {
     const cases = [testCase("case-1"), testCase("case-2")];
-    const bytes = Buffer.from(` \n[${cases.map((item) => JSON.stringify(item)).join(",\n")}]\n`);
+    const bytes = Buffer.from(`${cases.map((item) => JSON.stringify(item)).join("\n")}\n`);
     await expect(collect(fragmented(bytes))).resolves.toEqual(cases);
   });
 
   it("rejects truncation, trailing data and dirty Case objects", async () => {
     const valid = JSON.stringify(testCase("case-1"));
-    await expect(collect(fragmented(Buffer.from(`[${valid}`)))).rejects.toThrow(
-      "WORK_PACKAGE_INVALID"
-    );
-    await expect(collect(fragmented(Buffer.from(`[${valid}] false`)))).rejects.toThrow(
+    await expect(collect(fragmented(Buffer.from(valid)))).rejects.toThrow("WORK_PACKAGE_INVALID");
+    await expect(collect(fragmented(Buffer.from(`${valid}\nfalse\n`)))).rejects.toThrow(
       "WORK_PACKAGE_INVALID"
     );
     await expect(
       collect(
-        fragmented(Buffer.from(`[${JSON.stringify({ ...testCase("case-1"), extra: true })}]`))
+        fragmented(Buffer.from(`${JSON.stringify({ ...testCase("case-1"), extra: true })}\n`))
       )
     ).rejects.toThrow("WORK_PACKAGE_INVALID");
   });
 
   it("checks the raw Case byte ceiling before JSON materialization", async () => {
     const oversized = Buffer.alloc(WORK_PACKAGE_RUNTIME_LIMITS.canonicalCaseBytes + 1, 0x20);
-    const prefix = Buffer.from('[{"contractVersion":"cortex.case-definition.v1","description":"');
-    const suffix = Buffer.from('"}]');
+    const prefix = Buffer.from('{"contractVersion":"cortex.case-definition.v1","description":"');
+    const suffix = Buffer.from('"}\n');
     async function* input(): AsyncIterable<Uint8Array> {
       await Promise.resolve();
       yield prefix;
@@ -73,9 +71,9 @@ describe("Canonical Tests streaming reader", () => {
     const controller = new AbortController();
     async function* input(): AsyncIterable<Uint8Array> {
       await Promise.resolve();
-      yield Buffer.from("[");
+      yield Buffer.from("{");
       controller.abort();
-      yield Buffer.from(`${JSON.stringify(testCase("case-1"))}]`);
+      yield Buffer.from(`${JSON.stringify(testCase("case-1"))}\n`);
     }
     const result: CaseDefinitionV1[] = [];
     await expect(

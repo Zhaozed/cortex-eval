@@ -1,4 +1,4 @@
-import type { WorkPackageManifestV1 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
+import type { WorkPackageManifestV2 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import {
   WORK_PACKAGE_RUNTIME_LIMITS,
   type WorkPackageExportEventV1
@@ -43,7 +43,7 @@ export interface ReceivedWorkPackage {
 // Clean one bounded Manifest after its exact hash and size have already matched.
 async function readManifest(
   publisher: WorkPackageDirectoryPublisher
-): Promise<WorkPackageManifestV1> {
+): Promise<WorkPackageManifestV2> {
   const bytes = await publisher.directory.readFileBounded(
     "manifest.json",
     WORK_PACKAGE_RUNTIME_LIMITS.manifestBytes
@@ -68,7 +68,7 @@ function writerNonce(nonce: string, index: number): string {
 }
 
 // Build the exact post-Manifest file allowlist.
-function inputFiles(manifest: WorkPackageManifestV1): readonly ImmutableFileExpectation[] {
+function inputFiles(manifest: WorkPackageManifestV2): readonly ImmutableFileExpectation[] {
   return [
     manifest.inputs.tests,
     manifest.inputs.endpoint,
@@ -123,7 +123,7 @@ export async function receiveWorkPackageExport(
   let writer: ImmutableFileWriter | undefined;
   let currentPath: string | undefined;
   let nextSequence = 0;
-  let manifest: WorkPackageManifestV1 | undefined;
+  let manifest: WorkPackageManifestV2 | undefined;
   let expectedFiles = new Map<string, ImmutableFileExpectation>();
   let phase: "START" | "MANIFEST" | "FILES" | "DONE" = "START";
   let writerIndex = 0;

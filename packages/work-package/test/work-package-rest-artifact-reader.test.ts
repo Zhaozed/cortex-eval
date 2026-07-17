@@ -12,14 +12,22 @@ const EXECUTION_ID = "018f22aa-33bb-7ccc-8ddd-ffffffffffff";
 const HASH = "a".repeat(64);
 
 function artifact(cases: readonly unknown[]): string {
-  return JSON.stringify({
-    cases,
-    completedAt: "2026-07-14T07:01:00.000Z",
-    contractVersion: "cortex.rest-results.v1",
-    executionId: EXECUTION_ID,
-    packageId: PACKAGE_ID,
-    resultSetHash: HASH
-  });
+  return (
+    [
+      JSON.stringify({
+        recordType: "HEADER",
+        contractVersion: "cortex.rest-results-jsonl.v1",
+        executionId: EXECUTION_ID,
+        packageId: PACKAGE_ID
+      }),
+      ...cases.map((value) => JSON.stringify({ recordType: "CASE", value })),
+      JSON.stringify({
+        recordType: "FOOTER",
+        completedAt: "2026-07-14T07:01:00.000Z",
+        resultSetHash: HASH
+      })
+    ].join("\n") + "\n"
+  );
 }
 
 function result(caseKey: string, ordinal: number): unknown {
@@ -67,12 +75,17 @@ async function collect(value: string): Promise<{
   }
 }
 
-async function probeCaseByteGate(payloadBytes: number, onTail: () => void): Promise<void> {
+async function probeCaseByteGate(lineBytes: number, onTail: () => void): Promise<void> {
+  const casePrefix = Buffer.from('{"recordType":"CASE","value":{', "utf8");
   function* input(): Generator<Uint8Array> {
-    yield Buffer.from('{"cases":[{', "utf8");
-    yield Buffer.alloc(payloadBytes, 0x61);
+    yield Buffer.from(
+      `${JSON.stringify({ recordType: "HEADER", contractVersion: "cortex.rest-results-jsonl.v1", packageId: PACKAGE_ID, executionId: EXECUTION_ID })}\n`,
+      "utf8"
+    );
+    yield casePrefix;
+    yield Buffer.alloc(lineBytes - casePrefix.byteLength, 0x61);
     onTail();
-    yield Buffer.from("}]}", "utf8");
+    yield Buffer.from("}}\n", "utf8");
   }
   const reader = readWorkPackageRestArtifact(input(), {
     packageId: PACKAGE_ID,
@@ -92,6 +105,7 @@ async function drain(
     readonly packageId?: string;
     readonly executionId?: string;
     readonly expectedCaseCount?: number;
+    readonly expectedSizeBytes?: number;
     readonly signal?: AbortSignal;
   } = {}
 ): Promise<void> {
@@ -99,6 +113,9 @@ async function drain(
     packageId: options.packageId ?? PACKAGE_ID,
     executionId: options.executionId ?? EXECUTION_ID,
     expectedCaseCount: options.expectedCaseCount ?? 1,
+    ...(options.expectedSizeBytes === undefined
+      ? {}
+      : { expectedSizeBytes: options.expectedSizeBytes }),
     signal: options.signal ?? new AbortController().signal
   });
   for await (const item of reader) void item;
@@ -131,7 +148,7 @@ describe("P7 Work Package REST Artifact reader", () => {
   it("allows exactly 32 MiB through the Case byte gate and rejects the next byte before parse", async () => {
     let exactTailRead = false;
     await expect(
-      probeCaseByteGate(WORK_PACKAGE_RUNTIME_LIMITS.restResultCaseBytes - 1, () => {
+      probeCaseByteGate(WORK_PACKAGE_RUNTIME_LIMITS.restResultCaseBytes, () => {
         exactTailRead = true;
       })
     ).rejects.toThrow("WORK_PACKAGE_INVALID");
@@ -139,7 +156,7 @@ describe("P7 Work Package REST Artifact reader", () => {
 
     let overTailRead = false;
     await expect(
-      probeCaseByteGate(WORK_PACKAGE_RUNTIME_LIMITS.restResultCaseBytes, () => {
+      probeCaseByteGate(WORK_PACKAGE_RUNTIME_LIMITS.restResultCaseBytes + 1, () => {
         overTailRead = true;
       })
     ).rejects.toThrow("WORK_PACKAGE_INVALID");
@@ -187,6 +204,18 @@ describe("P7 Work Package REST Artifact reader", () => {
     ).rejects.toThrow("WORK_PACKAGE_INVALID");
     const deep = `{"cases":[{"nested":${"[".repeat(257)}0${"]".repeat(257)}}]}`;
     await expect(drain(deep)).rejects.toThrow("WORK_PACKAGE_INVALID");
+
+    const oversizedHeader = `${JSON.stringify({
+      recordType: "HEADER",
+      contractVersion: "cortex.rest-results-jsonl.v1",
+      packageId: "x".repeat(WORK_PACKAGE_RUNTIME_LIMITS.jsonlControlLineBytes),
+      executionId: EXECUTION_ID
+    })}\n`;
+    await expect(drain(oversizedHeader)).rejects.toThrow("WORK_PACKAGE_INVALID");
+
+    await expect(drain(one, { expectedSizeBytes: Number.MAX_SAFE_INTEGER })).rejects.toThrow(
+      "WORK_PACKAGE_INVALID"
+    );
   });
 
   it("preserves cancellation observed after the last input chunk", async () => {

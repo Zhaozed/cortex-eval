@@ -30,7 +30,7 @@ P6 已建立 `packages/reporting`，锁定 Ajv `8.20.0` 与 Draft 2020-12，实�
 - [report-aggregation.test.ts](../../packages/reporting/test/report-aggregation.test.ts)：Rate、Metric 去重、顺序、Hash 和对账。
 - [report-markdown.test.ts](../../packages/reporting/test/report-markdown.test.ts)：稳定事实呈现与 Markdown 单向性。
 - [test_example.json](../../test_suite/current/eval_result/test_example.json)：当前已提交 Promptfoo 原始结果 Fixture。
-- [loona_promptfoo_tests.json](../../test_suite/current/cases/loona_promptfoo_tests.json)
+- [loona_promptfoo_tests.jsonl](../../test_suite/current/cases/loona_promptfoo_tests.jsonl)
 
 ## 对外接口
 

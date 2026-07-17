@@ -35,7 +35,7 @@ P8 已在当前 Test Suite 与 Case 资源管理基础上，把测试集列表�
 
 ## 当前样例与测试入口
 
-- [loona_promptfoo_tests.json](../../test_suite/current/cases/loona_promptfoo_tests.json)
+- [loona_promptfoo_tests.jsonl](../../test_suite/current/cases/loona_promptfoo_tests.jsonl)
 - [test_convert_loona_to_promptfoo.py](../../data_scripts/test_convert_loona_to_promptfoo.py)
 - [Test Suite list/edit tests](../../apps/web/test/test-suite-detail-page.test.tsx)
 - [Test Suite Case mutation tests](../../apps/web/test/test-suite-detail-page-case-mutations.test.tsx)
@@ -53,7 +53,7 @@ Case 编辑器使用共享 Draft。结构化模式编辑公共字段并为每条
 
 ## 核心流程
 
-用户创建空测试集或导入 JSON，查看服务端分页 Cases，编辑结构化字段或 JSON，并通过同一 API 保存。删除和全量替换前展示影响范围并确认。
+用户创建空测试集或导入 JSON/JSONL，查看服务端分页 Cases，编辑结构化字段或 JSON，并通过同一 API 保存。删除和全量替换前展示影响范围并确认。JSONL 文件按每个非空行一个 Case 处理。
 
 测试集和 Case 写入及测试集删除使用与可见事实同一时刻冻结的 Revision。409 后页面读取最新 Suite/Case Snapshot，保留可见的本地 Draft 或删除意图，并要求用户选择最新 Revision 重试或采用 Snapshot。Suite 元数据 Sheet 把打开或显式采用 Snapshot 时的表单值与 Revision 冻结为同一 Session，后台 Query 刷新不能替换该 Token。Suite 删除在 Impact 预检前冻结 Suite Snapshot，仅在 Impact 成功后原子发布确认事实；409 后按 Suite、Impact 顺序读取，全部成功才替换整组事实，失败或 Abort 不允许拼接新旧状态。冲突恢复 Controller 由组件生命周期托管，卸载后即使底层返回迟到 Suite，也不能继续读取 Impact 或同步共享 Query。若 Case 编辑或删除刷新得到 `CASE_NOT_FOUND`，恢复状态显式变为 `REMOTE_CASE_DELETED`，不伪造 Case Revision；编辑详情 Query 先停用再清理缓存，原 Draft 保持只读可见，删除 Dialog 保持打开，且两种流程都只提供“采用服务端已删除事实”决策。Suite 创建和元数据保存使用同步单飞锁，在途或冲突待决时冻结表单，并阻止关闭 Sheet；非冲突失败和可定位字段错误保留在该 Sheet。Case Snapshot 不在决策前写入可见编辑详情缓存，结构化与完整 JSON 模式都保持原 Draft；保存请求或冲突决策期间冻结整个可编辑面，重试不会静默忽略冲突后输入。创建、复制、删除和导入共用同一恢复流程与同步单飞锁；复制输入在冲突期间同样冻结，重复冲突会再次读取事实，写入在途或冲突待决时禁用原操作。显式重试遇到非 Revision 终态失败时，恢复 Hook 统一清洗错误并把最近 Revision Facts 交回 owner，清除旧冲突但不关闭 Sheet/Dialog；创建 Draft、复制 ID、删除目标和导入文件保持原值，控件恢复可用，删除再次确认使用最近双 Revision。Case 编辑重试失败通过单调事件 ID 交回同一编辑器，仅消费一次，并复用普通保存的字段路径映射与聚焦逻辑。Test Suite 删除影响预检使用独立单飞锁、支持卸载取消，并与 Suite/Case 写入入口双向互斥；成功后通过已提交导航离开，不直接清空页面聚合门禁。页面级离开门禁覆盖关闭按钮、Esc、返回按钮、侧栏、浏览器历史和页面卸载，写入结束或用户显式完成冲突决策后才解除；该门禁要求浏览器提供 `Navigation.currentEntry.index`，能力缺失时整个资源 Feature 不挂载。相邻 Suite 详情路由按 Suite ID 重建组件，卸载时释放上一 Suite 的页面状态和请求。失败的操作保持当前 Sheet/Dialog，并在当前模态容器内展示，不把失败当成成功关闭；导入和删除请求在途或冲突待决时取消按钮同步禁用。
 
@@ -73,4 +73,4 @@ Suite 创建、编辑的名称或说明错误关联并聚焦当前表单。Case 
 
 ## 相关测试
 
-目标测试覆盖 CRUD、复制、导入回滚、分页、组合过滤、JSON 与结构化编辑一致性、删除确认、连续冲突、写操作单飞、缓存清理和错误定位。
+目标测试覆盖 CRUD、复制、JSON/JSONL 导入回滚、分页、组合过滤、JSON 与结构化编辑一致性、删除确认、连续冲突、写操作单飞、缓存清理和错误定位。

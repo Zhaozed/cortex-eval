@@ -2,7 +2,6 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { RestResultsArtifactV1Schema } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import { hashExecutionContext } from "../../domain/src/domain-hash-inputs.ts";
 import type { OfflineRestCaseResult } from "../../application/src/features/runs/offline-rest-execution-service.ts";
 import { afterEach, describe, expect, it } from "vitest";
@@ -160,20 +159,22 @@ describe("Work Package REST Artifact writer", () => {
       const artifact = await writer.commit(COMPLETED_AT, RESULT_HASH);
       await session.completeStage(EXECUTION_ID, "REST", COMPLETED_AT, [artifact]);
 
-      const bytes = await readFile(join(root, `executions/${EXECUTION_ID}/rest-results.json`));
-      const parsed = RestResultsArtifactV1Schema.parse(
-        JSON.parse(bytes.toString("utf8")) as unknown
-      );
-      expect(parsed).toMatchObject({
+      const bytes = await readFile(join(root, `executions/${EXECUTION_ID}/rest-results.jsonl`));
+      const [header, caseRecord, footer] = bytes
+        .toString("utf8")
+        .trimEnd()
+        .split("\n")
+        .map((line) => JSON.parse(line) as unknown);
+      expect(header).toMatchObject({
         packageId: WORK_PACKAGE_FIXTURE_ID,
-        executionId: EXECUTION_ID,
-        resultSetHash: RESULT_HASH,
-        cases: [{ caseKey: "case-1", status: "SUCCEEDED" }]
+        executionId: EXECUTION_ID
       });
+      expect(caseRecord).toMatchObject({ value: { caseKey: "case-1", status: "SUCCEEDED" } });
+      expect(footer).toMatchObject({ resultSetHash: RESULT_HASH });
       expect(artifact).toMatchObject({
         kind: "REST_RESULTS",
-        contractVersion: "cortex.rest-results.v1",
-        path: `executions/${EXECUTION_ID}/rest-results.json`
+        contractVersion: "cortex.rest-results-jsonl.v1",
+        path: `executions/${EXECUTION_ID}/rest-results.jsonl`
       });
     } finally {
       await session.close();
@@ -284,12 +285,17 @@ describe("Work Package REST Artifact writer", () => {
       await writer.commit(COMPLETED_AT, RESULT_HASH);
       await writer.abort();
       await expect(writer.append(result())).rejects.toThrow("ARTIFACT_WRITER_CLOSED");
-      const parsed = RestResultsArtifactV1Schema.parse(
-        JSON.parse(
-          await readFile(join(root, `executions/${EXECUTION_ID}/rest-results.json`), "utf8")
-        ) as unknown
-      );
-      expect(parsed.cases).toMatchObject([
+      const records = (
+        await readFile(join(root, `executions/${EXECUTION_ID}/rest-results.jsonl`), "utf8")
+      )
+        .trimEnd()
+        .split("\n")
+        .map(
+          (line) => JSON.parse(line) as { readonly recordType: string; readonly value?: unknown }
+        );
+      expect(
+        records.filter((record) => record.recordType === "CASE").map((record) => record.value)
+      ).toMatchObject([
         { status: "SUCCEEDED", providerOutput: { ok: false, err_msg: "business failure" } },
         { status: "ERROR", error: { type: "NETWORK" } }
       ]);

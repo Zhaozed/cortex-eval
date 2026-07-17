@@ -26,7 +26,7 @@ describe("immutable file stream writer", () => {
     const directory = await SecureWorkPackageDirectory.open(root);
     const value = Buffer.from("computed-stream");
     const writer = await directory.createComputedFileWriter(
-      "inputs/tests.json",
+      "inputs/tests.jsonl",
       value.byteLength,
       "writer-computed"
     );
@@ -34,14 +34,14 @@ describe("immutable file stream writer", () => {
     await writer.append(value.subarray(4));
     const published = await writer.commit();
     expect(published.integrity).toEqual({
-      path: "inputs/tests.json",
+      path: "inputs/tests.jsonl",
       sha256: createHash("sha256").update(value).digest("hex"),
       sizeBytes: value.byteLength
     });
     expect(published.publicationIdentity.device).toMatch(/^\d+$/);
     expect(published.publicationIdentity.inode).toMatch(/^\d+$/);
     directory.close();
-    expect(await readFile(join(root, "inputs/tests.json"), "utf8")).toBe("computed-stream");
+    expect(await readFile(join(root, "inputs/tests.jsonl"), "utf8")).toBe("computed-stream");
   });
 
   it("rejects a computed stream over its role limit and leaves no target", async () => {
@@ -60,7 +60,7 @@ describe("immutable file stream writer", () => {
     const value = Buffer.from("complete-stream");
     const writer = await directory.createImmutableFileWriter(
       {
-        path: "inputs/tests.json",
+        path: "inputs/tests.jsonl",
         sha256: createHash("sha256").update(value).digest("hex"),
         sizeBytes: value.byteLength
       },
@@ -70,7 +70,7 @@ describe("immutable file stream writer", () => {
     await writer.append(value.subarray(5));
     await writer.commit();
     directory.close();
-    expect(await readFile(join(root, "inputs/tests.json"), "utf8")).toBe("complete-stream");
+    expect(await readFile(join(root, "inputs/tests.jsonl"), "utf8")).toBe("complete-stream");
   });
 
   it("rejects overrun before writing and removes the unpublished temporary file", async () => {

@@ -279,11 +279,20 @@ describe("Work Package input reader", () => {
         }
       ]
     } as const;
-    await writeFile(join(root, manifest.inputs.tests.path), `${JSON.stringify([transport])}\n`);
+    const testsBytes = Buffer.from(`${JSON.stringify(transport)}\n`);
+    await writeFile(join(root, manifest.inputs.tests.path), testsBytes);
     const directory = await SecureWorkPackageDirectory.open(root);
     try {
       const reader = new WorkPackageInputReader(directory, {
         ...manifest,
+        inputs: {
+          ...manifest.inputs,
+          tests: {
+            ...manifest.inputs.tests,
+            sha256: createHash("sha256").update(testsBytes).digest("hex"),
+            sizeBytes: testsBytes.byteLength
+          }
+        },
         cases: [
           {
             caseKey: definition.caseKey,

@@ -6,6 +6,11 @@ import {
   UtcDateTimeSchema
 } from "@cortex-eval/contracts/src/contracts-primitives.ts";
 import { WORK_PACKAGE_RUNTIME_LIMITS } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
+import {
+  WorkPackageNormalizedEvalJsonlCaseV1Schema,
+  WorkPackageNormalizedEvalJsonlFooterV1Schema,
+  WorkPackageNormalizedEvalJsonlHeaderV1Schema
+} from "@cortex-eval/contracts/src/work-package-contracts.ts";
 
 import type { ImmutableFileWriter } from "./secure-work-package-directory.ts";
 import type {
@@ -19,12 +24,6 @@ import { validateDecodedJsonStringBytes } from "./json-value-runtime-limits.ts";
 export class WorkPackageNormalizedEvalArtifactWriter {
   /** Underlying immutable file writer. */
   readonly #writer: ImmutableFileWriter;
-  /** Owning immutable Package identity. */
-  readonly #packageId: string;
-  /** Owning immutable Execution identity. */
-  readonly #executionId: string;
-  /** Frozen Evaluation context identity. */
-  readonly #evaluationContextHash: string;
   /** Frozen Manifest identity lookup owned by the locked Session. */
   readonly #expectedCaseKey: (ordinal: number) => string | null;
   /** Next required Case ordinal. */
@@ -34,19 +33,13 @@ export class WorkPackageNormalizedEvalArtifactWriter {
   /** Construct only through the running Evaluation stage factory. */
   private constructor(
     writer: ImmutableFileWriter,
-    packageId: string,
-    executionId: string,
-    evaluationContextHash: string,
     expectedCaseKey: (ordinal: number) => string | null
   ) {
     this.#writer = writer;
-    this.#packageId = packageId;
-    this.#executionId = executionId;
-    this.#evaluationContextHash = evaluationContextHash;
     this.#expectedCaseKey = expectedCaseKey;
   }
 
-  /** Open the fixed Normalized Eval slot and write its array prefix. */
+  /** Open the fixed Normalized Eval slot and write its JSONL header. */
   public static async create(
     session: WorkPackageExecutionSession,
     executionId: string,
@@ -59,13 +52,16 @@ export class WorkPackageNormalizedEvalArtifactWriter {
       Number.MAX_SAFE_INTEGER
     );
     try {
-      await writer.append(Buffer.from('{"cases":[', "utf8"));
-      return new WorkPackageNormalizedEvalArtifactWriter(
-        writer,
-        session.packageSummary.packageId,
+      const header = WorkPackageNormalizedEvalJsonlHeaderV1Schema.parse({
+        recordType: "HEADER",
+        contractVersion: "cortex.normalized-eval-jsonl.v1",
+        packageId: session.packageSummary.packageId,
         executionId,
-        cleanContextHash,
-        (ordinal): string | null => session.inputs.expectedCaseKey(ordinal)
+        evaluationContextHash: cleanContextHash
+      });
+      await writer.append(Buffer.from(`${JSON.stringify(header)}\n`, "utf8"));
+      return new WorkPackageNormalizedEvalArtifactWriter(writer, (ordinal): string | null =>
+        session.inputs.expectedCaseKey(ordinal)
       );
     } catch (error) {
       await writer.abort();
@@ -85,11 +81,14 @@ export class WorkPackageNormalizedEvalArtifactWriter {
         throw new Error("EVALUATION_STAGE_FAILED");
       }
       validateDecodedJsonStringBytes(clean, "EVALUATION_STAGE_FAILED");
-      const bytes = Buffer.from(JSON.stringify(clean), "utf8");
-      if (bytes.byteLength > WORK_PACKAGE_RUNTIME_LIMITS.normalizedEvalCaseBytes) {
+      const record = WorkPackageNormalizedEvalJsonlCaseV1Schema.parse({
+        recordType: "CASE",
+        value: clean
+      });
+      const bytes = Buffer.from(`${JSON.stringify(record)}\n`, "utf8");
+      if (bytes.byteLength > WORK_PACKAGE_RUNTIME_LIMITS.normalizedEvalCaseBytes + 1) {
         throw new Error("EVALUATION_STAGE_FAILED");
       }
-      if (this.#nextOrdinal > 0) await this.#writer.append(Buffer.from(",", "utf8"));
       await this.#writer.append(bytes);
       this.#nextOrdinal += 1;
     } catch (error) {
@@ -107,20 +106,18 @@ export class WorkPackageNormalizedEvalArtifactWriter {
       }
       const cleanCompletedAt = UtcDateTimeSchema.parse(completedAt);
       const cleanResultSetHash = Sha256Schema.parse(resultSetHash);
-      const trailer =
-        `],"completedAt":${JSON.stringify(cleanCompletedAt)},` +
-        '"contractVersion":"cortex.normalized-eval.v1",' +
-        `"evaluationContextHash":${JSON.stringify(this.#evaluationContextHash)},` +
-        `"executionId":${JSON.stringify(this.#executionId)},` +
-        `"packageId":${JSON.stringify(this.#packageId)},` +
-        `"resultSetHash":${JSON.stringify(cleanResultSetHash)}}\n`;
-      await this.#writer.append(Buffer.from(trailer, "utf8"));
+      const footer = WorkPackageNormalizedEvalJsonlFooterV1Schema.parse({
+        recordType: "FOOTER",
+        completedAt: cleanCompletedAt,
+        resultSetHash: cleanResultSetHash
+      });
+      await this.#writer.append(Buffer.from(`${JSON.stringify(footer)}\n`, "utf8"));
       const published = await this.#writer.commit();
       this.#closed = true;
       return publishedStageArtifact(
         published,
         "NORMALIZED_EVAL_RESULTS",
-        "cortex.normalized-eval.v1"
+        "cortex.normalized-eval-jsonl.v1"
       );
     } catch (error) {
       await this.#writer.abort();

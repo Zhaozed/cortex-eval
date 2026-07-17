@@ -144,7 +144,7 @@ function restStage(onRun: () => void): PreparedRestStageCommand {
         executionId: EXECUTION_ID,
         restErrorCount: 0,
         resultSetHash: HASH,
-        artifactPath: `executions/${EXECUTION_ID}/rest-results.json`
+        artifactPath: `executions/${EXECUTION_ID}/rest-results.jsonl`
       });
     }
   };
@@ -165,7 +165,7 @@ function evaluationStage(onRun: () => void): PreparedEvaluationStageCommand {
         evalErrorCount: 0,
         resultSetHash: "b".repeat(64),
         rawArtifactPath: `executions/${EXECUTION_ID}/promptfoo-raw.json`,
-        normalizedArtifactPath: `executions/${EXECUTION_ID}/normalized-eval.json`
+        normalizedArtifactPath: `executions/${EXECUTION_ID}/normalized-eval.jsonl`
       });
     }
   };

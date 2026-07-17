@@ -14,7 +14,7 @@ Local Server 依赖 Contracts、Application 和具体 Infrastructure 实现。Ro
 
 ## 实现状态
 
-Fastify Local Server 已装配真实 SQLite、资源与 Run REST/Evaluation/Report/Analysis Route、Work Package v1 与 Canonical Export v1 流式导出、Execution Report/Analysis Import、平台 Retry/Force、严格请求/响应 Schema、OpenAPI、生产 Web 静态入口、安全边界、中文业务日志和有限期 Run SSE。CLI 是独立进程入口，不属于 Local Server Route。
+Fastify Local Server 已装配真实 SQLite、资源与 Run REST/Evaluation/Report/Analysis Route、Work Package v2 与 Canonical Export v1 流式导出、Execution Report/Analysis Import、平台 Retry/Force、严格请求/响应 Schema、OpenAPI、生产 Web 静态入口、安全边界、中文业务日志和有限期 Run SSE。CLI 是独立进程入口，不属于 Local Server Route。
 
 ## 当前代码事实入口
 
@@ -55,7 +55,7 @@ Fastify Local Server 已装配真实 SQLite、资源与 Run REST/Evaluation/Repo
 
 ## 状态、事务与幂等
 
-Route 不持有业务事务。Application 决定事务边界和幂等语义。Case 导入只保留单项内存，逐项写外部 staging；multipart 截断检查属于定义流完成条件，只有确认未超限后才最终原子替换主库。导出先冻结 Suite Revision，再逐 Case 短事务读取并写 owner-only 临时文件；Revision 变化在打开 200 前返回 409，完整文件再按背压发送。Run Start/Cancel 使用 Revision DTO 并只返回小型进度事实；进度、列表和详情包含持久 REST 与 Evaluation 分类计数，Run Detail 和 Case Detail 分开读取，避免大快照进入列表或动作响应。
+Route 不持有业务事务。Application 决定事务边界和幂等语义。Case 导入按文件名或媒体类型选择 JSON 数组或 JSONL 流，只保留单项内存；缺省 `contractVersion` 时按当前 Case Definition 版本校验，再逐项写外部 staging，显式不支持的版本不会被覆盖。multipart 截断检查属于定义流完成条件，只有确认未超限后才最终原子替换主库。导出先冻结 Suite Revision，再逐 Case 短事务读取并写 owner-only 临时文件；Revision 变化在打开 200 前返回 409，完整文件再按背压发送。Run Start/Cancel 使用 Revision DTO 并只返回小型进度事实；进度、列表和详情包含持久 REST 与 Evaluation 分类计数，Run Detail 和 Case Detail 分开读取，避免大快照进入列表或动作响应。
 
 ## 错误收敛
 
@@ -63,7 +63,7 @@ Route 不持有业务事务。Application 决定事务边界和幂等语义。Ca
 
 ## 观测与验收
 
-默认监听 `127.0.0.1:4310` 并同源提供生产 Web 与 API。资源页、`/runs` 和 `/runs/:runId` 注册 SPA 回退，未来页面路径仍返回 404。Run SSE 先验证 Run，再以 `text/event-stream` 和当前 Snapshot 开流；REST 的开始/进度/完成及 Evaluation 的开始/完成由持久 Stage/Revision 推导，不暴露无持久计数支撑的 Evaluation Progress 事件。若一次轮询跨过多个 Stage，则以同一最新 `lockRevision` 按 REST Start/Progress/Complete、Evaluation Start/Complete 的顺序发送全部可证明事件，客户端仍以随后重读 Snapshot 为事实源。开流前保留 400/403/404/500 普通 JSON 错误，开流后的轮询拒绝、脏响应或写流错误只结束已 Hijack 响应并释放 Controller。单连接最多 5 秒、250 毫秒查询一次、声明 1 秒重连，跨进程变化最坏可见时间约 6 秒。静态响应使用不含 `'unsafe-eval'` 的脚本 CSP；响应序列化编译时只移除 fast-json-stringify 不支持的 `propertyNames`，Route Runtime Schema 和 OpenAPI 保持原严格事实。默认数据目录是项目根 `.cortex-eval/`。写请求 Body 使用 Route 级上限；Case JSON 文件上限 200 MiB。默认 composition root 把请求、staging 安全事件和闭合 Run 生命周期事件接入 owner-only 日志，单文件 10 MiB、保留 10 个轮转文件；写失败输出外化 stderr 提示且不改变业务结果。Runtime 关闭在 SQLite 前等待日志队列 flush。
+默认监听 `127.0.0.1:4310` 并同源提供生产 Web 与 API。资源页、`/runs` 和 `/runs/:runId` 注册 SPA 回退，未来页面路径仍返回 404。Run SSE 先验证 Run，再以 `text/event-stream` 和当前 Snapshot 开流；REST 的开始/进度/完成及 Evaluation 的开始/完成由持久 Stage/Revision 推导，不暴露无持久计数支撑的 Evaluation Progress 事件。若一次轮询跨过多个 Stage，则以同一最新 `lockRevision` 按 REST Start/Progress/Complete、Evaluation Start/Complete 的顺序发送全部可证明事件，客户端仍以随后重读 Snapshot 为事实源。开流前保留 400/403/404/500 普通 JSON 错误，开流后的轮询拒绝、脏响应或写流错误只结束已 Hijack 响应并释放 Controller。单连接最多 5 秒、250 毫秒查询一次、声明 1 秒重连，跨进程变化最坏可见时间约 6 秒。静态响应使用不含 `'unsafe-eval'` 的脚本 CSP；响应序列化编译时只移除 fast-json-stringify 不支持的 `propertyNames`，Route Runtime Schema 和 OpenAPI 保持原严格事实。默认数据目录是项目根 `.cortex-eval/`。写请求 Body 使用 Route 级上限；Case JSON/JSONL 文件上限 200 MiB。默认 composition root 把请求、staging 安全事件和闭合 Run 生命周期事件接入 owner-only 日志，单文件 10 MiB、保留 10 个轮转文件；写失败输出外化 stderr 提示且不改变业务结果。Runtime 关闭在 SQLite 前等待日志队列 flush。
 
 ## 相关测试
 

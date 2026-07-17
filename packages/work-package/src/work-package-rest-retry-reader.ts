@@ -1,8 +1,8 @@
 import type { OfflineRestCaseResult } from "@cortex-eval/application/src/features/runs/offline-rest-execution-service.ts";
 import type { RestArtifactCaseV1 } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import type {
-  ExecutionV1,
-  WorkPackageManifestV1
+  ExecutionV2,
+  WorkPackageManifestV2
 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 
 import type { SecureWorkPackageDirectory } from "./secure-work-package-directory.ts";
@@ -37,9 +37,9 @@ export interface PrepareWorkPackageRestRetryInput {
   /** Stable package directory owned by the caller's lock session. */
   readonly directory: SecureWorkPackageDirectory;
   /** Frozen package Manifest. */
-  readonly manifest: WorkPackageManifestV1;
+  readonly manifest: WorkPackageManifestV2;
   /** Fully validated source Execution. */
-  readonly sourceExecution: ExecutionV1;
+  readonly sourceExecution: ExecutionV2;
   /** Pure semantic hash Ports. */
   readonly hashing: WorkPackageRestSemanticHashing;
   /** Cancellation signal. */
@@ -103,12 +103,13 @@ export function workPackageRestApplicationResult(value: RestArtifactCaseV1): Off
 // Stream one full pass while aligning Manifest identity and recomputing semantic hashes.
 async function* validatedPass(
   input: PrepareWorkPackageRestRetryInput,
-  artifactPath: string
+  artifact: ExecutionV2["stages"]["REST"]["artifacts"][number]
 ): AsyncGenerator<OfflineRestCaseResult, string> {
-  const reader = readWorkPackageRestArtifact(input.directory.streamFile(artifactPath), {
+  const reader = readWorkPackageRestArtifact(input.directory.streamFile(artifact.path), {
     packageId: input.manifest.packageId,
     executionId: input.sourceExecution.executionId,
     expectedCaseCount: input.manifest.cases.length,
+    expectedSizeBytes: artifact.sizeBytes,
     signal: input.signal
   });
   const resultSetHasher = input.hashing.createResultSetHasher();
@@ -183,13 +184,13 @@ export async function prepareWorkPackageRestResults(
   const artifact = stage.artifacts[0];
   if (artifact?.kind !== "REST_RESULTS") throw new Error("WORK_PACKAGE_INVALID");
   await validateFileIntegrity(input.directory, artifact);
-  const frozenResultSetHash = await drainValidatedPass(validatedPass(input, artifact.path));
+  const frozenResultSetHash = await drainValidatedPass(validatedPass(input, artifact));
   return {
     resultSetHash: frozenResultSetHash,
     results: {
       async *[Symbol.asyncIterator](): AsyncGenerator<OfflineRestCaseResult> {
         await validateFileIntegrity(input.directory, artifact);
-        const secondPass = validatedPass(input, artifact.path);
+        const secondPass = validatedPass(input, artifact);
         for (;;) {
           const item = await secondPass.next();
           if (item.done) {

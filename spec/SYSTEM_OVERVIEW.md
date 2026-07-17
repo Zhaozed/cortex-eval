@@ -10,7 +10,7 @@ Cortex Eval 是面向本地单用户的测试集管理、REST 结果获取、Pro
 
 ## 实现状态
 
-当前仓库已完成 P0–P10。Node 24 工具链、137 条 Assertion 能力契约、资源/API/Web、平台与离线 REST→Evaluation→Report→显式 Analysis Pipeline、不可变 Eval/Report/Analysis Artifact、结构化 Evidence、规范化 Hash、Case Metric、Ajv 2020-12 Diff、纯报告聚合与 Markdown、严格 Importer、SQLite 原子提交、受控 Promptfoo/Bridge 链、Analyzer 官方 SDK、Work Package v1 导出与安全文件运行时、平台与离线 Retry/Force、连续 Retry Evidence 追溯、完整 Execution Report/Analysis Import、固定 Promptfoo 版本、真实取消到 CLI 130 和 Promptfoo Raw 有界流式 Source 已生效。
+当前仓库已完成 P0–P10。Node 24 工具链、137 条 Assertion 能力契约、资源/API/Web、平台与离线 REST→Evaluation→Report→显式 Analysis Pipeline、不可变 Eval/Report/Analysis Artifact、结构化 Evidence、规范化 Hash、Case Metric、Ajv 2020-12 Diff、纯报告聚合与 Markdown、严格 Importer、SQLite 原子提交、受控 Promptfoo/Bridge 链、Analyzer 官方 SDK、Work Package v2 导出与安全文件运行时、平台与离线 Retry/Force、连续 Retry Evidence 追溯、完整 Execution Report/Analysis Import、固定 Promptfoo 版本、真实取消到 CLI 130 和 Promptfoo Raw 有界流式 Source 已生效。
 
 当前 OpenAPI 与 Web 包含资源、平台 REST、Evaluation、Report、Analysis、Retry/Force 和 Execution Report/Analysis Import 闭环；Work Package 与 Canonical Export API 已注册。Bridge v2 只绑定一次 Evaluation 调用期，以确定性总预算和并发限制保护冻结 Evaluator，不识别 Assertion、Metric 或组件身份；结果身份由 Promptfoo Raw Result 的 Metric、完整 Definition 和组件结构承担。Case 构建不按类型拒绝 `select-best`、`max-score` 或其他 Assertion，平台也不复现或预判其执行流程。Analyzer 直接使用官方 SDK，不经过 Bridge。Canonical Export 通过 SQLite Backup 短快照、十实体稳定 JSONL、Artifact 状态和服务器/CLI 双重对账闭环；不注册 Canonical Import 或 Web 页面。
 
@@ -74,7 +74,7 @@ Evaluator 与 Analyzer 只支持统一接口下的 Gemini 和 OpenAI-compatible 
 - 目标技术架构：[TECH.md](../TECH.md)
 - 当前离线 CLI：[apps/cli/src](../apps/cli/src)
 - 当前 Work Package 文件运行时：[packages/work-package/src](../packages/work-package/src)
-- 当前 Work Package Golden Fixture：[packages/work-package/test-fixtures/work-package-v1](../packages/work-package/test-fixtures/work-package-v1)
+- 当前 Work Package Golden Fixture：[packages/work-package/test-fixtures/work-package-v2](../packages/work-package/test-fixtures/work-package-v2)
 - 当前转换实现：[data_scripts/convert_loona_to_promptfoo.py](../data_scripts/convert_loona_to_promptfoo.py)
 - Goal 执行入口：[tasks/00_INDEX.md](../tasks/00_INDEX.md)
 - P0 工具链入口：[package.json](../package.json)

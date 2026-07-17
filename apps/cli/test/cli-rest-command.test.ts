@@ -91,7 +91,7 @@ describe("P7 CLI REST command", () => {
           executionId: ID,
           restErrorCount: 1,
           resultSetHash: HASH,
-          artifactPath: `executions/${ID}/rest-results.json`
+          artifactPath: `executions/${ID}/rest-results.jsonl`
         });
       }
     };
@@ -218,7 +218,7 @@ describe("P7 CLI REST command", () => {
           executionId: ID,
           restErrorCount: 0,
           resultSetHash: HASH,
-          artifactPath: `executions/${ID}/rest-results.json`
+          artifactPath: `executions/${ID}/rest-results.jsonl`
         });
       }
     };

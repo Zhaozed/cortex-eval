@@ -30,7 +30,7 @@ P2 已落地 Suite CRUD、Case 创建/编辑/复制/删除/全量替换、建议
 ## 当前样例与测试入口
 
 - [test_convert_loona_to_promptfoo.py](../../data_scripts/test_convert_loona_to_promptfoo.py)
-- [loona_promptfoo_tests.json](../../test_suite/current/cases/loona_promptfoo_tests.json)
+- [loona_promptfoo_tests.jsonl](../../test_suite/current/cases/loona_promptfoo_tests.jsonl)
 - [batch1.jsonl](../../test_suite/current/raw/batch1.jsonl)
 
 ## 对外接口
@@ -41,7 +41,7 @@ Use Case 覆盖 Suite CRUD、按 Suite-local Case Key 精确读取的 Case CRUD�
 
 Case Definition Writer 校验禁止字段和 Definition，解析 Rubric Keys，校验引用，派生筛选字段与 Definition Hash，写入 Case，重算 Suite Count 与 Suite Hash，并在提交前对账。
 
-全量导入在边界按背压逐项解析，Application 逐项准备并写入独立 staging，同时增量计算与完整 RFC 8785 输入一致的 Suite Hash。全部项目、Rubric 引用、Suite Revision 和 multipart 未截断事实通过后，最终短事务整体替换主库 Cases；合法 JSON 数组后只有尾随空白的超限文件同样在提交前拒绝。任一错误不产生部分主库事实。错误携带输入顺序、Case Key 和底层字段/引用事实。
+全量导入在边界按背压逐项解析，支持顶层 JSON 数组和每个非空行一个 Case 的 JSONL；文件名或 NDJSON 媒体类型显式选择解析格式，不聚合完整文件。Case 未提供 `contractVersion` 时，导入边界补入当前 `Case Definition` 版本后再执行严格校验，显式提供的不支持版本仍会拒绝。Application 逐项准备并写入独立 staging，同时增量计算与完整 RFC 8785 输入一致的 Suite Hash。全部项目、Rubric 引用、Suite Revision 和 multipart 未截断事实通过后，最终短事务整体替换主库 Cases；合法 JSON 数组或 JSONL 尾部只有空白的超限文件同样在提交前拒绝。任一错误不产生部分主库事实。错误携带输入顺序、Case Key 和底层字段/引用事实。
 
 导出先冻结当前 Suite Revision，再按 Ordinal 与内部 ID 逐 Case 短事务读取，不保留完整数组；Entrypoint 把 JSON 流写入 owner-only `0600` 临时文件，只有全部读取和 Revision 校验完成才打开 200。导出期间 Revision 改变可在响应前返回 409，避免混合版本或把断流伪装成错误响应。Case 删除在同一事务中重排后续 Ordinal，并把新 Ordinal 与对应 Case Revision、Suite Count、Hash 和 Revision 一并持久化；任一重排失败整体回滚。
 
@@ -59,4 +59,4 @@ Case Definition Writer 校验禁止字段和 Definition，解析 Rubric Keys，�
 
 ## 相关测试
 
-当前测试覆盖五类写入口、流式导入原子性/取消/重复/引用、尾随空白超限不提交、Revision 一致导出与响应前冲突、导出文件权限/正常完成/取消清理、身份与 Ordinal、筛选派生、增量与完整 Hash 一致、删除、Cursor 和组合过滤。
+当前测试覆盖五类写入口、JSON 数组与 JSONL 流式导入、原子性/取消/重复/引用、尾随空白超限不提交、Revision 一致导出与响应前冲突、导出文件权限/正常完成/取消清理、身份与 Ordinal、筛选派生、增量与完整 Hash 一致、删除、Cursor 和组合过滤。

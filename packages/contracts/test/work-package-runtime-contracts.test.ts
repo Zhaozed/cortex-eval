@@ -27,7 +27,7 @@ describe("Work Package runtime contracts", () => {
     ).toBe(false);
   });
 
-  it("freezes the user-confirmed byte limits without changing Manifest v1", () => {
+  it("freezes the Work Package v2 byte limits", () => {
     expect(WORK_PACKAGE_RUNTIME_LIMITS).toEqual({
       manifestBytes: 256 * 1024 * 1024,
       executionBytes: 4 * 1024 * 1024,
@@ -36,6 +36,7 @@ describe("Work Package runtime contracts", () => {
       canonicalCaseBytes: 16 * 1024 * 1024,
       restResultCaseBytes: 32 * 1024 * 1024,
       normalizedEvalCaseBytes: 32 * 1024 * 1024,
+      jsonlControlLineBytes: 16 * 1024,
       reportCaseBytes: 80 * 1024 * 1024,
       analysisResultCaseBytes: 80 * 1024 * 1024,
       promptfooRawRowBytes: 64 * 1024 * 1024,
@@ -48,7 +49,7 @@ describe("Work Package runtime contracts", () => {
 
   it.each([
     "manifest.json",
-    "inputs/tests.json",
+    "inputs/tests.jsonl",
     "prompts/rubric/reply_quality.json",
     "executions/018f22aa-33bb-7ccc-8ddd-eeeeeeeeeeee/execution.json"
   ])("accepts materializable ASCII path %s", (path) => {
@@ -97,15 +98,15 @@ describe("Work Package runtime contracts", () => {
       },
       {
         type: "FILE_START",
-        file: { path: "inputs/tests.json", sha256: HASH, sizeBytes: 2048 }
+        file: { path: "inputs/tests.jsonl", sha256: HASH, sizeBytes: 2048 }
       },
       {
         type: "FILE_CHUNK",
-        path: "inputs/tests.json",
+        path: "inputs/tests.jsonl",
         sequence: 0,
         dataBase64: "YQ=="
       },
-      { type: "FILE_END", path: "inputs/tests.json" },
+      { type: "FILE_END", path: "inputs/tests.jsonl" },
       { type: "PACKAGE_END", packageId: PACKAGE_ID }
     ];
     expect(events.map((event) => WorkPackageExportEventV1Schema.parse(event))).toEqual(events);

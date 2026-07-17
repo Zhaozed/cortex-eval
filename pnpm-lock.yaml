@@ -141,6 +141,9 @@ importers:
       openai:
         specifier: 6.46.0
         version: 6.46.0(@aws-sdk/credential-provider-node@3.972.66)(@smithy/signature-v4@5.6.4)(ws@8.21.0)(zod@4.4.3)
+      stream-chain:
+        specifier: 4.2.5
+        version: 4.2.5
       stream-json:
         specifier: 3.5.0
         version: 3.5.0

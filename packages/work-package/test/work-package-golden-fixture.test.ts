@@ -14,7 +14,7 @@ import {
 import type { WorkPackageCaseDefinitionHashInput } from "../src/work-package-input-reader.ts";
 import { materializeGoldenWorkPackage } from "../test-support/golden-work-package-fixture.ts";
 
-const GOLDEN_MANIFEST_SHA256 = "e840ce500481b6f92393b1efe6d9022c1ceebd9fbbeaf713d03c9e2f6ee54178";
+const GOLDEN_MANIFEST_SHA256 = "9f618b2173cde449b8ecf0d86e117c13732b147dd1257219e3493e44b586c86e";
 const roots: string[] = [];
 
 const contextHasher = {
@@ -41,7 +41,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
-describe("P7 Golden Work Package v1", () => {
+describe("P7 Golden Work Package v2", () => {
   it("freezes complete future stage slots without storing a Secret", async () => {
     const root = await mkdtemp(join(tmpdir(), "cortex-golden-package-"));
     roots.push(root);

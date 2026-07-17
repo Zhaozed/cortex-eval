@@ -24,7 +24,7 @@ describe("Secure Work Package directory", () => {
   it("removes only the immutable file matching the complete descriptor", async () => {
     const root = await temporaryRoot();
     const directory = await SecureWorkPackageDirectory.open(root);
-    const path = "executions/one/rest-results.json";
+    const path = "executions/one/rest-results.jsonl";
     const value = Buffer.from("result\n", "utf8");
     const writer = await directory.createComputedFileWriter(
       path,
@@ -43,7 +43,7 @@ describe("Secure Work Package directory", () => {
   it("preserves an immutable file whose size or hash does not match", async () => {
     const root = await temporaryRoot();
     const directory = await SecureWorkPackageDirectory.open(root);
-    const path = "executions/one/rest-results.json";
+    const path = "executions/one/rest-results.jsonl";
     const value = Buffer.from("actual\n", "utf8");
     const writer = await directory.createComputedFileWriter(
       path,
@@ -79,22 +79,22 @@ describe("Secure Work Package directory", () => {
     const root = await temporaryRoot();
     const directory = await SecureWorkPackageDirectory.open(root);
     await directory.writeImmutableFile(
-      "executions/one/rest-results.json",
+      "executions/one/rest-results.jsonl",
       Buffer.from("first"),
       "nonce-one"
     );
     await expect(
       directory.writeImmutableFile(
-        "executions/one/rest-results.json",
+        "executions/one/rest-results.jsonl",
         Buffer.from("second"),
         "nonce-two"
       )
     ).rejects.toThrow("ARTIFACT_ALREADY_COMMITTED");
     directory.close();
 
-    expect(await readFile(join(root, "executions/one/rest-results.json"), "utf8")).toBe("first");
+    expect(await readFile(join(root, "executions/one/rest-results.jsonl"), "utf8")).toBe("first");
     expect((await stat(join(root, "executions"))).mode & 0o777).toBe(0o700);
-    expect((await stat(join(root, "executions/one/rest-results.json"))).mode & 0o777).toBe(0o600);
+    expect((await stat(join(root, "executions/one/rest-results.jsonl"))).mode & 0o777).toBe(0o600);
   });
 
   it("atomically replaces only mutable state and enforces bounded reads", async () => {

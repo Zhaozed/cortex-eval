@@ -4,7 +4,7 @@
 
 `spec/` 是 Cortex Eval 目标系统的稳定事实入口，服务人类工程师和 AI coding agent。产品行为以 [REQ.md](../REQ.md) 为来源，技术架构以 [TECH.md](../TECH.md) 为来源，文档组织规则以 [SPEC_DOC.md](../SPEC_DOC.md) 为来源。
 
-当前仓库已完成 P0–P10。平台与离线 REST→Evaluation→Report→显式 Analysis、Work Package v1、Retry/Force、结构化 Evidence、完整 Execution Report/Analysis Import、Artifact 安全发布和受控 Promptfoo/Bridge 链已闭环。Case Assert 构建不设类型白名单，平台不复现或限制 Assert 执行；Bridge 只执行冻结 Evaluator 调用，不识别 Assertion/Metric。P10 已闭环 Canonical Export API/CLI、SQLite Backup 快照、十实体稳定 JSONL、复合 Result 身份、Artifact Presence/Inclusion、服务器与 CLI 双重四类对账、原子发布以及日志、资源压力、性能、安全、OpenAPI、WCAG、完整 E2E、Runtime Doctor 与独立变更复审；使用 `GOOGLE_API_KEY` 的真实 Gemini Rubric 与 Analyzer 已在同一次完整 `pnpm verify:release` 中通过。当前状态由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
+当前仓库已完成 P0–P10。平台与离线 REST→Evaluation→Report→显式 Analysis、Work Package v2、Retry/Force、结构化 Evidence、完整 Execution Report/Analysis Import、Artifact 安全发布和受控 Promptfoo/Bridge 链已闭环。Case Assert 构建不设类型白名单，平台不复现或限制 Assert 执行；Bridge 只执行冻结 Evaluator 调用，不识别 Assertion/Metric。P10 已闭环 Canonical Export API/CLI、SQLite Backup 快照、十实体稳定 JSONL、复合 Result 身份、Artifact Presence/Inclusion、服务器与 CLI 双重四类对账、原子发布以及日志、资源压力、性能、安全、OpenAPI、WCAG、完整 E2E、Runtime Doctor 与独立变更复审；使用 `GOOGLE_API_KEY` 的真实 Gemini Rubric 与 Analyzer 已在同一次完整 `pnpm verify:release` 中通过。当前状态由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
 
 Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入口。每个阶段必须同步更新本索引和直接相关 spec，未落地能力不得提前改写为代码事实。
 
@@ -102,7 +102,7 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 
 ## 当前代码、测试与样例入口
 
-- [packages/contracts/src](../packages/contracts/src)：P1 跨入口协议、版本化 Schema、Error Code、Work Package v1、Bridge 与 Canonical Export v1。
+- [packages/contracts/src](../packages/contracts/src)：P1 跨入口协议、版本化 Schema、Error Code、Work Package v2、Bridge 与 Canonical Export v1。
 - [packages/contracts/test](../packages/contracts/test)：P1 Contracts 正反例、真实 Fixture 和能力映射测试。
 - [packages/domain/src](../packages/domain/src)：P1 纯业务类型、状态机、统计、Proposal 和哈希输入。
 - [packages/domain/test](../packages/domain/test)：P1 Domain 单元、边界、竞争和回归测试。
@@ -122,7 +122,7 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 - [apps/web/e2e](../apps/web/e2e)：P4 生产构建上的完整资源流程、键盘、无障碍、CSP、Reduced Motion 和目标尺寸测试。
 - [packages/work-package/src](../packages/work-package/src)：P7 Manifest/Execution、安全文件运行时、Artifact、Retry 证据和严格 Evaluation Result Reader。
 - [packages/work-package/test](../packages/work-package/test)：P7 文件安全、大小、并发、恢复、Artifact、Retry 和导入读取测试。
-- [packages/work-package/test-fixtures/work-package-v1](../packages/work-package/test-fixtures/work-package-v1)：P7 固定 Manifest Hash、无 Secret 的 Golden Work Package v1。
+- [packages/work-package/test-fixtures/work-package-v2](../packages/work-package/test-fixtures/work-package-v2)：P7 固定 Manifest Hash、无 Secret 的 Golden Work Package v2。
 - [data_scripts/convert_loona_to_promptfoo.py](../data_scripts/convert_loona_to_promptfoo.py)：当前原始数据转换入口。
 - [data_scripts/test_convert_loona_to_promptfoo.py](../data_scripts/test_convert_loona_to_promptfoo.py)：当前转换测试族。
 - [package.json](../package.json)：Node 24 下的格式、Lint、架构、类型、测试、覆盖率、文档和构建门禁。
@@ -131,7 +131,7 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 - [tooling/src/promptfoo-special-assertion-probe.ts](../tooling/src/promptfoo-special-assertion-probe.ts)：固定版本比较 Assertion 延迟追加、最终聚合与 Reason 覆盖真实进程探针。
 - [tooling/facts/promptfoo-0.121.18-capabilities.json](../tooling/facts/promptfoo-0.121.18-capabilities.json)：Assertion 能力矩阵。
 - [tooling/facts/p0-environment.json](../tooling/facts/p0-environment.json)：P0 macOS ARM64 环境与性能基线。
-- [test_suite/current/cases/loona_promptfoo_tests.json](../test_suite/current/cases/loona_promptfoo_tests.json)：当前测试集 Fixture。
+- [test_suite/current/cases/loona_promptfoo_tests.jsonl](../test_suite/current/cases/loona_promptfoo_tests.jsonl)：当前默认 JSONL 测试集 Fixture。
 - [test_suite/current/provider.json](../test_suite/current/provider.json)：当前 Endpoint Fixture。
 - [test_suite/current/llm_config.json](../test_suite/current/llm_config.json)：当前 LLM 配置 Fixture。
 - [test_suite/current/pf_config.yaml](../test_suite/current/pf_config.yaml)：当前 Promptfoo 配置结构参考。

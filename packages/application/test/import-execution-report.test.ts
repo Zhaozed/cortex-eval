@@ -147,8 +147,8 @@ function command(openCases = vi.fn(source)): ImportExecutionReportCommand {
     runContextHash: HASH_A,
     contractVersions: {
       caseDefinition: "cortex.case-definition.v1" as const,
-      restResults: "cortex.rest-results.v1" as const,
-      normalizedEval: "cortex.normalized-eval.v1" as const,
+      restResults: "cortex.rest-results-jsonl.v1" as const,
+      normalizedEval: "cortex.normalized-eval-jsonl.v1" as const,
       report: "cortex.report.v1" as const,
       analysisInput: "cortex.analysis-input.v1" as const,
       analysisOutput: "cortex.analysis-output.v1" as const

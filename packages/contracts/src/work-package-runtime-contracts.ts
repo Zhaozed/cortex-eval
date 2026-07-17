@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { Sha256Schema, UuidV7Schema } from "./contracts-primitives.ts";
 
-/** User-confirmed byte ceilings for materialized Work Package v1 runtime values. */
+/** User-confirmed byte ceilings for materialized Work Package runtime values. */
 export const WORK_PACKAGE_RUNTIME_LIMITS = {
   manifestBytes: 256 * 1024 * 1024,
   executionBytes: 4 * 1024 * 1024,
@@ -11,6 +11,7 @@ export const WORK_PACKAGE_RUNTIME_LIMITS = {
   canonicalCaseBytes: 16 * 1024 * 1024,
   restResultCaseBytes: 32 * 1024 * 1024,
   normalizedEvalCaseBytes: 32 * 1024 * 1024,
+  jsonlControlLineBytes: 16 * 1024,
   reportCaseBytes: 80 * 1024 * 1024,
   analysisResultCaseBytes: 80 * 1024 * 1024,
   promptfooRawRowBytes: 64 * 1024 * 1024,

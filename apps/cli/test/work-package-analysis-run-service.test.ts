@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { AnalysisResultsArtifactV1Schema } from "@cortex-eval/contracts/src/artifact-contracts.ts";
-import { ExecutionV1Schema } from "@cortex-eval/contracts/src/work-package-contracts.ts";
+import { ExecutionV2Schema } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import type { AnalysisModelClient } from "@cortex-eval/application/src/features/case-analysis/case-analysis-model-client.ts";
 import type { AnalysisResultDraft } from "@cortex-eval/domain/src/domain-analysis.ts";
 import { afterEach, describe, expect, it } from "vitest";
@@ -116,7 +116,7 @@ describe("Work Package Analysis Run Service", () => {
         evidence: [{ source: "failed_assertions", fieldPath: "/0", conclusion: "冻结断言失败" }]
       }
     ]);
-    const execution = ExecutionV1Schema.parse(
+    const execution = ExecutionV2Schema.parse(
       JSON.parse(
         await readFile(
           join(root, `executions/${COMPLETED_REPORT_EXECUTION_ID}/execution.json`),
@@ -210,7 +210,7 @@ describe("Work Package Analysis Run Service", () => {
     await expect(analysisService().run({ ...input, signal: controller.signal })).rejects.toThrow(
       "REQUEST_ABORTED"
     );
-    const execution = ExecutionV1Schema.parse(
+    const execution = ExecutionV2Schema.parse(
       JSON.parse(
         await readFile(
           join(root, `executions/${COMPLETED_REPORT_EXECUTION_ID}/execution.json`),
@@ -238,7 +238,7 @@ describe("Work Package Analysis Run Service", () => {
       })
     ).rejects.toThrow("ANALYSIS_STAGE_FAILED");
 
-    const execution = ExecutionV1Schema.parse(
+    const execution = ExecutionV2Schema.parse(
       JSON.parse(
         await readFile(
           join(root, `executions/${COMPLETED_REPORT_EXECUTION_ID}/execution.json`),
@@ -288,7 +288,7 @@ describe("Work Package Analysis Run Service", () => {
     controller.abort();
 
     await expect(running).rejects.toThrow("ANALYSIS_CANCELLED");
-    const execution = ExecutionV1Schema.parse(
+    const execution = ExecutionV2Schema.parse(
       JSON.parse(
         await readFile(
           join(root, `executions/${COMPLETED_REPORT_EXECUTION_ID}/execution.json`),

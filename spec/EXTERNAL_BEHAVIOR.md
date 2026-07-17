@@ -2,7 +2,7 @@
 
 ## 当前实现边界
 
-当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST、Evaluation 与 Report、查看逐 Case 结果、取消、刷新恢复、创建 Retry/Force 新版本，以及查询和导出统一 Report。Report 完成后可以显式执行 Case Analysis、查看结构化 Evidence 并决策 Proposal。`PIPELINE` 自动推进到 Report；`STAGED` 可按 Stage 显式启动。Local Server 另提供 Work Package v1、Canonical Export v1 与完整 Execution Report/Analysis Import API；CLI 已注册包导出/校验、`data export`、离线 REST、Evaluation、Report、Analyze、默认三阶段且可显式追加 Analysis 的 Pipeline、两类 `result import`，并支持 `--retry-failed` 与 `--force` 创建新 Execution。
+当前可通过同源 Web 和 Local Server HTTP API 管理 Test Suite、Case、Endpoint、LLM 和两类 Prompt，并创建平台 Run、执行 REST、Evaluation 与 Report、查看逐 Case 结果、取消、刷新恢复、创建 Retry/Force 新版本，以及查询和导出统一 Report。Report 完成后可以显式执行 Case Analysis、查看结构化 Evidence 并决策 Proposal。`PIPELINE` 自动推进到 Report；`STAGED` 可按 Stage 显式启动。Local Server 另提供 Work Package v2、Canonical Export v1 与完整 Execution Report/Analysis Import API；CLI 已注册包导出/校验、`data export`、离线 REST、Evaluation、Report、Analyze、默认三阶段且可显式追加 Analysis 的 Pipeline、两类 `result import`，并支持 `--retry-failed` 与 `--force` 创建新 Execution。
 
 ## 使用方式
 
@@ -73,7 +73,7 @@ JSON Report 是导入事实，Markdown 只由规范化 JSON 派生，不能反�
 - 缺少当前阶段环境变量时在阶段开始前失败。
 - 同包同时只有一个写进程，不同包可以并行。
 - 相同 Execution 和相同结果重复导入幂等；同一身份对应不同结果被拒绝。
-- Work Package v1 从第一版包含 Report 与 Analysis 输入、Env Key 和 Artifact 槽位；后续能力不能修改同一版本 Manifest。
+- Work Package v2 从第一版包含 Report 与 Analysis 输入、Env Key 和 Artifact 槽位；后续能力不能修改同一版本 Manifest。
 
 ## 安全与限制
 
@@ -95,7 +95,7 @@ UI 和 CLI 对同一规范化输入生成相同统计。错误返回稳定 Error
 - 目标外部行为来源：[REQ.md](../REQ.md) 与 [TECH.md](../TECH.md)
 - 当前 Run/REST API 入口：[apps/local-server/src](../apps/local-server/src)
 - 当前 REST Adapter：[packages/evaluation-adapters/src](../packages/evaluation-adapters/src)
-- 当前测试集样例：[test_suite/current/cases/loona_promptfoo_tests.json](../test_suite/current/cases/loona_promptfoo_tests.json)
+- 当前测试集样例：[test_suite/current/cases/loona_promptfoo_tests.jsonl](../test_suite/current/cases/loona_promptfoo_tests.jsonl)
 - 当前 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
 - 当前 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
 - 当前 Web：[apps/web/src](../apps/web/src)

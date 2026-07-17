@@ -162,7 +162,7 @@ describe("P7 Work Package REST run service", () => {
       packageId: WORK_PACKAGE_FIXTURE_ID,
       executionId: EXECUTION_ID,
       restErrorCount: 0,
-      artifactPath: `executions/${EXECUTION_ID}/rest-results.json`
+      artifactPath: `executions/${EXECUTION_ID}/rest-results.jsonl`
     });
 
     const session = await openWorkPackageExecutionSession({
@@ -275,7 +275,7 @@ describe("P7 Work Package REST run service", () => {
       })
     ).rejects.toThrow("ARTIFACT_WRITE_FAILED");
     await expect(
-      access(join(root, "executions", FAILURE_EXECUTION_ID, "rest-results.json"))
+      access(join(root, "executions", FAILURE_EXECUTION_ID, "rest-results.jsonl"))
     ).rejects.toThrow();
   });
 
@@ -350,7 +350,7 @@ describe("P7 Work Package REST run service", () => {
         signal: controller.signal
       })
     ).rejects.toThrow("REST_CANCELLED");
-    expect(existsSync(join(root, "executions", FAILURE_EXECUTION_ID, "rest-results.json"))).toBe(
+    expect(existsSync(join(root, "executions", FAILURE_EXECUTION_ID, "rest-results.jsonl"))).toBe(
       false
     );
     const execution = JSON.parse(
@@ -366,7 +366,7 @@ describe("P7 Work Package REST run service", () => {
   it("removes a published REST Artifact when cancellation wins before registration", async () => {
     const root = await packageRoot();
     const controller = new AbortController();
-    const artifactPath = join(root, "executions", FAILURE_EXECUTION_ID, "rest-results.json");
+    const artifactPath = join(root, "executions", FAILURE_EXECUTION_ID, "rest-results.jsonl");
     const signal = new Proxy(controller.signal, {
       get: (target, property): unknown => {
         if (property === "aborted" && existsSync(artifactPath)) controller.abort();

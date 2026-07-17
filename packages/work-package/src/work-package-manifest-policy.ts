@@ -1,15 +1,15 @@
 import { createHash } from "node:crypto";
 
 import {
-  WorkPackageManifestV1Schema,
-  type WorkPackageManifestV1
+  WorkPackageManifestV2Schema,
+  type WorkPackageManifestV2
 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import { WORK_PACKAGE_RUNTIME_LIMITS } from "@cortex-eval/contracts/src/work-package-runtime-contracts.ts";
 
 import { validateMaterializedFilePaths } from "./work-package-path-policy.ts";
 
 const FIXED_INPUT_PATHS = {
-  tests: "inputs/tests.json",
+  tests: "inputs/tests.jsonl",
   endpoint: "inputs/endpoint.json",
   evaluator: "inputs/evaluator.json",
   analyzer: "inputs/analyzer.json",
@@ -28,9 +28,9 @@ function requireInputSize(sizeBytes: number, maximumBytes: number): void {
   if (sizeBytes > maximumBytes) throw new Error("WORK_PACKAGE_INPUT_TOO_LARGE");
 }
 
-/** Clean and enforce the deterministic materialization profile for Manifest v1. */
-export function validateWorkPackageManifestPolicy(value: unknown): WorkPackageManifestV1 {
-  const manifest = WorkPackageManifestV1Schema.parse(value);
+/** Clean and enforce the deterministic materialization profile for Manifest v2. */
+export function validateWorkPackageManifestPolicy(value: unknown): WorkPackageManifestV2 {
+  const manifest = WorkPackageManifestV2Schema.parse(value);
   if (
     manifest.inputs.tests.path !== FIXED_INPUT_PATHS.tests ||
     manifest.inputs.endpoint.path !== FIXED_INPUT_PATHS.endpoint ||

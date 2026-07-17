@@ -2,7 +2,11 @@ import { Readable } from "node:stream";
 
 import { describe, expect, it } from "vitest";
 
-import { CaseImportJsonError, parseCaseDefinitionStream } from "../src/case-import-json-stream.ts";
+import {
+  CaseImportFormat,
+  CaseImportJsonError,
+  parseCaseDefinitionStream
+} from "../src/case-import-json-stream.ts";
 
 function dto(caseKey: string): Readonly<Record<string, unknown>> {
   return {
@@ -33,6 +37,76 @@ describe("Case import JSON stream", () => {
       values.push(value);
     }
     expect(values.map((value) => value.caseKey)).toEqual(["case-1", "case-2"]);
+  });
+
+  it("缺省协议版本时按当前 Case Definition 版本导入", async () => {
+    const unversioned = { ...dto("case-current") };
+    delete unversioned.contractVersion;
+    const stream = parseCaseDefinitionStream(
+      Readable.from([JSON.stringify([unversioned])]),
+      new AbortController().signal
+    );
+
+    await expect(stream.next()).resolves.toMatchObject({
+      done: false,
+      value: { caseKey: "case-current" }
+    });
+  });
+
+  it("跨任意字节分块逐行导入 JSONL，并跳过空行", async () => {
+    const unversioned = { ...dto("case-jsonl-2") };
+    delete unversioned.contractVersion;
+    const jsonl = `${JSON.stringify(dto("case-jsonl-1"))}\n\t  \n${JSON.stringify(unversioned)}\n`;
+    const chunks = Array.from(jsonl, (character) => Buffer.from(character));
+    const values = [];
+
+    for await (const value of parseCaseDefinitionStream(
+      Readable.from(chunks),
+      new AbortController().signal,
+      CaseImportFormat.JSON_LINES
+    )) {
+      values.push(value);
+    }
+
+    expect(values.map((value) => value.caseKey)).toEqual(["case-jsonl-1", "case-jsonl-2"]);
+  });
+
+  it("JSONL 结构错误保留记录顺序、Case Key 和字段路径", async () => {
+    const invalid = { ...dto("case-jsonl-bad"), threshold: 2 };
+    const stream = parseCaseDefinitionStream(
+      Readable.from([`${JSON.stringify(dto("case-jsonl-ok"))}\n${JSON.stringify(invalid)}\n`]),
+      new AbortController().signal,
+      CaseImportFormat.JSON_LINES
+    );
+
+    expect(await stream.next()).toMatchObject({ value: { caseKey: "case-jsonl-ok" } });
+    await expect(stream.next()).rejects.toEqual(
+      new CaseImportJsonError("CASE_IMPORT_ITEM_INVALID", 1, "case-jsonl-bad", "threshold")
+    );
+  });
+
+  it("JSONL 语法错误使用稳定错误并销毁流", async () => {
+    const source = Readable.from([`${JSON.stringify(dto("case-jsonl-ok"))}\n{"broken":\n`]);
+    const stream = parseCaseDefinitionStream(
+      source,
+      new AbortController().signal,
+      CaseImportFormat.JSON_LINES
+    );
+
+    await expect(stream.next()).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+    expect(source.destroyed).toBe(true);
+  });
+
+  it("显式提供不支持的协议版本时仍拒绝导入", async () => {
+    const unsupported = { ...dto("case-old"), contractVersion: "cortex.case-definition.v0" };
+    const stream = parseCaseDefinitionStream(
+      Readable.from([JSON.stringify([unsupported])]),
+      new AbortController().signal
+    );
+
+    await expect(stream.next()).rejects.toEqual(
+      new CaseImportJsonError("CASE_IMPORT_ITEM_INVALID", 0, "case-old", "contractVersion")
+    );
   });
 
   it("结构错误保留输入顺序、Case Key 和字段路径", async () => {

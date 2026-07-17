@@ -74,7 +74,7 @@ describe("P7 CLI Evaluation command", () => {
           evalErrorCount: 0,
           resultSetHash: HASH,
           rawArtifactPath: `executions/${ID}/promptfoo-raw.json`,
-          normalizedArtifactPath: `executions/${ID}/normalized-eval.json`
+          normalizedArtifactPath: `executions/${ID}/normalized-eval.jsonl`
         });
       }
     };
@@ -127,7 +127,7 @@ describe("P7 CLI Evaluation command", () => {
           evalErrorCount: 0,
           resultSetHash: HASH,
           rawArtifactPath: `executions/${ID}/promptfoo-raw.json`,
-          normalizedArtifactPath: `executions/${ID}/normalized-eval.json`
+          normalizedArtifactPath: `executions/${ID}/normalized-eval.jsonl`
         })
     };
     const target = output();

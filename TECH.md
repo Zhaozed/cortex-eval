@@ -6,7 +6,7 @@
 
 产品行为和验收口径以 `REQ.md` 为准。本文档不包含具体实现代码。
 
-阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P10 已完成。Work Package v1 安全文件运行时、导出 API、REST/Eval/Report/显式 Analysis Pipeline CLI、平台与离线 Retry/Force、严格 Raw/Normalized/Report/Analysis 读取、Analysis Artifact 和完整 Execution Report/Analysis Import 已闭环。P10 Canonical Export API/CLI、SQLite Backup 快照、十实体稳定投影、Artifact Presence/Inclusion、独立接收端对账、确定性硬化门禁和独立变更复审已闭环；使用 `GOOGLE_API_KEY` 的真实 Gemini Rubric 与 Analyzer 已在同一次完整 `pnpm verify:release` 中通过。
+阶段实现状态以 `tasks/00_INDEX.md` 和 `spec/SYSTEM_OVERVIEW.md` 为准。P0–P10 已完成。Work Package v2 安全文件运行时、导出 API、REST/Eval/Report/显式 Analysis Pipeline CLI、平台与离线 Retry/Force、严格 Raw/Normalized/Report/Analysis 读取、Analysis Artifact 和完整 Execution Report/Analysis Import 已闭环。P10 Canonical Export API/CLI、SQLite Backup 快照、十实体稳定投影、Artifact Presence/Inclusion、独立接收端对账、确定性硬化门禁和独立变更复审已闭环；使用 `GOOGLE_API_KEY` 的真实 Gemini Rubric 与 Analyzer 已在同一次完整 `pnpm verify:release` 中通过。
 
 ## 2. 总体结论
 
@@ -35,9 +35,9 @@ API、Web 和 CLI 不承载业务规则。所有业务入口调用 Application U
 
 ## 3. 真实数据入口
 
-- `test_suite/current/cases/loona_promptfoo_tests.json`：Promptfoo 测试集。
-- `test_suite/current/run_result/test_example.json`：带 `providerOutput` 的当前已提交 REST 结果。
-- `test_suite/current/eval_result/test_example.json`：当前已提交 Promptfoo 完整结果。
+- `test_suite/current/cases/loona_promptfoo_tests.jsonl`：默认 Promptfoo JSONL 测试集。
+- `executions/<execution-id>/rest-results.jsonl`：`rest run` 或 `pipeline run` CLI 默认生成的 Work Package REST JSONL Artifact；`test_suite/current/run_result/test_example.json` 仅保留为历史契约 Fixture。
+- `test_suite/current/eval_result/loona_promptfoo_results.jsonl`：Promptfoo Eval 默认 JSONL 输出；`test_example.json` 保留为历史契约 Fixture。
 - `test_suite/current/llm_config.json`：LLM Evaluator 配置。
 - `test_suite/current/provider.json`：REST Endpoint 配置。
 - `test_suite/current/rubric_prompt/*.json`：LLM Rubric Prompts。
@@ -624,7 +624,7 @@ Analysis 是报告完成后的独立 Case 级流程，不作为 Run Stage。
 - Run/Analysis Execution Limits 的导出默认值与允许范围。
 - 输入文件清单和 Hash。
 
-Work Package v1 在 Contracts 阶段一次冻结完整协议，首版即包含 Tests、Endpoint、Evaluator、Analyzer、Rubric Prompts、Analysis Prompt、REST/Eval/Report/Analysis Env Keys、最终阶段依赖图和全部 Artifact 文件槽位。后续阶段只注册能力和写入产物，不修改 v1 Schema。
+Work Package v2 在 Contracts 阶段一次冻结完整协议，包含 JSONL Tests、Endpoint、Evaluator、Analyzer、Rubric Prompts、Analysis Prompt、REST/Eval/Report/Analysis Env Keys、最终阶段依赖图和全部 Artifact 文件槽位。后续阶段只注册能力和写入产物，不修改 v2 Schema。
 
 Manifest 创建后不可修改。阶段状态不能写回 Manifest，避免自引用 Hash 变化。
 
@@ -638,7 +638,7 @@ Manifest 创建后不可修改。阶段状态不能写回 Manifest，避免自�
 
 输入包括 Tests、Endpoint、Evaluator、Analyzer、Rubric Prompts、Case Analysis Prompt 和 `.env.example`。
 
-运行时限制按 UTF-8 原始字节计算：Manifest 256 MiB、Execution 4 MiB、每个配置/Prompt/`.env.example` 8 MiB、Canonical Tests 1.25 GiB；单个 Canonical Case、REST Case、Normalized Eval Case、Report Case、Analysis Result Case、Promptfoo Raw Row 分别为 16/32/32/80/80/64 MiB，解码后的单个 JSON String Token 为 16 MiB。Canonical Tests、REST、Normalized、Report 和 Analysis 按项流式解析，Raw 按 Row 流式清洗；这些 Artifact 不设置新的总文件上限。真实 Promptfoo 进程返回显式可回收的 Raw Source，只暴露重放字节流、逐 Row 流和 Dispose；Application 不接收文件路径，Artifact Store 与 Importer 分别有界消费，任何路径都不得聚合完整 Raw。Retry 复用 Raw 时只流式复核登记 Hash、大小和 Descriptor，不做整对象 Zod 解析。各上限在 JSON 物化前检查原始项字节，错误分别收敛到稳定阶段或工作包错误。
+运行时限制按 UTF-8 原始字节计算：Manifest 256 MiB、Execution 4 MiB、每个配置/Prompt/`.env.example` 8 MiB、Canonical Tests 1.25 GiB；单个 Canonical Case、REST Case、Normalized Eval Case、Report Case、Analysis Result Case、Promptfoo Raw Row 分别为 16/32/32/80/80/64 MiB，JSONL 控制行为 16 KiB，解码后的单个 JSON String Token 为 16 MiB。Canonical Tests、REST、Normalized、Report 和 Analysis 按项流式解析，Raw 按 Row 流式清洗；REST 与 Normalized 的总上限由冻结 Case 数量和逐行上限安全计算，Descriptor 和流式累计字节都必须满足该上限。真实 Promptfoo 进程返回显式可回收的 Raw Source，只暴露重放字节流、逐 Row 流和 Dispose；Application 不接收文件路径，Artifact Store 与 Importer 分别有界消费，任何路径都不得聚合完整 Raw。Retry 复用 Raw 时只流式复核登记 Hash、大小和 Descriptor，不做整对象 Zod 解析。各上限在 JSON 物化前检查原始项字节，错误分别收敛到稳定阶段或工作包错误。
 
 离线 Evaluation 在命令私有的 owner-only SQLite 中暂存 Case/REST、可复用 Eval 和新导入 Eval，三类写入固定每 128 项提交一次；异常回滚当前批次，命令失败删除完整 staging。Engine 接收可重放 `FrozenEvaluationCaseSource`：第一遍验证顺序、引用和调用预算，第二遍按字节流写 Promptfoo 配置，并对两遍 Case/可评估数/预算做一致性复核。Raw 逐 Row 通过 SQLite 身份查找导入，缺失结果逐项补齐，最终结果按 Ordinal 直接流式写 Normalized Artifact；REST/Normalized Writer 与 Result Set Hasher 都按已验证 Manifest 的 ordinal→Case Key 对齐，并在提交时确认下一 Ordinal 已无 Manifest Case，禁止发布未知 Case 或非空但截断的结果前缀；内存不保存与 Case 数等长的大对象数组、Map 或 Set。Endpoint、Evaluator 和 Rubric Prompt 在实际消费边界重新计算文件 Hash 与大小，不能只依赖 Session 打开时的完整扫描。
 

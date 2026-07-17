@@ -8,8 +8,8 @@ import {
   type EvalCaseV1
 } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import {
-  ExecutionV1Schema,
-  type ExecutionV1
+  ExecutionV2Schema,
+  type ExecutionV2
 } from "@cortex-eval/contracts/src/work-package-contracts.ts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -49,7 +49,7 @@ const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
 const roots: string[] = [];
 
-type EvaluationArtifact = ExecutionV1["stages"]["EVALUATION"]["artifacts"][number];
+type EvaluationArtifact = ExecutionV2["stages"]["EVALUATION"]["artifacts"][number];
 
 const sourceRaw: EvaluationArtifact = {
   kind: "RAW_PROMPTFOO_EVIDENCE",
@@ -70,9 +70,9 @@ function execution(
   executionId: string,
   rerun:
     { readonly mode: "NEW" } | { readonly mode: "RETRY_FAILED"; readonly sourceExecutionId: string }
-): ExecutionV1 {
-  return ExecutionV1Schema.parse({
-    contractVersion: "cortex.execution.v1",
+): ExecutionV2 {
+  return ExecutionV2Schema.parse({
+    contractVersion: "cortex.execution.v2",
     packageId: WORK_PACKAGE_FIXTURE_ID,
     executionId,
     createdAt: "2026-07-14T07:00:00.000Z",
@@ -319,7 +319,7 @@ describe("Work Package Evaluation retry selection", () => {
       [EMPTY_ANCESTOR_ID, { cases: [] as EvalCaseV1[], rawArtifact: ancestorRaw }]
     ]);
     ports.prepareEvaluation.mockImplementation(
-      (input: { readonly sourceExecution: ExecutionV1 }): Promise<unknown> => {
+      (input: { readonly sourceExecution: ExecutionV2 }): Promise<unknown> => {
         const prepared = evaluations.get(input.sourceExecution.executionId);
         if (prepared === undefined) return Promise.reject(new Error("WORK_PACKAGE_INVALID"));
         return Promise.resolve({
@@ -356,7 +356,7 @@ describe("Work Package Evaluation retry selection", () => {
       directory,
       manifest,
       targetExecution: target,
-      readExecution: (executionId): ExecutionV1 | null => executions.get(executionId) ?? null,
+      readExecution: (executionId): ExecutionV2 | null => executions.get(executionId) ?? null,
       restHashing,
       evalHashing,
       signal: new AbortController().signal
@@ -396,7 +396,7 @@ describe("Work Package Evaluation retry selection", () => {
       directory,
       manifest,
       targetExecution: target,
-      readExecution: (executionId): ExecutionV1 | null =>
+      readExecution: (executionId): ExecutionV2 | null =>
         executionId === SOURCE_ID ? source : null,
       restHashing: hashing,
       evalHashing: hashing,

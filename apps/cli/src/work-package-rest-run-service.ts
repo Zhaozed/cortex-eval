@@ -267,7 +267,7 @@ export class WorkPackageRestRunService {
       executionId,
       restErrorCount,
       resultSetHash: result.resultSetHash,
-      artifactPath: `executions/${executionId}/rest-results.json`
+      artifactPath: `executions/${executionId}/rest-results.jsonl`
     };
   }
 }
