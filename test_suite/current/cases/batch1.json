@@ -152,8 +152,9 @@
       "case_id": "ROUTER-SCH-001",
       "req_id": "93E53206-DB5A-4B25-AC94-1142DEE7BF8A",
       "task_id": "task_uM0jB7YbTTu4bnHLzSPrwA",
-      "business_module": "Slack",
-      "scenario_tag": "reply_message"
+      "scenario_tag": "reply_message",
+      "tool_category": "slack",
+      "conversation_type": "simple"
     },
     "assert": [
       {
@@ -184,7 +185,7 @@
             }
           }
         },
-        "metric": "路由工具"
+        "metric": "router_工具"
       },
       {
         "type": "is-json",
@@ -207,7 +208,7 @@
             }
           }
         },
-        "metric": "路由分类"
+        "metric": "router_分类"
       },
       {
         "type": "is-json",
@@ -230,7 +231,7 @@
             }
           }
         },
-        "metric": "路由domain"
+        "metric": "router_domain"
       },
       {
         "type": "is-json",
@@ -243,10 +244,10 @@
             "parsed_output": {
               "type": "object",
               "required": [
-                "reply_text"
+                "text"
               ],
               "properties": {
-                "reply_text": {
+                "text": {
                   "type": "string",
                   "minLength": 1
                 }
@@ -254,7 +255,7 @@
             }
           }
         },
-        "metric": "有回复文本",
+        "metric": "router_有回复文本",
         "weight": 0
       }
     ]
@@ -412,8 +413,9 @@
       "case_id": "ROUTER-SCH-002",
       "req_id": "0FA88454-0D6A-4219-9879-BE8DE5C5CC55",
       "task_id": "task_uM0jB7YbTTu4bnHLzSPrwA",
-      "business_module": "Slack",
-      "scenario_tag": "query_messages"
+      "scenario_tag": "query_messages",
+      "tool_category": "slack",
+      "conversation_type": "simple"
     },
     "assert": [
       {
@@ -454,7 +456,7 @@
             }
           }
         },
-        "metric": "路由工具"
+        "metric": "router_工具"
       },
       {
         "type": "is-json",
@@ -477,7 +479,7 @@
             }
           }
         },
-        "metric": "路由分类"
+        "metric": "router_分类"
       },
       {
         "type": "is-json",
@@ -500,7 +502,7 @@
             }
           }
         },
-        "metric": "路由domain"
+        "metric": "router_domain"
       },
       {
         "type": "is-json",
@@ -513,10 +515,10 @@
             "parsed_output": {
               "type": "object",
               "required": [
-                "reply_text"
+                "text"
               ],
               "properties": {
-                "reply_text": {
+                "text": {
                   "type": "string",
                   "minLength": 1
                 }
@@ -524,7 +526,7 @@
             }
           }
         },
-        "metric": "有回复文本",
+        "metric": "router_有回复文本",
         "weight": 0
       }
     ]
@@ -636,8 +638,9 @@
       "case_id": "PLANNER-SCH-554",
       "req_id": "B46C9AFC-71CA-4804-AADF-A1E481A01EFB",
       "task_id": "task_V7Jr9wwHSWia1pXwRjKEw",
-      "business_module": "Navigation",
-      "scenario_tag": "tool_result_handling"
+      "scenario_tag": "tool_result_handling",
+      "tool_category": "navigation",
+      "conversation_type": "simple"
     },
     "assert": [
       {
@@ -661,7 +664,7 @@
             }
           }
         },
-        "metric": "思考工具"
+        "metric": "planner_工具"
       },
       {
         "type": "is-json",
@@ -689,7 +692,7 @@
             }
           }
         },
-        "metric": "输出模式"
+        "metric": "planner_无输出模式"
       },
       {
         "type": "is-json",
@@ -713,22 +716,8 @@
             }
           }
         },
-        "metric": "有回复文本",
+        "metric": "planner_有回复文本",
         "weight": 0
-      },
-      {
-        "type": "llm-rubric",
-        "value": "这是 turn_direction 工具返回后的用户可见回复，不是执行前过渡。回复必须结合上下文说明已经转到后方；可以自然说明当前无法直接看见具体画面并询问用户下一步需求。不得再次表示即将执行转身，不得声称看到了实际画面，不得编造工具结果或其他事实。表达允许与参考文案不同，但语义必须等价、自然、简洁。",
-        "transform": "output?.parsed_output?.reply_text??''",
-        "rubricPrompt": "file://rubric_prompt/reply_text_transition_rubric.json",
-        "metric": "回复文本阶段正确性"
-      },
-      {
-        "type": "llm-rubric",
-        "value": "用户原始要求是“我想让你转动身体到后边看看。”。当前处于工具返回后的结果回复阶段。允许用简短话语确认已经完成转向，也允许补充无法直接看见具体画面或询问下一步；这些内容不算重复。若 reply_text 只是机械复述或近乎逐字改写用户要求，没有说明执行结果或提供必要的新信息，则判定失败。",
-        "transform": "output?.parsed_output?.reply_text??''",
-        "rubricPrompt": "file://rubric_prompt/reply_text_repetition_rubric.json",
-        "metric": "回复文本未无效复述用户要求"
       }
     ]
   },
@@ -801,8 +790,9 @@
       "case_id": "PLANNER-SCH-555",
       "req_id": "666F8EDA-F05F-4479-A617-62517B2267D8",
       "task_id": "task_V7Jr9wwHSWia1pXwRjKEw",
-      "business_module": "Navigation",
-      "scenario_tag": "navigation"
+      "scenario_tag": "navigation",
+      "tool_category": "navigation",
+      "conversation_type": "simple"
     },
     "assert": [
       {
@@ -847,7 +837,7 @@
             }
           }
         },
-        "metric": "思考工具"
+        "metric": "planner_工具"
       },
       {
         "type": "is-json",
@@ -875,7 +865,7 @@
             }
           }
         },
-        "metric": "输出模式"
+        "metric": "planner_无输出模式"
       },
       {
         "type": "is-json",
@@ -899,22 +889,8 @@
             }
           }
         },
-        "metric": "有回复文本",
+        "metric": "planner_有回复文本",
         "weight": 0
-      },
-      {
-        "type": "llm-rubric",
-        "value": "这是调用 turn_direction 工具前的用户可见过渡句。回复必须明确表示即将按用户要求转向后方，可以使用自然口语；不得声称已经完成转身，不得声称已经看见后方内容，不得加入与当前动作无关的信息。表达允许与“好嘞，这就转过去看看后面有啥！”不同，但核心动作、执行阶段和语气必须正确。",
-        "transform": "output?.parsed_output?.reply_text??''",
-        "rubricPrompt": "file://rubric_prompt/reply_text_transition_rubric.json",
-        "metric": "回复文本阶段正确性"
-      },
-      {
-        "type": "llm-rubric",
-        "value": "用户原始要求是“我想让你转动身体到后边看看。”。当前处于调用工具前的过渡阶段。允许用简短确认表达即将执行，例如“好嘞，这就转过去看看”；这种必要的动作确认不算重复。若 reply_text 只是机械复述或近乎逐字改写用户要求，没有形成自然确认、阶段说明或其他必要交互价值，则判定失败。",
-        "transform": "output?.parsed_output?.reply_text??''",
-        "rubricPrompt": "file://rubric_prompt/reply_text_repetition_rubric.json",
-        "metric": "回复文本未无效复述用户要求"
       }
     ]
   }

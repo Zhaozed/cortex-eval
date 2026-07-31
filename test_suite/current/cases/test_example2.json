@@ -720,7 +720,7 @@
         "type": "llm-rubric",
         "value": "这是 turn_direction 工具返回后的用户可见回复，不是执行前过渡。回复必须结合上下文说明已经转到后方；可以自然说明当前无法直接看见具体画面并询问用户下一步需求。不得再次表示即将执行转身，不得声称看到了实际画面，不得编造工具结果或其他事实。表达允许与参考文案不同，但语义必须等价、自然、简洁。",
         "transform": "output?.parsed_output?.reply_text??''",
-        "rubricPrompt": "file://rubric_prompt/reply_text_transition_rubric.json",
+        "rubricPrompt": "file://rubric_prompt/reply_text_quality.json",
         "metric": "回复文本阶段正确性"
       },
       {
