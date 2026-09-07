@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Plus, RefreshCw } from "lucide-react";
+import { Activity, Plus, RefreshCw, Trash2 } from "lucide-react";
 import {
   useEffect,
   useMemo,
@@ -162,7 +162,10 @@ export function RunListPage({
   const queryClient = useQueryClient();
   const page = useQuery({
     queryKey: ["runs", "list", { cursor, limit: 50 }] as const,
-    queryFn: ({ signal }) => api.listRuns({ limit: 50, cursor }, signal)
+    queryFn: ({ signal }) => api.listRuns({ limit: 50, cursor }, signal),
+    // Live-refresh while any listed Run is executing so the operator sees progress.
+    refetchInterval: (current) =>
+      current.state.data?.items.some((run) => run.status === "RUNNING") === true ? 1_000 : false
   });
   const options = useQuery({
     queryKey: ["runs", "creation-options"] as const,
@@ -200,6 +203,15 @@ export function RunListPage({
       ]);
       setCreateOpen(false);
       onCommittedNavigate(`/runs/${encodeURIComponent(run.id)}`);
+    }
+  });
+  const remove = useMutation({
+    mutationFn: (runId: string) => api.deleteRun(runId, new AbortController().signal),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["runs"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+      ]);
     }
   });
   usePageLeaveBlocker(create.isPending, onLeaveBlockedChange);
@@ -305,6 +317,7 @@ export function RunListPage({
                 <TableHead>{message("runs.status")}</TableHead>
                 <TableHead>{message("runs.progress")}</TableHead>
                 <TableHead>{message("common.updatedAt")}</TableHead>
+                <TableHead>{message("runs.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -337,6 +350,30 @@ export function RunListPage({
                     })}
                   </TableCell>
                   <TableCell>{displayRunDate(run.updatedAt)}</TableCell>
+                  <TableCell>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={run.status === "RUNNING" || remove.isPending}
+                      title={
+                        run.status === "RUNNING"
+                          ? message("runs.deleteRunningBlocked")
+                          : message("runs.delete")
+                      }
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (!window.confirm(message("runs.deleteConfirm"))) return;
+                        remove.mutate(run.id);
+                      }}
+                    >
+                      <Trash2 aria-hidden="true" />
+                      {remove.isPending && remove.variables === run.id
+                        ? message("runs.deleting")
+                        : message("runs.delete")}
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

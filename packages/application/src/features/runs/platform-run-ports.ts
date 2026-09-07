@@ -27,6 +27,11 @@ export type RequestRunCancellationResult =
   | { readonly ok: true; readonly run: PlatformRunProgress }
   | { readonly ok: false; readonly reason: "NOT_FOUND" | "STATE_OR_REVISION" };
 
+/** Exact Run deletion outcome. */
+export type DeletePlatformRunResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: "NOT_FOUND" | "RUNNING" | "REFERENCED" };
+
 /** REST stage commit facts guarded by one latest Revision. */
 export interface CompleteRestStageInput {
   /** Target Run. */
@@ -102,6 +107,8 @@ export interface PlatformRunRepository {
     expectedRevision: number,
     updatedAt: string
   ): Promise<RequestRunCancellationResult>;
+  /** Delete one non-running Run and all of its frozen Case facts. */
+  deletePlatformRun(runId: string): Promise<DeletePlatformRunResult>;
   /** Idempotently persist one real dispatched REST result and its counters. */
   recordRestResult(
     value: StoredRestCaseResult,

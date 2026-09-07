@@ -61,6 +61,7 @@ const RUN_CAPABILITY_HANDLERS: LocalRunHandlers = {
   editAndAcceptAnalysisProposal: notExecutable,
   startRun: notExecutable,
   cancelRun: notExecutable,
+  deleteRun: notExecutable,
   getRunProgress: notExecutable
 };
 

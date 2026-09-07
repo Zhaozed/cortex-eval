@@ -121,9 +121,9 @@ function providerOutputJson(value: ProviderOutput): DomainJsonObject {
   if (!value.ok) return { ok: false, errorMessage: value.errorMessage };
   return {
     ok: true,
-    taskName: value.taskName,
-    resolvedConfig: value.resolvedConfig,
-    parsedOutput: value.parsedOutput
+    task_name: value.taskName,
+    resolved_config: value.resolvedConfig,
+    parsed_output: value.parsedOutput
   };
 }
 

@@ -105,6 +105,35 @@ describe("Web API Client 边界", () => {
     });
   });
 
+  it("透传 Run 状态冲突的具体原因供界面分派提示", async () => {
+    const requestId = "018f0f4e-7b7a-7cc0-8000-000000000001";
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "RUN_STATE_CONFLICT",
+            message: "运行状态发生冲突",
+            requestId,
+            reason: "STATE_OR_REVISION"
+          }
+        }),
+        { status: 409, headers: { "content-type": "application/json" } }
+      )
+    );
+
+    const failure = await apiRequestJson("/api/v1/example", SuccessSchema, {}, fetcher).catch(
+      (error: unknown) => error
+    );
+
+    expect(failure).toBeInstanceOf(ApiClientError);
+    expect(failure).toMatchObject({
+      code: "RUN_STATE_CONFLICT",
+      runStateReason: "STATE_OR_REVISION",
+      requestId,
+      statusCode: 409
+    });
+  });
+
   it("清洗批量导入错误并保留顺序、Case ID 与原因", async () => {
     const requestId = "018f0f4e-7b7a-7cc0-8000-000000000001";
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(

@@ -252,7 +252,7 @@ function operationQuerySchema(operationId: string): Record<string, unknown> | un
       }
     };
   }
-  if (operationId.startsWith("delete")) {
+  if (operationId.startsWith("delete") && operationId !== "deleteRun") {
     return {
       type: "object",
       additionalProperties: false,

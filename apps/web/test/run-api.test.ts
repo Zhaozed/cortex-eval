@@ -542,4 +542,39 @@ describe("Run API Client", () => {
     subscription.close();
     expect(source.closed).toBe(true);
   });
+
+  it("删除 Run 只接受 204 并在失败时抛出边界错误", async () => {
+    const deleteFetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const api = createRunApi(deleteFetcher);
+    await expect(api.deleteRun(RUN_ID, new AbortController().signal)).resolves.toBeUndefined();
+    expect(deleteFetcher).toHaveBeenCalledWith(
+      `/api/v1/runs/${RUN_ID}`,
+      expect.objectContaining({ method: "DELETE" })
+    );
+
+    const conflictFetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      response(
+        {
+          error: {
+            code: "RESOURCE_IN_ACTIVE_RUN",
+            message: "资源正在被运行使用",
+            requestId: "01900000-0000-7000-8000-000000000999"
+          }
+        },
+        409
+      )
+    );
+    await expect(
+      createRunApi(conflictFetcher).deleteRun(RUN_ID, new AbortController().signal)
+    ).rejects.toMatchObject({ code: "RESOURCE_IN_ACTIVE_RUN" });
+
+    const wrongStatus = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    await expect(
+      createRunApi(wrongStatus).deleteRun(RUN_ID, new AbortController().signal)
+    ).rejects.toMatchObject({ code: "CLIENT_RESPONSE_INVALID" });
+  });
 });

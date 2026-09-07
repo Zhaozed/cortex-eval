@@ -85,7 +85,9 @@ export type PlatformRunServiceError =
   | {
       readonly code: "RUN_STATE_CONFLICT";
       readonly reason: "STATE_OR_REVISION" | "GLOBAL_RUNNING" | "STAGE_UNAVAILABLE";
-    };
+    }
+  | { readonly code: "RESOURCE_IN_ACTIVE_RUN" }
+  | { readonly code: "RUN_REFERENCED" };
 
 /** Exact Run mutation result. */
 export type PlatformRunMutationResult =
@@ -404,6 +406,27 @@ export class PlatformRunService {
     await this.#recordEvent("RUN_CANCEL_REQUESTED", result.run.id, result.run.updatedAt);
     this.#controllers.get(input.runId)?.abort();
     return { ok: true, run: result.run };
+  }
+
+  /** Delete one non-running, unreferenced platform Run. */
+  public async deleteRun(input: {
+    readonly runId: string;
+  }): Promise<
+    { readonly ok: true } | { readonly ok: false; readonly error: PlatformRunServiceError }
+  > {
+    const result = await this.#transactionManager.execute(async (transaction) =>
+      transaction.runs.deletePlatformRun(input.runId)
+    );
+    if (!result.ok) {
+      const error: PlatformRunServiceError =
+        result.reason === "NOT_FOUND"
+          ? { code: "RUN_NOT_FOUND" }
+          : result.reason === "RUNNING"
+            ? { code: "RESOURCE_IN_ACTIVE_RUN" }
+            : { code: "RUN_REFERENCED" };
+      return { ok: false, error };
+    }
+    return { ok: true };
   }
 
   /** Read one current platform Run. */

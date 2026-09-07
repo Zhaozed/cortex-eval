@@ -883,6 +883,51 @@ describe("Run 页面", () => {
     );
   });
 
+  it("Run Detail 在启动版本冲突时展示具体原因而非通用文案", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.endsWith("/start") && init?.method === "POST") {
+        return Promise.resolve(
+          response(
+            {
+              error: {
+                code: "RUN_STATE_CONFLICT",
+                message: "运行状态发生冲突",
+                requestId: RUN_ID,
+                reason: "STATE_OR_REVISION"
+              }
+            },
+            409
+          )
+        );
+      }
+      if (url.includes("/evaluations?")) return Promise.resolve(response(runEvalPage));
+      if (url.includes("/cases?")) return Promise.resolve(response(runCasePage));
+      if (url === `/api/v1/runs/${RUN_ID}`) {
+        return Promise.resolve(response(runDetail({ stage: "EVALUATION", lockRevision: 2 })));
+      }
+      return Promise.resolve(response({ invalid: true }));
+    });
+    render(
+      <QueryClientProvider client={client()}>
+        <RunDetailPage
+          api={createRunApi(fetcher, inertEventSource)}
+          runId={RUN_ID}
+          onNavigate={vi.fn()}
+        />
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText("逐 Case Evaluation 结果")).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "启动 Evaluation 阶段" }));
+    expect(
+      await screen.findByText("页面上的运行状态已过期，请刷新页面后重试。")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("运行状态已变化或操作失败，请以最新服务端事实重试。")
+    ).not.toBeInTheDocument();
+  });
+
   it("Run Detail 在 Evaluation 完成后展示原子提交的完整分类计数", async () => {
     const detail = runDetail({
       status: "READY",

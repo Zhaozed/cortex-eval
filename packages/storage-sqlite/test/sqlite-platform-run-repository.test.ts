@@ -938,10 +938,14 @@ describe("SQLite Platform Run Repository", () => {
       await transaction.runs.claimStage(RUN_B, 0, SECOND_TIME);
       await transaction.runs.recordRestResult(successResult(RUN_B), SECOND_TIME);
     });
-    const withoutReports = await manager.execute(async (transaction) =>
+    const allRuns = await manager.execute(async (transaction) =>
       transaction.runs.queryPlatformRuns({ limit: 20 })
     );
-    expect(withoutReports.items).toEqual([]);
+    expect(allRuns.items).toMatchObject([
+      { id: RUN_C, status: "READY", stage: "REST" },
+      { id: RUN_B, status: "RUNNING", stage: "REST", restCompletedCount: 1 },
+      { id: RUN_A, status: "READY", stage: "REST" }
+    ]);
     const database = new Database(storage.databasePath);
     database
       .prepare(
@@ -963,7 +967,15 @@ describe("SQLite Platform Run Repository", () => {
         afterCursor: firstPage.nextCursor ?? undefined
       })
     );
-    expect(secondPage.items).toMatchObject([{ id: RUN_A }]);
+    expect(secondPage.items).toMatchObject([{ id: RUN_B }]);
+    const thirdPage = await manager.execute(async (transaction) =>
+      transaction.runs.queryPlatformRuns({
+        limit: 1,
+        afterCursor: secondPage.nextCursor ?? undefined
+      })
+    );
+    expect(thirdPage.items).toMatchObject([{ id: RUN_A }]);
+    expect(thirdPage.nextCursor).toBeNull();
     const result = await manager.execute(async (transaction) =>
       transaction.runs.getRestResult(RUN_B, "case-1")
     );

@@ -208,9 +208,9 @@ function fakeEngine(): FrozenEvaluationEngine {
                 response: {
                   output: {
                     ok: true,
-                    taskName: "reply",
-                    resolvedConfig: {},
-                    parsedOutput: { text: "hello" }
+                    task_name: "reply",
+                    resolved_config: {},
+                    parsed_output: { text: "hello" }
                   }
                 },
                 success: false,

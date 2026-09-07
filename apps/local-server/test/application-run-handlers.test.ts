@@ -301,6 +301,7 @@ function service(
     getRestResult: vi.fn().mockResolvedValue(null),
     start: vi.fn().mockResolvedValue({ ok: true, run: run() }),
     cancel: vi.fn().mockResolvedValue({ ok: true, run: run() }),
+    deleteRun: vi.fn().mockResolvedValue({ ok: true }),
     startEvaluation: vi.fn().mockResolvedValue({ ok: true, run: run() }),
     cancelEvaluation: vi.fn().mockResolvedValue({ ok: true, run: platformRunProgress(run()) }),
     queryEvalResults: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
@@ -983,5 +984,17 @@ describe("Application Run HTTP handlers", () => {
       statusCode: 409,
       body: { error: { code: "EXECUTION_RESULT_CONFLICT" } }
     });
+  });
+  it("删除 Run 按错误码返回 404/409 并透传错误码", async () => {
+    const { deleteRun } = service();
+    const handlers = createApplicationRunHandlers(service({ deleteRun }));
+    const r = input({ params: { runId: RUN_ID } });
+    for (const [code, statusCode] of [
+      ["RUN_NOT_FOUND", 404],
+      ["RUN_REFERENCED", 409]
+    ] as const) {
+      vi.mocked(deleteRun).mockResolvedValueOnce({ ok: false, error: { code } });
+      expect(await handlers.deleteRun(r)).toMatchObject({ statusCode, body: { error: { code } } });
+    }
   });
 });

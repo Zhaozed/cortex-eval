@@ -122,6 +122,12 @@ describe("Promptfoo 受控配置物化", () => {
     expect(result.evaluatorCallBudget).toBe(2);
     expect(result.config.providers).toEqual([{ id: "echo" }]);
     expect(result.config.tests).toHaveLength(1);
+    expect(result.config.tests[0]?.providerOutput).toEqual({
+      ok: true,
+      task_name: "planner",
+      resolved_config: {},
+      parsed_output: { reply_text: "actual" }
+    });
     expect(result.config.tests[0]?.assert.map((assertion) => assertion.type)).toEqual([
       "select-best",
       "max-score",

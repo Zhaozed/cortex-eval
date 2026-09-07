@@ -58,6 +58,7 @@ const runHandlers: LocalRunHandlers = {
   editAndAcceptAnalysisProposal: success,
   startRun: success,
   cancelRun: success,
+  deleteRun: success,
   getRunProgress: success
 };
 

@@ -28,7 +28,7 @@ import {
 } from "@cortex-eval/contracts/src/run-api-contracts.ts";
 import type { z } from "zod";
 
-import { ApiClientError, apiRequestJson, buildApiSearch } from "./api-client.ts";
+import { ApiClientError, apiRequestEmpty, apiRequestJson, buildApiSearch } from "./api-client.ts";
 
 /** Validated Run resource selection. */
 export type RunSelection = z.infer<typeof RunPreflightRequestV1Schema>;
@@ -208,6 +208,8 @@ export interface RunApi {
     expectedRevision: number,
     signal: AbortSignal
   ) => Promise<RunProgress>;
+  /** Delete one non-running, unreferenced Run. */
+  readonly deleteRun: (runId: string, signal: AbortSignal) => Promise<void>;
   /** Subscribe to finite snapshot-first SSE progress. */
   readonly subscribe: (
     runId: string,
@@ -428,6 +430,15 @@ export function createRunApi(
         jsonRequest({ expectedRevision }, signal),
         fetcher,
         (output) => output.runId === runId
+      ),
+    deleteRun: (runId, signal) =>
+      apiRequestEmpty(
+        `/api/v1/runs/${encodeURIComponent(runId)}`,
+        {
+          method: "DELETE",
+          signal
+        },
+        fetcher
       ),
     subscribe: (runId, onEnvelope, onError): RunSubscription => {
       const source = eventSourceFactory(`/api/v1/runs/${encodeURIComponent(runId)}/events`);

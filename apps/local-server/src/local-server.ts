@@ -44,6 +44,38 @@ export interface LocalApiHandlerResponse {
   readonly headers?: Readonly<Record<string, string>>;
 }
 
+const requestBodySnapshots = new WeakMap<FastifyRequest["raw"], unknown>();
+
+function cloneJsonValue(
+  value: unknown
+): { readonly ok: true; readonly value: unknown } | { readonly ok: false } {
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return { ok: true, value };
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? { ok: true, value } : { ok: false };
+  }
+  if (Array.isArray(value)) {
+    const items: unknown[] = [];
+    for (const item of value) {
+      const cloned = cloneJsonValue(item);
+      if (!cloned.ok) return cloned;
+      items.push(cloned.value);
+    }
+    return { ok: true, value: items };
+  }
+  if (typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+    const result: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      const cloned = cloneJsonValue(item);
+      if (!cloned.ok) return cloned;
+      result[key] = cloned.value;
+    }
+    return { ok: true, value: result };
+  }
+  return { ok: false };
+}
+
 /** One bounded multipart file exposed to the import protocol handler. */
 export interface LocalMultipartFile {
   /** Backpressure-aware file byte stream. */
@@ -677,10 +709,13 @@ export function registerHandlerRoute(
       controllers.add(controller);
       request.raw.once("aborted", abort);
       try {
+        const body = requestBodySnapshots.has(request.raw)
+          ? requestBodySnapshots.get(request.raw)
+          : request.body;
         const response = await handler({
           params: routeParams(request.params),
           query: request.query,
-          body: request.body,
+          body,
           requestId: request.id,
           signal: controller.signal
         });
@@ -691,6 +726,7 @@ export function registerHandlerRoute(
         return await reply.code(response.statusCode).send(response.body);
       } finally {
         request.raw.off("aborted", abort);
+        requestBodySnapshots.delete(request.raw);
         controllers.delete(controller);
       }
     }
@@ -746,6 +782,11 @@ export function buildLocalServer(options: LocalServerOptions): FastifyInstance {
       done();
       return;
     }
+    done();
+  });
+  server.addHook("preValidation", (request, _reply, done) => {
+    const cloned = cloneJsonValue(request.body);
+    if (cloned.ok) requestBodySnapshots.set(request.raw, cloned.value);
     done();
   });
 

@@ -1,8 +1,15 @@
 import { ApiErrorResponseV1Schema } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
+import type { ApiErrorResponseV1 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import type { z } from "zod";
 
 /** Server error codes accepted by the closed Local API error envelope. */
 type ServerApiErrorCode = z.infer<typeof ApiErrorResponseV1Schema>["error"]["code"];
+
+/** Stable Run state conflict discriminator reported by the Local API. */
+export type WebRunStateConflictReason = Extract<
+  ApiErrorResponseV1["error"],
+  { readonly code: "RUN_STATE_CONFLICT" }
+>["reason"];
 
 /** Stable failures created only inside the Web Client boundary. */
 type LocalWebClientErrorCode =
@@ -33,6 +40,8 @@ export class ApiClientError extends Error {
   public readonly causeCode: string | null;
   /** Validated Rubric Prompt key involved in a reference conflict. */
   public readonly promptKey: string | null;
+  /** Stable Run state conflict discriminator when the Local API reports one. */
+  public readonly runStateReason: WebRunStateConflictReason | null;
 
   /** Create one sanitized Web Client error. */
   public constructor(
@@ -45,6 +54,7 @@ export class ApiClientError extends Error {
       readonly caseKey?: string | undefined;
       readonly causeCode?: string | undefined;
       readonly promptKey?: string | undefined;
+      readonly runStateReason?: WebRunStateConflictReason | undefined;
     } = {}
   ) {
     super(code);
@@ -57,6 +67,7 @@ export class ApiClientError extends Error {
     this.caseKey = options.caseKey ?? null;
     this.causeCode = options.causeCode ?? null;
     this.promptKey = options.promptKey ?? null;
+    this.runStateReason = options.runStateReason ?? null;
   }
 }
 
@@ -119,7 +130,8 @@ async function throwApiFailure(response: Response): Promise<never> {
           caseKey: error.caseKey,
           causeCode: error.causeCode
         }
-      : {})
+      : {}),
+    ...(error.code === "RUN_STATE_CONFLICT" ? { runStateReason: error.reason } : {})
   });
 }
 

@@ -84,6 +84,7 @@ export type ApplicationRunServiceBoundary = Pick<
   | "getRestResult"
   | "start"
   | "cancel"
+  | "deleteRun"
 > & {
   /** Claim the closed Evaluation stage. */
   readonly startEvaluation: PlatformEvaluationService["start"];
@@ -149,6 +150,8 @@ export interface LocalRunHandlers extends LocalAnalysisHandlers {
   readonly startRun: LocalApiHandler;
   /** Request cancellation. */
   readonly cancelRun: LocalApiHandler;
+  /** Delete one non-running, unreferenced Run. */
+  readonly deleteRun: LocalApiHandler;
   /** Read one small Run progress snapshot for SSE. */
   readonly getRunProgress: LocalApiHandler;
 }
@@ -927,6 +930,26 @@ export function createApplicationRunHandlers(
       return result.ok
         ? { statusCode: 202, body: RunProgressV1Schema.parse(runProgress(result.run)) }
         : applicationError(result.error, input.requestId);
+    },
+    deleteRun: async (input): Promise<LocalApiHandlerResponse> => {
+      const id = runId(input);
+      if (!id.ok) return id.response;
+      const result = await service.deleteRun({ runId: id.value });
+      if (!result.ok) {
+        return result.error.code === "RUN_NOT_FOUND"
+          ? {
+              statusCode: 404,
+              body: errorBody({ code: "RUN_NOT_FOUND", requestId: input.requestId })
+            }
+          : {
+              statusCode: 409,
+              body: errorBody({
+                code: result.error.code,
+                requestId: input.requestId
+              })
+            };
+      }
+      return { statusCode: 204 };
     },
     getRunProgress: async (input): Promise<LocalApiHandlerResponse> => {
       const id = runId(input);

@@ -1,5 +1,6 @@
 import type {
   ClaimRunStageResult,
+  DeletePlatformRunResult,
   CompleteReportStageInput,
   CompleteRestStageInput,
   FailPlatformRunInput,
@@ -139,6 +140,27 @@ export class MemoryPlatformRunStore implements PlatformRunRepository {
     };
     this.values.set(runId, cancelled);
     return Promise.resolve({ ok: true, run: platformRunProgress(cancelled) });
+  }
+
+  /** Delete one non-running, unreferenced Run. */
+  public deletePlatformRun(runId: string): Promise<DeletePlatformRunResult> {
+    const run = this.values.get(runId);
+    if (run === undefined) return Promise.resolve({ ok: false, reason: "NOT_FOUND" });
+    if (run.status === "RUNNING") return Promise.resolve({ ok: false, reason: "RUNNING" });
+    const referencedByRerun = [...this.values.values()].some(
+      (other) => other.sourceRunId === runId
+    );
+    const referencedByResult = [...this.results.values()].some(
+      (result) => result.provenance?.sourceKind === "RUN" && result.provenance.sourceId === runId
+    );
+    if (referencedByRerun || referencedByResult) {
+      return Promise.resolve({ ok: false, reason: "REFERENCED" });
+    }
+    this.values.delete(runId);
+    for (const key of [...this.results.keys()]) {
+      if (key.startsWith(`${runId}:`)) this.results.delete(key);
+    }
+    return Promise.resolve({ ok: true });
   }
 
   /** Record one real REST result. */

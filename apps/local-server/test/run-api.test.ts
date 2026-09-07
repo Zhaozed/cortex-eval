@@ -218,6 +218,18 @@ describe("P8 real Run API", () => {
     expect(parseJsonObject(listed)).toMatchObject({
       items: [{ id: runId, sourceType: "PLATFORM" }]
     });
+    const deleted = await server.inject({
+      method: "DELETE",
+      url: `/api/v1/runs/${runId}`,
+      headers: host
+    });
+    expect(deleted.statusCode).toBe(204);
+    const afterDelete = await server.inject({
+      method: "GET",
+      url: `/api/v1/runs/${runId}`,
+      headers: host
+    });
+    expect(afterDelete.statusCode).toBe(404);
   });
 
   it("SSE 在发送 200 前校验 Run，不存在时返回普通 JSON 404", async () => {

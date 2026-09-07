@@ -40,6 +40,10 @@ type RequestVariables = Readonly<{
   request_body: unknown;
 }>;
 
+const RAW_INT64_SENTINEL = "__cortex_eval_int64";
+const INT64_DECIMAL_PATTERN = /^(?:0|[1-9][0-9]{0,18})$/;
+const MAX_INT64 = 9_223_372_036_854_775_807n;
+
 const JSON_STRING_SELECTOR = String.raw`"(?:[^"\\\u0000-\u001f]|\\(?:["\\/bfnrt]|u[0-9A-Fa-f]{4}))*"`;
 const URL_PLACEHOLDER = new RegExp(
   String.raw`\{\{\s*(vars(?:(?:\.[A-Za-z_$][A-Za-z0-9_$]*)|(?:\[(?:${JSON_STRING_SELECTOR}|(?:0|[1-9][0-9]*))\]))+)\s*\}\}`,
@@ -153,6 +157,36 @@ function selectBody(
   return current as Readonly<Record<string, unknown>>;
 }
 
+// Serialize explicit int64 markers as raw JSON numbers so IDs beyond JS safe integer stay exact.
+function serializeJsonWithRawInt64(value: unknown): string {
+  if (value === null) return "null";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new RestPreparationError();
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => serializeJsonWithRawInt64(item)).join(",")}]`;
+  }
+  if (typeof value === "object") {
+    const source = value as Readonly<Record<string, unknown>>;
+    const keys = Object.keys(source);
+    if (keys.length === 1 && keys[0] === RAW_INT64_SENTINEL) {
+      const rawValue = source[RAW_INT64_SENTINEL];
+      if (typeof rawValue !== "string" || !INT64_DECIMAL_PATTERN.test(rawValue)) {
+        throw new RestPreparationError();
+      }
+      if (BigInt(rawValue) > MAX_INT64) throw new RestPreparationError();
+      return rawValue;
+    }
+    return `{${Object.entries(source)
+      .map(([key, item]) => `${JSON.stringify(key)}:${serializeJsonWithRawInt64(item)}`)
+      .join(",")}}`;
+  }
+  throw new RestPreparationError();
+}
+
 // Expand one header value at the process boundary.
 function expandHeader(value: EndpointHeaderValue, readSecret: SecretReader): string {
   if (value.kind === "LITERAL") return value.value;
@@ -196,7 +230,7 @@ export function prepareRestRequest(
   const selectedBody = selectBody(endpoint.bodySelector, variables);
   let bodyText: string;
   try {
-    bodyText = JSON.stringify(selectedBody);
+    bodyText = serializeJsonWithRawInt64(selectedBody);
   } catch {
     throw new RestPreparationError();
   }

@@ -351,6 +351,7 @@ function componentDiffs(
     schema,
     actual
   });
+  if (!explained.ok && expected.weight === 0) return [];
   if (!explained.ok) throw new Error(explained.error.code);
   return explained.diffs;
 }

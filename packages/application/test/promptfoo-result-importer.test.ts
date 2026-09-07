@@ -416,6 +416,40 @@ describe("Promptfoo 固定版本结果 Importer", () => {
     expect(result.cases[0]?.diffs.map((item) => item.keyword)).toEqual(["const"]);
   });
 
+  it("零权重 is-json 与锁定 Validator 不一致时不阻断整轮导入", () => {
+    const assertion = {
+      type: "is-json",
+      metric: "informational-json",
+      weight: 0,
+      value: {
+        type: "object",
+        required: ["parsed_output"],
+        properties: { parsed_output: { type: "object" } }
+      }
+    } as const;
+    const result = importPromptfooResults(
+      singleCaseInput(
+        [assertion],
+        [
+          {
+            pass: true,
+            score: 0,
+            reason: "JSON does not conform to the provided schema",
+            assertion: { type: "is-json", metric: "informational-json", weight: 0, value: assertion.value }
+          }
+        ],
+        { parsedOutput: {} },
+        { pass: false, score: 0, reason: "Aggregate score 0.00 < 0.75 threshold" }
+      )
+    );
+
+    expect(result.cases[0]).toMatchObject({
+      status: "FAIL",
+      assertions: [{ status: "PASS", weight: 0 }],
+      diffs: []
+    });
+  });
+
   it("Assertion Set 聚合及子组件按展开顺序与完整定义对齐", () => {
     const childPass = {
       type: "equals",

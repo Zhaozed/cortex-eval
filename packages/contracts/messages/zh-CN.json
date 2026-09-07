@@ -13,6 +13,7 @@
   "PROVIDER_CAPABILITY_UNSUPPORTED": "Provider 不支持所需能力",
   "TEMPLATE_INPUT": "模板输入无效",
   "RUN_NOT_FOUND": "运行不存在",
+  "RUN_REFERENCED": "该运行被其他运行引用，无法删除",
   "RUN_SUITE_EMPTY": "测试集没有可执行 Case",
   "RUN_CASE_RESULT_NOT_FOUND": "运行 Case 尚无真实结果",
   "RUN_STATE_CONFLICT": "运行状态发生冲突",

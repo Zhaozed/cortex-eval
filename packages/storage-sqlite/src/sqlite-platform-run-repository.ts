@@ -2,6 +2,7 @@ import type {
   ClaimRunStageResult,
   CompleteReportStageInput,
   CompleteRestStageInput,
+  DeletePlatformRunResult,
   FailPlatformRunInput,
   PlatformRunRepository,
   PlatformRunResourceReader,
@@ -287,9 +288,6 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
           json_extract(suite_snapshot_json, '$.caseCount')
         )`.as("snapshot_case_count")
       ])
-      .where("report_result_set_hash", "is not", null)
-      .where("stage", "=", "DONE")
-      .where("status", "in", ["COMPLETED", "COMPLETED_WITH_ERRORS"])
       .orderBy("created_at", "desc")
       .orderBy("id", "desc")
       .limit(query.limit + 1);
@@ -407,6 +405,44 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
     }
     const exists = await this.#runExists(runId);
     return { ok: false, reason: exists ? "STATE_OR_REVISION" : "NOT_FOUND" };
+  }
+
+  /** Delete one non-running Run and all of its frozen Case facts. */
+  public async deletePlatformRun(runId: string): Promise<DeletePlatformRunResult> {
+    const row = await this.#database
+      .selectFrom("run_log")
+      .select(["status"])
+      .where("id", "=", runId)
+      .executeTakeFirst();
+    if (row === undefined) return { ok: false, reason: "NOT_FOUND" };
+    if (row.status === "RUNNING") return { ok: false, reason: "RUNNING" };
+    const referencingRerun = await this.#database
+      .selectFrom("run_log")
+      .select("id")
+      .where("source_run_id", "=", runId)
+      .limit(1)
+      .executeTakeFirst();
+    const referencingRest = await this.#database
+      .selectFrom("case_result")
+      .select("run_id")
+      .where("reused_from_run_id", "=", runId)
+      .limit(1)
+      .executeTakeFirst();
+    const referencingEval = await this.#database
+      .selectFrom("eval_result")
+      .select("run_id")
+      .where("reused_from_run_id", "=", runId)
+      .limit(1)
+      .executeTakeFirst();
+    if (
+      referencingRerun !== undefined ||
+      referencingRest !== undefined ||
+      referencingEval !== undefined
+    ) {
+      return { ok: false, reason: "REFERENCED" };
+    }
+    await this.#database.deleteFrom("run_log").where("id", "=", runId).execute();
+    return { ok: true };
   }
 
   /** Idempotently persist one dispatched result and update durable counters. */

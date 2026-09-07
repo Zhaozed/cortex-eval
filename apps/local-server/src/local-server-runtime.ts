@@ -366,6 +366,7 @@ export async function createLocalServerRuntime(
       getRestResult: runs.getRestResult.bind(runs),
       start: runs.start.bind(runs),
       cancel: runs.cancel.bind(runs),
+      deleteRun: runs.deleteRun.bind(runs),
       startEvaluation: evaluations.start.bind(evaluations),
       cancelEvaluation: evaluations.cancel.bind(evaluations),
       queryEvalResults: evaluations.queryResults.bind(evaluations),

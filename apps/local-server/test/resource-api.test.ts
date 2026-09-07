@@ -200,6 +200,77 @@ describe("P3 资源 API", () => {
     expect(deleted.statusCode).toBe(204);
   });
 
+  it("通过 HTTP 写入 Case 时不改写任意 JSON 值类型", async () => {
+    const server = setup();
+    const suiteResponse = await server.inject({
+      method: "POST",
+      url: "/api/v1/test-suites",
+      headers,
+      payload: { name: "Suite", description: "Current" }
+    });
+    const suiteId = jsonStringProperty(parseJsonObject(suiteResponse), "id");
+    const exactDefinition = {
+      ...caseDefinition,
+      description: "Exact JSON case",
+      vars: {
+        task: "route",
+        request_body: {
+          uid: { __cortex_eval_int64: "2075490654049271808" },
+          verbose: 0,
+          task_history: [{ step_idx: 1 }]
+        }
+      },
+      metadata: { ...caseDefinition.metadata, case_id: "CASE-EXACT" },
+      assert: [
+        {
+          type: "is-json",
+          metric: "exact user id",
+          value: {
+            properties: {
+              parsed_output: {
+                properties: {
+                  tools: {
+                    contains: {
+                      properties: {
+                        args_json: {
+                          properties: { user_id: { const: "2075490654049271808" } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          weight: 1
+        }
+      ]
+    };
+
+    const created = await server.inject({
+      method: "POST",
+      url: `/api/v1/test-suites/${suiteId}/cases`,
+      headers,
+      payload: { expectedSuiteRevision: 0, definition: exactDefinition }
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ case: { definition: exactDefinition } });
+
+    const updatedDefinition = { ...exactDefinition, description: "Exact JSON case updated" };
+    const updated = await server.inject({
+      method: "PUT",
+      url: `/api/v1/test-suites/${suiteId}/cases/CASE-EXACT`,
+      headers,
+      payload: {
+        expectedSuiteRevision: 1,
+        expectedCaseRevision: 0,
+        definition: updatedDefinition
+      }
+    });
+    expect(updated.statusCode).toBe(200);
+    expect(updated.json()).toMatchObject({ case: { definition: updatedDefinition } });
+  });
+
   it("通过 HTTP 管理四类配置，并完成 Probe、引用与变量预览", async () => {
     const server = setup();
     const endpointDefinition = {

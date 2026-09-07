@@ -484,5 +484,14 @@
   "config.delete": "删除 {name}",
   "config.deleteTitle": "删除配置 · {name}？",
   "config.deleteDescription": "删除只影响当前配置，不改变已经冻结的历史快照。",
-  "config.deleteReferenced": "该 Rubric Prompt 仍被以下 Case 引用，当前不能删除。"
+  "config.deleteReferenced": "该 Rubric Prompt 仍被以下 Case 引用，当前不能删除。",
+  "runs.delete": "删除",
+  "runs.deleting": "正在删除",
+  "runs.deleteConfirm": "确定删除该运行？重跑引用和复用结果会阻止删除，此操作不可撤销。",
+  "runs.deleteError": "运行删除失败",
+  "runs.deleteRunningBlocked": "运行中不可删除",
+  "runs.actions": "操作",
+  "runs.mutationErrorStale": "页面上的运行状态已过期，请刷新页面后重试。",
+  "runs.mutationErrorStageUnavailable": "该阶段已变更或已自动推进，当前无需重复操作。",
+  "runs.mutationErrorGlobalRunning": "已有其他任务正在运行，请等待其结束后再启动当前阶段。"
 }

@@ -491,6 +491,7 @@ const PlainErrorSchema = z.strictObject({
     "CASE_NOT_FOUND",
     "SUITE_NOT_FOUND",
     "RUN_NOT_FOUND",
+    "RUN_REFERENCED",
     "RUN_SUITE_EMPTY",
     "RUN_CASE_RESULT_NOT_FOUND",
     "RERUN_SOURCE_INCOMPLETE",

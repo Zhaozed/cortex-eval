@@ -63,6 +63,50 @@ describe("REST 请求准备", () => {
     });
   });
 
+  it("显式 int64 标记按原始 JSON 数字发送，避免 UID 超过 JS 安全整数后失真", () => {
+    const prepared = prepareRestRequest(
+      {
+        ...baseCase,
+        definition: {
+          ...baseCase.definition,
+          requestBody: {
+            uid: { __cortex_eval_int64: "2075490654049271808" },
+            text: "hello"
+          }
+        }
+      },
+      {
+        ...endpoint,
+        urlTemplate: "http://127.0.0.1:4311/api/{{vars.task}}",
+        bodySelector: "/request_body"
+      },
+      () => "secret-value"
+    );
+    const bodyText = new TextDecoder().decode(prepared.body);
+    expect(bodyText).toBe('{"uid":2075490654049271808,"text":"hello"}');
+    expect(bodyText).not.toContain("__cortex_eval_int64");
+  });
+
+  it("拒绝非法 int64 标记，避免把任意字符串拼进 JSON 请求体", () => {
+    expect(() =>
+      prepareRestRequest(
+        {
+          ...baseCase,
+          definition: {
+            ...baseCase.definition,
+            requestBody: { uid: { __cortex_eval_int64: "2075490654049271808x" } }
+          }
+        },
+        {
+          ...endpoint,
+          urlTemplate: "http://127.0.0.1:4311/api/{{vars.task}}",
+          bodySelector: "/request_body"
+        },
+        () => "secret-value"
+      )
+    ).toThrow(expect.objectContaining<Partial<RestPreparationError>>({ code: "TEMPLATE_INPUT" }));
+  });
+
   it.each([
     ["缺失变量", { ...baseCase.definition, task: undefined }],
     ["null 变量", { ...baseCase.definition, task: null }],

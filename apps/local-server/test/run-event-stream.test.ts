@@ -77,6 +77,7 @@ function runHandlers(getRunProgress: LocalApiHandler): LocalRunHandlers {
     editAndAcceptAnalysisProposal: inert(),
     startRun: inert(202),
     cancelRun: inert(202),
+    deleteRun: inert(204),
     getRunProgress
   };
 }

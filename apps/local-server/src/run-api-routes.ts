@@ -350,6 +350,14 @@ export function registerRunRoutes(
   registerHandlerRoute(
     server,
     controllers,
+    "DELETE",
+    "/api/v1/runs/:runId",
+    "deleteRun",
+    handlers.deleteRun
+  );
+  registerHandlerRoute(
+    server,
+    controllers,
     "POST",
     "/api/v1/runs/:runId/reruns",
     "createRunRerun",

@@ -7,6 +7,7 @@ import {
   assertionConfigEntryIsUnsafe,
   assertionExternalReferenceIsUnsafe
 } from "@cortex-eval/contracts/src/assertion-config-safety.ts";
+import type { DomainJsonObject } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 
 type AssertionDefinition = FrozenRunCase["definition"]["assertions"][number];
 type ProviderOutput = Extract<
@@ -92,7 +93,7 @@ export interface MaterializedPromptfooTest {
   /** Stable Case identity metadata. */
   readonly metadata: Readonly<Record<string, string>>;
   /** Precomputed REST output. */
-  readonly providerOutput: ProviderOutput;
+  readonly providerOutput: DomainJsonObject;
   /** Original ordered Assertion tree. */
   readonly assert: readonly MaterializedPromptfooAssertion[];
   /** Frozen Case threshold. */
@@ -224,6 +225,17 @@ function materializeAssertion(
   return result;
 }
 
+// Expose REST success to Promptfoo in the same public shape used by REST artifacts.
+function providerOutputJson(value: ProviderOutput): DomainJsonObject {
+  if (!value.ok) return { ok: false, errorMessage: value.errorMessage };
+  return {
+    ok: true,
+    task_name: value.taskName,
+    resolved_config: value.resolvedConfig,
+    parsed_output: value.parsedOutput
+  };
+}
+
 /** Materialize one REST-success Case without retaining the complete test collection. */
 function materializePromptfooTestWithPrompts(
   item: PromptfooMaterializationCase,
@@ -243,7 +255,7 @@ function materializePromptfooTestWithPrompts(
       business_module: item.testCase.definition.metadata.businessModule,
       scenario_tag: item.testCase.definition.metadata.scenarioTag
     },
-    providerOutput: item.restResult.providerOutput,
+    providerOutput: providerOutputJson(item.restResult.providerOutput),
     assert: item.testCase.definition.assertions.map((assertion) =>
       materializeAssertion(assertion, prompts)
     ),

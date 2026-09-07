@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow
 } from "../../components/ui/table.tsx";
+import { ApiClientError } from "../../lib/api-client.ts";
 import type { PlatformRerunMode, RunApi } from "../../lib/run-api.ts";
 import { formatMessage, message } from "../../messages/messages.ts";
 import { selectRunProgressView } from "./run-progress-view.ts";
@@ -50,6 +51,20 @@ function startStageLabel(stage: "REST" | "EVALUATION" | "REPORT" | "DONE"): stri
   if (stage === "REST") return message("runs.startRest");
   if (stage === "EVALUATION") return message("runs.startEvaluation");
   return message("runs.startReport");
+}
+
+// Resolve one stable Run state conflict reason to a concise retry hint.
+function mutationErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiClientError) {
+    if (error.runStateReason === "STATE_OR_REVISION") return message("runs.mutationErrorStale");
+    if (error.runStateReason === "STAGE_UNAVAILABLE") {
+      return message("runs.mutationErrorStageUnavailable");
+    }
+    if (error.runStateReason === "GLOBAL_RUNNING") {
+      return message("runs.mutationErrorGlobalRunning");
+    }
+  }
+  return fallback;
 }
 
 // Refresh all consumers of a changed durable Run fact.
@@ -317,7 +332,9 @@ export function RunDetailPage({ api, runId, onNavigate }: RunDetailPageProps): R
       ) : null}
       {start.isError || cancel.isError ? (
         <Alert variant="destructive">
-          <AlertTitle>{message("runs.mutationError")}</AlertTitle>
+          <AlertTitle>
+            {mutationErrorMessage(start.error ?? cancel.error, message("runs.mutationError"))}
+          </AlertTitle>
         </Alert>
       ) : null}
       {rerun.isError ? (

@@ -220,6 +220,70 @@ class SuccessfulEvaluationEngine implements PlatformEvaluationEngine {
   }
 }
 
+class SnakeCaseProviderOutputEngine implements PlatformEvaluationEngine {
+  /** Return one Promptfoo PASS row using the external provider-output field names. */
+  public execute(): Promise<PlatformEvaluationEngineResult> {
+    const schema = {
+      type: "object",
+      required: ["parsed_output"],
+      properties: {
+        parsed_output: {
+          type: "object",
+          required: ["reply_text"],
+          properties: { reply_text: { const: "actual" } }
+        }
+      }
+    };
+    return Promise.resolve({
+      promptfooVersion: "0.121.18" as const,
+      exitCode: 0 as const,
+      durationMs: 12,
+      evaluationContextHash: "f".repeat(64),
+      rubricPromptMaterializations: {},
+      raw: {
+        results: {
+          version: 3,
+          results: [
+            {
+              metadata: { case_id: "case-1" },
+              response: {
+                output: {
+                  ok: true,
+                  task_name: "planner",
+                  resolved_config: {},
+                  parsed_output: { reply_text: "actual" }
+                }
+              },
+              success: true,
+              score: 1,
+              latencyMs: 3,
+              cost: 0,
+              gradingResult: {
+                pass: true,
+                score: 1,
+                reason: "passed",
+                componentResults: [
+                  {
+                    pass: true,
+                    score: 1,
+                    reason: "Assertion passed",
+                    assertion: {
+                      type: "is-json",
+                      metric: "json",
+                      weight: 1,
+                      value: schema
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    });
+  }
+}
+
 class FailingProgressStore extends MemoryPlatformRunStore {
   /** Number of small progress reads. */
   progressReads = 0;
@@ -447,6 +511,63 @@ describe("Platform Evaluation Application 编排", () => {
     await service.start({ runId: RUN_ID, expectedRevision: 2 });
     await service.waitForIdle();
     expect(observedCases).toBe(0);
+  });
+
+  it("Evaluation 导入使用外部 Provider Output 字段匹配 is-json 断言", async () => {
+    const schema = {
+      type: "object",
+      required: ["parsed_output"],
+      properties: {
+        parsed_output: {
+          type: "object",
+          required: ["reply_text"],
+          properties: { reply_text: { const: "actual" } }
+        }
+      }
+    };
+    const definition = {
+      ...restResult.definition,
+      threshold: 1,
+      assertions: [{ type: "is-json", metric: "json", weight: 1, value: schema }]
+    };
+    const runs = new MemoryPlatformRunStore();
+    const run = evaluationRun();
+    runs.values.set(RUN_ID, {
+      ...run,
+      suite: {
+        ...run.suite,
+        cases: [{ ...run.suite.cases[0], definition }]
+      }
+    });
+    const evaluations = new EvalRepository(runs);
+    runs.results.set(`${RUN_ID}:case-1`, {
+      ...restResult,
+      definition,
+      providerOutput: {
+        ok: true,
+        taskName: "planner",
+        resolvedConfig: {},
+        parsedOutput: { reply_text: "actual" }
+      }
+    });
+    const service = new PlatformEvaluationService(
+      evaluationDependencies(runs, new SnakeCaseProviderOutputEngine(), evaluations)
+    );
+
+    await service.start({ runId: RUN_ID, expectedRevision: 2 });
+    await service.waitForIdle();
+
+    expect(evaluations.completeInput?.results[0]).toMatchObject({
+      status: "PASS",
+      assertions: [{ metric: "json", status: "PASS" }],
+      diffs: []
+    });
+    await expect(runs.getPlatformRunProgress(RUN_ID)).resolves.toMatchObject({
+      status: "READY",
+      stage: "REPORT",
+      evalPassCount: 1,
+      evalFailCount: 0
+    });
   });
 
   it("解释器能力探测失败时不抢占 Evaluation Stage，也不启动外部引擎", async () => {
