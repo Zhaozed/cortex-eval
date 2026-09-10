@@ -62,10 +62,76 @@ describe("测试集列表页面", () => {
 
     await userEvent.click(await screen.findByRole("link", { name: "客服回归集" }));
     expect(onNavigate).toHaveBeenCalledWith(`/test-suites/${suite.id}`);
-    expect(screen.getByRole("cell", { name: "4" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "4条" })).toBeInTheDocument();
     expect(screen.getByText("离线导入")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("link", { name: "已完成" }));
     expect(onNavigate).toHaveBeenCalledWith("/runs/018f0f4e-7b7a-7cc0-8000-000000000009/report");
+  });
+
+  it.each([false, true])("列表删除先确认影响，运行中保护=%s", async (activeRunReference) => {
+    let deleted = false;
+    const deleteRequests: string[] = [];
+    const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.endsWith("/impact")) {
+        return Promise.resolve(response({ caseCount: 4, activeRunReference }));
+      }
+      if (init?.method === "DELETE") {
+        deleteRequests.push(url);
+        deleted = true;
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      return Promise.resolve(
+        response({
+          items: deleted
+            ? []
+            : [
+                {
+                  id: suite.id,
+                  name: suite.name,
+                  description: suite.description,
+                  caseCount: suite.caseCount,
+                  revision: suite.revision,
+                  updatedAt: suite.updatedAt,
+                  latestRun: null
+                }
+              ],
+          nextCursor: null
+        })
+      );
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const blocked = vi.fn();
+    render(
+      <QueryClientProvider client={client}>
+        <TestSuiteListPage
+          api={createResourceApi(fetcher)}
+          onNavigate={vi.fn()}
+          onLeaveBlockedChange={blocked}
+        />
+      </QueryClientProvider>
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "删除测试集 · 客服回归集" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(suite.name);
+    expect(deleteRequests).toHaveLength(0);
+    const confirm = screen.getByRole("button", { name: "确认删除" });
+    if (activeRunReference) {
+      expect(confirm).toBeDisabled();
+      await user.click(screen.getByRole("button", { name: "取消" }));
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      expect(deleteRequests).toHaveLength(0);
+    } else {
+      expect(screen.getByRole("alertdialog")).toHaveTextContent("4 个 Case");
+      expect(screen.getByRole("alertdialog")).toHaveTextContent("不会修改历史运行快照");
+      await user.click(confirm);
+      await waitFor(() =>
+        expect(screen.queryByRole("link", { name: suite.name })).not.toBeInTheDocument()
+      );
+      expect(deleteRequests).toHaveLength(1);
+      expect(deleteRequests[0]).toContain(`/${suite.id}?expectedRevision=${suite.revision}`);
+    }
+    await waitFor(() => expect(blocked).toHaveBeenLastCalledWith(false));
   });
 
   it("通过 Sheet 创建测试集并在成功后进入详情", async () => {

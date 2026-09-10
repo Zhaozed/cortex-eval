@@ -70,7 +70,13 @@ export const EndpointConfigV1Schema = z
     headers: z.record(z.string().min(1), HeaderValueSchema),
     bodySelector: z.string().regex(/^(?:\/(?:[^~/]|~0|~1)*)*$/, "JSON_POINTER_INVALID"),
     timeoutMs: z.number().int().min(100).max(600_000),
-    defaultConcurrency: z.number().int().min(1).max(64)
+    defaultConcurrency: z.number().int().min(1).max(64),
+    agentRevision: z
+      .strictObject({
+        branch: z.string().trim().min(1).max(200),
+        commit: z.string().regex(/^[a-fA-F0-9]{7,40}$/)
+      })
+      .optional()
   })
   .superRefine((endpoint, context) => {
     for (const [name, value] of Object.entries(endpoint.headers)) {

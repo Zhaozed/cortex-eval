@@ -45,7 +45,10 @@ export function caseDefinitionJson(definition: CaseDefinition): DomainJsonObject
       req_id: definition.metadata.requestId,
       task_id: definition.metadata.taskId,
       business_module: definition.metadata.businessModule,
-      scenario_tag: definition.metadata.scenarioTag
+      scenario_tag: definition.metadata.scenarioTag,
+      ...(definition.metadata.a2uiCapture === undefined
+        ? {}
+        : { a2ui_capture: definition.metadata.a2uiCapture })
     },
     assert: definition.assertions.map(assertionDefinitionJson)
   };

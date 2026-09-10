@@ -1,7 +1,13 @@
+import type { RunLivePreview } from "@cortex-eval/contracts/src/run-review-contracts.ts";
+import { registerRunReviewRoutes } from "./run-review-routes.ts";
+import type { RunReviewStore } from "./run-review-store.ts";
+import { registerA2uiReviewRoutes } from "./a2ui-review-routes.ts";
+import type { A2uiReviewStore } from "./a2ui-review-store.ts";
 import zhCnMessages from "@cortex-eval/contracts/messages/zh-CN.json" with { type: "json" };
 import {
   ApiErrorResponseV1Schema,
   CaseImportSuccessV1Schema,
+  CaseImportPreviewV1Schema,
   type ApiErrorResponseV1
 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import swagger from "@fastify/swagger";
@@ -167,6 +173,11 @@ export interface RequestIdGenerator {
 
 /** Local Server construction options. */
 export interface LocalServerOptions {
+  /** Optional immutable A2UI evidence and manual-review sidecar. */
+  readonly a2uiReviewStore?: A2uiReviewStore;
+  readonly runReviewStore?: RunReviewStore;
+  readonly runPreviewOrigin?: () => string | undefined;
+  readonly runLivePreview?: (runId: string, key: string) => Promise<RunLivePreview>;
   /** Internal request identity source. */
   readonly requestIdGenerator: RequestIdGenerator;
   /** Closed P3 resource handler surface. */
@@ -282,9 +293,13 @@ async function registerResourceRoutes(
   await server.register(staticPlugin, {
     root: options.staticRoot ?? fileURLToPath(new URL("../public", import.meta.url)),
     prefix: "/",
-    wildcard: false
+    // Resolve assets on demand: Vite rebuilds change hashed filenames after startup.
+    wildcard: true
   });
   registerClosedWebRoutes(server);
+  if (options.runReviewStore)
+    registerRunReviewRoutes(server, options.runReviewStore, options.runLivePreview);
+  if (options.a2uiReviewStore) registerA2uiReviewRoutes(server, options.a2uiReviewStore);
 
   registerHandlerRoute(
     server,
@@ -520,6 +535,11 @@ async function registerResourceRoutes(
 // Serve the same SPA entry only for Web capabilities closed through P5.
 function registerClosedWebRoutes(server: FastifyInstance): void {
   const routes = [
+    "/configurations",
+    "/runs/templates",
+    "/runs/templates/:reviewId",
+    "/a2ui-reviews",
+    "/a2ui-reviews/:reviewId",
     "/test-suites",
     "/test-suites/:suiteId",
     "/runs",
@@ -529,6 +549,18 @@ function registerClosedWebRoutes(server: FastifyInstance): void {
     "/rubric-prompts",
     "/analysis-prompts"
   ] as const;
+  for (const suffix of ["execution", "report", "analysis", "statistics"]) {
+    server.get<{ Params: { runId: string } }>(
+      `/runs/:runId/${suffix}`,
+      { schema: { hide: true } },
+      (request, reply) => {
+        const query = new URL(request.url, "http://localhost").searchParams;
+        const caseKey = query.get("case");
+        const search = caseKey ? `?${new URLSearchParams({ case: caseKey, tab: "trace" })}` : "";
+        return reply.redirect(`/runs/${encodeURIComponent(request.params.runId)}${search}`);
+      }
+    );
+  }
   for (const url of routes) {
     server.get(url, { schema: { hide: true } }, (_request, reply) => {
       return reply.type("text/html; charset=utf-8").sendFile("index.html");
@@ -553,7 +585,10 @@ function registerMultipartImportRoute(
           type: "object",
           additionalProperties: false,
           required: ["expectedRevision"],
-          properties: { expectedRevision: { type: "integer", minimum: 0 } }
+          properties: {
+            expectedRevision: { type: "integer", minimum: 0 },
+            dryRun: { type: "string", enum: ["true"] }
+          }
         },
         params: {
           type: "object",
@@ -562,7 +597,12 @@ function registerMultipartImportRoute(
           properties: { suiteId: { type: "string", minLength: 1 } }
         },
         response: {
-          200: projectRuntimeSchema(CaseImportSuccessV1Schema),
+          200: {
+            anyOf: [
+              projectRuntimeSchema(CaseImportSuccessV1Schema),
+              projectRuntimeSchema(CaseImportPreviewV1Schema)
+            ]
+          },
           400: projectRuntimeSchema(ApiErrorResponseV1Schema),
           403: projectRuntimeSchema(ApiErrorResponseV1Schema),
           404: projectRuntimeSchema(ApiErrorResponseV1Schema),
@@ -769,7 +809,10 @@ export function buildLocalServer(options: LocalServerOptions): FastifyInstance {
     reply.header("referrer-policy", "no-referrer");
     reply.header(
       "content-security-policy",
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; frame-src 'self'" +
+        (/^http:\/\/127\.0\.0\.1:\d+$/.test(options.runPreviewOrigin?.() ?? "")
+          ? ` ${options.runPreviewOrigin?.()}`
+          : "")
     );
     const host = trustedHost(request, allowedHosts);
     if (host === null) {

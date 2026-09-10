@@ -93,7 +93,8 @@ export const CaseDefinitionV1Schema = z.strictObject({
     req_id: z.string().trim().min(1),
     task_id: z.string().trim().min(1),
     business_module: z.string().trim().min(1),
-    scenario_tag: z.string().trim().min(1)
+    scenario_tag: z.string().trim().min(1),
+    a2ui_capture: z.boolean().optional()
   }),
   assert: z.array(AssertionDefinitionV1Schema).min(1)
 });

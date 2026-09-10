@@ -23,10 +23,35 @@ beforeEach(() => {
   window.history.replaceState(null, "", `/test-suites/${suiteId}`);
 });
 
+// Complete the new form rather than submitting an automatically passing placeholder.
+async function completeCreateForm(): Promise<void> {
+  await userEvent.type(screen.getByRole("textbox", { name: "Case 描述" }), "确认实际输出字段存在");
+  await userEvent.type(screen.getByRole("combobox", { name: "任务" }), "agent-e2e");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "业务模块" }), "客服");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "场景标签" }), "正常");
+  await userEvent.type(screen.getByRole("combobox", { name: "目标字段 1" }), "parsed_output");
+}
+
 describe("测试集详情页 Case 资源写操作", () => {
   it("导入失败时保留确认框并显示顺序、Case ID 与字段路径", async () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
       const url = requestUrl(input);
+      if (url.includes("dryRun=true")) {
+        const revision = Number(new URL(url, "http://local").searchParams.get("expectedRevision"));
+        return Promise.resolve(
+          response({
+            count: 1,
+            suite: { ...suite, revision },
+            preview: {
+              added: 0,
+              modified: 0,
+              removed: suite.caseCount - 1,
+              unchanged: 1,
+              reordered: 0
+            }
+          })
+        );
+      }
       if (url.includes("/import?") && init?.method === "POST") {
         return Promise.resolve(
           response(
@@ -63,11 +88,12 @@ describe("测试集详情页 Case 资源写操作", () => {
     const input = await screen.findByLabelText("导入 Cases JSON/JSONL");
     expect(input).toHaveAttribute("accept", "application/json,application/x-ndjson,.json,.jsonl");
     await userEvent.upload(input, new File(["[]"], "cases.json", { type: "application/json" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "确认导入并替换" })).toBeEnabled()
+    );
     await userEvent.click(screen.getByRole("button", { name: "确认导入并替换" }));
 
-    expect(
-      await screen.findByRole("heading", { name: "全量替换当前 Cases？" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "导入预检与替换确认" })).toBeInTheDocument();
     expect(
       screen.getByText("第 3 项（Case ID：case-bad）字段 threshold 无效。")
     ).toBeInTheDocument();
@@ -93,6 +119,22 @@ describe("测试集详情页 Case 资源写操作", () => {
     });
     const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
       const url = requestUrl(input);
+      if (url.includes("dryRun=true")) {
+        const revision = Number(new URL(url, "http://local").searchParams.get("expectedRevision"));
+        return Promise.resolve(
+          response({
+            count: 1,
+            suite: { ...suite, revision },
+            preview: {
+              added: 0,
+              modified: 0,
+              removed: suite.caseCount - 1,
+              unchanged: 1,
+              reordered: 0
+            }
+          })
+        );
+      }
       if (url.includes("/import?") && init?.method === "POST") {
         return Promise.resolve(response({ count: 1, suite: { ...suite, revision: 6 } }));
       }
@@ -124,6 +166,7 @@ describe("测试集详情页 Case 资源写操作", () => {
     );
 
     await userEvent.click(await screen.findByRole("button", { name: "新建 Case" }));
+    await completeCreateForm();
     await userEvent.click(screen.getByRole("button", { name: "保存 Case" }));
     await waitFor(() =>
       expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true)
@@ -151,6 +194,9 @@ describe("测试集详情页 Case 资源写操作", () => {
     await userEvent.upload(
       screen.getByLabelText("导入 Cases JSON/JSONL"),
       new File(["[]"], "cases.json", { type: "application/json" })
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "确认导入并替换" })).toBeEnabled()
     );
     await userEvent.click(screen.getByRole("button", { name: "确认导入并替换" }));
     await waitFor(() =>
@@ -196,6 +242,22 @@ describe("测试集详情页 Case 资源写操作", () => {
     });
     const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
       const url = requestUrl(input);
+      if (url.includes("dryRun=true")) {
+        const revision = Number(new URL(url, "http://local").searchParams.get("expectedRevision"));
+        return Promise.resolve(
+          response({
+            count: 1,
+            suite: { ...suite, revision },
+            preview: {
+              added: 0,
+              modified: 0,
+              removed: suite.caseCount - 1,
+              unchanged: 1,
+              reordered: 0
+            }
+          })
+        );
+      }
       if (url.includes("/import?") && init?.method === "POST") {
         const rejected = conflict("IMPORT");
         return Promise.resolve(
@@ -253,6 +315,7 @@ describe("测试集详情页 Case 资源写操作", () => {
     };
 
     await userEvent.click(await screen.findByRole("button", { name: "新建 Case" }));
+    await completeCreateForm();
     await userEvent.click(screen.getByRole("button", { name: "保存 Case" }));
     await retryLatest("保存 Case", "Case 描述");
     await waitFor(() =>
@@ -275,6 +338,9 @@ describe("测试集详情页 Case 资源写操作", () => {
       screen.getByLabelText("导入 Cases JSON/JSONL"),
       new File(["[]"], "cases.json", { type: "application/json" })
     );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "确认导入并替换" })).toBeEnabled()
+    );
     await userEvent.click(screen.getByRole("button", { name: "确认导入并替换" }));
     expect(
       await screen.findByRole("heading", { name: "Case 操作遇到并发修改" })
@@ -282,9 +348,7 @@ describe("测试集详情页 Case 资源写操作", () => {
     expect(screen.getByRole("button", { name: "确认导入并替换" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "放弃 Draft，采用服务端版本" }));
     await waitFor(() =>
-      expect(
-        screen.queryByRole("heading", { name: "全量替换当前 Cases？" })
-      ).not.toBeInTheDocument()
+      expect(screen.queryByRole("heading", { name: "导入预检与替换确认" })).not.toBeInTheDocument()
     );
     expect(screen.getByLabelText("导入 Cases JSON/JSONL")).toHaveValue("");
 
@@ -324,6 +388,24 @@ describe("测试集详情页 Case 资源写操作", () => {
       };
       const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
         const url = requestUrl(input);
+        if (url.includes("dryRun=true")) {
+          const revision = Number(
+            new URL(url, "http://local").searchParams.get("expectedRevision")
+          );
+          return Promise.resolve(
+            response({
+              count: 1,
+              suite: { ...suite, revision },
+              preview: {
+                added: 0,
+                modified: 0,
+                removed: suite.caseCount - 1,
+                unchanged: 1,
+                reordered: 0
+              }
+            })
+          );
+        }
         if (
           (operation === "CREATE" && url.endsWith("/cases") && init?.method === "POST") ||
           (operation === "COPY" && url.endsWith("/copy") && init?.method === "POST") ||
@@ -357,6 +439,7 @@ describe("测试集详情页 Case 资源写操作", () => {
 
       if (operation === "CREATE") {
         await userEvent.click(screen.getByRole("button", { name: "新建 Case" }));
+        await completeCreateForm();
         const description = screen.getByRole("textbox", { name: "Case 描述" });
         await userEvent.clear(description);
         await userEvent.type(description, "保留创建 Draft");
@@ -378,6 +461,9 @@ describe("测试集详情页 Case 资源写操作", () => {
           screen.getByLabelText("导入 Cases JSON/JSONL"),
           new File(["[]"], "retained-cases.json", { type: "application/json" })
         );
+        await waitFor(() =>
+          expect(screen.getByRole("button", { name: "确认导入并替换" })).toBeEnabled()
+        );
         await userEvent.click(screen.getByRole("button", { name: "确认导入并替换" }));
       }
 
@@ -385,6 +471,13 @@ describe("测试集详情页 Case 资源写操作", () => {
         await screen.findByRole("heading", { name: "Case 操作遇到并发修改" })
       ).toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: "使用最新 Revision 重试" }));
+      if (operation === "IMPORT") {
+        expect(mutationAttempts).toBe(1);
+        await waitFor(() =>
+          expect(screen.getByRole("button", { name: "确认导入并替换" })).toBeEnabled()
+        );
+        await userEvent.click(screen.getByRole("button", { name: "确认导入并替换" }));
+      }
 
       await waitFor(() =>
         expect(
@@ -398,7 +491,7 @@ describe("测试集详情页 Case 资源写操作", () => {
             ? screen.getByText("复制 Case · case-001")
             : operation === "DELETE"
               ? screen.getByText("删除 Case · case-001？")
-              : screen.getByText("全量替换当前 Cases？");
+              : screen.getByText("导入预检与替换确认");
       const owner = ownerHeading.closest('[role="dialog"], [role="alertdialog"]');
       expect(owner).not.toBeNull();
       expect(
@@ -447,6 +540,22 @@ describe("测试集详情页 Case 资源写操作", () => {
     const requestId = "018f0f4e-7b7a-7cc0-8000-000000000099";
     const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
       const url = requestUrl(input);
+      if (url.includes("dryRun=true")) {
+        const revision = Number(new URL(url, "http://local").searchParams.get("expectedRevision"));
+        return Promise.resolve(
+          response({
+            count: 1,
+            suite: { ...suite, revision },
+            preview: {
+              added: 0,
+              modified: 0,
+              removed: suite.caseCount - 1,
+              unchanged: 1,
+              reordered: 0
+            }
+          })
+        );
+      }
       if (url.endsWith("/copy") && init?.method === "POST") {
         return Promise.resolve(
           response(
@@ -506,6 +615,22 @@ describe("测试集详情页 Case 资源写操作", () => {
     let suiteReads = 0;
     const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
       const url = requestUrl(input);
+      if (url.includes("dryRun=true")) {
+        const revision = Number(new URL(url, "http://local").searchParams.get("expectedRevision"));
+        return Promise.resolve(
+          response({
+            count: 1,
+            suite: { ...suite, revision },
+            preview: {
+              added: 0,
+              modified: 0,
+              removed: suite.caseCount - 1,
+              unchanged: 1,
+              reordered: 0
+            }
+          })
+        );
+      }
       if (url.endsWith("/cases") && init?.method === "POST") {
         return Promise.resolve(
           response(
@@ -553,6 +678,7 @@ describe("测试集详情页 Case 资源写操作", () => {
     );
 
     await userEvent.click(await screen.findByRole("button", { name: "新建 Case" }));
+    await completeCreateForm();
     await userEvent.click(screen.getByRole("button", { name: "保存 Case" }));
     expect(await screen.findByText("操作失败，输入和当前事实均未被覆盖。")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "新建 Case" })).toBeInTheDocument();

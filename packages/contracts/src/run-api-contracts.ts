@@ -50,16 +50,37 @@ export const PlatformRunSelectionV1Schema = z.strictObject({
 /** Run preflight request. */
 export const RunPreflightRequestV1Schema = PlatformRunSelectionV1Schema;
 
+/** Human-readable labels are not part of the execution snapshot or semantic hashes. */
+export const RunMetadataInputV1Schema = z.strictObject({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(2000).optional()
+});
+const RunMetadataShape = {
+  name: z.string().trim().min(1).max(120).nullable().optional(),
+  description: z.string().max(2000).nullable().optional()
+};
+
 /** Platform Run creation request with optional server-derived defaults. */
 export const CreatePlatformRunRequestV1Schema = PlatformRunSelectionV1Schema.extend({
+  ...RunMetadataInputV1Schema.shape,
   runMode: RunModeV1Schema,
   runExecutionLimits: RunExecutionLimitsV1Schema.optional()
 });
 
 /** Create a new immutable Retry/Force Run from one terminal source Run. */
-export const CreatePlatformRerunRequestV1Schema = z.strictObject({
-  mode: z.enum(["RETRY_FAILED", "FORCE"])
-});
+export const CreatePlatformRerunRequestV1Schema = z
+  .strictObject({
+    ...RunMetadataInputV1Schema.shape,
+    mode: z.enum(["RETRY_FAILED", "FORCE"]),
+    caseKey: BusinessKeySchema.optional(),
+    reevaluateOnly: z.boolean().optional()
+  })
+  .superRefine((value, context) => {
+    if ((value.caseKey !== undefined || value.reevaluateOnly) && value.mode !== "FORCE")
+      context.addIssue({ code: "custom", message: "CASE_RERUN_REQUIRES_FORCE" });
+    if (value.reevaluateOnly && !value.caseKey)
+      context.addIssue({ code: "custom", message: "CASE_RERUN_REQUIRES_CASE" });
+  });
 
 const PlatformRerunCountsV1Schema = z
   .strictObject({
@@ -144,6 +165,7 @@ export const RunProgressV1Schema = z.strictObject({
 
 /** Small recent platform Run list projection. */
 export const PlatformRunSummaryV1Schema = z.strictObject({
+  ...RunMetadataShape,
   id: UuidV7Schema,
   sourceType: z.enum(["PLATFORM", "OFFLINE_IMPORT"]),
   suiteId: UuidV7Schema,
@@ -343,6 +365,7 @@ export const RunReportCaseListQueryV1Schema = z.strictObject({
 
 /** Bounded platform Run detail without the frozen Case array or Prompt bodies. */
 export const PlatformRunDetailV1Schema = z.strictObject({
+  ...RunMetadataShape,
   id: UuidV7Schema,
   sourceType: z.literal("PLATFORM"),
   sourceRunId: UuidV7Schema.nullable(),

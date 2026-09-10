@@ -1,3 +1,4 @@
+import { materializeJavascriptSource } from "@cortex-eval/application/src/features/evaluation/promptfoo-javascript-source.ts";
 import type { FrozenRunCase } from "@cortex-eval/application/src/features/runs/run-rest-models.ts";
 import type {
   PlatformRun,
@@ -7,13 +8,14 @@ import {
   assertionConfigEntryIsUnsafe,
   assertionExternalReferenceIsUnsafe
 } from "@cortex-eval/contracts/src/assertion-config-safety.ts";
-import type { DomainJsonObject } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 
 type AssertionDefinition = FrozenRunCase["definition"]["assertions"][number];
 type ProviderOutput = Extract<
   StoredRestCaseResult,
   { readonly status: "SUCCEEDED" }
 >["providerOutput"];
+/** JSON object contract supplied by the Application-owned REST output port. */
+type ProviderOutputJson = Extract<ProviderOutput, { readonly ok: true }>["resolvedConfig"];
 type PromptMessage = PlatformRun["rubricPrompts"][number]["definition"]["messages"][number];
 
 /** Environment variable carrying the raw Bridge capability to Promptfoo. */
@@ -91,9 +93,9 @@ export interface MaterializedPromptfooTest {
   /** Exact Promptfoo template variables. */
   readonly vars: Readonly<Record<string, unknown>>;
   /** Stable Case identity metadata. */
-  readonly metadata: Readonly<Record<string, string>>;
+  readonly metadata: Readonly<Record<string, string | boolean>>;
   /** Precomputed REST output. */
-  readonly providerOutput: DomainJsonObject;
+  readonly providerOutput: ProviderOutputJson;
   /** Original ordered Assertion tree. */
   readonly assert: readonly MaterializedPromptfooAssertion[];
   /** Frozen Case threshold. */
@@ -202,7 +204,11 @@ function materializeAssertion(
   ) {
     throw new Error("PROMPTFOO_ASSERTION_REFERENCE_UNSAFE");
   }
-  if (assertion.value !== undefined) result.value = assertion.value;
+  if (assertion.value !== undefined)
+    result.value =
+      typeof assertion.value === "string"
+        ? materializeJavascriptSource(assertion.type, assertion.value)
+        : assertion.value;
   if (assertion.threshold !== undefined) result.threshold = assertion.threshold;
   if (assertion.config !== undefined) {
     if (assertionConfigEntryIsUnsafe(assertion.config)) {
@@ -226,7 +232,7 @@ function materializeAssertion(
 }
 
 // Expose REST success to Promptfoo in the same public shape used by REST artifacts.
-function providerOutputJson(value: ProviderOutput): DomainJsonObject {
+function providerOutputJson(value: ProviderOutput): ProviderOutputJson {
   if (!value.ok) return { ok: false, errorMessage: value.errorMessage };
   return {
     ok: true,
@@ -253,7 +259,10 @@ function materializePromptfooTestWithPrompts(
       req_id: item.testCase.definition.metadata.requestId,
       task_id: item.testCase.definition.metadata.taskId,
       business_module: item.testCase.definition.metadata.businessModule,
-      scenario_tag: item.testCase.definition.metadata.scenarioTag
+      scenario_tag: item.testCase.definition.metadata.scenarioTag,
+      ...(item.testCase.definition.metadata.a2uiCapture === undefined
+        ? {}
+        : { a2ui_capture: item.testCase.definition.metadata.a2uiCapture })
     },
     providerOutput: providerOutputJson(item.restResult.providerOutput),
     assert: item.testCase.definition.assertions.map((assertion) =>

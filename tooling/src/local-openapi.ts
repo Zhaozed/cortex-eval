@@ -1,3 +1,5 @@
+import { RunReviewStore } from "../../apps/local-server/src/run-review-store.ts";
+import { A2uiReviewStore } from "../../apps/local-server/src/a2ui-review-store.ts";
 import {
   buildLocalServer,
   type LocalApiHandlerResponse,
@@ -79,6 +81,11 @@ function stableObject(value: unknown): unknown {
 /** Generate the exact stable OpenAPI JSON from current closed Route registration. */
 export async function generateLocalOpenApiJson(): Promise<string> {
   const server = buildLocalServer({
+    runLivePreview: () => {
+      throw new Error("OPENAPI_ONLY");
+    },
+    runReviewStore: new RunReviewStore("/unused-openapi-run-review", () => Promise.resolve(null)),
+    a2uiReviewStore: new A2uiReviewStore("/unused-openapi-a2ui", () => Promise.resolve(false)),
     requestIdGenerator: { nextId: () => "018f0c8e-9f79-7abc-8def-0123456789ab" },
     resourceHandlers: CAPABILITY_HANDLERS,
     runHandlers: RUN_CAPABILITY_HANDLERS,

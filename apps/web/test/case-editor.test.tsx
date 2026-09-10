@@ -37,7 +37,7 @@ describe("Case 双编辑器组件", () => {
     const description = screen.getByRole("textbox", { name: "Case 描述" });
     await userEvent.clear(description);
     await userEvent.type(description, "结构化修改");
-    await userEvent.click(screen.getByRole("tab", { name: "完整 JSON" }));
+    await userEvent.click(screen.getByRole("tab", { name: "高级 JSON" }));
 
     const json = screen.getByRole("textbox", { name: "完整 Case JSON" });
     expect((json as HTMLTextAreaElement).value).toContain('"description": "结构化修改"');
@@ -49,13 +49,13 @@ describe("Case 双编辑器组件", () => {
 
   it("完整 JSON 无效时不切回结构化模式并关联错误", async () => {
     render(<CaseEditor initialDefinition={definition} onSave={vi.fn()} />);
-    await userEvent.click(screen.getByRole("tab", { name: "完整 JSON" }));
+    await userEvent.click(screen.getByRole("tab", { name: "高级 JSON" }));
     const json = screen.getByRole("textbox", { name: "完整 Case JSON" });
     await userEvent.clear(json);
     fireEvent.change(json, { target: { value: "{" } });
-    await userEvent.click(screen.getByRole("tab", { name: "结构化" }));
+    await userEvent.click(screen.getByRole("tab", { name: "表单" }));
 
-    expect(screen.getByRole("tab", { name: "完整 JSON" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "高级 JSON" })).toHaveAttribute("aria-selected", "true");
     expect(json).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByText("完整 JSON 无法解析，请修正后再切换。")).toHaveAttribute(
       "id",
@@ -136,7 +136,7 @@ describe("Case 双编辑器组件", () => {
   it("完整 JSON 模式直接保存校验后的同一 Draft", async () => {
     const onSave = vi.fn();
     render(<CaseEditor initialDefinition={definition} onSave={onSave} />);
-    await userEvent.click(screen.getByRole("tab", { name: "完整 JSON" }));
+    await userEvent.click(screen.getByRole("tab", { name: "高级 JSON" }));
     const json = screen.getByRole("textbox", { name: "完整 Case JSON" });
     fireEvent.change(json, {
       target: { value: JSON.stringify({ ...definition, description: "JSON 直接保存" }) }
@@ -185,7 +185,7 @@ describe("Case 双编辑器组件", () => {
       })
     );
     render(<CaseEditor initialDefinition={definition} onSave={onSave} />);
-    await userEvent.click(screen.getByRole("tab", { name: "完整 JSON" }));
+    await userEvent.click(screen.getByRole("tab", { name: "高级 JSON" }));
     await userEvent.click(screen.getByRole("button", { name: "保存 Case" }));
 
     expect(
@@ -196,7 +196,7 @@ describe("Case 双编辑器组件", () => {
       "true"
     );
     expect(screen.getByRole("textbox", { name: "完整 Case JSON" })).toHaveFocus();
-    expect(screen.getByRole("tab", { name: "完整 JSON" })).toHaveAttribute("data-state", "active");
+    expect(screen.getByRole("tab", { name: "高级 JSON" })).toHaveAttribute("data-state", "active");
   });
 
   it("外部保存错误事件按 eventId 只消费一次，新事件才再次映射和聚焦", async () => {
@@ -216,7 +216,7 @@ describe("Case 双编辑器组件", () => {
     const caseId = await screen.findByRole("textbox", { name: "Case ID" });
     expect(caseId).toHaveFocus();
     expect(onHandled).toHaveBeenCalledWith(1);
-    const task = screen.getByRole("textbox", { name: "任务" });
+    const task = screen.getByRole("combobox", { name: "任务" });
     task.focus();
 
     rerender(
@@ -249,5 +249,18 @@ describe("Case 双编辑器组件", () => {
     await userEvent.click(screen.getByRole("button", { name: "保存 Case" }));
 
     expect(screen.getByText("结构化字段无效，请检查标记项。")).toBeInTheDocument();
+  });
+});
+
+it("通过可视化开关选择 A2UI 人工复核，并保留默认关闭", async () => {
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  render(<CaseEditor initialDefinition={definition} onSave={onSave} />);
+  const toggle = screen.getByRole("checkbox", { name: /要求 A2UI 人工复核/ });
+  expect(toggle).not.toBeChecked();
+  await userEvent.click(toggle);
+  await userEvent.click(screen.getByRole("button", { name: "保存 Case" }));
+  expect(onSave).toHaveBeenLastCalledWith({
+    ...definition,
+    metadata: { ...definition.metadata, a2ui_capture: true }
   });
 });

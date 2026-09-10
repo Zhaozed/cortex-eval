@@ -75,7 +75,7 @@ test("资源 Dashboard 与测试集/Case 全流程", async ({ page }, testInfo) 
   const suiteName = `${prefix}-suite`;
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "资源仪表盘" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "评测仪表盘" })).toBeVisible();
   await expect(page.getByRole("link", { name: "运行" })).toBeVisible();
   await expect(page.getByRole("link", { name: "报告" })).toHaveCount(0);
   await expectHealthyPage(page, diagnostics);
@@ -102,7 +102,8 @@ test("资源 Dashboard 与测试集/Case 全流程", async ({ page }, testInfo) 
   await expect(page.getByText(`${prefix}-case-01`, { exact: true })).toBeVisible();
 
   await page.getByRole("searchbox", { name: "Case ID 搜索" }).fill(`${prefix}-case`);
-  await page.getByRole("textbox", { name: "业务模块过滤" }).fill("客服");
+  await page.getByLabel("业务模块过滤", { exact: true }).click();
+  await page.getByRole("checkbox", { name: "客服", exact: true }).check();
   await page.getByRole("button", { name: "应用过滤" }).click();
   await expect(page).toHaveURL(/caseKey=/);
   await expect(page).toHaveURL(/businessModule=/);
@@ -118,14 +119,14 @@ test("资源 Dashboard 与测试集/Case 全流程", async ({ page }, testInfo) 
   await page.getByRole("button", { name: "上一页" }).click();
 
   await page.getByRole("button", { name: `编辑 ${prefix}-case-01` }).click();
-  await page.getByRole("tab", { name: "完整 JSON" }).click();
+  await page.getByRole("tab", { name: "高级 JSON" }).click();
   const fullJson = page.getByRole("textbox", { name: "完整 Case JSON" });
   const definition = JSON.parse(await fullJson.inputValue()) as Record<string, unknown>;
   definition.description = `${prefix} edited`;
   await fullJson.fill(JSON.stringify(definition, null, 2));
-  await page.getByRole("tab", { name: "结构化" }).click();
+  await page.getByRole("tab", { name: "表单" }).click();
   await expect(page.getByRole("textbox", { name: "Case 描述" })).toHaveValue(`${prefix} edited`);
-  await page.getByRole("tab", { name: "完整 JSON" }).click();
+  await page.getByRole("tab", { name: "高级 JSON" }).click();
   await expect(fullJson).toContainText("");
   expect(await fullJson.inputValue()).toContain('"retained": true');
   await page.getByRole("button", { name: "保存 Case" }).click();
@@ -144,6 +145,27 @@ test("资源 Dashboard 与测试集/Case 全流程", async ({ page }, testInfo) 
   await page.getByRole("button", { name: "确认删除" }).click();
   await expect(page.getByText(copiedKey, { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "清空过滤" }).click();
+
+  // Manual authoring uses fields and rule choices, never raw JSON.
+  await page.getByRole("button", { name: "新建 Case", exact: true }).click();
+  await page.getByRole("textbox", { name: "Case 描述" }).fill(`${prefix} guided case`);
+  await page.getByRole("combobox", { name: "任务", exact: true }).fill("agent-e2e");
+  await page.getByRole("combobox", { name: "业务模块", exact: true }).selectOption("客服");
+  await page.getByRole("combobox", { name: "场景标签", exact: true }).selectOption("正常");
+  await page.getByRole("button", { name: "填入 E2E 常用字段" }).click();
+  await page.getByRole("textbox", { name: "text", exact: true }).fill("查看今天待办");
+  await page.getByRole("textbox", { name: "uid", exact: true }).fill("2075490654049271808");
+  await page.getByRole("combobox", { name: "目标字段 1" }).fill("ok");
+  await expect(page.getByRole("textbox", { name: "Request Body JSON" })).not.toBeVisible();
+  await expectHealthyPage(page, diagnostics);
+  await page.screenshot({ path: testInfo.outputPath("case-authoring-rules.png") });
+  await page.getByRole("textbox", { name: "Case 描述" }).focus();
+  await page.screenshot({ path: testInfo.outputPath("case-authoring-form.png") });
+  await page.getByRole("button", { name: "保存 Case", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("textbox", { name: "描述搜索" }).fill(`${prefix} guided case`);
+  await page.getByRole("button", { name: "应用过滤" }).click();
+  await expect(page.getByText(`${prefix} guided case`, { exact: true })).toBeVisible();
 
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "导出 Cases" }).click();

@@ -1,5 +1,17 @@
 # Web Analysis
 
+## 当前页面边界（2026-09-10）
+
+- Run 只保留 `/runs/:id` 一个详情页。`/execution`、`/report`、`/analysis`、`/statistics` 仅作旧链接重定向，不得恢复独立页面或导航入口。
+- 统计、冻结配置、Token 与 Case 列表同页；Case 抽屉只有结果详情和执行链路，A2UI 动态卡片在结果详情内。
+- AI 分析是 Run / Case 抽屉内的显式批量操作；结果留在执行链路，AI 关联证据不等于确认根因，不改评测结论。底层报告、分析与导出 API 保留。
+- 离线导入也进入统一详情，以保存的 Report 为证据来源；没有平台执行配置时不伪造启动、停止、重跑或耗时。
+- 当前实现：`run-dashboard-page.tsx`、`run-imported-dashboard.tsx`（同页数据来源适配）、`run-analysis-control.tsx`、`run-case-drawer.tsx`。
+- 当前验证：`run-unified-workspace.test.tsx`、路由测试和 `web-static-routes.test.ts`。
+
+以下为历史阶段记录；其中独立 Report / Analysis 工作台、旧执行视图、截图审核列的描述不再代表当前 UI，不能据此重新添加页面。
+
+
 ## 模块职责
 
 该 Feature 发起 Case 分析，展示分类、证据、解释、建议和模型自评 Confidence，并完成拒绝、接受或编辑后接受闭环。

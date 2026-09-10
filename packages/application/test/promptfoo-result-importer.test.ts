@@ -426,7 +426,7 @@ describe("Promptfoo 固定版本结果 Importer", () => {
         required: ["parsed_output"],
         properties: { parsed_output: { type: "object" } }
       }
-    } as const;
+    };
     const result = importPromptfooResults(
       singleCaseInput(
         [assertion],
@@ -435,7 +435,12 @@ describe("Promptfoo 固定版本结果 Importer", () => {
             pass: true,
             score: 0,
             reason: "JSON does not conform to the provided schema",
-            assertion: { type: "is-json", metric: "informational-json", weight: 0, value: assertion.value }
+            assertion: {
+              type: "is-json",
+              metric: "informational-json",
+              weight: 0,
+              value: assertion.value
+            }
           }
         ],
         { parsedOutput: {} },

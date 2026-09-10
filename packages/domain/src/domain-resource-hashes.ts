@@ -171,7 +171,8 @@ export function hashEndpointConfig(input: EndpointConfigHashInput): string {
       headers: endpointHeaders(input.config),
       bodySelector: input.config.bodySelector,
       timeoutMs: input.config.timeoutMs,
-      defaultConcurrency: input.config.defaultConcurrency
+      defaultConcurrency: input.config.defaultConcurrency,
+      ...(input.config.agentRevision ? { agentRevision: { ...input.config.agentRevision } } : {})
     }
   });
 }

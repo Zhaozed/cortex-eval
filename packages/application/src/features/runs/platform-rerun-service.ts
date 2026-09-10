@@ -1,3 +1,6 @@
+import { validateRunMetadata } from "@cortex-eval/domain/src/domain-run-metadata.ts";
+import { hashSuite, hashRubricPromptSet } from "@cortex-eval/domain/src/domain-resource-hashes.ts";
+import { hashRunContext } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 import type { Clock, IdGenerator } from "../../application-ports.ts";
 
 import { readArtifactBackedEvaluationResults } from "../evaluation/platform-evaluation-reuse-reader.ts";
@@ -9,10 +12,14 @@ import { createRerunPlan, type RerunPlan, type RerunSourceCase } from "./platfor
 
 /** Internal rerun creation request; no API is registered before P8. */
 export interface CreatePlatformRerunInput {
+  readonly name?: string | undefined;
+  readonly description?: string | undefined;
   /** Immutable source platform Run. */
   readonly sourceRunId: string;
   /** Explicit selection behavior. */
   readonly mode: "RETRY_FAILED" | "FORCE";
+  readonly caseKey?: string | undefined;
+  readonly reevaluateOnly?: boolean | undefined;
 }
 
 /** Closed internal rerun creation result. */
@@ -20,7 +27,9 @@ export type CreatePlatformRerunResult =
   | { readonly ok: true; readonly run: PlatformRun; readonly plan: RerunPlan }
   | {
       readonly ok: false;
-      readonly error: { readonly code: "RUN_NOT_FOUND" | "RERUN_SOURCE_INCOMPLETE" };
+      readonly error: {
+        readonly code: "RUN_NOT_FOUND" | "RERUN_SOURCE_INCOMPLETE" | "VALIDATION_FAILED";
+      };
     };
 
 /** Explicit dependencies for side-effectful rerun creation. */
@@ -88,7 +97,12 @@ export class PlatformRerunService {
 
   /** Create one READY/REST Retry or Force target without mutating the source. */
   public async create(input: CreatePlatformRerunInput): Promise<CreatePlatformRerunResult> {
-    const source = await this.#readSource(input.sourceRunId);
+    const metadata = validateRunMetadata({
+      name: input.name,
+      description: input.description
+    });
+    if (!metadata.ok) return { ok: false, error: { code: "VALIDATION_FAILED" } };
+    let source = await this.#readSource(input.sourceRunId);
     if (source === null) return { ok: false, error: { code: "RUN_NOT_FOUND" } };
     if (
       source.run.status === "READY" ||
@@ -99,6 +113,46 @@ export class PlatformRerunService {
     ) {
       return { ok: false, error: { code: "RERUN_SOURCE_INCOMPLETE" } };
     }
+    // A single-case replay is a new one-case Run, never a mutation of the source suite.
+    if (input.caseKey !== undefined) {
+      const frozen = source.run.suite.cases.find((item) => item.caseKey === input.caseKey);
+      const stored = source.restResults.find((item) => item.caseKey === input.caseKey);
+      if (
+        !frozen ||
+        !stored ||
+        input.mode !== "FORCE" ||
+        (input.reevaluateOnly && stored.status !== "SUCCEEDED")
+      )
+        return { ok: false, error: { code: "RERUN_SOURCE_INCOMPLETE" } };
+      const cases = [{ ...frozen, ordinal: 0 }];
+      const suiteHash = hashSuite({ contractVersion: "cortex.suite.v1", cases });
+      const suite = {
+        ...source.run.suite,
+        name: `${source.run.suite.name} · ${frozen.caseKey}`,
+        cases,
+        suiteHash
+      };
+      const runContextHash = hashRunContext({
+        contractVersion: "cortex.run-context.v1",
+        suiteHash,
+        endpointConfigHash: source.run.endpoint.configHash,
+        evaluatorConfigHash: source.run.evaluator.configHash,
+        rubricPromptSetHash: hashRubricPromptSet({
+          contractVersion: "cortex.rubric-prompt-set.v1",
+          prompts: source.run.rubricPrompts.map((item) => ({
+            promptKey: item.definition.promptKey,
+            promptHash: item.promptHash
+          }))
+        }),
+        promptfooVersion: source.run.promptfooVersion,
+        runExecutionLimits: source.run.runExecutionLimits
+      });
+      source = {
+        run: { ...source.run, suite, runContextHash },
+        restResults: [{ ...stored, ordinal: 0 }]
+      };
+    } else if (input.reevaluateOnly)
+      return { ok: false, error: { code: "RERUN_SOURCE_INCOMPLETE" } };
     const evaluations =
       input.mode === "RETRY_FAILED"
         ? await readArtifactBackedEvaluationResults({
@@ -115,11 +169,22 @@ export class PlatformRerunService {
       rest,
       evaluation: evaluationByCase.get(rest.caseKey) ?? null
     }));
-    const plan = createRerunPlan({
+    let plan = createRerunPlan({
       sourceRunId: source.run.id,
       mode: input.mode,
       cases: sourceCases
     });
+    if (input.reevaluateOnly)
+      plan = {
+        ...plan,
+        cases: sourceCases.map((item) => ({
+          caseKey: item.caseKey,
+          ordinal: item.ordinal,
+          action: "REUSE_REST_REEVALUATE" as const,
+          restReuse: { sourceRunId: source.run.id, sourceResultHash: item.rest.resultHash }
+        })),
+        counts: { reuseRest: 1, executeRest: 0, reuseEval: 0, executeEval: 1 }
+      };
     const createdAt = this.#clock.now();
     const runId = this.#ids.nextId();
     const reused = plan.cases.flatMap((item) => {
@@ -130,6 +195,11 @@ export class PlatformRerunService {
     });
     const run: PlatformRun = {
       ...source.run,
+      name: metadata.name ?? source.run.name ?? source.run.suite.name.slice(0, 120),
+      description:
+        metadata.description === undefined
+          ? (source.run.description ?? null)
+          : (metadata.description ?? null),
       id: runId,
       sourceRunId: source.run.id,
       rerunMode: input.mode,

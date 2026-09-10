@@ -1,3 +1,5 @@
+import { RETURN_PATH_KEY } from "./lib/return-navigation.ts";
+import { ConfigurationHome } from "./features/workspace/configuration-home.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 
@@ -7,9 +9,13 @@ import { Button } from "./components/ui/button.tsx";
 import { Progress } from "./components/ui/progress.tsx";
 import { createResourceApi } from "./lib/resource-api.ts";
 import { createRunApi } from "./lib/run-api.ts";
-import { resolveWebRoute, type WebRoute } from "./lib/web-route.ts";
+import { canonicalRunPath, resolveWebRoute, type WebRoute } from "./lib/web-route.ts";
 import { message } from "./messages/messages.ts";
 
+const A2uiReviewPage = lazy(async () => {
+  const feature = await import("./features/a2ui-reviews/a2ui-review-page.tsx");
+  return { default: feature.A2uiReviewPage };
+});
 const DashboardPage = lazy(async () => {
   const feature = await import("./features/dashboard/dashboard-page.tsx");
   return { default: feature.DashboardPage };
@@ -30,17 +36,9 @@ const RunListPage = lazy(async () => {
   const feature = await import("./features/runs/run-list-page.tsx");
   return { default: feature.RunListPage };
 });
-const RunDetailPage = lazy(async () => {
-  const feature = await import("./features/runs/run-detail-page.tsx");
-  return { default: feature.RunDetailPage };
-});
-const ReportPage = lazy(async () => {
-  const feature = await import("./features/reports/report-page.tsx");
-  return { default: feature.ReportPage };
-});
-const AnalysisPage = lazy(async () => {
-  const feature = await import("./features/analysis/analysis-page.tsx");
-  return { default: feature.AnalysisPage };
+const RunWorkspacePage = lazy(async () => {
+  const feature = await import("./features/workspace/run-workspace-page.tsx");
+  return { default: feature.RunWorkspacePage };
 });
 
 const queryClient = new QueryClient({
@@ -55,6 +53,14 @@ const HISTORY_POSITION_KEY = "cortexEvalHistoryPosition";
 
 // Resolve the current path after every explicit or browser History navigation.
 function currentRoute(): WebRoute | null {
+  const canonical = canonicalRunPath(window.location.pathname);
+  if (canonical !== window.location.pathname) {
+    window.history.replaceState(
+      window.history.state,
+      "",
+      canonical + window.location.search + window.location.hash
+    );
+  }
   return resolveWebRoute(window.location.pathname);
 }
 
@@ -108,6 +114,11 @@ function RoutePage({
       </Alert>
     );
   }
+  if (route.kind === "CONFIGURATION_HOME") return <ConfigurationHome onNavigate={onNavigate} />;
+  if (route.kind === "A2UI_REVIEW")
+    return (
+      <A2uiReviewPage key={route.reviewId} reviewId={route.reviewId} onNavigate={onNavigate} />
+    );
   if (route.kind === "DASHBOARD") {
     return <DashboardPage api={api} runApi={runApi} onNavigate={onNavigate} />;
   }
@@ -124,20 +135,9 @@ function RoutePage({
   }
   if (route.kind === "RUN_DETAIL") {
     return (
-      <RunDetailPage key={route.runId} api={runApi} runId={route.runId} onNavigate={onNavigate} />
-    );
-  }
-  if (route.kind === "RUN_REPORT") {
-    return (
-      <ReportPage key={route.runId} api={runApi} runId={route.runId} onNavigate={onNavigate} />
-    );
-  }
-  if (route.kind === "RUN_ANALYSIS") {
-    return (
-      <AnalysisPage
+      <RunWorkspacePage
         key={route.runId}
         api={runApi}
-        resourceApi={api}
         runId={route.runId}
         onNavigate={onNavigate}
       />
@@ -258,7 +258,11 @@ function ResourceApp({
   // Push one closed Feature path and update the local route view.
   const pushRoute = (path: string): void => {
     const nextPosition = historyPositionRef.current + 1;
-    window.history.pushState(historyState(nextPosition), "", path);
+    window.history.pushState(
+      { ...historyState(nextPosition), [RETURN_PATH_KEY]: currentLocation() },
+      "",
+      path
+    );
     historyPositionRef.current = nextPosition;
     const nextNavigationIndex = navigationIndex();
     if (nextNavigationIndex !== null) navigationIndexRef.current = nextNavigationIndex;

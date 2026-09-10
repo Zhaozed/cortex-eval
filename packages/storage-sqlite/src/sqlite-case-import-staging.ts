@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import type {
   ApplicationTransaction,
+  CaseImportImpact,
   CaseImportStagingFactory,
   CaseImportStagingSession,
   StagedCaseRepository
@@ -112,6 +113,24 @@ class SqliteStagedCaseRepository implements StagedCaseRepository {
     return row === undefined
       ? null
       : { index: row.ordinal, caseKey: row.case_key, promptKey: row.prompt_key };
+  }
+
+  /** SQL aggregates preserve bounded memory for large imports. */
+  public async compareCases(suiteId: string): Promise<CaseImportImpact> {
+    const result = await sql<CaseImportImpact>`
+      SELECT
+        COALESCE(SUM(CASE WHEN current.id IS NULL THEN 1 ELSE 0 END), 0) AS added,
+        COALESCE(SUM(CASE WHEN current.id IS NOT NULL AND current.definition_hash != staged.definition_hash THEN 1 ELSE 0 END), 0) AS modified,
+        COALESCE(SUM(CASE WHEN current.definition_hash = staged.definition_hash THEN 1 ELSE 0 END), 0) AS unchanged,
+        COALESCE(SUM(CASE WHEN current.id IS NOT NULL AND current.ordinal != staged.ordinal THEN 1 ELSE 0 END), 0) AS reordered,
+        (SELECT COUNT(*) FROM test_case AS old WHERE old.suite_id = ${suiteId}
+          AND NOT EXISTS (SELECT 1 FROM case_import_stage.staged_case AS incoming WHERE incoming.case_key = old.case_key)) AS removed
+      FROM case_import_stage.staged_case AS staged
+      LEFT JOIN test_case AS current ON current.suite_id = ${suiteId} AND current.case_key = staged.case_key
+    `.execute(this.#database);
+    const row = result.rows[0];
+    if (!row) throw new Error("CASE_IMPORT_COMPARISON_FAILED");
+    return row;
   }
 
   /** Delete current Cases and bulk-copy the staged projection in Ordinal order. */

@@ -1,3 +1,5 @@
+import { ASSERTION_ISSUES } from "./assertion-rules/authoring-validation.ts";
+import { CaseAuthoringV1Schema } from "./case-authoring-contracts.ts";
 import { z } from "zod";
 
 import { UtcDateTimeSchema, UuidV7Schema } from "./contracts-primitives.ts";
@@ -98,14 +100,14 @@ export const UpdateTestSuiteRequestV1Schema = CreateTestSuiteRequestV1Schema.ext
 /** Create one current Case through the shared writer. */
 export const CreateCaseRequestV1Schema = z.strictObject({
   expectedSuiteRevision: RevisionSchema,
-  definition: CaseDefinitionV1Schema
+  definition: CaseAuthoringV1Schema
 });
 
 /** Conditionally replace one current Case definition. */
 export const UpdateCaseRequestV1Schema = z.strictObject({
   expectedSuiteRevision: RevisionSchema,
   expectedCaseRevision: RevisionSchema,
-  definition: CaseDefinitionV1Schema
+  definition: CaseAuthoringV1Schema
 });
 
 /** Copy one current Case under a new Suite-local key. */
@@ -349,6 +351,30 @@ export const CaseImportSuccessV1Schema = z.strictObject({
   suite: TestSuiteDetailV1Schema
 });
 
+/** Read-only import preflight response; content categories are mutually exclusive. */
+export const CaseImportPreviewV1Schema = CaseImportSuccessV1Schema.extend({
+  preview: z.strictObject({
+    added: z.number().int().nonnegative(),
+    modified: z.number().int().nonnegative(),
+    removed: z.number().int().nonnegative(),
+    unchanged: z.number().int().nonnegative(),
+    reordered: z.number().int().nonnegative()
+  })
+}).superRefine((value, context) => {
+  const p = value.preview;
+  if (
+    p.added + p.modified + p.unchanged !== value.count ||
+    p.removed + p.modified + p.unchanged !== value.suite.caseCount ||
+    p.reordered > p.modified + p.unchanged
+  )
+    context.addIssue({ code: "custom", message: "CASE_IMPORT_PREVIEW_MISMATCH" });
+});
+
+export const CaseImportQueryV1Schema = z.strictObject({
+  expectedRevision: z.coerce.number().int().nonnegative(),
+  dryRun: z.literal("true").optional()
+});
+
 /** Complete current Case Definition export. */
 export const CaseExportV1Schema = z.array(CaseDefinitionV1Schema);
 
@@ -401,7 +427,15 @@ const PathErrorSchema = z.strictObject({
     "ANALYSIS_PROMPT_INVALID"
   ]),
   ...ErrorBaseShape,
-  path: z.string().min(1)
+  path: z.string().min(1),
+  issueCode: z
+    .enum(
+      Object.keys(ASSERTION_ISSUES) as [
+        keyof typeof ASSERTION_ISSUES,
+        ...(keyof typeof ASSERTION_ISSUES)[]
+      ]
+    )
+    .optional()
 });
 
 const RevisionErrorSchema = z.strictObject({
@@ -455,7 +489,15 @@ const ImportItemErrorSchema = z.strictObject({
     "RUBRIC_PROMPT_NOT_FOUND",
     "RESOURCE_REVISION_CONFLICT"
   ]),
-  path: z.string().min(1).optional()
+  path: z.string().min(1).optional(),
+  issueCode: z
+    .enum(
+      Object.keys(ASSERTION_ISSUES) as [
+        keyof typeof ASSERTION_ISSUES,
+        ...(keyof typeof ASSERTION_ISSUES)[]
+      ]
+    )
+    .optional()
 });
 
 const PromptReferenceErrorSchema = z.strictObject({

@@ -338,13 +338,12 @@ test("真实离线 Report 导入统一更新 Dashboard、Run 与测试集最近�
   );
 
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "最近完整报告" })).toBeVisible();
-  await expect(page.getByTestId("latest-report-effective-rate")).toContainText("0.0%");
-  await expect(page.getByTestId("latest-report-coverage-rate")).toContainText("100.0%");
-  await expect(page.getByTestId("latest-report-primary-metric")).toContainText("quality");
-  const reportHref = `/runs/${runId}/report`;
-  const recentRun = page.locator(`a.dashboard-run-card[href="${reportHref}"]`);
-  await expect(recentRun).toContainText("离线导入");
+  await expect(page.getByRole("heading", { name: "评测仪表盘" })).toBeVisible();
+  await expect(page.getByTestId("quality-pass-count")).toContainText("0");
+  await expect(page.getByRole("heading", { name: "业务场景表现" })).toBeVisible();
+  const reportHref = `/runs/${runId}`;
+  const recentRun = page.locator(`.quality-recent a[href="${reportHref}"]`);
+  await expect(recentRun.locator("xpath=ancestor::tr")).toContainText("离线导入");
   await expect(recentRun).toHaveAttribute("href", reportHref);
 
   await page.goto("/runs");
@@ -352,22 +351,19 @@ test("真实离线 Report 导入统一更新 Dashboard、Run 与测试集最近�
   await expect(runRow).toContainText("离线导入");
   await expect(runRow.getByRole("link")).toHaveAttribute("href", reportHref);
   await runRow.getByRole("link").click();
-  await expect(page.getByRole("heading", { name: "运行报告" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Case 结果", exact: true })).toBeVisible();
   await expect(page.getByText("离线导入", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "By Metric 统计" })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "quality", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "分析失败 Case" }).click();
-  await expect(page.getByRole("heading", { name: "Case Analysis 工作台" })).toBeVisible();
-  await page.getByLabel("Analyzer").click();
-  await page.getByRole("option", { name: analyzerName }).click();
-  await page.getByLabel("Analysis Prompt").click();
-  await page.getByRole("option", { name: "offline-report-e2e-analysis" }).click();
-  await page.getByRole("button", { name: "开始分析" }).click();
-  await expect(page.getByText("已选择 1 个 Case，成功 1 个，错误 0 个。")).toBeVisible();
-  await page.getByRole("button", { name: "查看分析 offline-report-case" }).click();
+  await page.locator(".run-dashboard-more > summary").click();
+  await page.getByRole("button", { name: "AI 辅助分析", exact: true }).click();
+  await page.getByLabel("分析模型", { exact: true }).selectOption({ label: analyzerName });
+  await page.getByLabel("分析 Prompt", { exact: true }).selectOption({ label: "offline-report-e2e-analysis" });
+  await page.getByRole("button", { name: "开始分析", exact: true }).click();
+  await expect(page.getByText("本批次 1 条 · 分析完成 1 条 · 分析异常 0 条")).toBeVisible();
+  await page.getByRole("button", { name: "详情", exact: true }).click();
+  await page.getByRole("tab", { name: "执行链路", exact: true }).click();
+  await page.getByText("分析依据与建议", { exact: false }).click();
   await expect(page.getByText("运行上下文确认该 Case 未通过评估")).toBeVisible();
-  await expect(page.getByText("run_context", { exact: true })).toBeVisible();
-  await expect(page.getByText("92% · 模型自评")).toBeVisible();
+  await page.getByRole("button", { name: "关闭", exact: true }).first().click();
 
   await page.goto("/test-suites");
   const suiteRow = page.getByRole("row").filter({ hasText: suiteName });

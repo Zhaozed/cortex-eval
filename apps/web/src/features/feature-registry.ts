@@ -2,6 +2,8 @@
 export interface FeatureContribution {
   /** Stable internal Feature identity. */
   readonly id: string;
+  /** Sidebar task group, independent of the resource route. */
+  readonly group: "workspace" | "connections" | "rules";
   /** Browser path owned by the Feature. */
   readonly path: string;
   /** Externalized Chinese navigation label key. */
@@ -16,16 +18,39 @@ export interface ResourceDashboardContribution {
   readonly labelKey: string;
 }
 
-/** Closed P5 navigation contributions in display order. */
+/** Sidebar groups keep execution and configuration tasks distinct. */
+export const NAVIGATION_GROUPS = [
+  { id: "workspace", labelKey: "navigation.workspace" },
+  { id: "connections", labelKey: "navigation.connections" },
+  { id: "rules", labelKey: "navigation.rules" }
+] as const;
+
+/** Existing resource pages are directly accessible, without a configuration landing step. */
 export const CURRENT_FEATURES: readonly FeatureContribution[] = [
-  { id: "dashboard", path: "/", labelKey: "navigation.dashboard" },
-  { id: "runs", path: "/runs", labelKey: "navigation.runs" },
-  { id: "test-suites", path: "/test-suites", labelKey: "navigation.testSuites" },
-  { id: "endpoint-configs", path: "/endpoint-configs", labelKey: "navigation.endpoints" },
-  { id: "llm-configs", path: "/llm-configs", labelKey: "navigation.llms" },
-  { id: "rubric-prompts", path: "/rubric-prompts", labelKey: "navigation.rubricPrompts" },
+  { id: "dashboard", group: "workspace", path: "/", labelKey: "navigation.dashboard" },
+  { id: "runs", group: "workspace", path: "/runs", labelKey: "navigation.runs" },
+  {
+    id: "test-suites",
+    group: "workspace",
+    path: "/test-suites",
+    labelKey: "navigation.testSuites"
+  },
+  {
+    id: "endpoint-configs",
+    group: "connections",
+    path: "/endpoint-configs",
+    labelKey: "navigation.endpoints"
+  },
+  { id: "llm-configs", group: "connections", path: "/llm-configs", labelKey: "navigation.llms" },
+  {
+    id: "rubric-prompts",
+    group: "rules",
+    path: "/rubric-prompts",
+    labelKey: "navigation.rubricPrompts"
+  },
   {
     id: "analysis-prompts",
+    group: "rules",
     path: "/analysis-prompts",
     labelKey: "navigation.analysisPrompts"
   }

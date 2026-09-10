@@ -1,7 +1,12 @@
+import {
+  ASSERTION_ISSUES,
+  type AssertionIssueCode
+} from "@cortex-eval/contracts/src/assertion-rules/authoring-validation.ts";
 import zhCnMessages from "@cortex-eval/contracts/messages/zh-CN.json" with { type: "json" };
 import {
   CaseListQueryV1Schema,
   CaseRevisionQueryV1Schema,
+  CaseImportQueryV1Schema,
   CopyCaseRequestV1Schema,
   CreateAnalysisPromptRequestV1Schema,
   CreateCaseRequestV1Schema,
@@ -137,7 +142,10 @@ function parse<T>(
       body: errorBody({
         code: "VALIDATION_FAILED",
         requestId,
-        path: issuePath(result.error)
+        path: issuePath(result.error),
+        ...(Object.hasOwn(ASSERTION_ISSUES, result.error.issues[0]?.message ?? "")
+          ? { issueCode: result.error.issues[0]?.message }
+          : {})
       })
     }
   };
@@ -382,7 +390,8 @@ function importItemError(
   caseKey: string,
   causeCode: ImportItemCauseCode,
   path: string | undefined,
-  requestId: string
+  requestId: string,
+  issueCode?: AssertionIssueCode | null
 ): LocalApiHandlerResponse {
   return {
     statusCode: 422,
@@ -392,6 +401,7 @@ function importItemError(
       index,
       caseKey,
       causeCode,
+      ...(issueCode ? { issueCode } : {}),
       ...(path === undefined ? {} : { path })
     })
   };
@@ -403,10 +413,11 @@ async function importCases(
   input: LocalApiHandlerInput,
   file: LocalMultipartFile
 ): Promise<LocalApiHandlerResponse> {
-  const query = parse(RevisionQueryV1Schema, input.query, input.requestId);
+  const query = parse(CaseImportQueryV1Schema, input.query, input.requestId);
   if (!query.ok) return query.response;
   try {
     const result = await service.importCases({
+      previewOnly: query.value.dryRun === "true",
       suiteId: parameter(input, "suiteId"),
       expectedSuiteRevision: query.value.expectedRevision,
       definitions: parseBoundedCaseDefinitionStream(file, input.signal),
@@ -418,7 +429,15 @@ async function importCases(
         body: errorBody({ code: "CASE_IMPORT_TOO_LARGE", requestId: input.requestId })
       };
     }
-    if (result.ok) return { statusCode: 200, body: { count: result.count, suite: result.suite } };
+    if (result.ok)
+      return {
+        statusCode: 200,
+        body: {
+          count: result.count,
+          suite: result.suite,
+          ...(result.preview ? { preview: result.preview } : {})
+        }
+      };
     if (result.error.code === "CASE_IMPORT_ITEM_INVALID") {
       return importItemError(
         result.error.index,
@@ -455,7 +474,8 @@ async function importCases(
           error.caseKey,
           "CASE_DEFINITION_INVALID",
           error.path,
-          input.requestId
+          input.requestId,
+          error.issueCode
         );
       }
       return {

@@ -1,3 +1,4 @@
+import type { AssertionIssueCode } from "@cortex-eval/contracts/src/assertion-rules/authoring-validation.ts";
 import { ApiErrorResponseV1Schema } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import type { ApiErrorResponseV1 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import type { z } from "zod";
@@ -26,6 +27,7 @@ export type WebClientErrorCode = ServerApiErrorCode | LocalWebClientErrorCode;
 export class ApiClientError extends Error {
   /** Stable server or client error code. */
   public readonly code: WebClientErrorCode;
+  public readonly issueCode: AssertionIssueCode | null;
   /** HTTP response status when a response exists. */
   public readonly statusCode: number | null;
   /** Validated server request identity. */
@@ -47,6 +49,7 @@ export class ApiClientError extends Error {
   public constructor(
     code: WebClientErrorCode,
     options: {
+      readonly issueCode?: AssertionIssueCode | undefined;
       readonly statusCode?: number | undefined;
       readonly requestId?: string | undefined;
       readonly fieldPath?: string | undefined;
@@ -60,6 +63,7 @@ export class ApiClientError extends Error {
     super(code);
     this.name = "ApiClientError";
     this.code = code;
+    this.issueCode = options.issueCode ?? null;
     this.statusCode = options.statusCode ?? null;
     this.requestId = options.requestId ?? null;
     this.fieldPath = options.fieldPath ?? null;
@@ -111,6 +115,7 @@ async function throwApiFailure(response: Response): Promise<never> {
   throw new ApiClientError(error.code, {
     statusCode: response.status,
     requestId: error.requestId,
+    ...("issueCode" in error ? { issueCode: error.issueCode } : {}),
     ...(error.code === "VALIDATION_FAILED" ||
     error.code === "CASE_DEFINITION_INVALID" ||
     error.code === "ENDPOINT_CONFIG_INVALID" ||

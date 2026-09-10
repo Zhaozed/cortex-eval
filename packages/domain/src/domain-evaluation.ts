@@ -46,6 +46,8 @@ export interface CaseDefinition {
     readonly businessModule: string;
     /** Scenario tag. */
     readonly scenarioTag: string;
+    /** Explicit opt-in to Web screenshots; omitted means disabled. */
+    readonly a2uiCapture?: boolean;
   };
   /** Ordered Assertions. */
   readonly assertions: readonly AssertionDefinition[];
@@ -124,7 +126,14 @@ export function validateCaseDefinition(value: CaseDefinition): CaseDefinitionVal
   if (value.task.trim() === "") {
     return { ok: false, error: { code: "CASE_DEFINITION_INVALID", path: "task" } };
   }
-  const metadataValues = Object.values(value.metadata);
+  const metadataValues = [
+    value.metadata.requestId,
+    value.metadata.taskId,
+    value.metadata.businessModule,
+    value.metadata.scenarioTag
+  ];
+  if (value.metadata.a2uiCapture !== undefined && typeof value.metadata.a2uiCapture !== "boolean")
+    return { ok: false, error: { code: "CASE_DEFINITION_INVALID", path: "metadata.a2uiCapture" } };
   if (metadataValues.some((item) => item.trim() === "")) {
     return { ok: false, error: { code: "CASE_DEFINITION_INVALID", path: "metadata" } };
   }

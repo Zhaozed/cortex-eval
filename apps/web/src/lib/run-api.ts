@@ -190,11 +190,19 @@ export interface RunApi {
     input: EditAndAcceptAnalysisInput,
     signal: AbortSignal
   ) => Promise<CurrentCaseAnalysis>;
+  /** Create a new single-case Run, optionally reusing frozen execution evidence. */
+  readonly createCaseRerun?: (
+    sourceRunId: string,
+    caseKey: string,
+    reevaluateOnly: boolean,
+    signal: AbortSignal
+  ) => Promise<z.infer<typeof PlatformRerunCreatedV1Schema>>;
   /** Create one new Retry/Force Run from an immutable platform source. */
   readonly createRerun: (
     sourceRunId: string,
     mode: PlatformRerunMode,
-    signal: AbortSignal
+    signal: AbortSignal,
+    metadata?: { readonly name: string; readonly description: string }
   ) => Promise<PlatformRerunCreated>;
   /** Start the currently registered REST stage. */
   readonly start: (
@@ -407,11 +415,19 @@ export function createRunApi(
         fetcher,
         (output) => output.runId === runId && output.caseKey === caseKey
       ),
-    createRerun: (sourceRunId, mode, signal) =>
+    createCaseRerun: (sourceRunId, caseKey, reevaluateOnly, signal) =>
       apiRequestJson(
         `/api/v1/runs/${encodeURIComponent(sourceRunId)}/reruns`,
         PlatformRerunCreatedV1Schema,
-        jsonRequest({ mode }, signal),
+        jsonRequest({ mode: "FORCE", caseKey, reevaluateOnly }, signal),
+        fetcher,
+        (output) => output.sourceRunId === sourceRunId && output.rerunMode === "FORCE"
+      ),
+    createRerun: (sourceRunId, mode, signal, metadata) =>
+      apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(sourceRunId)}/reruns`,
+        PlatformRerunCreatedV1Schema,
+        jsonRequest({ mode, ...metadata }, signal),
         fetcher,
         (output) => output.sourceRunId === sourceRunId && output.rerunMode === mode
       ),

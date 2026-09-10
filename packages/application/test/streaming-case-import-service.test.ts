@@ -50,6 +50,27 @@ class FakeStagingFactory implements CaseImportStagingFactory {
       withStagedTransaction: (work) =>
         this.#store.execute(async (transaction) => {
           const repository: StagedCaseRepository = {
+            compareCases: async (suiteId) => {
+              const current = await transaction.testSuites.listCases(suiteId);
+              const old = new Map(current.map((item) => [item.caseKey, item]));
+              return {
+                added: staged.filter((item) => !old.has(item.caseKey)).length,
+                modified: staged.filter(
+                  (item) =>
+                    old.has(item.caseKey) &&
+                    old.get(item.caseKey)?.definitionHash !== item.definitionHash
+                ).length,
+                unchanged: staged.filter(
+                  (item) => old.get(item.caseKey)?.definitionHash === item.definitionHash
+                ).length,
+                removed: current.filter(
+                  (item) => !staged.some((next) => next.caseKey === item.caseKey)
+                ).length,
+                reordered: staged.filter(
+                  (item) => old.has(item.caseKey) && old.get(item.caseKey)?.ordinal !== item.ordinal
+                ).length
+              };
+            },
             findFirstMissingRubricPrompt: async () => {
               for (const [index, item] of staged.entries()) {
                 const promptKey = await transaction.configurations.findMissingRubricPromptKey(

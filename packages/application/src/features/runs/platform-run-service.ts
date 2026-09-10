@@ -1,3 +1,4 @@
+import { validateRunMetadata } from "@cortex-eval/domain/src/domain-run-metadata.ts";
 import type { Clock, IdGenerator } from "../../application-ports.ts";
 import { collectRubricPromptKeys } from "@cortex-eval/domain/src/domain-resource-models.ts";
 import { hashRestResult, hashRunContext } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
@@ -35,6 +36,8 @@ export interface PlatformRunSelection {
 
 /** Platform Run creation input. */
 export interface CreatePlatformRunInput extends PlatformRunSelection {
+  readonly name?: string | undefined;
+  readonly description?: string | undefined;
   /** Manual staged or automatic pipeline mode. */
   readonly runMode: "STAGED" | "PIPELINE";
   /** Optional explicit limits; defaults are frozen server-side. */
@@ -142,6 +145,11 @@ export interface PipelineEvaluationStarter {
 
 /** Platform Run orchestration dependencies. */
 export interface PlatformRunServiceDependencies {
+  /** Optional evidence collection after durable REST results; must not affect business evaluation. */
+  readonly captureRestEvidence?: (
+    result: StoredRestCaseResult,
+    signal: AbortSignal
+  ) => Promise<void>;
   /** Dedicated short database transaction boundary. */
   readonly transactionManager: PlatformRunTransactionManager;
   /** Real REST execution Port. */
@@ -224,6 +232,7 @@ export class PlatformRunService {
   /** Immutable Artifact file Port. */
   readonly #artifactStore: RunArtifactStore;
   /** Application time source. */
+  readonly #captureRestEvidence: PlatformRunServiceDependencies["captureRestEvidence"];
   readonly #clock: Clock;
   /** Application identity source. */
   readonly #idGenerator: IdGenerator;
@@ -251,6 +260,7 @@ export class PlatformRunService {
     this.#transactionManager = dependencies.transactionManager;
     this.#restExecutor = dependencies.restExecutor;
     this.#artifactStore = dependencies.artifactStore;
+    this.#captureRestEvidence = dependencies.captureRestEvidence;
     this.#clock = dependencies.clock;
     this.#idGenerator = dependencies.idGenerator;
     this.#messageResolver = dependencies.messageResolver;
@@ -283,6 +293,18 @@ export class PlatformRunService {
 
   /** Atomically freeze current resources into one READY/REST Run. */
   public async create(input: CreatePlatformRunInput): Promise<PlatformRunMutationResult> {
+    const metadata = validateRunMetadata({
+      name: input.name,
+      description: input.description
+    });
+    if (!metadata.ok)
+      return {
+        ok: false,
+        error: {
+          code: "VALIDATION_FAILED",
+          path: metadata.path
+        }
+      };
     if (input.runExecutionLimits !== undefined && !validLimits(input.runExecutionLimits)) {
       return { ok: false, error: { code: "VALIDATION_FAILED", path: "runExecutionLimits" } };
     }
@@ -311,6 +333,8 @@ export class PlatformRunService {
         });
         const run: PlatformRun = {
           id: runId,
+          name: metadata.name ?? prepared.suite.name.slice(0, 120),
+          description: metadata.description ?? null,
           sourceType: "PLATFORM",
           sourceRunId: null,
           rerunMode: "NONE",
@@ -648,6 +672,13 @@ export class PlatformRunService {
             if (progress === null) throw new Error("RUN_PROGRESS_CONFLICT");
           }
         });
+      }
+      if (this.#captureRestEvidence) {
+        // Includes copied REST results in re-evaluation Runs; old approvals are never copied.
+        for await (const result of this.#iterateResults(run.id)) {
+          if (controller.signal.aborted) break;
+          await this.#captureRestEvidence(result, controller.signal);
+        }
       }
       pollController.abort();
       await poll;

@@ -1,3 +1,4 @@
+import { materializeJavascriptSource } from "./promptfoo-javascript-source.ts";
 import { assertionDefinitionJson } from "@cortex-eval/domain/src/domain-case-projection.ts";
 import {
   canonicalJson,
@@ -263,6 +264,13 @@ function definitionForExpectedPrompt(
   expected: AssertionDefinition,
   rubricPromptMaterializations: Readonly<Record<string, string>>
 ): DomainJsonObject | null {
+  // Accept only our exact deterministic source normalization, retaining frozen definition hashes.
+  if (
+    typeof expected.value === "string" &&
+    rawDefinition.value === materializeJavascriptSource(expected.type, expected.value)
+  ) {
+    rawDefinition = { ...rawDefinition, value: expected.value };
+  }
   const promptReference = expected.rubricPrompt;
   if (promptReference === undefined) return rawDefinition;
   if (rawDefinition.rubricPrompt === promptReference) return rawDefinition;
@@ -427,12 +435,8 @@ function importEvaluationErrorCase(
   cost: number | null
 ): ImportedEvalCase {
   if (expected.restResult.status !== "SUCCEEDED") throw new Error("PROMPTFOO_IMPORT_REST_STATE");
-  const sanitizedAssertions = assertions.map((assertion) => ({
-    ...assertion,
-    status: "ERROR" as const,
-    score: null,
-    reason: null
-  }));
+  const sanitizedAssertions = assertions;
+  const errorReason = "部分评测器执行异常；已完成的分项结论保留，整体不能判定通过。";
   const metrics = aggregateCaseMetrics(
     sanitizedAssertions.map((assertion) => ({ metric: assertion.metric, status: assertion.status }))
   );
@@ -443,7 +447,7 @@ function importEvaluationErrorCase(
     status: "EVALUATION_ERROR",
     promptfooSuccess: null,
     score: null,
-    reason: null,
+    reason: errorReason,
     evaluationError,
     assertions: sanitizedAssertions,
     diffs: [],
@@ -455,7 +459,7 @@ function importEvaluationErrorCase(
     status: "EVALUATION_ERROR",
     promptfooSuccess: null,
     score: null,
-    reason: null,
+    reason: errorReason,
     evaluationError,
     assertions: sanitizedAssertions,
     diffs: [],
@@ -686,7 +690,8 @@ function importEvaluatedCase(
         followingChildren
       );
       const outcome = componentOutcome(component, expected.caseKey, assertionIndex);
-      assertionExecutionFailed ||= isAssertionExecutionFailure(definition, component);
+      const componentError = isAssertionExecutionFailure(definition, component);
+      assertionExecutionFailed ||= componentError;
       const setIndex = assertionIndex;
       const childOutcomes: WeightedComponentOutcome[] = [];
       assertions.push({
@@ -695,9 +700,9 @@ function importEvaluatedCase(
         type: definition.type,
         metric: definition.metric,
         weight: definition.weight,
-        status: outcome.pass ? "PASS" : "FAIL",
-        score: outcome.score,
-        reason: outcome.reason
+        status: componentError ? "ERROR" : outcome.pass ? "PASS" : "FAIL",
+        score: componentError ? null : outcome.score,
+        reason: componentError ? "断言脚本执行异常，请检查脚本语法和运行环境。" : outcome.reason
       });
       assertionIndex += 1;
       for (const child of children) {
@@ -713,7 +718,8 @@ function importEvaluatedCase(
           rubricPromptMaterializations
         );
         const childOutcome = componentOutcome(childComponent, expected.caseKey, assertionIndex);
-        assertionExecutionFailed ||= isAssertionExecutionFailure(child, childComponent);
+        const childError = isAssertionExecutionFailure(child, childComponent);
+        assertionExecutionFailed ||= childError;
         childOutcomes.push({ ...childOutcome, weight: child.weight });
         assertions.push({
           index: assertionIndex,
@@ -721,9 +727,9 @@ function importEvaluatedCase(
           type: child.type,
           metric: child.metric,
           weight: child.weight,
-          status: childOutcome.pass ? "PASS" : "FAIL",
-          score: childOutcome.score,
-          reason: childOutcome.reason
+          status: childError ? "ERROR" : childOutcome.pass ? "PASS" : "FAIL",
+          score: childError ? null : childOutcome.score,
+          reason: childError ? "断言脚本执行异常，请检查脚本语法和运行环境。" : childOutcome.reason
         });
         diffs.push(
           ...componentDiffs(
@@ -761,7 +767,8 @@ function importEvaluatedCase(
       rubricPromptMaterializations
     );
     const outcome = componentOutcome(component, expected.caseKey, assertionIndex);
-    assertionExecutionFailed ||= isAssertionExecutionFailure(definition, component);
+    const componentError = isAssertionExecutionFailure(definition, component);
+    assertionExecutionFailed ||= componentError;
     topLevelOutcomes.push({ ...outcome, weight: definition.weight, definition });
     assertions.push({
       index: assertionIndex,
@@ -769,9 +776,9 @@ function importEvaluatedCase(
       type: definition.type,
       metric: definition.metric,
       weight: definition.weight,
-      status: outcome.pass ? "PASS" : "FAIL",
-      score: outcome.score,
-      reason: outcome.reason
+      status: componentError ? "ERROR" : outcome.pass ? "PASS" : "FAIL",
+      score: componentError ? null : outcome.score,
+      reason: componentError ? "断言脚本执行异常，请检查脚本语法和运行环境。" : outcome.reason
     });
     diffs.push(
       ...componentDiffs(

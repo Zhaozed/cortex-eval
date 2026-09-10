@@ -149,8 +149,19 @@ export interface IdGenerator {
   nextId(): string;
 }
 
+/** Content comparison for a full replacement; ordering is reported separately. */
+export interface CaseImportImpact {
+  readonly added: number;
+  readonly modified: number;
+  readonly removed: number;
+  readonly unchanged: number;
+  readonly reordered: number;
+}
+
 /** Transaction-bound access to one external Case import staging database. */
 export interface StagedCaseRepository {
+  /** Compare against the current suite inside the same read transaction; never mutate. */
+  compareCases(suiteId: string): Promise<CaseImportImpact>;
   /** Return the first Case whose Rubric Prompt key is absent from current resources. */
   findFirstMissingRubricPrompt(): Promise<{
     readonly index: number;

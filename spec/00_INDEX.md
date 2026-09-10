@@ -131,7 +131,7 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 - [tooling/src/promptfoo-special-assertion-probe.ts](../tooling/src/promptfoo-special-assertion-probe.ts)：固定版本比较 Assertion 延迟追加、最终聚合与 Reason 覆盖真实进程探针。
 - [tooling/facts/promptfoo-0.121.18-capabilities.json](../tooling/facts/promptfoo-0.121.18-capabilities.json)：Assertion 能力矩阵。
 - [tooling/facts/p0-environment.json](../tooling/facts/p0-environment.json)：P0 macOS ARM64 环境与性能基线。
-- [test_suite/current/cases/loona_promptfoo_tests.jsonl](../test_suite/current/cases/loona_promptfoo_tests.jsonl)：当前默认 JSONL 测试集 Fixture。
+- [test_suite/current/cases/test_example2.json](../test_suite/current/cases/test_example2.json)：当前四条 Case 的 JSON 测试集 Fixture。
 - [test_suite/current/provider.json](../test_suite/current/provider.json)：当前 Endpoint Fixture。
 - [test_suite/current/llm_config.json](../test_suite/current/llm_config.json)：当前 LLM 配置 Fixture。
 - [test_suite/current/pf_config.yaml](../test_suite/current/pf_config.yaml)：当前 Promptfoo 配置结构参考。
@@ -139,3 +139,15 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 - [test_suite/current/rubric_prompt/reply_text_transition_rubric.json](../test_suite/current/rubric_prompt/reply_text_transition_rubric.json)：当前 Rubric Prompt Fixture。
 - [test_suite/current/run_result/test_example.json](../test_suite/current/run_result/test_example.json)：当前已提交 REST 结果 Fixture，持续纳入 Secret 扫描。
 - [test_suite/current/eval_result/test_example.json](../test_suite/current/eval_result/test_example.json)：当前已提交 Promptfoo 结果 Fixture，持续纳入 Secret 扫描。
+
+## A2UI 历史归档
+
+- [A2UI_REVIEWS](WEB/A2UI_REVIEWS.md)：固定回放停用后的只读证据与历史审批留痕。
+
+## 评测工作区收敛
+
+评测运行只承接业务回归，Case 结果优先；固定回放无常规入口，旧书签只读。当前业务 Run 尚未采集并绑定真实 Case 执行截图，不能以模板批次替代。语义入口为 [RUNS](WEB/RUNS.md)、[REPORTS](WEB/REPORTS.md) 与 [A2UI_REVIEWS](WEB/A2UI_REVIEWS.md)。
+
+## Todo分层回归
+
+Todo Planner修正、E2E草稿和实际执行证据断言复用既有Case与Promptfoo能力，事实owner为 [TEST_SUITES](APPLICATION/TEST_SUITES.md)，离线验证入口为 [TEST](TEST.md)。不把生成样板、接口成功或空A2UI投影作为业务完成证据。

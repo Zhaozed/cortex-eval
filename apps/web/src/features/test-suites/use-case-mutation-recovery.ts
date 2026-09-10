@@ -182,6 +182,12 @@ export function useCaseMutationRecovery({
             draftLabel: recovery.draftLabel,
             serverSuiteRevision: latestSuite.revision,
             onRetry: () => {
+              // A rebased full replacement must show its new impact before a second confirmation.
+              if (recovery.kind === "IMPORT") {
+                setConflict(null);
+                onFailureChange(false);
+                return;
+              }
               void finish(caseKey, mutation, recovery, latestFacts).then((outcome) => {
                 if (outcome.ok || outcome.revisionConflict || outcome.skipped) return;
                 setConflict(null);

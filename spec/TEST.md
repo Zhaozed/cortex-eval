@@ -130,3 +130,21 @@ P10 Release Gate 由 [release-gate.ts](../tooling/src/release-gate.ts) 固定同
 - 不把 Fixture 当作测试结论。
 - 不测试 Prompt 文案、Secret 展开值或具体配置值。
 - 不只运行最小测试；变更必须运行全部相关测试族。
+
+## A2UI 历史归档
+
+固定回放停止导入与审批，保留历史只读证据；唯一语义见 [A2UI_REVIEWS](WEB/A2UI_REVIEWS.md)。不改变标准自动 Report、Artifact Manifest 或 Canonical Export。
+
+## Case 中心工作区回归
+
+[A2UI 页面测试](../apps/web/test/a2ui-review-page.test.tsx) 覆盖历史截图与审批留痕、无新审批或导入控件、图片加载错误与查询失败。HTTP 测试验证 POST 返回 410、GET 保持可用且原记录不变。测试使用隔离数据，不批准真实批次。
+
+[默认运行工作区测试](../apps/web/test/run-workspace-page.test.tsx) 覆盖报告实际可用时结果优先，否则回到执行状态。[执行状态测试](../apps/web/test/run-detail-states.test.tsx) 独立覆盖分阶段执行与运行状态，避免单文件膨胀。[导航测试](../apps/web/test/workspace-navigation.test.ts) 覆盖历史书签及非法路径。业务报告审核列仅呈现“未采集”真实截图的事实，不以模板附件替代业务截图。
+
+## Todo 分层断言回归
+
+[Todo断言测试](../tooling/test/todo-regression-cases.test.ts) 覆盖业务字段/执行证据缺失、成功/失败终态、关联错误、重复调用、部分Provider失败、集合顺序/重复语义、时区与终局交付；存量脱敏trace验证真实根请求字段映射。
+
+[Promptfoo进程测试](../tooling/test/todo-promptfoo-process.test.ts) 用预计算输出验证最终聚合会被关键失败阻断，未知类型和非法schema为评测错误，不运行Agent或语义模型。
+
+[准备CLI测试](../tooling/test/todo-prepare-cli.test.ts) 验证生成与草稿一致、源不改、已有目录拒写、非法输入不留下产物。离线测试通过不构成真实E2E、视觉或发布验收；使用边界归属 [TEST_SUITES](APPLICATION/TEST_SUITES.md)。

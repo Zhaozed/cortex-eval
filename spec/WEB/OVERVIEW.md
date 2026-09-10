@@ -14,7 +14,7 @@ UI Primitive 只负责表现、可访问性和基础交互，不负责请求、�
 
 ## 实现状态
 
-已落地资源管理与平台 Run/REST/Evaluation/Report/Analysis Web。当前注册 Dashboard 资源数量、统一最近 Run 与最新完整报告指标、Test Suite/Case、Endpoint、LLM、LLM Rubric Prompt、Case Analysis Prompt、Run 创建/详情、Report、Analysis 和平台 Retry/Force；Analysis 页面已完成冲突刷新、完整 Cursor 分页以及新 Proposal 与旧冲突 Draft 独立展示。
+已落地资源管理与平台 Run/REST/Evaluation/Report/Analysis Web。当前注册验收仪表盘（单次运行验收分布、业务场景统计、待关注 Case 和近期运行表）、Test Suite/Case、Endpoint、LLM、LLM Rubric Prompt、Case Analysis Prompt、Run 创建/详情、Report、Analysis 和平台 Retry/Force；Analysis 页面已完成冲突刷新、完整 Cursor 分页以及新 Proposal 与旧冲突 Draft 独立展示。
 
 ## 目标代码落点
 
@@ -68,7 +68,7 @@ API Client 的服务端错误码从闭合错误响应 Schema 推导，客户端�
 
 页面满足 WCAG 2.2 AA、键盘操作、可见焦点、表单错误关联、Reduced Motion、可读状态和稳定加载反馈。千级 Case 使用服务端分页。Feature 通过能力注册进入导航与 Dashboard，未实现能力不显示占位、伪数据或永久 Loading。
 
-Dashboard 贡献按闭环注册：P4 提供资源数量；P5 提供最近平台 Run；P8 已扩展为显式区分来源的最近完整平台/离线导入 Run，并展示最近完整报告的有效通过率、覆盖率和按稳定 Metric 名称排序的第一项主要 Metric。所有卡片只读取服务端 DTO，不在前端重算。
+Dashboard 面向 AIPM 和产品决策：只保留测试集 / Case 资产数量为弱摘要；移除四类配置数量、无运行背景的最新报告大指标。默认选择最近 50 条记录内最近完成的运行，可切换运行；全部质量统计仅基于该次完整报告与当前人工复核，不跨测试集混算通过率。复用 Run 详情的互斥状态映射，自动失败不可被人工通过覆盖，必要视觉复核未通过前不计为通过；报告数量不完整或人工复核读取失败时不展示最终验收统计。业务模块 + 场景按冻结 Case 分组，未通过 / 异常优先；统计数字与场景行联动 Case 清单，平台 Case 复用详情抽屉、Trace 与动态 A2UI。近期运行表明确标注自动评测计数，状态完成不代表业务通过。首页只查询所选完整报告，不批量扫描所有运行的 Trace；刷新及浏览不发起业务运行。
 
 ## 相关测试
 

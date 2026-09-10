@@ -428,6 +428,28 @@ describe("P3 资源 API", () => {
           `${typeof value === "string" ? value : JSON.stringify(value)}\r\n` +
           `--${boundary}--\r\n`
       );
+    const preview = await server.inject({
+      method: "POST",
+      url: `/api/v1/test-suites/${suiteId}/import?expectedRevision=0&dryRun=true`,
+      headers: { ...hostHeaders, "content-type": `multipart/form-data; boundary=${boundary}` },
+      payload: multipart([caseDefinition])
+    });
+    expect(preview.statusCode).toBe(200);
+    expect(preview.json()).toMatchObject({
+      count: 1,
+      suite: { revision: 0, caseCount: 0 },
+      preview: { added: 1, modified: 0, removed: 0, unchanged: 0, reordered: 0 }
+    });
+    const invalidPreview = await server.inject({
+      method: "POST",
+      url: `/api/v1/test-suites/${suiteId}/import?expectedRevision=0&dryRun=true`,
+      headers: { ...hostHeaders, "content-type": `multipart/form-data; boundary=${boundary}` },
+      payload: multipart([{ ...caseDefinition, assert: [{ type: "bad-name", metric: "x" }] }])
+    });
+    expect(invalidPreview.statusCode).toBe(422);
+    expect(invalidPreview.json()).toMatchObject({
+      error: { issueCode: "UNKNOWN_TYPE", path: "assert.0.type" }
+    });
     const imported = await server.inject({
       method: "POST",
       url: `/api/v1/test-suites/${suiteId}/import?expectedRevision=0`,

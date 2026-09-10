@@ -21,7 +21,7 @@ function dto(caseKey: string): Readonly<Record<string, unknown>> {
       business_module: "chat",
       scenario_tag: "smoke"
     },
-    assert: [{ type: "contains", metric: "quality", weight: 1 }]
+    assert: [{ type: "contains", metric: "quality", value: "expected", weight: 1 }]
   };
 }
 

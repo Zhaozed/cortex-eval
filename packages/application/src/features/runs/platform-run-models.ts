@@ -129,7 +129,13 @@ export interface PlatformReportSummary {
 }
 
 /** Current platform Run aggregate. */
-export interface PlatformRun {
+/** Optional labels; legacy Runs have no stored metadata. */
+export interface PlatformRunMetadata {
+  readonly name?: string | null | undefined;
+  readonly description?: string | null | undefined;
+}
+
+export interface PlatformRun extends PlatformRunMetadata {
   /** Internal Run identity. */
   readonly id: string;
   /** Strict source discriminator. */
@@ -278,7 +284,7 @@ export interface FrozenRunRubricPromptSummary {
 }
 
 /** Bounded Run detail projection that excludes Case arrays and Prompt bodies. */
-export interface PlatformRunDetail extends PlatformRunProgress {
+export interface PlatformRunDetail extends PlatformRunProgress, PlatformRunMetadata {
   /** Source Run for later closed rerun flows. */
   readonly sourceRunId: string | null;
   /** Current rerun mode. */
@@ -343,6 +349,8 @@ export function platformRunProgress(value: PlatformRun): PlatformRunProgress {
 export function platformRunDetail(value: PlatformRun): PlatformRunDetail {
   return {
     ...platformRunProgress(value),
+    name: value.name ?? null,
+    description: value.description ?? null,
     sourceRunId: value.sourceRunId,
     rerunMode: value.rerunMode,
     suite: {
@@ -443,7 +451,7 @@ export interface RestResultPage {
 }
 
 /** Small platform Run projection for Dashboard and list pages. */
-export interface PlatformRunSummary {
+export interface PlatformRunSummary extends PlatformRunMetadata {
   /** Internal Run identity. */
   readonly id: string;
   /** Strict source discriminator. */

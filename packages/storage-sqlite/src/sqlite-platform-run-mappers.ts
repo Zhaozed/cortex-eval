@@ -105,7 +105,8 @@ export const CaseDefinitionV1Schema = z.strictObject({
     req_id: z.string().trim().min(1),
     task_id: z.string().trim().min(1),
     business_module: z.string().trim().min(1),
-    scenario_tag: z.string().trim().min(1)
+    scenario_tag: z.string().trim().min(1),
+    a2ui_capture: z.boolean().optional()
   }),
   assert: z.array(PersistedAssertionSchema).min(1)
 });
@@ -350,6 +351,8 @@ export interface PlatformRunProgressRowProjection {
 
 /** Selected bounded Run detail columns without Case arrays or Prompt bodies. */
 export interface PlatformRunDetailRowProjection extends PlatformRunProgressRowProjection {
+  readonly run_name: string | null;
+  readonly run_description: string | null;
   readonly source_run_id: string | null;
   readonly rerun_mode: PlatformRun["rerunMode"];
   readonly snapshot_suite_id: string;
@@ -436,7 +439,10 @@ export function caseFromV1(value: CaseDefinitionV1): CaseDefinition {
       requestId: value.metadata.req_id,
       taskId: value.metadata.task_id,
       businessModule: value.metadata.business_module,
-      scenarioTag: value.metadata.scenario_tag
+      scenarioTag: value.metadata.scenario_tag,
+      ...(value.metadata.a2ui_capture === undefined
+        ? {}
+        : { a2uiCapture: value.metadata.a2ui_capture })
     },
     assertions: value.assert.map(assertionFromV1)
   };
@@ -498,7 +504,13 @@ function endpointToV1(value: EndpointConfigDefinition): DomainJsonObject {
         : { kind: header.kind, envKey: header.envKey }
     ])
   );
-  return { contractVersion: "cortex.endpoint-config.v1", ...value, headers };
+  const { agentRevision, ...config } = value;
+  return {
+    contractVersion: "cortex.endpoint-config.v1",
+    ...config,
+    headers,
+    ...(agentRevision ? { agentRevision: { ...agentRevision } } : {})
+  };
 }
 
 // Convert one clean LLM definition to the strict transport projection.
@@ -762,6 +774,8 @@ export function mapPlatformRunDetailRow(row: PlatformRunDetailRowProjection): Pl
   }
   return {
     ...mapPlatformRunProgressRow(row),
+    name: row.run_name,
+    description: row.run_description,
     sourceRunId: row.source_run_id,
     rerunMode: row.rerun_mode,
     suite: {
@@ -827,6 +841,8 @@ export function mapPlatformRunRow(row: Selectable<RunLogTable>): PlatformRun {
     sourceType: row.source_type,
     sourceRunId: row.source_run_id,
     rerunMode: row.rerun_mode,
+    name: row.run_name,
+    description: row.run_description,
     suite,
     endpoint,
     evaluator,
@@ -865,6 +881,8 @@ export function mapPlatformRunRow(row: Selectable<RunLogTable>): PlatformRun {
 /** Convert one already-valid platform Run into exact insert values. */
 export function platformRunInsertValues(value: PlatformRun): Insertable<RunLogTable> {
   return {
+    run_name: value.name ?? null,
+    run_description: value.description ?? null,
     id: value.id,
     source_type: value.sourceType,
     source_package_id: null,

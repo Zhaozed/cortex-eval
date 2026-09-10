@@ -1,3 +1,4 @@
+import { ASSERTION_ISSUES } from "@cortex-eval/contracts/src/assertion-rules/authoring-validation.ts";
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import type { ApiClientError } from "../../lib/api-client.ts";
@@ -21,9 +22,20 @@ export interface SuiteEditorConflict {
 
 // Format only validated import error fields from the sanitized API boundary.
 function importErrorDescription(error: ApiClientError): string {
+  if (error.issueCode)
+    return `Case ${error.caseKey || "未识别"} · 第 ${(error.importIndex ?? 0) + 1} 项 · ${error.fieldPath ?? "assert"}：${ASSERTION_ISSUES[error.issueCode]}`;
+  if (error.code === "RESOURCE_REVISION_CONFLICT")
+    return "测试集已变化，请刷新预检结果后再确认替换。";
+  if (error.code === "VALIDATION_FAILED")
+    return "文件格式无效，请使用合法的 JSON 数组或 JSONL 文件。";
+  if (error.code === "CASE_IMPORT_TOO_LARGE") return "文件超过导入大小限制。";
   if (error.importIndex === null || error.caseKey === null) {
     return message("testSuites.importUnknownError");
   }
+  if (error.causeCode === "CASE_ID_DUPLICATE")
+    return `第 ${error.importIndex + 1} 项 · ${error.caseKey}：Case 编号重复，请修改后重新预检。`;
+  if (error.causeCode === "RUBRIC_PROMPT_NOT_FOUND")
+    return `第 ${error.importIndex + 1} 项 · ${error.caseKey}：引用的 Rubric 不存在，请先创建或修正引用。`;
   if (error.fieldPath === null) {
     return formatMessage("testSuites.importItemErrorWithoutPath", {
       index: error.importIndex + 1,

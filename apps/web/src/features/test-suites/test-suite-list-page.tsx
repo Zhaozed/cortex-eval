@@ -1,7 +1,8 @@
 import type { TestSuiteSummaryV1 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
-import { Plus, RefreshCw } from "lucide-react";
+import { ArrowUpRight, Plus, RefreshCw } from "lucide-react";
 import {
+  useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -51,6 +52,24 @@ import {
   type ResourceApi
 } from "../../lib/resource-api.ts";
 import { runStatusLabel } from "../runs/run-ui.ts";
+import {
+  TestSuiteDeleteControl,
+  type TestSuiteDeleteControlProps
+} from "./test-suite-delete-control.tsx";
+
+/** Keep each row's leave callback stable and identify its own mutation slot. */
+function SuiteListDeleteAction({
+  onBlockedChange,
+  ...props
+}: Omit<TestSuiteDeleteControlProps, "onLeaveBlockedChange"> & {
+  readonly onBlockedChange: (id: string, blocked: boolean) => void;
+}): ReactElement {
+  const onLeaveBlockedChange = useCallback(
+    (blocked: boolean) => onBlockedChange(props.suiteId, blocked),
+    [onBlockedChange, props.suiteId]
+  );
+  return <TestSuiteDeleteControl {...props} compact onLeaveBlockedChange={onLeaveBlockedChange} />;
+}
 
 /** Test Suite list page properties. */
 export interface TestSuiteListPageProps {
@@ -95,9 +114,23 @@ export function TestSuiteListPage({
   const [history, setHistory] = useState<readonly (string | null)[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const createPendingRef = useRef(false);
+  const [deleteBlockedId, setDeleteBlockedId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState(false);
+  const onDeleteBlockedChange = useCallback((id: string, blocked: boolean): void => {
+    setDeleteBlockedId((current) => (blocked ? id : current === id ? null : current));
+  }, []);
+  const onDeleted = useCallback((): void => {
+    setDeleteError(false);
+  }, []);
   const [createErrorField, setCreateErrorField] = useState<keyof CreateSuiteForm | null>(null);
   const queryClient = useQueryClient();
   const page = useQuery(testSuitePageQuery(api, { limit: 50, cursor }));
+  // A deletion can empty the last cursor page; return to the preceding page.
+  useLayoutEffect(() => {
+    if (page.isFetching || page.data?.items.length !== 0 || cursor === null) return;
+    setCursor(history.at(-1) ?? null);
+    setHistory((current) => current.slice(0, -1));
+  }, [page.isFetching, page.data, cursor, history]);
   const form = useForm<CreateSuiteForm>({ defaultValues: { name: "", description: "" } });
   const create = useMutation({
     mutationFn: (values: CreateSuiteForm) =>
@@ -124,11 +157,11 @@ export function TestSuiteListPage({
     form.setFocus(createErrorField);
     setCreateErrorField(null);
   }, [create.isPending, createErrorField, form]);
-  usePageLeaveBlocker(create.isPending, onLeaveBlockedChange);
+  usePageLeaveBlocker(create.isPending || deleteBlockedId !== null, onLeaveBlockedChange);
 
   // Execute one create request at a time and retain the Sheet until it settles.
   const submitCreate = async (values: CreateSuiteForm): Promise<void> => {
-    if (createPendingRef.current) return;
+    if (createPendingRef.current || deleteBlockedId !== null) return;
     createPendingRef.current = true;
     try {
       await create.mutateAsync(values);
@@ -148,11 +181,20 @@ export function TestSuiteListPage({
             href={`/test-suites/${encodeURIComponent(row.original.id)}`}
             className="resource-link"
             onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+              if (
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              )
+                return;
               event.preventDefault();
               onNavigate(`/test-suites/${encodeURIComponent(row.original.id)}`);
             }}
           >
-            {row.original.name}
+            <span>{row.original.name}</span>
+            <ArrowUpRight size={14} aria-hidden="true" />
           </a>
         )
       },
@@ -160,18 +202,21 @@ export function TestSuiteListPage({
       {
         accessorKey: "caseCount",
         header: message("testSuites.caseCount"),
-        cell: ({ row }): ReactElement => <Badge variant="outline">{row.original.caseCount}</Badge>
+        cell: ({ row }): ReactElement => (
+          <span className="registry-count">
+            {row.original.caseCount}
+            <small> 条</small>
+          </span>
+        )
       },
       {
         id: "latestRun",
         header: message("testSuites.latestRun"),
         cell: ({ row }): ReactElement => {
           const run = row.original.latestRun;
-          if (run === null) return <Badge variant="secondary">{message("testSuites.noRun")}</Badge>;
-          const runPath =
-            run.sourceType === "OFFLINE_IMPORT"
-              ? `/runs/${encodeURIComponent(run.id)}/report`
-              : `/runs/${encodeURIComponent(run.id)}`;
+          if (run === null)
+            return <span className="registry-secondary">{message("testSuites.noRun")}</span>;
+          const runPath = `/runs/${encodeURIComponent(run.id)}`;
           return (
             <div className="tag-list">
               <Badge variant="outline">
@@ -179,7 +224,7 @@ export function TestSuiteListPage({
                   ? message("runs.platform")
                   : message("runs.offlineImport")}
               </Badge>
-              <Badge asChild variant="accent">
+              <Badge asChild variant="outline">
                 <a
                   href={runPath}
                   onClick={(event: MouseEvent<HTMLAnchorElement>) => {
@@ -198,7 +243,8 @@ export function TestSuiteListPage({
         accessorKey: "updatedAt",
         header: message("common.updatedAt"),
         cell: ({ row }): string => displayDate(row.original.updatedAt)
-      }
+      },
+      { id: "actions", header: message("common.actions") }
     ],
     [onNavigate]
   );
@@ -206,7 +252,8 @@ export function TestSuiteListPage({
     data: page.data?.items ?? [],
     columns,
     getCoreRowModel: getCoreRowModel(),
-    manualPagination: true
+    manualPagination: true,
+    getRowId: (row) => row.id
   });
 
   if (page.isPending) {
@@ -230,15 +277,16 @@ export function TestSuiteListPage({
   }
 
   return (
-    <section className="page-stack">
+    <section className="page-stack management-page suite-registry">
       <header className="page-header split-header">
         <div>
-          <p className="eyebrow">{message("testSuites.eyebrow")}</p>
+          <p className="eyebrow">WORKSPACE / TEST SUITES</p>
           <h1>{message("testSuites.title")}</h1>
-          <p>{message("testSuites.description")}</p>
+          <p>按功能组织测试用例，维护输入、预期与评测规则。</p>
         </div>
         <Button
           type="button"
+          disabled={deleteBlockedId !== null}
           onClick={() => {
             form.reset();
             create.reset();
@@ -249,11 +297,30 @@ export function TestSuiteListPage({
           {message("testSuites.create")}
         </Button>
       </header>
+      {deleteError ? (
+        <Alert variant="destructive">
+          <AlertTitle>无法获取删除影响，请重试</AlertTitle>
+        </Alert>
+      ) : null}
       <div className="data-panel">
+        <div className="registry-toolbar">
+          <h2>
+            测试集目录 <span>本页 {page.data.items.length} 个</span>
+          </h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={page.isFetching || deleteBlockedId !== null}
+            onClick={() => void page.refetch()}
+          >
+            <RefreshCw size={14} aria-hidden="true" />
+            刷新
+          </Button>
+        </div>
         {page.data.items.length === 0 ? (
           <p className="empty-state">{message("testSuites.empty")}</p>
         ) : (
-          <Table>
+          <Table className="suite-list-table">
             <TableHeader>
               {table.getHeaderGroups().map((group) => (
                 <TableRow key={group.id}>
@@ -272,7 +339,26 @@ export function TestSuiteListPage({
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {cell.column.id === "actions" ? (
+                        <div className="suite-list-actions">
+                          <SuiteListDeleteAction
+                            api={api}
+                            queryClient={queryClient}
+                            suiteId={row.original.id}
+                            suite={row.original}
+                            disabled={
+                              createOpen ||
+                              create.isPending ||
+                              (deleteBlockedId !== null && deleteBlockedId !== row.original.id)
+                            }
+                            onDeleted={onDeleted}
+                            onFailureChange={setDeleteError}
+                            onBlockedChange={onDeleteBlockedChange}
+                          />
+                        </div>
+                      ) : (
+                        flexRender(cell.column.columnDef.cell, cell.getContext())
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -285,7 +371,7 @@ export function TestSuiteListPage({
         <Button
           type="button"
           variant="outline"
-          disabled={history.length === 0}
+          disabled={history.length === 0 || deleteBlockedId !== null}
           onClick={() => {
             const previous = history.at(-1) ?? null;
             setHistory(history.slice(0, -1));
@@ -297,7 +383,7 @@ export function TestSuiteListPage({
         <Button
           type="button"
           variant="outline"
-          disabled={page.data.nextCursor === null}
+          disabled={page.data.nextCursor === null || deleteBlockedId !== null}
           onClick={() => {
             setHistory([...history, cursor]);
             setCursor(page.data.nextCursor);

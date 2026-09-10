@@ -1,7 +1,17 @@
+import {
+  ASSERTION_ISSUES,
+  caseAssertionsIssue
+} from "@cortex-eval/contracts/src/assertion-rules/authoring-validation.ts";
 import type { CaseDefinitionV1 } from "@cortex-eval/contracts/src/case-contracts.ts";
 import { useCallback, useLayoutEffect, useRef, useState, type ReactElement } from "react";
 import { useForm } from "react-hook-form";
 
+import { caseAssertionAuthoringError } from "./case-authoring-validation.ts";
+import { CaseCreatableSelect } from "./case-choice-fields.tsx";
+import { newCaseAssertion } from "./case-field-rule.ts";
+import { CaseAssertionFields } from "./case-assertion-fields.tsx";
+import { CaseRequestFields } from "./case-request-fields.tsx";
+import { EMPTY_CASE_FILTER_OPTIONS, type CaseFilterOptions } from "./case-filter-options.ts";
 import { Button } from "../../components/ui/button.tsx";
 import {
   Form,
@@ -21,7 +31,7 @@ import {
   applyStructuredCaseFields,
   caseApiPathToEditorField,
   createCaseEditorState,
-  replaceAssertionJson,
+  replaceAllAssertionsJson,
   replaceRequestBodyJson,
   switchCaseEditorMode,
   updateFullCaseJson,
@@ -40,7 +50,7 @@ const CASE_API_FORM_FIELDS: Readonly<Record<string, keyof StructuredCaseFields>>
   "metadata.scenario_tag": "scenarioTag"
 };
 
-type StructuredErrorTarget = "ROOT" | "REQUEST_BODY" | "ASSERTION";
+type StructuredErrorTarget = "ROOT" | "REQUEST_BODY" | "ASSERTION" | "GUIDED_ASSERTION";
 
 interface StructuredEditorError {
   /** User-facing error from the checked message catalog. */
@@ -61,6 +71,8 @@ export interface CaseEditorExternalSaveError {
 
 /** Case editor properties. */
 export interface CaseEditorProps {
+  readonly options?: CaseFilterOptions | undefined;
+  readonly creating?: boolean;
   /** Initial server or create-default definition. */
   readonly initialDefinition: CaseDefinitionV1;
   /** Save the current validated shared Draft. */
@@ -83,7 +95,10 @@ function structuredValues(definition: CaseDefinitionV1): StructuredCaseFields {
     reqId: definition.metadata.req_id,
     taskId: definition.metadata.task_id,
     businessModule: definition.metadata.business_module,
-    scenarioTag: definition.metadata.scenario_tag
+    scenarioTag: definition.metadata.scenario_tag,
+    ...(definition.metadata.a2ui_capture === undefined
+      ? {}
+      : { a2uiCapture: definition.metadata.a2ui_capture })
   };
 }
 
@@ -95,6 +110,8 @@ function formattedJson(value: unknown): string {
 /** Lossless structured/full-JSON Case editor sharing one validated Draft. */
 export function CaseEditor({
   initialDefinition,
+  options = EMPTY_CASE_FILTER_OPTIONS,
+  creating = false,
   onSave,
   disabled = false,
   externalSaveError = null,
@@ -111,13 +128,22 @@ export function CaseEditor({
   const [structuredError, setStructuredError] = useState<StructuredEditorError | null>(null);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const requestBodyRef = useRef<HTMLTextAreaElement>(null);
   const assertionRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
   const fullJsonRef = useRef<HTMLTextAreaElement>(null);
   const deferredFocusRef = useRef<(() => void) | null>(null);
   const consumedExternalSaveErrorIdRef = useRef<number | null>(null);
   const form = useForm<StructuredCaseFields>({
-    defaultValues: structuredValues(initialDefinition)
+    defaultValues: creating
+      ? {
+          ...structuredValues(initialDefinition),
+          description: "",
+          task: "",
+          businessModule: "",
+          scenarioTag: ""
+        }
+      : structuredValues(initialDefinition)
   });
 
   useLayoutEffect(() => {
@@ -224,13 +250,25 @@ export function CaseEditor({
       return null;
     }
     next = body.state;
-    for (const [index, text] of assertionTexts.entries()) {
-      const assertion = replaceAssertionJson(next, index, text);
-      if (!assertion.ok) {
-        reportStructuredError(message("caseEditor.assertionInvalid"), "ASSERTION", index);
+    const assertions = replaceAllAssertionsJson(next, assertionTexts);
+    if (!assertions.ok) {
+      const index = Number(assertions.errorPath.split(".")[1]);
+      reportStructuredError(
+        message("caseEditor.assertionInvalid"),
+        "ASSERTION",
+        Number.isFinite(index) ? index : 0
+      );
+      return null;
+    }
+    next = assertions.state;
+    for (const [index, assertion] of next.draft.assert.entries()) {
+      const error = caseAssertionAuthoringError(assertion);
+      if (error !== null) {
+        setStructuredError({ message: error, target: "GUIDED_ASSERTION", assertionIndex: index });
+        const card = formRef.current?.querySelectorAll(".case-rule-card")[index];
+        (card?.querySelector("[data-guided-target]") as HTMLElement | null)?.focus();
         return null;
       }
-      next = assertion.state;
     }
     setStructuredError(null);
     return next;
@@ -260,6 +298,7 @@ export function CaseEditor({
   // Save only the currently validated shared Draft.
   const save = async (): Promise<void> => {
     if (savingRef.current) return;
+
     const savingFromJson = editor.mode === "JSON";
     const state =
       editor.mode === "STRUCTURED"
@@ -270,6 +309,24 @@ export function CaseEditor({
       return;
     }
     const next = "ok" in state ? state.state : state;
+    if (savingFromJson) {
+      for (const assertion of next.draft.assert) {
+        const error = caseAssertionAuthoringError(assertion);
+        if (error !== null) {
+          setJsonError(error);
+          fullJsonRef.current?.focus();
+          return;
+        }
+      }
+    }
+    const caseIssue = caseAssertionsIssue(next.draft.assert);
+    if (caseIssue) {
+      const error = ASSERTION_ISSUES[caseIssue.code];
+      if (savingFromJson) setJsonError(error);
+      else setStructuredError({ message: error, target: "GUIDED_ASSERTION", assertionIndex: 0 });
+      return;
+    }
+    if (!savingFromJson && formRef.current?.reportValidity() === false) return;
     if (!savingFromJson) setEditor(next);
     savingRef.current = true;
     setSaving(true);
@@ -285,7 +342,7 @@ export function CaseEditor({
 
   return (
     <Form {...form}>
-      <form onSubmit={(event) => event.preventDefault()} className="case-editor-form">
+      <form ref={formRef} onSubmit={(event) => event.preventDefault()} className="case-editor-form">
         <fieldset className="case-editor-fieldset" disabled={saving || disabled}>
           <Tabs value={editor.mode} onValueChange={changeMode}>
             <TabsList aria-label={message("caseEditor.modeLabel")}>
@@ -293,6 +350,12 @@ export function CaseEditor({
               <TabsTrigger value="JSON">{message("caseEditor.json")}</TabsTrigger>
             </TabsList>
             <TabsContent value="STRUCTURED" className="case-structured-grid">
+              <div className="field-wide case-section-heading">
+                <div>
+                  <h3>基本信息</h3>
+                  <p>描述要验收的业务目标，选择分类。技术字段和 JSON 放在高级设置中。</p>
+                </div>
+              </div>
               <FormField
                 control={form.control}
                 name="description"
@@ -306,44 +369,9 @@ export function CaseEditor({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="caseId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{message("caseEditor.caseId")}</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="threshold"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{message("caseEditor.threshold")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        {...field}
-                        onChange={(event) => field.onChange(event.currentTarget.valueAsNumber)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               {(
                 [
                   ["task", "caseEditor.task"],
-                  ["reqId", "caseEditor.reqId"],
-                  ["taskId", "caseEditor.taskId"],
                   ["businessModule", "caseEditor.businessModule"],
                   ["scenarioTag", "caseEditor.scenarioTag"]
                 ] as const
@@ -355,67 +383,211 @@ export function CaseEditor({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{message(label)}</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
+                      {name === "businessModule" || name === "scenarioTag" ? (
+                        <CaseCreatableSelect
+                          label={message(label)}
+                          selectRef={field.ref}
+                          invalid={form.formState.errors[name] !== undefined}
+                          value={field.value}
+                          options={
+                            name === "businessModule"
+                              ? options.businessModules
+                              : options.scenarioTags
+                          }
+                          onChange={field.onChange}
+                        />
+                      ) : (
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="任务名称，与运行配置约定保持一致"
+                            list="case-task-options"
+                          />
+                        </FormControl>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               ))}
-              <div className="field-wide grid gap-2">
-                <Label htmlFor="case-request-body">{message("caseEditor.requestBody")}</Label>
-                <Textarea
-                  ref={requestBodyRef}
-                  id="case-request-body"
-                  aria-invalid={structuredError?.target === "REQUEST_BODY"}
-                  aria-describedby={
-                    structuredError?.target === "REQUEST_BODY" ? "case-structured-error" : undefined
-                  }
-                  value={requestBodyText}
-                  onChange={(event) => {
-                    setRequestBodyText(event.currentTarget.value);
-                    if (structuredError?.target === "REQUEST_BODY") setStructuredError(null);
-                  }}
-                  rows={7}
-                />
-              </div>
-              {assertionTexts.map((text, index) => (
-                <div className="field-wide grid gap-2" key={`assertion-${index}`}>
-                  <Label htmlFor={`case-assertion-${index}`}>
-                    {message("caseEditor.assertion")} {index + 1}
-                  </Label>
-                  <Textarea
-                    ref={(element) => {
+              <FormField
+                control={form.control}
+                name="a2uiCapture"
+                render={({ field }) => (
+                  <FormItem className="field-wide case-capture-option">
+                    <FormLabel>
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          checked={field.value ?? false}
+                          onChange={(event) => field.onChange(event.target.checked)}
+                        />
+                      </FormControl>
+                      要求 A2UI 人工复核
+                    </FormLabel>
+                    <p>
+                      仅此 Case
+                      开启：在结果抽屉用真实出站数据动态渲染卡片，供人工复核。无卡片数据或渲染失败不会算视觉通过。
+                    </p>
+                  </FormItem>
+                )}
+              />
+              <datalist id="case-task-options">
+                <option value="agent-e2e" />
+                <option value="planner" />
+              </datalist>
+              <details
+                className="case-advanced field-wide"
+                open={
+                  form.formState.errors.caseId ||
+                  form.formState.errors.threshold ||
+                  form.formState.errors.reqId ||
+                  form.formState.errors.taskId
+                    ? true
+                    : undefined
+                }
+              >
+                <summary>高级设置 · 自动生成的标识与通过阈值</summary>
+                <div className="case-structured-grid">
+                  <FormField
+                    control={form.control}
+                    name="caseId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{message("caseEditor.caseId")}</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="threshold"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{message("caseEditor.threshold")}</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            {...field}
+                            onChange={(event) => field.onChange(event.currentTarget.valueAsNumber)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {(
+                    [
+                      ["reqId", "caseEditor.reqId"],
+                      ["taskId", "caseEditor.taskId"]
+                    ] as const
+                  ).map(([name, label]) => (
+                    <FormField
+                      key={name}
+                      control={form.control}
+                      name={name}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{message(label)}</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+                <p className="field-hint">
+                  默认通过阈值为 1。降低阈值或把断言权重设为 0，可能让部分检查失败仍然通过。
+                </p>
+              </details>
+              <CaseRequestFields
+                text={requestBodyText}
+                rawRef={requestBodyRef}
+                error={structuredError?.target === "REQUEST_BODY"}
+                onChange={(text) => {
+                  setRequestBodyText(text);
+                  if (structuredError?.target === "REQUEST_BODY") setStructuredError(null);
+                }}
+              />
+              <section className="case-editor-section field-wide">
+                <div className="case-section-heading">
+                  <div>
+                    <h3>验收检查项</h3>
+                    <p>
+                      选择规则，再填写目标和预期。字段规则检查实际证据；不代替业务操作的安全拦截。
+                    </p>
+                  </div>
+                </div>
+                <datalist id="case-output-paths">
+                  {[
+                    "ok",
+                    "parsed_output",
+                    "parsed_output.reply_text",
+                    "parsed_output.reply_type",
+                    "parsed_output.tools",
+                    "parsed_output.tool_executions"
+                  ].map((path) => (
+                    <option key={path} value={path} />
+                  ))}
+                </datalist>
+                {assertionTexts.map((text, index) => (
+                  <CaseAssertionFields
+                    key={`assertion-${index}`}
+                    text={text}
+                    index={index}
+                    metrics={options.metrics}
+                    error={
+                      structuredError?.target === "ASSERTION" &&
+                      structuredError.assertionIndex === index
+                    }
+                    guidedError={
+                      structuredError?.target === "GUIDED_ASSERTION" &&
+                      structuredError.assertionIndex === index
+                        ? structuredError.message
+                        : null
+                    }
+                    rawRef={(element) => {
                       assertionRefs.current[index] = element;
                     }}
-                    id={`case-assertion-${index}`}
-                    aria-invalid={
-                      structuredError?.target === "ASSERTION" &&
-                      structuredError.assertionIndex === index
-                    }
-                    aria-describedby={
-                      structuredError?.target === "ASSERTION" &&
-                      structuredError.assertionIndex === index
-                        ? "case-structured-error"
-                        : undefined
-                    }
-                    value={text}
-                    onChange={(event) => {
-                      const next = [...assertionTexts];
-                      next[index] = event.currentTarget.value;
-                      setAssertionTexts(next);
+                    onChange={(text) => {
+                      setAssertionTexts((current) =>
+                        current.map((old, position) => (position === index ? text : old))
+                      );
                       if (
-                        structuredError?.target === "ASSERTION" &&
-                        structuredError.assertionIndex === index
-                      ) {
+                        structuredError?.target === "ASSERTION" ||
+                        structuredError?.target === "GUIDED_ASSERTION"
+                      )
                         setStructuredError(null);
-                      }
                     }}
-                    rows={9}
+                    onRemove={() => {
+                      setAssertionTexts((current) =>
+                        current.filter((_, position) => position !== index)
+                      );
+                      setStructuredError(null);
+                    }}
                   />
-                </div>
-              ))}
+                ))}
+                {assertionTexts.length === 0 ? (
+                  <p role="status">尚无检查项，至少添加一项才能保存。</p>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setAssertionTexts((current) => [...current, formattedJson(newCaseAssertion())])
+                  }
+                >
+                  ＋ 添加检查项
+                </Button>
+              </section>
               {structuredError === null ? null : (
                 <p id="case-structured-error" className="field-wide form-error" role="alert">
                   {structuredError.message}

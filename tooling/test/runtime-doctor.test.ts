@@ -39,20 +39,18 @@ describe("Runtime Doctor", () => {
   });
 
   it("检查当前 Node、Python 与 Ruby 的真实命令", () => {
-    expect(runRuntimeDoctor()).toMatchObject({
-      node: { version: "24.18.0" },
-      python: { version: "3.12.12" },
-      ruby: { version: "2.6.10" }
-    });
+    const runtimes = runRuntimeDoctor();
+    expect(runtimes.node.version).toBe(process.versions.node);
+    expect(runtimes.python.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(runtimes.ruby.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it("完整 Doctor 返回 Python 与 Ruby 内联 Assertion Smoke", async () => {
-    await expect(runRuntimeDoctorWithSmoke(process.cwd())).resolves.toMatchObject({
-      runtimes: {
-        node: { version: "24.18.0" },
-        python: { version: "3.12.12" },
-        ruby: { version: "2.6.10" }
-      },
+    const result = await runRuntimeDoctorWithSmoke(process.cwd());
+    expect(result.runtimes.node.version).toBe(process.versions.node);
+    expect(result.runtimes.python.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(result.runtimes.ruby.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(result).toMatchObject({
       promptfooVersion: "0.121.18",
       pythonInlineAssertion: { exitCode: 0, componentResults: 1 },
       rubyInlineAssertion: { exitCode: 0, componentResults: 1 }

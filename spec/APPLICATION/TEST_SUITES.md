@@ -30,7 +30,7 @@ P2 已落地 Suite CRUD、Case 创建/编辑/复制/删除/全量替换、建议
 ## 当前样例与测试入口
 
 - [test_convert_loona_to_promptfoo.py](../../data_scripts/test_convert_loona_to_promptfoo.py)
-- [loona_promptfoo_tests.jsonl](../../test_suite/current/cases/loona_promptfoo_tests.jsonl)
+- [test_example2.json](../../test_suite/current/cases/test_example2.json)
 - [batch1.jsonl](../../test_suite/current/raw/batch1.jsonl)
 
 ## 对外接口
@@ -60,3 +60,15 @@ Case Definition Writer 校验禁止字段和 Definition，解析 Rubric Keys，�
 ## 相关测试
 
 当前测试覆盖五类写入口、JSON 数组与 JSONL 流式导入、原子性/取消/重复/引用、尾随空白超限不提交、Revision 一致导出与响应前冲突、导出文件权限/正常完成/取消清理、身份与 Ordinal、筛选派生、增量与完整 Hash 一致、删除、Cursor 和组合过滤。
+
+## Todo 分层回归准备
+
+[准备脚本](../../data_scripts/prepare-todo-regression.ts) 只对这批 Todo Planner 源Case生成修正版与独立E2E草稿，不调用服务或创建Run，不覆盖源或既有输出目录。继续使用严格Case Definition与现有导入/Promptfoo能力，不扩展平台协议或实现专用评测引擎。
+
+[Planner修复](../../data_scripts/todo-case-repair.ts) 以当前Cortex直跑契约为依据区分Task/Reminder、普通查询默认状态和在线工具身份注入边界；补必填、字符串类型、正权重阻断与单目标写调用数量，拒绝把E2E输出作为Planner结果。
+
+[E2E执行断言](../../data_scripts/todo-e2e-assertions.ts) 关联实际调用、唯一终态与指定业务字段，按明确规则比较集合和时刻。回复交付需与当前根请求、最终消息和投影正文一致；独立语义评分不能替代工具事实。
+
+[E2E草稿生成](../../data_scripts/todo-e2e-samples.ts) 不注入模拟授权或业务历史；非法占位账号须经人工绑定才能运行。空A2UI投影不能证明无卡，草稿不以缺采集证据作为通过依据。前置条件、数据隔离、清理及边界见 [Todo使用说明](../../test_suite/todo/README.md)。
+
+验证入口为 [断言正反例](../../tooling/test/todo-regression-cases.test.ts)、[真实Promptfoo进程](../../tooling/test/todo-promptfoo-process.test.ts) 和 [准备CLI](../../tooling/test/todo-prepare-cli.test.ts)。预置输出探针不调用Agent或真实模型，不产生业务通过率。

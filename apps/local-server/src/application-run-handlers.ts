@@ -330,6 +330,8 @@ function runSummary(value: PlatformRunSummary): Record<string, unknown> {
     sourceType: value.sourceType,
     suiteId: value.suiteId,
     suiteName: value.suiteName,
+    name: value.name ?? null,
+    description: value.description ?? null,
     runMode: value.runMode,
     status: value.status,
     stage: value.stage,
@@ -390,6 +392,8 @@ async function runDetail(
   return {
     id: value.id,
     sourceType: value.sourceType,
+    name: value.name ?? null,
+    description: value.description ?? null,
     sourceRunId: value.sourceRunId,
     rerunMode: value.rerunMode,
     suite: {
@@ -492,7 +496,11 @@ export function createApplicationRunHandlers(
       if (!body.ok) return body.response;
       const result = await service.createRerun({
         sourceRunId: sourceRunId.value,
-        mode: body.value.mode
+        mode: body.value.mode,
+        name: body.value.name,
+        description: body.value.description,
+        caseKey: body.value.caseKey,
+        reevaluateOnly: body.value.reevaluateOnly
       });
       if (!result.ok) {
         const code = result.error.code;

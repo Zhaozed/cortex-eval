@@ -22,7 +22,7 @@ import {
   hashLlmConfig,
   hashSuite
 } from "@cortex-eval/domain/src/domain-resource-hashes.ts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   CancellationWinsCompletionRunStore,
@@ -497,7 +497,9 @@ describe("PlatformRunService", () => {
     };
     const restExecutor = new SuccessfulRestExecutor();
     const artifacts = new MemoryArtifacts();
+    const capture = vi.fn(() => Promise.resolve());
     const service = new PlatformRunService({
+      captureRestEvidence: capture,
       transactionManager: manager,
       restExecutor,
       artifactStore: artifacts,
@@ -526,7 +528,7 @@ describe("PlatformRunService", () => {
     expect(started).toMatchObject({ ok: true, run: { status: "RUNNING" } });
     await service.waitForIdle();
 
-    expect(restExecutor.concurrency).toBe(7);
+    expect([capture.mock.calls.length, restExecutor.concurrency]).toEqual([1, 7]);
     expect(artifacts.writes).toHaveLength(1);
     expect(artifacts.caseCounts[0]).toBe(1);
     expect(runs.values.get(RUN_ID)).toMatchObject({

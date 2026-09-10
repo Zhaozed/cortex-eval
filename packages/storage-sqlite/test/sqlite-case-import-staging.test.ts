@@ -66,6 +66,76 @@ describe("SQLite Case import staging", () => {
     database.close();
   }
 
+  it("预检四类影响与排序，不改主库、Revision 或原记录身份", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-case-preview-"));
+    roots.push(projectRoot);
+    const storage = await initializeSqliteStorage({ projectRoot });
+    storages.push(storage);
+    seedSuite(storage.databasePath);
+    let nextId = 1;
+    const service = new StreamingCaseImportService({
+      transactionManager: storage.createTransactionManager(),
+      stagingFactory: storage.createCaseImportStagingFactory(),
+      clock: { now: () => "2026-01-02T00:00:00.000Z" },
+      idGenerator: {
+        nextId: () => `018f0c8e-9f79-7000-8000-${(nextId++).toString(16).padStart(12, "0")}`
+      }
+    });
+    const command = { suiteId: "suite-1", signal: new AbortController().signal };
+    expect(
+      await service.importCases({
+        ...command,
+        expectedSuiteRevision: 0,
+        definitions: asyncDefinitions(definition("a"), definition("b"), definition("c"))
+      })
+    ).toMatchObject({ ok: true });
+    const db = new Database(storage.databasePath, { readonly: true });
+    try {
+      const before = db.prepare("SELECT * FROM test_case ORDER BY ordinal").all();
+      const suiteBefore = db.prepare("SELECT * FROM test_suite").all();
+      const preview = await service.importCases({
+        ...command,
+        expectedSuiteRevision: 1,
+        previewOnly: true,
+        definitions: asyncDefinitions(
+          { ...definition("b"), description: "改描述" },
+          definition("a"),
+          definition("d")
+        )
+      });
+      expect(preview).toMatchObject({
+        ok: true,
+        count: 3,
+        suite: { revision: 1 },
+        preview: { added: 1, modified: 1, removed: 1, unchanged: 1, reordered: 2 }
+      });
+      expect(
+        await service.importCases({
+          ...command,
+          expectedSuiteRevision: 1,
+          previewOnly: true,
+          definitions: asyncDefinitions()
+        })
+      ).toMatchObject({
+        ok: true,
+        count: 0,
+        preview: { added: 0, modified: 0, removed: 3, unchanged: 0, reordered: 0 }
+      });
+      expect(
+        await service.importCases({
+          ...command,
+          expectedSuiteRevision: 0,
+          previewOnly: true,
+          definitions: asyncDefinitions(definition("d"))
+        })
+      ).toMatchObject({ ok: false, error: { code: "RESOURCE_REVISION_CONFLICT" } });
+      expect(db.prepare("SELECT * FROM test_case ORDER BY ordinal").all()).toEqual(before);
+      expect(db.prepare("SELECT * FROM test_suite").all()).toEqual(suiteBefore);
+    } finally {
+      db.close();
+    }
+  });
+
   it("从外部 staging 原子替换 Cases，权限受控且完成后 DETACH/清理", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-case-stage-"));
     roots.push(projectRoot);

@@ -95,7 +95,7 @@ UI 和 CLI 对同一规范化输入生成相同统计。错误返回稳定 Error
 - 目标外部行为来源：[REQ.md](../REQ.md) 与 [TECH.md](../TECH.md)
 - 当前 Run/REST API 入口：[apps/local-server/src](../apps/local-server/src)
 - 当前 REST Adapter：[packages/evaluation-adapters/src](../packages/evaluation-adapters/src)
-- 当前测试集样例：[test_suite/current/cases/loona_promptfoo_tests.jsonl](../test_suite/current/cases/loona_promptfoo_tests.jsonl)
+- 当前测试集样例：[test_suite/current/cases/test_example2.json](../test_suite/current/cases/test_example2.json)
 - 当前 Local Server 入口：[apps/local-server/src](../apps/local-server/src)
 - 当前 OpenAPI：[apps/local-server/openapi.json](../apps/local-server/openapi.json)
 - 当前 Web：[apps/web/src](../apps/web/src)

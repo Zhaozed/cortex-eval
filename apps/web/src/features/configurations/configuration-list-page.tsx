@@ -225,13 +225,40 @@ export function ConfigurationListPage({
     }
   };
   const columns: ColumnDef<ConfigurationSummary>[] = [
-    { accessorKey: "name", header: message("config.name") },
+    {
+      accessorKey: "name",
+      header: message("config.name"),
+      cell: ({ row }): ReactElement => (
+        <Button
+          variant="link"
+          className="registry-name-button"
+          onClick={() => {
+            setSelectedId(row.original.id);
+            setSheetMode("EDIT");
+          }}
+        >
+          {row.original.name}
+        </Button>
+      )
+    },
     {
       accessorKey: "revision",
       header: message("config.revision"),
       cell: ({ row }): ReactElement => <Badge variant="outline">{row.original.revision}</Badge>
     },
-    { accessorKey: "updatedAt", header: message("common.updatedAt") },
+    {
+      accessorKey: "updatedAt",
+      header: message("common.updatedAt"),
+      cell: ({ row }): string =>
+        new Intl.DateTimeFormat("zh-CN", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }).format(new Date(row.original.updatedAt))
+    },
     {
       id: "actions",
       header: message("common.actions"),
@@ -288,10 +315,10 @@ export function ConfigurationListPage({
 
   const editingResource = sheetMode === "EDIT" && detail.data?.kind === kind ? detail.data : null;
   return (
-    <section className="page-stack">
+    <section className="page-stack management-page configuration-registry">
       <header className="page-header split-header">
         <div>
-          <p className="eyebrow">{message("config.eyebrow")}</p>
+          <p className="eyebrow">WORKSPACE / CONFIGURATION</p>
           <h1>{message(meta.title)}</h1>
           <p>{message(meta.description)}</p>
         </div>
@@ -301,6 +328,20 @@ export function ConfigurationListPage({
         </Button>
       </header>
       <div className="data-panel">
+        <div className="registry-toolbar">
+          <h2>
+            配置列表 <span>本页 {list.data.items.length} 项</span>
+          </h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={list.isFetching}
+            onClick={() => void list.refetch()}
+          >
+            <RefreshCw size={14} aria-hidden="true" />
+            刷新
+          </Button>
+        </div>
         {list.data.items.length === 0 ? (
           <p className="empty-state">{message("config.empty")}</p>
         ) : (
@@ -364,7 +405,7 @@ export function ConfigurationListPage({
           if (!open) closeSheet();
         }}
       >
-        <SheetContent className="w-[min(820px,94vw)]">
+        <SheetContent className="w-[min(820px,94vw)] management-sheet">
           <SheetHeader>
             <SheetTitle>
               {sheetMode === "CREATE"

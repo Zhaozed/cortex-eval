@@ -113,7 +113,10 @@ export function workPackageCaseDefinitionFromV1(
       requestId: value.metadata.req_id,
       taskId: value.metadata.task_id,
       businessModule: value.metadata.business_module,
-      scenarioTag: value.metadata.scenario_tag
+      scenarioTag: value.metadata.scenario_tag,
+      ...(value.metadata.a2ui_capture === undefined
+        ? {}
+        : { a2uiCapture: value.metadata.a2ui_capture })
     },
     assertions: value.assert.map(mapAssertion)
   };

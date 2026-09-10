@@ -69,7 +69,10 @@ export function mapCaseDefinitionFromV1(value: CaseDefinitionV1): CaseDefinition
       requestId: value.metadata.req_id,
       taskId: value.metadata.task_id,
       businessModule: value.metadata.business_module,
-      scenarioTag: value.metadata.scenario_tag
+      scenarioTag: value.metadata.scenario_tag,
+      ...(value.metadata.a2ui_capture === undefined
+        ? {}
+        : { a2uiCapture: value.metadata.a2ui_capture })
     },
     assertions: value.assert.map(mapAssertionFromV1)
   };
@@ -87,7 +90,10 @@ export function mapCaseDefinitionToV1(value: CaseDefinition): CaseDefinitionV1 {
       req_id: value.metadata.requestId,
       task_id: value.metadata.taskId,
       business_module: value.metadata.businessModule,
-      scenario_tag: value.metadata.scenarioTag
+      scenario_tag: value.metadata.scenarioTag,
+      ...(value.metadata.a2uiCapture === undefined
+        ? {}
+        : { a2ui_capture: value.metadata.a2uiCapture })
     },
     assert: value.assertions.map(mapAssertionToV1)
   };

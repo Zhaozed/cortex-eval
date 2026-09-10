@@ -29,7 +29,21 @@ describe("测试集详情、Case 列表与编辑", () => {
       if (url.includes("cursor=case_v1_next")) {
         return Promise.resolve(response({ items: [], nextCursor: null }));
       }
-      return Promise.resolve(response({ items: [summary], nextCursor: "case_v1_next" }));
+      return Promise.resolve(
+        response({
+          items: [
+            summary,
+            {
+              ...summary,
+              id: "018f0f4e-7b7a-7cc0-8000-000000000088",
+              caseKey: "case-after-sales",
+              businessModule: "售后",
+              ordinal: 1
+            }
+          ],
+          nextCursor: "case_v1_next"
+        })
+      );
     });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -46,7 +60,9 @@ describe("测试集详情、Case 列表与编辑", () => {
     await screen.findByRole("heading", { name: "客服回归集" });
     expect(screen.getByRole("columnheader", { name: "更新时间" })).toBeInTheDocument();
     await userEvent.type(screen.getByRole("searchbox", { name: "Case ID 搜索" }), "case");
-    await userEvent.type(screen.getByRole("textbox", { name: "业务模块过滤" }), "客服,售后");
+    await userEvent.click(screen.getByLabelText("业务模块过滤"));
+    await userEvent.click(await screen.findByRole("checkbox", { name: "客服" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "售后" }));
     await userEvent.click(screen.getByRole("button", { name: "应用过滤" }));
 
     await waitFor(() => {
@@ -194,7 +210,7 @@ describe("测试集详情、Case 列表与编辑", () => {
     expect(screen.queryByRole("button", { name: "保存 Case" })).not.toBeInTheDocument();
 
     resolveDetailRead?.(response(refreshedDetail));
-    expect(await screen.findByRole("textbox", { name: "任务" })).toHaveValue("远端新任务");
+    expect(await screen.findByRole("combobox", { name: "任务" })).toHaveValue("远端新任务");
     const description = screen.getByRole("textbox", { name: "Case 描述" });
     await userEvent.clear(description);
     await userEvent.type(description, "基于新快照编辑");
@@ -420,7 +436,7 @@ describe("测试集详情、Case 列表与编辑", () => {
     expect(screen.getByText("服务端版本：第一次远端修改")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Case 描述" })).toHaveValue("本地 Draft");
     expect(screen.getByRole("textbox", { name: "Case 描述" })).toBeDisabled();
-    expect(screen.getByRole("tab", { name: "完整 JSON" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "高级 JSON" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "保存 Case" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "使用最新 Revision 重试" }));
 
@@ -641,7 +657,7 @@ describe("测试集详情、Case 列表与编辑", () => {
     );
 
     await userEvent.click(await screen.findByRole("button", { name: "编辑 case-001" }));
-    await userEvent.click(await screen.findByRole("tab", { name: "完整 JSON" }));
+    await userEvent.click(await screen.findByRole("tab", { name: "高级 JSON" }));
     const fullJson = screen.getByRole("textbox", { name: "完整 Case JSON" });
     fireEvent.change(fullJson, {
       target: { value: JSON.stringify({ ...definition, description: "JSON 本地 Draft" }, null, 2) }
@@ -652,9 +668,9 @@ describe("测试集详情、Case 列表与编辑", () => {
     expect(fullJson).toHaveValue(
       JSON.stringify({ ...definition, description: "JSON 本地 Draft" }, null, 2)
     );
-    expect(screen.getByRole("tab", { name: "完整 JSON" })).toHaveAttribute("data-state", "active");
+    expect(screen.getByRole("tab", { name: "高级 JSON" })).toHaveAttribute("data-state", "active");
     expect(fullJson).toBeDisabled();
-    expect(screen.getByRole("tab", { name: "结构化" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "表单" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "保存 Case" })).toBeDisabled();
 
     await userEvent.click(screen.getByRole("button", { name: "放弃 Draft，采用服务端版本" }));
@@ -662,7 +678,7 @@ describe("测试集详情、Case 列表与编辑", () => {
       expect(screen.queryByRole("heading", { name: "发现并发修改" })).not.toBeInTheDocument()
     );
     expect(fullJson).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "结构化" })).toHaveAttribute("data-state", "active");
+    expect(screen.getByRole("tab", { name: "表单" })).toHaveAttribute("data-state", "active");
     expect(screen.getByRole("textbox", { name: "Case 描述" })).toHaveValue("远端修改");
     expect(screen.getByRole("textbox", { name: "Case 描述" })).toBeEnabled();
   });
@@ -733,7 +749,7 @@ describe("测试集详情、Case 列表与编辑", () => {
       await userEvent.click(await screen.findByRole("button", { name: "编辑 case-001" }));
       let draftControl: HTMLElement;
       if (editorMode === "JSON") {
-        await userEvent.click(await screen.findByRole("tab", { name: "完整 JSON" }));
+        await userEvent.click(await screen.findByRole("tab", { name: "高级 JSON" }));
         const fullJson = screen.getByRole("textbox", { name: "完整 Case JSON" });
         fireEvent.change(fullJson, {
           target: {
@@ -758,7 +774,7 @@ describe("测试集详情、Case 列表与编辑", () => {
         expect(fullJson).toHaveValue(
           JSON.stringify({ ...definition, description: "远端删除前的本地 Draft" }, null, 2)
         );
-        expect(screen.getByRole("tab", { name: "完整 JSON" })).toHaveAttribute(
+        expect(screen.getByRole("tab", { name: "高级 JSON" })).toHaveAttribute(
           "data-state",
           "active"
         );
@@ -769,8 +785,8 @@ describe("测试集详情、Case 列表与编辑", () => {
         );
         expect(screen.getByRole("textbox", { name: "Case 描述" })).toBeDisabled();
       }
-      expect(screen.getByRole("tab", { name: "结构化" })).toBeDisabled();
-      expect(screen.getByRole("tab", { name: "完整 JSON" })).toBeDisabled();
+      expect(screen.getByRole("tab", { name: "表单" })).toBeDisabled();
+      expect(screen.getByRole("tab", { name: "高级 JSON" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "保存 Case" })).toBeDisabled();
       expect(
         screen.queryByRole("button", { name: "使用最新 Revision 重试" })

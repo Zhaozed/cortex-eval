@@ -201,7 +201,11 @@ describe("SQLite 初始化与 Migration", () => {
       expect.arrayContaining(["analysis_result_hash", "analysis_prompt_id", "analyzer_config_id"])
     );
     expect(runColumns.map((item) => item.name)).toContain("analysis_import_identity_json");
-    expect(migrations.at(-1)?.name).toBe("005_case_analysis_versions");
+    expect(migrations.map((item) => item.name)).toContain("005_case_analysis_versions");
+    expect(migrations.at(-1)?.name).toBe("006_run_metadata");
+    expect(runColumns.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["run_name", "run_description"])
+    );
   });
 
   it("从不可变 P5 002 Schema 升级时只新增三类 Evaluation 计数", async () => {

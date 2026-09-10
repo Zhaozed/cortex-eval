@@ -34,6 +34,8 @@ export interface EndpointFormValues {
   readonly timeoutMs: number;
   /** Default maximum in-flight requests. */
   readonly defaultConcurrency: number;
+  readonly agentBranch?: string;
+  readonly agentCommit?: string;
 }
 
 /** LLM structured form values for both provider branches. */
@@ -185,7 +187,12 @@ function endpointValidationFailure(
   const failure = validationFailure(error);
   return {
     ...failure,
-    field: endpointApiPathToFormField(failure.field, headers) ?? "urlTemplate"
+    field:
+      failure.field === "agentRevision.branch"
+        ? "agentBranch"
+        : failure.field.startsWith("agentRevision")
+          ? "agentCommit"
+          : (endpointApiPathToFormField(failure.field, headers) ?? "urlTemplate")
   };
 }
 
@@ -222,7 +229,15 @@ export function endpointFormToDefinition(
     headers,
     bodySelector: form.bodySelector,
     timeoutMs: form.timeoutMs,
-    defaultConcurrency: form.defaultConcurrency
+    defaultConcurrency: form.defaultConcurrency,
+    ...(form.agentBranch?.trim() || form.agentCommit?.trim()
+      ? {
+          agentRevision: {
+            branch: form.agentBranch?.trim() ?? "",
+            commit: form.agentCommit?.trim() ?? ""
+          }
+        }
+      : {})
   });
   return parsed.success
     ? { ok: true, definition: parsed.data }
@@ -304,7 +319,9 @@ export function endpointDefinitionToForm(
       })),
     bodySelector: definition.bodySelector,
     timeoutMs: definition.timeoutMs,
-    defaultConcurrency: definition.defaultConcurrency
+    defaultConcurrency: definition.defaultConcurrency,
+    agentBranch: definition.agentRevision?.branch ?? "",
+    agentCommit: definition.agentRevision?.commit ?? ""
   };
 }
 

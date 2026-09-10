@@ -57,6 +57,8 @@ function recoveryStopped(
 
 /** Test Suite deletion control properties. */
 export interface TestSuiteDeleteControlProps {
+  /** Compact trigger for registry rows. */
+  readonly compact?: boolean;
   /** Boundary-validating resource API. */
   readonly api: ResourceApi;
   /** Shared TanStack Query cache. */
@@ -77,6 +79,7 @@ export interface TestSuiteDeleteControlProps {
 
 /** Impact-aware Test Suite deletion with repeatable Revision recovery. */
 export function TestSuiteDeleteControl({
+  compact = false,
   api,
   queryClient,
   suiteId,
@@ -206,11 +209,13 @@ export function TestSuiteDeleteControl({
       <Button
         type="button"
         variant="ghost"
+        size={compact ? "sm" : "default"}
+        aria-label={compact ? `${message("testSuites.delete")} · ${suite.name}` : undefined}
         disabled={disabled || preparing || pending || conflict !== null}
         onClick={() => void openDialog()}
       >
         <Trash2 aria-hidden="true" />
-        {message("testSuites.delete")}
+        {compact ? "删除" : message("testSuites.delete")}
       </Button>
       <AlertDialog
         open={open}
@@ -226,6 +231,7 @@ export function TestSuiteDeleteControl({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{message("testSuites.deleteTitle")}</AlertDialogTitle>
+            <p className="suite-delete-name">{confirmation?.suite.name ?? suite.name}</p>
             <AlertDialogDescription>
               {confirmation?.impact.activeRunReference === true
                 ? message("testSuites.activeRunBlocked")

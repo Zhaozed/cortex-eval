@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 
 import { createLocalServerRuntime } from "../../local-server/src/local-server-runtime.ts";
 
+const port = Number(process.env.CORTEX_EVAL_E2E_PORT ?? "4310");
+if (!Number.isSafeInteger(port) || port < 1024 || port > 65535) throw new Error("E2E_PORT_INVALID");
 const projectRoot = await mkdtemp(join(tmpdir(), "cortex-eval-web-e2e-"));
 const successfulEndpointValidator = {
   validate: (): Promise<{ readonly ok: true }> => Promise.resolve({ ok: true })
@@ -14,6 +16,7 @@ const successfulLlmValidator = {
 };
 const runtime = await createLocalServerRuntime({
   projectRoot,
+  allowedHosts: [`127.0.0.1:${port}`],
   staticRoot: fileURLToPath(new URL("../dist", import.meta.url)),
   endpointValidator: successfulEndpointValidator,
   llmValidator: successfulLlmValidator,
@@ -52,4 +55,7 @@ async function stop(): Promise<void> {
 
 process.once("SIGINT", () => void stop());
 process.once("SIGTERM", () => void stop());
-await runtime.listen();
+await runtime.server.listen({
+  host: "127.0.0.1",
+  port
+});

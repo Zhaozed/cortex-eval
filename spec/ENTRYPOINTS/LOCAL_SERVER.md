@@ -68,3 +68,31 @@ Route 不持有业务事务。Application 决定事务边界和幂等语义。Ca
 ## 相关测试
 
 当前测试覆盖生命周期、真实 SQLite 装配、Host、Origin、Request ID、分页/过滤、错误映射、脱敏、取消、OpenAPI 精确路径与所有操作 403、生产静态资源、CSP、未注册未来 Route、流式大小/RSS 门禁、临时资源清理、Work Package/Canonical Export，以及 Run 预检、创建、REST→Evaluation→Report、Artifact、逐 Case 结果、Report 查询/导出、Retry/Force、平台 Analysis、Proposal 决策、完整离线 Report/Analysis 导入、SSE 和启动恢复。
+
+## A2UI 历史归档
+
+固定回放停止导入与审批，保留历史只读证据；唯一语义见 [A2UI_REVIEWS](../WEB/A2UI_REVIEWS.md)。不改变标准自动 Report、Artifact Manifest 或 Canonical Export。
+
+## 静态重建可用性
+
+静态资源按请求查找，不在进程启动时枚举 Vite 哈希文件。重建后新入口引用的新资源无需重启路由注册即可访问。SPA 仅注册已支持页面；未知页面、缺失资源、未知 API 与路径越界维持 404，不回退 HTML。验收入口为 [静态路由测试](../../apps/local-server/test/web-static-routes.test.ts)。
+
+## Run Case 人工审核
+
+`GET /api/v1/runs/:runId/reviews`、`GET/POST /api/v1/runs/:runId/cases/:caseKey/review` 提供独立人工审核记录。`GET .../preview` 返回真实保存的 A2UI 数据、证据哈希和只读渲染器版本/地址。写入要求 evidenceHash 与 expectedRevision；视觉通过另要求当前 rendererVersion。沿用 Host/Origin 防护，保存到 `.cortex-eval/run-case-reviews/`，不覆盖自动 Report。旧截图上传、自动采集、图片读取接口已移除。完整语义见 [Web Runs](../WEB/RUNS.md)。
+
+
+### Run 展示元数据
+
+`POST /api/v1/runs` 和 `POST /api/v1/runs/:runId/reruns` 可传 `name`（去除首尾空白后 1～120 字符）、`description`（最多 2000 字符，可传空串清空）。不传名称时新建采用测试集名称，重跑继承源 Run 名称；描述未传时重跑继承源描述。列表和详情返回保存的元数据，旧 Run 为 null。此信息不改变冻结配置和执行结果，也不触发业务执行。
+
+### A2UI 动态预览
+
+- CLI 启动时读取未入库的 `.cortex-eval/server.env`，已有 shell 环境变量优先；本地资源目录可以保存在这里，避免重启遗失配置。文件缺失可忽略，其他读取错误不得静默忽略。
+- 资源由 Run 冻结的 `endpoint.definition.urlTemplate` 决定。`CORTEX_A2UI_STATIC_ROOT` 只适用于 loopback endpoint；无目录时请求本地 endpoint 静态资源。远程 endpoint 从同环境 `/web_ui/static/` 获取资源，保留 endpoint 的 `/web_ui/` 前缀；不转发 uid、查询参数或 API 凭证，不跨环境回退。
+- 远程获取仅允许资源根内 GET，版本重定向也不能离开同源静态前缀；完整收集 runtime 模块、样式、WASM、catalog 图标/动画/语言资源。单资源 16 MiB、单快照 128 MiB、1024 文件、120 秒总期限；会话最多 32 快照、512 MiB，超限明确失败。
+- `CORTEX_A2UI_STATIC_ROOT` 配置现有生产 Web 静态目录。只读渲染服务与平台由同一进程拥有，监听独立随机 loopback 端口，关闭平台时一并关闭；不启动后台浏览器、不写 PNG。
+- `GET /api/v1/runs/:runId/cases/:caseKey/preview` 仅返回该次保存的真实出站卡片及 rendererVersion、rendererSource、隔离 previewPath。没有出站数据或缺资源时明确返回错误说明，不调用 Agent、Judge 或业务工具。
+- 主平台 CSP 只许可当前渲染资源源。只读源仅 GET `/renderers/:id/preview` 与该快照的 `/renderers/:id/static/` 资源可用，无业务 API；禁止未知 Host、目录穿越、写请求和跨目录符号链接。
+- 独立源 iframe 隔离生产样式与脚本；它自己的 runtime iframe 保持同源以兼容原引擎。父子消息核对 origin/source/token，使用保存数据按顺序呈现最终状态；无真实业务 action 桥。
+- 渲染版本哈希绑定资源源身份、生产资源内容与宿主。按 Run + 来源缓存，不共享不同环境的资源。资源首次复核时加载，非运行开始时归档；服务重启后重新获取。历史 Run 不声称使用当时的渲染版本；使用当前资源复核，版本变化需重新审批。不做 AI 视觉判断。

@@ -1,5 +1,17 @@
 # Web Reports
 
+## 当前页面边界（2026-09-10）
+
+- Run 只保留 `/runs/:id` 一个详情页。`/execution`、`/report`、`/analysis`、`/statistics` 仅作旧链接重定向，不得恢复独立页面或导航入口。
+- 统计、冻结配置、Token 与 Case 列表同页；Case 抽屉只有结果详情和执行链路，A2UI 动态卡片在结果详情内。
+- AI 分析是 Run / Case 抽屉内的显式批量操作；结果留在执行链路，AI 关联证据不等于确认根因，不改评测结论。底层报告、分析与导出 API 保留。
+- 离线导入也进入统一详情，以保存的 Report 为证据来源；没有平台执行配置时不伪造启动、停止、重跑或耗时。
+- 当前实现：`run-dashboard-page.tsx`、`run-imported-dashboard.tsx`（同页数据来源适配）、`run-analysis-control.tsx`、`run-case-drawer.tsx`。
+- 当前验证：`run-unified-workspace.test.tsx`、路由测试和 `web-static-routes.test.ts`。
+
+以下为历史阶段记录；其中独立 Report / Analysis 工作台、旧执行视图、截图审核列的描述不再代表当前 UI，不能据此重新添加页面。
+
+
 ## 模块职责
 
 该 Feature 展示完整运行报告、整体统计、By Metric、逐 Case 结果、Assertion 差异和冻结上下文。
@@ -60,3 +72,15 @@ Dashboard 的最近报告查询身份同时包含 Run ID、Status、Stage 和 Up
 ## 相关测试
 
 组件测试覆盖统计展示、空分母、过滤、Case 详情、Diff、脱敏上下文、来源、重跑和导出。生产 Playwright 使用真实 Work Package Report、真实导入 API 和 SQLite，验证离线报告进入 Dashboard、Run 列表、Report 和 Test Suite 最近运行。
+
+## A2UI 验收边界
+
+固定回放已停用，仅保留只读历史，其唯一语义见 [A2UI_REVIEWS](../WEB/A2UI_REVIEWS.md)。不改变标准自动 Report、Artifact Manifest 或 Canonical Export。
+
+## 结果优先交互
+
+报告默认显示 Case 结果，统计与冻结上下文收进统计概览，平台来源提供执行与配置入口。REST 和 Evaluation 状态采用闭合选项，不再接收并静默丢弃任意状态文本。筛选仍由服务端执行，不改变原报告统计；无匹配 Case 显示空态。
+
+A2UI 审核列置于 Evaluation 状态之后，未采集并绑定本 Case 实际执行截图时显示非交互的“未采集”，详情解释证据缺口。移除统计中的固定模板附件入口，不提供假绑定或假审核按钮。自动通过率不是人工验收率。
+
+样式要求：长断言、Schema 与资源 ID 在详情抽屉内换行，不撑开网格、不隐藏证据；宽表局部横向滚动；筛选器、分页按钮和状态标记保持可读间距。

@@ -3,6 +3,7 @@ import {
   CaseDetailV1Schema,
   CaseExportV1Schema,
   CaseImportSuccessV1Schema,
+  CaseImportPreviewV1Schema,
   CaseMutationV1Schema,
   CasePageV1Schema,
   ConfigurationPageV1Schema,
@@ -60,6 +61,7 @@ type CreateCaseRequest = z.infer<typeof CreateCaseRequestV1Schema>;
 /** Contracts-valid payload for replacing one Case. */
 type UpdateCaseRequest = z.infer<typeof UpdateCaseRequestV1Schema>;
 type CaseMutation = z.infer<typeof CaseMutationV1Schema>;
+export type CaseImportPreview = z.infer<typeof CaseImportPreviewV1Schema>;
 type CaseImportSuccess = z.infer<typeof CaseImportSuccessV1Schema>;
 type CaseExport = z.infer<typeof CaseExportV1Schema>;
 type ConfigurationPage = z.infer<typeof ConfigurationPageV1Schema>;
@@ -162,6 +164,13 @@ export interface ResourceApi {
     expectedCaseRevision: number,
     signal: AbortSignal
   ) => Promise<void>;
+  /** Validate and compare the same upload without changing the suite. */
+  readonly previewCases: (
+    suiteId: string,
+    expectedRevision: number,
+    file: File,
+    signal: AbortSignal
+  ) => Promise<CaseImportPreview>;
   /** Atomically import one bounded Case array. */
   readonly importCases: (
     suiteId: string,
@@ -475,6 +484,22 @@ export function createResourceApi(fetcher: typeof fetch = fetch): ResourceApi {
         }),
         { method: "DELETE", signal },
         fetcher
+      );
+    },
+    previewCases(suiteId, expectedRevision, file, signal): Promise<CaseImportPreview> {
+      const body = new FormData();
+      body.append("file", file);
+      return apiRequestJson(
+        withSearch(`/api/v1/test-suites/${segment(suiteId)}/import`, {
+          expectedRevision,
+          dryRun: "true"
+        }),
+        CaseImportPreviewV1Schema,
+        { method: "POST", body, signal },
+        fetcher,
+        (result) =>
+          matchesTestSuiteIdentity(result.suite, suiteId) &&
+          result.suite.revision === expectedRevision
       );
     },
     // Atomically import one JSON Case array through multipart.

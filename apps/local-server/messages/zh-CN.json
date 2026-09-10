@@ -9,6 +9,7 @@
   "RUN_ARTIFACT_CLEANUP_FAILED": "运行产物清理失败",
   "RUN_INPUT_FROZEN": "运行输入已冻结",
   "RUN_REST_STARTED": "REST 阶段已开始",
+  "RUN_CAPTURE_SAVE_FAILED": "A2UI截图证据保存失败",
   "RUN_REST_COMPLETED": "REST 阶段已完成",
   "RUN_EVALUATION_STARTED": "评估阶段已开始",
   "RUN_EVALUATION_COMPLETED": "评估阶段已完成",

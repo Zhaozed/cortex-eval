@@ -1,5 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
+const port = Number(process.env.CORTEX_EVAL_E2E_PORT ?? "4310");
+const baseURL = `http://127.0.0.1:${port}`;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -8,7 +11,7 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: [["list"]],
   use: {
-    baseURL: "http://127.0.0.1:4310",
+    baseURL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure"
@@ -28,6 +31,11 @@ export default defineConfig({
       }
     },
     {
+      name: "desktop-1024-case-authoring",
+      grep: /资源 Dashboard/,
+      use: { viewport: { width: 1024, height: 900 } }
+    },
+    {
       name: "compact-900",
       grep: /@compact/,
       use: { viewport: { width: 900, height: 800 } }
@@ -36,7 +44,7 @@ export default defineConfig({
   webServer: {
     command:
       "pnpm --dir ../.. web:build && pnpm --dir ../.. exec tsx apps/web/test-support/e2e-server.ts",
-    url: "http://127.0.0.1:4310/",
+    url: `${baseURL}/`,
     reuseExistingServer: false,
     timeout: 120_000
   }

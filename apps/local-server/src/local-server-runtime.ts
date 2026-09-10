@@ -1,3 +1,7 @@
+import { RunLivePreviewService } from "./run-live-preview-service.ts";
+import { livePreviewContext } from "./run-live-preview-context.ts";
+import { RunReviewStore } from "./run-review-store.ts";
+import { A2uiReviewStore } from "./a2ui-review-store.ts";
 import { CaseDefinitionWriter } from "@cortex-eval/application/src/features/test-suites/case-definition-writer.ts";
 import { WorkPackageExportSnapshotService } from "@cortex-eval/application/src/features/work-packages/work-package-export-snapshot-service.ts";
 import { CaseExportService } from "@cortex-eval/application/src/features/test-suites/case-export-service.ts";
@@ -79,6 +83,8 @@ export interface LocalServerRuntimeOptions {
   readonly developmentSeed?: boolean | undefined;
   /** Optional built Web root used by the production runtime and E2E. */
   readonly staticRoot?: string | undefined;
+  /** Optional test-owned Host allowlist; production keeps the fixed loopback defaults. */
+  readonly allowedHosts?: readonly string[] | undefined;
   /** Optional test-owned Analyzer boundary; production defaults to the official SDK adapter. */
   readonly analysisModelClient?: AnalysisModelClient | undefined;
 }
@@ -103,7 +109,8 @@ export class LocalServerRuntime {
     businessLogger: ResilientBusinessLogger,
     runs: PlatformRunService,
     evaluations: PlatformEvaluationService,
-    reports: PlatformReportService
+    reports: PlatformReportService,
+    readonly liveRenderer: RunLivePreviewService
   ) {
     this.server = server;
     this.databasePath = storage.databasePath;
@@ -124,6 +131,7 @@ export class LocalServerRuntime {
     if (this.#closed) return;
     this.#closed = true;
     await this.server.close();
+    await this.liveRenderer.close();
     await this.#runs.shutdown();
     await this.#evaluations.shutdown();
     await this.#reports.shutdown();
@@ -166,7 +174,10 @@ export async function createLocalServerRuntime(
 ): Promise<LocalServerRuntime> {
   const businessLogger = options.businessLogger ?? createDefaultBusinessLogger(options.projectRoot);
   const storage = await initializeSqliteStorage({ projectRoot: options.projectRoot });
+  const liveRenderer = new RunLivePreviewService(process.env.CORTEX_A2UI_STATIC_ROOT);
   try {
+    // Bind the isolated origin before serving HTML (CSP); load endpoint resources only on preview.
+    await liveRenderer.start();
     const transactionManager = storage.createTransactionManager();
     const processLiveness = new PsProcessLiveness();
     const stagingFactory = storage.createCaseImportStagingFactory((event) =>
@@ -287,6 +298,24 @@ export async function createLocalServerRuntime(
       eventSink: lifecycleEventSink,
       pipelineReportStarter: reports
     });
+    const reviews = new RunReviewStore(
+      join(options.projectRoot, ".cortex-eval", "run-case-reviews"),
+      async (runId, key) =>
+        (await runTransactionManager.execute((tx) => tx.runs.getRestResult(runId, key)))
+          ?.resultHash ?? null,
+      async (runId, key) => {
+        const result = await runTransactionManager.execute((tx) =>
+          tx.runs.getRestResult(runId, key)
+        );
+        if (!result) throw new Error("REVIEW_NOT_FOUND");
+        const run = await runTransactionManager.execute((tx) =>
+          tx.runs.getPlatformRunDetail(runId)
+        );
+        return (
+          await livePreviewContext(result, liveRenderer, run?.endpoint.definition.urlTemplate)
+        ).live;
+      }
+    );
     const runs = new PlatformRunService({
       transactionManager: runTransactionManager,
       restExecutor: new FetchRestExecutor({
@@ -387,6 +416,23 @@ export async function createLocalServerRuntime(
       acceptAnalysisProposal: analysisDecisions.acceptProposal.bind(analysisDecisions)
     };
     const server = buildLocalServer({
+      allowedHosts: options.allowedHosts,
+      runReviewStore: reviews,
+      runPreviewOrigin: () => liveRenderer.origin,
+      runLivePreview: async (runId, key) => {
+        const result = await runs.getRestResult(runId, key);
+        if (!result) throw new Error("REVIEW_NOT_FOUND");
+        const run = await runTransactionManager.execute((tx) =>
+          tx.runs.getPlatformRunDetail(runId)
+        );
+        return (
+          await livePreviewContext(result, liveRenderer, run?.endpoint.definition.urlTemplate)
+        ).preview;
+      },
+      a2uiReviewStore: new A2uiReviewStore(
+        join(options.projectRoot, ".cortex-eval", "a2ui-reviews"),
+        async (id) => (await runs.get(id)) !== null
+      ),
       requestIdGenerator: idGenerator,
       resourceHandlers,
       runHandlers: createApplicationRunHandlers(runApplication),
@@ -410,8 +456,17 @@ export async function createLocalServerRuntime(
       businessLogger,
       ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot })
     });
-    return new LocalServerRuntime(server, storage, businessLogger, runs, evaluations, reports);
+    return new LocalServerRuntime(
+      server,
+      storage,
+      businessLogger,
+      runs,
+      evaluations,
+      reports,
+      liveRenderer
+    );
   } catch (error) {
+    await liveRenderer.close();
     await storage.close();
     throw error;
   }

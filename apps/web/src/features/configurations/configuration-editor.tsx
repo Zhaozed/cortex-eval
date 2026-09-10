@@ -414,6 +414,40 @@ function EndpointEditor(props: ConfigurationEditorProps): ReactElement {
               <FormLabel>{message("endpoint.method")}</FormLabel>
               <Input value="POST" readOnly />
             </FormItem>
+            <fieldset className="form-grid">
+              <legend>Agent 部署版本（可选）</legend>
+              <p>填写此 Endpoint 实际部署的分支和 Commit；仅对后续 Run 生效，不回填历史。</p>
+              <FormField
+                control={form.control}
+                name="agentBranch"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Agent 分支</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ""} placeholder="实际部署分支" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="agentCommit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Agent Commit</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ""}
+                        placeholder="7–40 位 Commit SHA"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </fieldset>
             <FormField
               control={form.control}
               name="bodySelector"

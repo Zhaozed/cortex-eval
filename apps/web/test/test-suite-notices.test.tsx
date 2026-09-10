@@ -1,3 +1,4 @@
+import { createResourceApi } from "../src/lib/resource-api.ts";
 // @vitest-environment jsdom
 
 import { render, screen } from "@testing-library/react";
@@ -33,7 +34,7 @@ describe("测试集错误与冲突提示", () => {
     );
 
     expect(
-      screen.getByText("第 1 项（Case ID：case-001）无效（CASE_ID_DUPLICATE）。")
+      screen.getByText("第 1 项 · case-001：Case 编号重复，请修改后重新预检。")
     ).toBeInTheDocument();
   });
 
@@ -60,6 +61,10 @@ describe("测试集错误与冲突提示", () => {
   it("Case 导入和删除请求在途时取消按钮与生命周期门禁一致", () => {
     const importView = render(
       <CaseImportDialog
+        api={{ ...createResourceApi(), previewCases: () => new Promise(() => {}) }}
+        suiteId="suite-1"
+        revision={0}
+        onRefreshSuite={vi.fn()}
         file={new File(["[]"], "cases.json", { type: "application/json" })}
         pending
         caseCount={1}

@@ -1,10 +1,10 @@
 /** P5 routes registered only after their resource or REST Run flows are closed. */
 export type WebRoute =
+  | { readonly kind: "A2UI_REVIEW"; readonly reviewId: string | null }
+  | { readonly kind: "CONFIGURATION_HOME" }
   | { readonly kind: "DASHBOARD" }
   | { readonly kind: "RUN_LIST" }
   | { readonly kind: "RUN_DETAIL"; readonly runId: string }
-  | { readonly kind: "RUN_REPORT"; readonly runId: string }
-  | { readonly kind: "RUN_ANALYSIS"; readonly runId: string }
   | { readonly kind: "TEST_SUITE_LIST" }
   | { readonly kind: "TEST_SUITE_DETAIL"; readonly suiteId: string }
   | { readonly kind: "ENDPOINT_CONFIG_LIST" }
@@ -46,21 +46,24 @@ function decodePathComponent(value: string): string | null {
   }
 }
 
+/** Legacy bookmarks resolve to the one Run workspace, not duplicate pages. */
+export function canonicalRunPath(pathname: string): string {
+  return pathname.replace(/^(\/runs\/[^/]+)\/(?:execution|report|analysis|statistics)\/?$/, "$1");
+}
+
 /** Resolve one browser pathname without registering future Feature routes. */
 export function resolveWebRoute(pathname: string): WebRoute | null {
-  const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+  const normalized = canonicalRunPath(pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname);
+  if (normalized === "/configurations") return { kind: "CONFIGURATION_HOME" };
+  if (normalized === "/a2ui-reviews" || normalized === "/runs/templates")
+    return { kind: "A2UI_REVIEW", reviewId: null };
+  const reviewMatch = /^\/(?:a2ui-reviews|runs\/templates)\/([^/]+)$/.exec(normalized);
+  if (reviewMatch?.[1]) {
+    const reviewId = decodePathComponent(reviewMatch[1]);
+    return reviewId === null ? null : { kind: "A2UI_REVIEW", reviewId };
+  }
   if (normalized === "/") return { kind: "DASHBOARD" };
   if (normalized === "/runs") return { kind: "RUN_LIST" };
-  const reportMatch = /^\/runs\/([^/]+)\/report$/.exec(normalized);
-  if (reportMatch?.[1] !== undefined) {
-    const runId = decodePathComponent(reportMatch[1]);
-    return runId === null ? null : { kind: "RUN_REPORT", runId };
-  }
-  const analysisMatch = /^\/runs\/([^/]+)\/analysis$/.exec(normalized);
-  if (analysisMatch?.[1] !== undefined) {
-    const runId = decodePathComponent(analysisMatch[1]);
-    return runId === null ? null : { kind: "RUN_ANALYSIS", runId };
-  }
   const runMatch = /^\/runs\/([^/]+)$/.exec(normalized);
   if (runMatch?.[1] !== undefined) {
     const runId = decodePathComponent(runMatch[1]);

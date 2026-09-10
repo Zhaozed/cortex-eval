@@ -6,14 +6,7 @@ import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
 import { Button } from "../../components/ui/button.tsx";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel
-} from "../../components/ui/form.tsx";
+import { Form, FormControl, FormField, FormItem, FormLabel } from "../../components/ui/form.tsx";
 import { Input } from "../../components/ui/input.tsx";
 import {
   Table,
@@ -29,6 +22,8 @@ import {
   type CaseListUrlState
 } from "../../lib/web-route.ts";
 import { formatMessage, message } from "../../messages/messages.ts";
+import { CaseMultiSelect } from "./case-choice-fields.tsx";
+import { EMPTY_CASE_FILTER_OPTIONS, type CaseFilterOptions } from "./case-filter-options.ts";
 import { CaseListTags } from "./case-list-tags.tsx";
 
 type CaseSummary = z.infer<typeof CaseSummaryV1Schema>;
@@ -41,19 +36,20 @@ interface CaseFilterForm {
   readonly caseKey: string;
   /** Description literal substring. */
   readonly description: string;
-  /** Comma-separated business modules. */
-  readonly businessModules: string;
-  /** Comma-separated scenario tags. */
-  readonly scenarioTags: string;
-  /** Comma-separated Assertion types. */
-  readonly assertionTypes: string;
-  /** Comma-separated Metrics. */
-  readonly metrics: string;
+  /** Explicitly selected business modules. */
+  readonly businessModules: string[];
+  /** Explicitly selected scenario tags. */
+  readonly scenarioTags: string[];
+  /** Explicitly selected Assertion types. */
+  readonly assertionTypes: string[];
+  /** Explicitly selected Metrics. */
+  readonly metrics: string[];
 }
 
 /** Current Case list panel properties. */
 export interface TestSuiteCaseListPanelProps {
   /** URL-restorable filters and cursor history. */
+  readonly filterOptions?: CaseFilterOptions;
   readonly listState: CaseListUrlState;
   /** Current boundary-validated server page. */
   readonly items: CaseSummary[];
@@ -71,23 +67,15 @@ export interface TestSuiteCaseListPanelProps {
   readonly onDelete: (resource: CaseSummary) => void;
 }
 
-// Parse comma-separated exact values without retaining blanks.
-function commaValues(value: string): readonly string[] {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-}
-
 // Derive filter controls from refresh-restored URL state.
 function filterValues(state: CaseListUrlState): CaseFilterForm {
   return {
     caseKey: state.caseKey,
     description: state.description,
-    businessModules: state.businessModules.join(","),
-    scenarioTags: state.scenarioTags.join(","),
-    assertionTypes: state.assertionTypes.join(","),
-    metrics: state.metrics.join(",")
+    businessModules: [...state.businessModules],
+    scenarioTags: [...state.scenarioTags],
+    assertionTypes: [...state.assertionTypes],
+    metrics: [...state.metrics]
   };
 }
 
@@ -104,6 +92,7 @@ function writeCaseListUrl(state: CaseListUrlState): void {
 /** Filter, render and paginate one current server-owned Case page. */
 export function TestSuiteCaseListPanel({
   listState,
+  filterOptions = EMPTY_CASE_FILTER_OPTIONS,
   items,
   nextCursor,
   mutationDisabled,
@@ -127,9 +116,26 @@ export function TestSuiteCaseListPanel({
       {
         accessorKey: "metrics",
         header: message("caseList.metrics"),
-        cell: ({ row }): ReactElement => <CaseListTags values={row.original.metrics} />
+        cell: ({ row }): ReactElement => (
+          <CaseListTags values={row.original.metrics} previewCount={2} />
+        )
       },
-      { accessorKey: "updatedAt", header: message("common.updatedAt") },
+      {
+        accessorKey: "updatedAt",
+        header: message("common.updatedAt"),
+        cell: ({ row }): ReactElement => (
+          <time dateTime={row.original.updatedAt} title={row.original.updatedAt}>
+            {new Intl.DateTimeFormat("zh-CN", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false
+            }).format(new Date(row.original.updatedAt))}
+          </time>
+        )
+      },
       {
         id: "actions",
         header: message("common.actions"),
@@ -184,10 +190,10 @@ export function TestSuiteCaseListPanel({
     const next: CaseListUrlState = {
       caseKey: values.caseKey,
       description: values.description,
-      businessModules: commaValues(values.businessModules),
-      scenarioTags: commaValues(values.scenarioTags),
-      assertionTypes: commaValues(values.assertionTypes),
-      metrics: commaValues(values.metrics),
+      businessModules: values.businessModules,
+      scenarioTags: values.scenarioTags,
+      assertionTypes: values.assertionTypes,
+      metrics: values.metrics,
       limit: listState.limit,
       cursor: null,
       before: []
@@ -243,10 +249,12 @@ export function TestSuiteCaseListPanel({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{message(label)}</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormDescription>{message("caseList.multiValueHint")}</FormDescription>
+                    <CaseMultiSelect
+                      label={message(label)}
+                      options={filterOptions[name]}
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
                   </FormItem>
                 )}
               />
@@ -283,12 +291,12 @@ export function TestSuiteCaseListPanel({
         {items.length === 0 ? (
           <p className="empty-state">{message("caseList.empty")}</p>
         ) : (
-          <Table>
+          <Table className="suite-case-table">
             <TableHeader>
               {table.getHeaderGroups().map((group) => (
                 <TableRow key={group.id}>
                   {group.headers.map((header) => (
-                    <TableHead key={header.id}>
+                    <TableHead key={header.id} data-column={header.column.id}>
                       {header.isPlaceholder
                         ? null
                         : flexRender(header.column.columnDef.header, header.getContext())}
@@ -301,7 +309,7 @@ export function TestSuiteCaseListPanel({
               {table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} data-column={cell.column.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

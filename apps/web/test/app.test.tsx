@@ -72,14 +72,9 @@ vi.mock("../src/features/configurations/configuration-list-page.tsx", () => ({
 vi.mock("../src/features/runs/run-list-page.tsx", () => ({
   RunListPage: (): ReactElement => <h1>Run List Mock</h1>
 }));
-vi.mock("../src/features/runs/run-detail-page.tsx", () => ({
-  RunDetailPage: ({ runId }: { readonly runId: string }): ReactElement => (
-    <h1>Run Detail Mock {runId}</h1>
-  )
-}));
-vi.mock("../src/features/analysis/analysis-page.tsx", () => ({
-  AnalysisPage: ({ runId }: { readonly runId: string }): ReactElement => (
-    <h1>Analysis Mock {runId}</h1>
+vi.mock("../src/features/workspace/run-workspace-page.tsx", () => ({
+  RunWorkspacePage: ({ runId }: { readonly runId: string }): ReactElement => (
+    <h1>Run Workspace Mock {runId}</h1>
   )
 }));
 
@@ -96,8 +91,11 @@ describe("P5 根路由", () => {
   it.each([
     ["/", "Dashboard Mock"],
     ["/runs", "Run List Mock"],
-    [`/runs/${suiteId}`, `Run Detail Mock ${suiteId}`],
-    [`/runs/${suiteId}/analysis`, `Analysis Mock ${suiteId}`],
+    [`/runs/${suiteId}`, `Run Workspace Mock ${suiteId}`],
+    [`/runs/${suiteId}/report`, `Run Workspace Mock ${suiteId}`],
+    [`/runs/${suiteId}/statistics`, `Run Workspace Mock ${suiteId}`],
+    [`/runs/${suiteId}/execution`, `Run Workspace Mock ${suiteId}`],
+    [`/runs/${suiteId}/analysis`, `Run Workspace Mock ${suiteId}`],
     ["/test-suites", "Suite List Mock"],
     [`/test-suites/${suiteId}`, `Suite Detail Mock ${suiteId}`],
     ["/endpoint-configs", "Config Mock ENDPOINT"],
@@ -109,6 +107,9 @@ describe("P5 根路由", () => {
     render(<App />);
 
     expect(await screen.findByText(expected)).toBeInTheDocument();
+    if (/\/(execution|report|analysis|statistics)$/.test(path)) {
+      expect(window.location.pathname).toBe(`/runs/${suiteId}`);
+    }
   });
 
   it("缺少 Navigation API 时停止挂载资源能力并显示明确错误", async () => {

@@ -17,11 +17,11 @@ describe("P5 应用外壳", () => {
     expect(screen.getByRole("navigation", { name: "主导航" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "仪表盘" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "测试集" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Endpoint 配置" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "LLM 配置" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Rubric 提示词" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "分析提示词配置" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "运行" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "评测运行" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "配置中心" })).not.toBeInTheDocument();
+    for (const name of ["Endpoint 配置", "LLM 配置", "Rubric 提示词", "分析提示词配置"]) {
+      expect(screen.getAllByRole("link", { name })).toHaveLength(1);
+    }
     expect(screen.queryByRole("link", { name: "报告" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "失败分析" })).not.toBeInTheDocument();
     expect(
@@ -40,5 +40,38 @@ describe("P5 应用外壳", () => {
     await userEvent.click(screen.getByRole("link", { name: "测试集" }));
 
     expect(onNavigate).toHaveBeenCalledWith("/test-suites");
+  });
+  it.each([
+    ["/endpoint-configs", "Endpoint 配置"],
+    ["/llm-configs", "LLM 配置"],
+    ["/rubric-prompts", "Rubric 提示词"],
+    ["/analysis-prompts", "分析提示词配置"],
+    ["/runs/run-1", "评测运行"],
+    ["/test-suites/suite-1", "测试集"]
+  ])("%s 只有当前入口高亮，且没有重复配置导航", (path, label) => {
+    render(
+      <AppShell activePath={path} onNavigate={vi.fn()}>
+        <h1>内容</h1>
+      </AppShell>
+    );
+    expect(screen.getAllByRole("navigation")).toHaveLength(1);
+    expect(screen.getAllByRole("link", { current: "page" })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: label })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("配置入口直接导航，保留修饰键的新标签行为", async () => {
+    const onNavigate = vi.fn();
+    render(
+      <AppShell activePath="/" onNavigate={onNavigate}>
+        <h1>内容</h1>
+      </AppShell>
+    );
+    await userEvent.click(screen.getByRole("link", { name: "Endpoint 配置" }));
+    expect(onNavigate).toHaveBeenCalledWith("/endpoint-configs");
+    onNavigate.mockClear();
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true, ctrlKey: true });
+    screen.getByRole("link", { name: "LLM 配置" }).dispatchEvent(event);
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
   });
 });

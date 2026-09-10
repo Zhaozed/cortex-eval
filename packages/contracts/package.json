@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "zod": "4.4.3"
+    "zod": "4.4.3",
+    "acorn": "8.17.0"
   }
 }

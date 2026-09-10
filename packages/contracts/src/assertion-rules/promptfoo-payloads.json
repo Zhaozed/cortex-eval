@@ -1,0 +1,705 @@
+{
+  "agent-rubric": {
+    "acceptedKinds": ["NONE", "STRING", "OBJECT", "STRING_LIST", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "answer-relevance": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "bleu": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "classifier": {
+    "acceptedKinds": ["NONE", "STRING"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "contains": {
+    "acceptedKinds": ["STRING", "NUMBER"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "contains-all": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "contains-any": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "contains-html": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "contains-json": {
+    "acceptedKinds": ["NONE", "STRING", "OBJECT"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "contains-sql": {
+    "acceptedKinds": ["NONE", "OBJECT", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "contains-xml": {
+    "acceptedKinds": ["NONE", "STRING", "STRING_LIST", "OBJECT", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "context-faithfulness": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "context-recall": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "context-relevance": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "conversation-relevance": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "cost": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": true
+  },
+  "equals": {
+    "acceptedKinds": [
+      "NONE",
+      "STRING",
+      "NUMBER",
+      "BOOLEAN",
+      "NULL",
+      "OBJECT",
+      "STRING_LIST",
+      "ARRAY"
+    ],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "factuality": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "finish-reason": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "g-eval": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "gleu": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "guardrails": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "icontains": {
+    "acceptedKinds": ["STRING", "NUMBER"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "icontains-all": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "icontains-any": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "is-html": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "is-json": {
+    "acceptedKinds": ["NONE", "STRING", "OBJECT"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "is-refusal": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "is-sql": {
+    "acceptedKinds": ["NONE", "OBJECT", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "is-valid-function-call": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "is-valid-openai-function-call": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "is-valid-openai-tools-call": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "is-xml": {
+    "acceptedKinds": ["NONE", "STRING", "STRING_LIST", "OBJECT", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "javascript": {
+    "acceptedKinds": ["SCRIPT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "latency": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": true
+  },
+  "levenshtein": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "llm-rubric": {
+    "acceptedKinds": ["NONE", "STRING", "OBJECT", "STRING_LIST", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "pi": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "meteor": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "model-graded-closedqa": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "model-graded-factuality": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "moderation": {
+    "acceptedKinds": ["NONE", "STRING_LIST", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "perplexity": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "perplexity-score": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "python": {
+    "acceptedKinds": ["SCRIPT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "regex": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "rouge-n": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "ruby": {
+    "acceptedKinds": ["SCRIPT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "similar": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "similar:cosine": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "similar:dot": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "similar:euclidean": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "starts-with": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "tool-call-f1": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "skill-used": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "trajectory:goal-success": {
+    "acceptedKinds": ["STRING", "OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "trajectory:tool-args-match": {
+    "acceptedKinds": ["OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "trajectory:step-count": {
+    "acceptedKinds": ["OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "trajectory:tool-sequence": {
+    "acceptedKinds": ["STRING_LIST", "OBJECT", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "trajectory:tool-used": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "trace-error-spans": {
+    "acceptedKinds": ["NONE", "NUMBER", "OBJECT"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "trace-span-count": {
+    "acceptedKinds": ["OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "trace-span-duration": {
+    "acceptedKinds": ["OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "search-rubric": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "NUMBER", "BOOLEAN", "OBJECT", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "webhook": {
+    "acceptedKinds": ["URL"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "word-count": {
+    "acceptedKinds": ["STRING", "NUMBER", "OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-agent-rubric": {
+    "acceptedKinds": ["NONE", "STRING", "OBJECT", "STRING_LIST", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-answer-relevance": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-bleu": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-classifier": {
+    "acceptedKinds": ["NONE", "STRING"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-contains": {
+    "acceptedKinds": ["STRING", "NUMBER"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-contains-all": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-contains-any": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-contains-html": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-contains-json": {
+    "acceptedKinds": ["NONE", "STRING", "OBJECT"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-contains-sql": {
+    "acceptedKinds": ["NONE", "OBJECT", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-contains-xml": {
+    "acceptedKinds": ["NONE", "STRING", "STRING_LIST", "OBJECT", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-context-faithfulness": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-context-recall": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-context-relevance": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-conversation-relevance": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-cost": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": true
+  },
+  "not-equals": {
+    "acceptedKinds": [
+      "NONE",
+      "STRING",
+      "NUMBER",
+      "BOOLEAN",
+      "NULL",
+      "OBJECT",
+      "STRING_LIST",
+      "ARRAY"
+    ],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-factuality": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-finish-reason": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-g-eval": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-gleu": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-guardrails": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-icontains": {
+    "acceptedKinds": ["STRING", "NUMBER"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-icontains-all": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-icontains-any": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-is-html": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-is-json": {
+    "acceptedKinds": ["NONE", "STRING", "OBJECT"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-is-refusal": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-is-sql": {
+    "acceptedKinds": ["NONE", "OBJECT", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-is-valid-function-call": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-is-valid-openai-function-call": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-is-valid-openai-tools-call": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-is-xml": {
+    "acceptedKinds": ["NONE", "STRING", "STRING_LIST", "OBJECT", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-javascript": {
+    "acceptedKinds": ["SCRIPT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-latency": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": true
+  },
+  "not-levenshtein": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-llm-rubric": {
+    "acceptedKinds": ["NONE", "STRING", "OBJECT", "STRING_LIST", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-pi": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-meteor": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-model-graded-closedqa": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-model-graded-factuality": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-moderation": {
+    "acceptedKinds": ["NONE", "STRING_LIST", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-perplexity": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-perplexity-score": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-python": {
+    "acceptedKinds": ["SCRIPT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-regex": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-rouge-n": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-ruby": {
+    "acceptedKinds": ["SCRIPT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-similar": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-similar:cosine": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-similar:dot": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-similar:euclidean": {
+    "acceptedKinds": ["STRING", "STRING_LIST"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-starts-with": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-tool-call-f1": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-skill-used": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-trajectory:goal-success": {
+    "acceptedKinds": ["STRING", "OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-trajectory:tool-args-match": {
+    "acceptedKinds": ["OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-trajectory:step-count": {
+    "acceptedKinds": ["OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-trajectory:tool-sequence": {
+    "acceptedKinds": ["STRING_LIST", "OBJECT", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-trajectory:tool-used": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-trace-error-spans": {
+    "acceptedKinds": ["NONE", "NUMBER", "OBJECT"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "not-trace-span-count": {
+    "acceptedKinds": ["OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-trace-span-duration": {
+    "acceptedKinds": ["OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-search-rubric": {
+    "acceptedKinds": ["STRING", "STRING_LIST", "NUMBER", "BOOLEAN", "OBJECT", "ARRAY"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-webhook": {
+    "acceptedKinds": ["URL"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "not-word-count": {
+    "acceptedKinds": ["STRING", "NUMBER", "OBJECT"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "select-best": {
+    "acceptedKinds": ["STRING"],
+    "valueRequired": true,
+    "thresholdRequired": false
+  },
+  "human": {
+    "acceptedKinds": ["NONE"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "max-score": {
+    "acceptedKinds": ["NONE", "OBJECT", "ARRAY"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "promptfoo:redteam:*": {
+    "acceptedKinds": ["NONE", "PLUGIN_DEFINED"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  },
+  "assert-set": {
+    "acceptedKinds": ["OBJECT"],
+    "valueRequired": false,
+    "thresholdRequired": false
+  }
+}

@@ -1,9 +1,11 @@
+import {
+  ASSERTION_ISSUES,
+  type AssertionIssueCode
+} from "@cortex-eval/contracts/src/assertion-rules/authoring-validation.ts";
+import { CaseAuthoringV1Schema } from "@cortex-eval/contracts/src/case-authoring-contracts.ts";
 import type { Duplex, Readable } from "node:stream";
 
-import {
-  CASE_DEFINITION_V1,
-  CaseDefinitionV1Schema
-} from "@cortex-eval/contracts/src/case-contracts.ts";
+import { CASE_DEFINITION_V1 } from "@cortex-eval/contracts/src/case-contracts.ts";
 import type { CaseDefinition } from "@cortex-eval/domain/src/domain-evaluation.ts";
 import asStream from "stream-chain/asStream.js";
 import { none } from "stream-chain/defs.js";
@@ -37,6 +39,7 @@ export class CaseImportJsonError extends Error {
   public readonly caseKey: string;
   /** Stable invalid field path. */
   public readonly path: string;
+  public readonly issueCode: AssertionIssueCode | null;
 
   /** Create one safe streamed JSON failure. */
   public constructor(
@@ -47,7 +50,8 @@ export class CaseImportJsonError extends Error {
       | "CASE_IMPORT_TOO_LARGE",
     index: number | null = null,
     caseKey = "",
-    path = "file"
+    path = "file",
+    issueCode: AssertionIssueCode | null = null
   ) {
     super(code);
     this.name = "CaseImportJsonError";
@@ -55,6 +59,7 @@ export class CaseImportJsonError extends Error {
     this.index = index;
     this.caseKey = caseKey;
     this.path = path;
+    this.issueCode = issueCode;
   }
 }
 
@@ -125,14 +130,17 @@ export async function* parseCaseDefinitionStream(
       throwIfImportAborted(signal);
       const item = streamItem(dirtyItem);
       if (item === null) throw new CaseImportJsonError("VALIDATION_FAILED");
-      const parsed = CaseDefinitionV1Schema.safeParse(defaultCaseImportContractVersion(item.value));
+      const parsed = CaseAuthoringV1Schema.safeParse(defaultCaseImportContractVersion(item.value));
       if (!parsed.success) {
         const path = parsed.error.issues[0]?.path.join(".") ?? "item";
         throw new CaseImportJsonError(
           "CASE_IMPORT_ITEM_INVALID",
           item.key,
           caseKey(item.value),
-          path
+          path,
+          Object.hasOwn(ASSERTION_ISSUES, parsed.error.issues[0]?.message ?? "")
+            ? (parsed.error.issues[0]?.message as AssertionIssueCode)
+            : null
         );
       }
       yield mapCaseDefinitionFromV1(parsed.data);

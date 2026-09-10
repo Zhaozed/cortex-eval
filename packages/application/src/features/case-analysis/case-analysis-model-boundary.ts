@@ -66,6 +66,7 @@ export interface AnalysisBoundaryCase {
     readonly task_id: string;
     readonly business_module: string;
     readonly scenario_tag: string;
+    readonly a2ui_capture?: boolean | undefined;
   };
   /** Complete ordered Assertions. */
   readonly assert: readonly AnalysisBoundaryAssertion[];
@@ -180,7 +181,10 @@ function caseFromBoundary(value: AnalysisBoundaryCase): CaseDefinition {
       requestId: value.metadata.req_id,
       taskId: value.metadata.task_id,
       businessModule: value.metadata.business_module,
-      scenarioTag: value.metadata.scenario_tag
+      scenarioTag: value.metadata.scenario_tag,
+      ...(value.metadata.a2ui_capture === undefined
+        ? {}
+        : { a2uiCapture: value.metadata.a2ui_capture })
     },
     assertions: value.assert.map(assertionFromBoundary)
   };

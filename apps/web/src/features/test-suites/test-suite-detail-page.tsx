@@ -5,7 +5,7 @@ import type {
 } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Download, FileUp, Plus, RefreshCw, Settings } from "lucide-react";
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import type { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert.tsx";
@@ -45,6 +45,7 @@ import {
   type ResourceApi
 } from "../../lib/resource-api.ts";
 import { parseCaseListSearch } from "../../lib/web-route.ts";
+import { loadCaseFilterOptions, EMPTY_CASE_FILTER_OPTIONS } from "./case-filter-options.ts";
 import { CaseEditor, type CaseEditorExternalSaveError } from "./case-editor.tsx";
 import { CaseCopyDialog } from "./case-copy-dialog.tsx";
 import { CaseDeleteDialog } from "./case-delete-dialog.tsx";
@@ -174,6 +175,28 @@ export function TestSuiteDetailPage({
         signal
       )
   });
+  const caseOptions = useQuery({
+    queryKey: ["case-filter-options", suiteId, suite.data?.revision],
+    enabled: suite.data !== undefined,
+    queryFn: ({ signal }) => loadCaseFilterOptions(api, suiteId, signal)
+  });
+  // Stable row actions prevent asynchronous facet loads from remounting a pressed button.
+  const openCaseEditor = useCallback((resource: CaseSummary): void => {
+    setEditError(false);
+    setCaseEditExternalError(null);
+    setCaseEditorSession(null);
+    setCaseConflict(null);
+    setCaseConflictDetail(null);
+    setEditingCaseKey(resource.caseKey);
+  }, []);
+  const openCaseCopy = useCallback((resource: CaseSummary): void => {
+    setCopyError(null);
+    setCopyTarget(resource);
+  }, []);
+  const openCaseDelete = useCallback((resource: CaseSummary): void => {
+    setDeleteCaseError(null);
+    setDeleteTarget(resource);
+  }, []);
   const remoteCaseDeleted = caseConflict?.remoteState === "REMOTE_CASE_DELETED";
   const caseDetail = useQuery({
     queryKey:
@@ -363,7 +386,7 @@ export function TestSuiteDetailPage({
   }
 
   return (
-    <section className="page-stack">
+    <section className="page-stack management-page suite-detail-page">
       <header className="page-header detail-header">
         <Button type="button" size="sm" variant="ghost" onClick={() => onNavigate("/test-suites")}>
           <ArrowLeft aria-hidden="true" />
@@ -448,28 +471,25 @@ export function TestSuiteDetailPage({
           <AlertTitle>{message("common.operationFailed")}</AlertTitle>
         </Alert>
       ) : null}
+      {caseOptions.isError ? (
+        <div className="inline-notice" role="alert">
+          筛选选项加载失败，未展示不完整选项。
+          <Button type="button" variant="outline" onClick={() => void caseOptions.refetch()}>
+            重试
+          </Button>
+        </div>
+      ) : null}
+      {caseOptions.isPending ? <p role="status">正在加载整个测试集的筛选选项…</p> : null}
       <TestSuiteCaseListPanel
+        filterOptions={caseOptions.data ?? EMPTY_CASE_FILTER_OPTIONS}
         listState={listState}
         items={cases.data.items}
         nextCursor={cases.data.nextCursor}
         mutationDisabled={suiteDeleteBlocked}
         onListStateChange={setListState}
-        onEdit={(resource) => {
-          setEditError(false);
-          setCaseEditExternalError(null);
-          setCaseEditorSession(null);
-          setCaseConflict(null);
-          setCaseConflictDetail(null);
-          setEditingCaseKey(resource.caseKey);
-        }}
-        onCopy={(resource) => {
-          setCopyError(null);
-          setCopyTarget(resource);
-        }}
-        onDelete={(resource) => {
-          setDeleteCaseError(null);
-          setDeleteTarget(resource);
-        }}
+        onEdit={openCaseEditor}
+        onCopy={openCaseCopy}
+        onDelete={openCaseDelete}
       />
       <Sheet
         open={editingCaseKey !== null}
@@ -484,7 +504,7 @@ export function TestSuiteDetailPage({
           }
         }}
       >
-        <SheetContent className="w-[min(880px,94vw)]">
+        <SheetContent className="w-[min(880px,94vw)] management-sheet">
           <SheetHeader>
             <SheetTitle>
               {formatMessage("caseList.editTitle", { caseKey: editingCaseKey ?? "" })}
@@ -620,6 +640,7 @@ export function TestSuiteDetailPage({
               )}
               <CaseEditor
                 key={`case-editor-${activeCaseEditorSession.sessionId}`}
+                options={caseOptions.data}
                 initialDefinition={activeCaseEditorSession.initialDefinition}
                 disabled={caseConflict !== null || caseEditPending}
                 externalSaveError={caseEditExternalError}
@@ -647,7 +668,7 @@ export function TestSuiteDetailPage({
           }
         }}
       >
-        <SheetContent className="w-[min(880px,94vw)]">
+        <SheetContent className="w-[min(880px,94vw)] management-sheet">
           <SheetHeader>
             <SheetTitle>{message("caseList.createTitle")}</SheetTitle>
             <SheetDescription>{message("caseList.createDescription")}</SheetDescription>
@@ -665,6 +686,8 @@ export function TestSuiteDetailPage({
           )}
           {createDefinition === null ? null : (
             <CaseEditor
+              options={caseOptions.data}
+              creating
               initialDefinition={createDefinition}
               disabled={caseMutations.pending || caseMutationConflict?.kind === "CREATE"}
               onSave={async (definition) => {
@@ -796,6 +819,12 @@ export function TestSuiteDetailPage({
         }}
       />
       <CaseImportDialog
+        api={api}
+        suiteId={suiteId}
+        revision={suite.data.revision}
+        onRefreshSuite={() => {
+          void suite.refetch();
+        }}
         file={importFile}
         pending={caseMutations.pending}
         caseCount={suite.data.caseCount}
@@ -808,7 +837,7 @@ export function TestSuiteDetailPage({
             if (caseMutationConflict?.kind === "IMPORT") caseMutations.clearConflict();
           }
         }}
-        onConfirm={(file) => {
+        onConfirm={(file, previewRevision) => {
           setImportError(null);
           void caseMutations
             .finish(
@@ -822,7 +851,7 @@ export function TestSuiteDetailPage({
                 close: clearImportSelection,
                 onRetryFailure: (error) => setImportError(error)
               },
-              { suiteRevision: suite.data.revision, caseRevision: null }
+              { suiteRevision: previewRevision, caseRevision: null }
             )
             .then((outcome) => {
               if (!outcome.ok && !outcome.revisionConflict && !outcome.skipped) {

@@ -30,24 +30,36 @@ P8 已在当前 Test Suite 与 Case 资源管理基础上，把测试集列表�
 - [case-delete-dialog.tsx](../../apps/web/src/features/test-suites/case-delete-dialog.tsx)：Case 双 Revision 删除确认和冲突决策。
 - [use-case-mutation-recovery.ts](../../apps/web/src/features/test-suites/use-case-mutation-recovery.ts)：创建、复制、删除和导入共用的最新 Revision 重试流程。
 - [case-mutation-conflict-notice.tsx](../../apps/web/src/features/test-suites/case-mutation-conflict-notice.tsx)：非编辑写操作的可重试冲突与远端已删除接受决策。
-- [case-editor.tsx](../../apps/web/src/features/test-suites/case-editor.tsx)：共享 Draft 的结构化/完整 JSON 编辑器和字段错误定位。
+- [case-editor.tsx](../../apps/web/src/features/test-suites/case-editor.tsx)：共享 Draft 的表单/高级 JSON 编辑器和字段错误定位。
 - [case-editor-state.ts](../../apps/web/src/features/test-suites/case-editor-state.ts)：纯编辑转换、无损 Assertion 与 API 路径映射。
 
 ## 当前样例与测试入口
 
-- [loona_promptfoo_tests.jsonl](../../test_suite/current/cases/loona_promptfoo_tests.jsonl)
+- [test_example2.json](../../test_suite/current/cases/test_example2.json)
 - [test_convert_loona_to_promptfoo.py](../../data_scripts/test_convert_loona_to_promptfoo.py)
 - [Test Suite list/edit tests](../../apps/web/test/test-suite-detail-page.test.tsx)
 - [Test Suite Case mutation tests](../../apps/web/test/test-suite-detail-page-case-mutations.test.tsx)
 - [Test Suite lifecycle tests](../../apps/web/test/test-suite-detail-page-suite-lifecycle.test.tsx)
 - [Case editor tests](../../apps/web/test/case-editor.test.tsx)
+- [Case authoring form tests](../../apps/web/test/case-authoring-form.test.tsx)
+- [Case filter options tests](../../apps/web/test/case-filter-options.test.ts)
+- [Generated field rule tests](../../tooling/test/case-field-rule.test.ts)
+- [Generated field rule Promptfoo process test](../../tooling/test/case-field-rule-process.test.ts)
 - [P4 resource E2E](../../apps/web/e2e/resource-management.spec.ts)
 
 ## 对外接口
 
 列表默认每页 50 条、最大 200 条，展示 Case ID、描述、业务模块、场景标签、Assertion 类型、Metrics 和更新时间。支持按 Case ID、描述、业务模块、场景标签、Assertion 类型和 Metric 组合过滤。
 
-Case 编辑器使用共享 Draft。结构化模式编辑公共字段并为每条 Assertion 保留完整 JSON，完整 JSON 模式编辑整个 Case；切换前必须成功解析。锁定 Promptfoo 版本接受的未知字段必须原样保留，不能被表单静默删除。
+Case 编辑器默认使用表单：基本信息、请求参数、验收检查项。业务模块、场景标签、Metric 选择已有值，新增分类需要显式确认；Case/Request/Task ID 自动生成，标识与通过阈值折叠至高级设置。新建不再预填可直接通过的 `equals:true`，目标、分类和检查规则需要作者明确填写。
+
+请求参数按类型编辑文本、数字、布尔、对象、列表、空值及长整数。长整数 ID 保留 `__cortex_eval_int64` 精度标记；数字清空时阻止提交旧数值，重复字段名不得覆盖已有字段。空请求可填入 Cortex E2E 常用字段，`uid=0` 仅为占位，运行前须换成授权测试账号；该操作不选择 Endpoint，也不构成运行授权。
+
+检查项支持添加、删除及规则选择：字段存在、字段相等、字段类型、列表数量、文本包含/排除、完整输出、正则、JSON Schema、语义评分和高级 JavaScript。四种字段规则生成普通 Promptfoo JavaScript，不新增评测引擎或 Case 协议。目标缺失判失败；对象键顺序无关，列表顺序及重复项必须保留。前端检查生成规则的目标、数量、类型，以及文本/正则/语义标准的基础合法性；这不是所有 Promptfoo 类型的后端白名单，也不能替代业务验收和授权检查。
+
+表单和高级 JSON 使用共享 Draft，切换前必须成功解析并校验源表单。完整 JSON、请求 JSON、每项原始 JSON 均保留为显式高级入口。已有复杂规则不自动改写，扩展配置无损保留；只有用户主动切换规则类型才替换该项预期及高级配置，并在选择器下说明。表单填写错误留在规则卡片，不强迫用户打开 JSON 修复。
+
+业务模块、场景标签、Assertion 类型、Metric 筛选使用可搜索下拉多选，Case ID 与描述保留文本搜索。枚举从整个测试集的摘要分页读取（每次 100 条），不使用当前过滤页推断；每个 Suite Revision 使用独立缓存，加载失败显示重试而非不完整枚举，重复游标和取消终止读取。带逗号的分类仍是一个精确值，URL 继续使用重复参数保存多选。
 
 每次打开 Case 都必须由本次成功、身份匹配的详情读取建立显式编辑 Session，并一起冻结 Definition、Case Revision 与 Suite Revision。API Client 在 Schema 通过后校验所有请求已固定的身份：Suite 读取/更新的 ID，Case 列表的 Suite、Case 读取及创建/更新/复制的 Suite、Case Key 和 Definition Case ID，导入返回的 Suite，以及配置列表/创建的 Kind 和配置读取/更新的 ID/Kind。身份错配按 `CLIENT_RESPONSE_INVALID` 拒绝，不能建立 Session、关闭 Draft、显示成功或进入目标 Query 缓存。旧 Query 缓存在刷新完成前不能挂载编辑器；刷新失败只显示读取错误，不允许用旧 Definition 保存。Session 建立后不被后台刷新改写。
 
@@ -69,8 +81,16 @@ Suite 创建、编辑的名称或说明错误关联并聚焦当前表单。Case 
 
 ## 观测与验收
 
-千级 Case 列表保持可用。正在运行使用的测试集禁止删除。所有 Case 写入口呈现一致的校验结果。最近 Run 显式展示 `PLATFORM` 或 `OFFLINE_IMPORT` 来源；只有确实建立当前 Suite ID 关联的离线报告才参与该 Suite 聚合，不把导入事实冒充平台执行。
+千级 Case 列表保持可用。正在运行使用的测试集禁止删除。所有 Case 写入口沿用同一服务端契约校验；表单另做所支持规则的作者侧基础校验。最近 Run 显式展示 `PLATFORM` 或 `OFFLINE_IMPORT` 来源；只有确实建立当前 Suite ID 关联的离线报告才参与该 Suite 聚合，不把导入事实冒充平台执行。
 
 ## 相关测试
 
 目标测试覆盖 CRUD、复制、JSON/JSONL 导入回滚、分页、组合过滤、JSON 与结构化编辑一致性、删除确认、连续冲突、写操作单飞、缓存清理和错误定位。
+
+### 本地交互回归隔离
+
+浏览器自动测试使用临时数据库及测试进程，不得连接日常工作数据库。可设置 `CORTEX_EVAL_E2E_PORT=14310` 运行 `pnpm --filter @cortex-eval/web test:e2e`，避免占用正在服务的默认 4310 端口；测试仍禁止复用已占用的服务。手动创建回归只保存隔离测试 Case，不调用真实 Agent 或工具。
+
+### 可选 Case 自动截图标记
+
+`metadata.a2ui_capture?: boolean`（Domain：`a2uiCapture`）默认缺省，行为等同关闭；不向历史定义自动补 `false`，避免改变内容 hash。Case 表单基础信息提供“自动采集 A2UI 截图”勾选，仅对需要截图的用例开启，无需手写 JSON。标记随 Case、导入导出与 Run 冻结定义保留；不是自动视觉评测或出卡断言。

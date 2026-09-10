@@ -1,5 +1,7 @@
 import type { CaseDefinitionV1 } from "@cortex-eval/contracts/src/case-contracts.ts";
 
+import { newCaseAssertion } from "./case-field-rule.ts";
+
 import { message } from "../../messages/messages.ts";
 
 /** Create one valid editable Case template without persisting it. */
@@ -18,6 +20,6 @@ export function createDefaultCaseDefinition(): CaseDefinitionV1 {
       business_module: message("caseCreate.defaultModule"),
       scenario_tag: message("caseCreate.defaultScenario")
     },
-    assert: [{ type: "equals", metric: "default", value: true }]
+    assert: [newCaseAssertion()]
   };
 }

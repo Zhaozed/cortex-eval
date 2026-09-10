@@ -33,6 +33,8 @@ export interface EndpointConfigDefinition {
   readonly timeoutMs: number;
   /** Default REST concurrency for a new Run. */
   readonly defaultConcurrency: number;
+  /** Deployment revision declared with the Endpoint and frozen on new Runs. */
+  readonly agentRevision?: { readonly branch: string; readonly commit: string } | undefined;
 }
 
 /** LLM thinking capability level. */
@@ -219,6 +221,14 @@ export function validateEndpointConfig(
       ok: false,
       error: { code: "ENDPOINT_CONFIG_INVALID", path: "defaultConcurrency" }
     };
+  }
+  if (
+    value.agentRevision !== undefined &&
+    (value.agentRevision.branch.trim().length === 0 ||
+      value.agentRevision.branch.length > 200 ||
+      !/^[a-fA-F0-9]{7,40}$/.test(value.agentRevision.commit))
+  ) {
+    return { ok: false, error: { code: "ENDPOINT_CONFIG_INVALID", path: "agentRevision" } };
   }
   const normalizedHeaderNames = new Set<string>();
   for (const [name, header] of Object.entries(value.headers)) {

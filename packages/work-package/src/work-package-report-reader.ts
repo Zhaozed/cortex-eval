@@ -87,7 +87,10 @@ function caseDefinition(value: FrozenRunCase["definition"]): unknown {
       req_id: value.metadata.requestId,
       task_id: value.metadata.taskId,
       business_module: value.metadata.businessModule,
-      scenario_tag: value.metadata.scenarioTag
+      scenario_tag: value.metadata.scenarioTag,
+      ...(value.metadata.a2uiCapture === undefined
+        ? {}
+        : { a2ui_capture: value.metadata.a2uiCapture })
     },
     assert: value.assertions.map(assertionDefinition)
   };

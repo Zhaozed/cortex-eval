@@ -1,3 +1,4 @@
+import { CaseDefinitionV1Schema, caseFromV1 } from "../src/sqlite-platform-run-mappers.ts";
 import { describe, expect, it } from "vitest";
 
 import { caseDefinitionJson } from "@cortex-eval/domain/src/domain-case-projection.ts";
@@ -168,3 +169,31 @@ function expectInvalidRow(value: Selectable<TestCaseTable>): void {
     expect.objectContaining({ code: "SQLITE_ROW_INVALID" })
   );
 }
+
+it("capture opt-in roundtrips Case storage and frozen Run schema without changing legacy definitions", () => {
+  for (const flag of [undefined, false, true]) {
+    const definition = completeDefinition();
+    const selected = {
+      ...definition,
+      metadata: { ...definition.metadata, ...(flag === undefined ? {} : { a2uiCapture: flag }) }
+    };
+    const wire = caseDefinitionJson(selected);
+    const stored = mapStoredTestCase({
+      ...row(),
+      definition_json: canonicalJson(wire),
+      definition_hash: hashCaseDefinition({
+        contractVersion: "cortex.case-definition.v1",
+        caseKey: selected.caseKey,
+        definition: wire
+      })
+    });
+    expect(stored.definition).toEqual(selected);
+    expect(caseFromV1(CaseDefinitionV1Schema.parse(wire))).toEqual(selected);
+    expect(
+      Object.hasOwn(
+        CaseDefinitionV1Schema.parse(caseDefinitionJson(stored.definition)).metadata,
+        "a2ui_capture"
+      )
+    ).toBe(flag !== undefined);
+  }
+});

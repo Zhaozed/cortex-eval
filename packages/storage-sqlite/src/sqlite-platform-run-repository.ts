@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import type {
   ClaimRunStageResult,
   CompleteReportStageInput,
@@ -90,25 +91,40 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
       value.rerunMode === "NONE" ||
       value.restCompletedCount !== reusedRestResults.length ||
       value.restErrorCount !== 0 ||
-      (value.rerunMode === "FORCE" && reusedRestResults.length !== 0)
+      (value.rerunMode === "FORCE" &&
+        reusedRestResults.length !== 0 &&
+        (value.suite.cases.length !== 1 || reusedRestResults.length !== 1))
     ) {
       throw new SqliteRowInvalidError();
     }
     const source = await this.getPlatformRun(sourceRunId);
+    // FORCE may select one frozen Case. Seeded REST on that one Case means
+    // re-evaluate saved evidence; evaluation reuse remains disabled for FORCE.
+    const singleCase = value.rerunMode === "FORCE" && value.suite.cases.length === 1;
     if (
-      source?.runContextHash !== value.runContextHash ||
-      source.suite.cases.length !== value.suite.cases.length ||
-      source.suite.cases.some((item, index) => {
-        const target = value.suite.cases[index];
+      source === null ||
+      !isDeepStrictEqual(source.endpoint, value.endpoint) ||
+      !isDeepStrictEqual(source.evaluator, value.evaluator) ||
+      !isDeepStrictEqual(source.rubricPrompts, value.rubricPrompts) ||
+      !isDeepStrictEqual(source.runExecutionLimits, value.runExecutionLimits) ||
+      source.runMode !== value.runMode ||
+      source.suite.id !== value.suite.id ||
+      (!singleCase &&
+        (source.runContextHash !== value.runContextHash ||
+          source.suite.cases.length !== value.suite.cases.length)) ||
+      value.suite.cases.some((target, index) => {
+        const original = singleCase
+          ? source.suite.cases.find((item) => item.caseKey === target.caseKey)
+          : source.suite.cases[index];
         return (
-          target?.caseKey !== item.caseKey ||
-          target.ordinal !== item.ordinal ||
-          target.definitionHash !== item.definitionHash
+          target.ordinal !== index ||
+          original?.caseKey !== target.caseKey ||
+          original.definitionHash !== target.definitionHash ||
+          !isDeepStrictEqual(original.definition, target.definition)
         );
       })
-    ) {
+    )
       throw new SqliteRowInvalidError();
-    }
     for (const result of reusedRestResults) {
       const provenance = result.provenance;
       const sourceResult = await this.getRestResult(sourceRunId, result.caseKey);
@@ -119,7 +135,8 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         provenance.sourceId !== sourceRunId ||
         provenance.sourceResultHash !== result.resultHash ||
         sourceResult?.status !== "SUCCEEDED" ||
-        sourceResult.ordinal !== result.ordinal ||
+        value.suite.cases[result.ordinal]?.caseKey !== result.caseKey ||
+        !platformRestResultHashMatches(result) ||
         sourceResult.caseDefinitionHash !== result.caseDefinitionHash ||
         sourceResult.resultHash !== result.resultHash
       ) {
@@ -196,6 +213,8 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         "completed_at",
         "created_at",
         "updated_at",
+        "run_name",
+        "run_description",
         sql<string>`json_extract(suite_snapshot_json, '$.id')`.as("snapshot_suite_id"),
         sql<string>`json_extract(suite_snapshot_json, '$.name')`.as("snapshot_suite_name"),
         sql<string>`json_extract(suite_snapshot_json, '$.suiteHash')`.as("snapshot_suite_hash"),
@@ -281,6 +300,8 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         "eval_not_evaluated_count",
         "created_at",
         "updated_at",
+        "run_name",
+        "run_description",
         sql<string>`json_extract(suite_snapshot_json, '$.id')`.as("snapshot_suite_id"),
         sql<string>`json_extract(suite_snapshot_json, '$.name')`.as("snapshot_suite_name"),
         sql<number>`coalesce(
@@ -320,6 +341,8 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         sourceType: row.source_type,
         suiteId: row.snapshot_suite_id,
         suiteName: row.snapshot_suite_name,
+        name: row.run_name,
+        description: row.run_description,
         runMode: row.run_mode,
         status: row.status,
         stage: row.stage,

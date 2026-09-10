@@ -500,6 +500,92 @@ describe("平台失败重跑选择计划", () => {
     ).toThrow("RERUN_PLAN_SOURCE_ALIGNMENT");
   });
 
+  it.each([false, true])(
+    "single Case replay preserves source and seeds REST only for reevaluation: %s",
+    async (reevaluateOnly) => {
+      const source = sourceRun();
+      const runs = new MemoryPlatformRunStore();
+      runs.values.set(SOURCE_RUN_ID, source);
+      for (const frozen of source.suite.cases)
+        runs.results.set(
+          `${SOURCE_RUN_ID}:${frozen.caseKey}`,
+          restResult(
+            frozen.caseKey,
+            frozen.ordinal,
+            frozen.caseKey === "rest-error" ? "ERROR" : "SUCCEEDED"
+          )
+        );
+      const service = new PlatformRerunService({
+        runTransactionManager: runTransactions(runs),
+        evalTransactionManager: evalTransactions([]),
+        artifactStore: sourceArtifacts(source),
+        idGenerator: { nextId: (): string => TARGET_RUN_ID },
+        clock: { now: (): string => NOW }
+      });
+      const created = await service.create({
+        sourceRunId: SOURCE_RUN_ID,
+        mode: "FORCE",
+        caseKey: "eval-error",
+        reevaluateOnly
+      });
+      expect(created).toMatchObject({
+        ok: true,
+        run: {
+          status: "READY",
+          restCompletedCount: reevaluateOnly ? 1 : 0,
+          suite: { cases: [{ caseKey: "eval-error", ordinal: 0 }] }
+        },
+        plan: { counts: { executeRest: reevaluateOnly ? 0 : 1, executeEval: 1, reuseEval: 0 } }
+      });
+      expect(runs.values.get(SOURCE_RUN_ID)).toEqual(source);
+      if (reevaluateOnly) {
+        const executor = new PendingOnlyRestExecutor();
+        const execution = new PlatformRunService({
+          transactionManager: runTransactions(runs),
+          restExecutor: executor,
+          artifactStore: new MemoryArtifacts(),
+          clock: { now: (): string => NOW },
+          idGenerator: { nextId: (): string => "unused" },
+          messageResolver: { message: (code): string => code },
+          eventSink: new MemoryRunEvents(),
+          cancellationPollMs: 25
+        });
+        await execution.start({ runId: TARGET_RUN_ID, expectedRevision: 0 });
+        await execution.waitForIdle();
+        expect(executor.caseKeys).toEqual([]);
+        expect(await execution.getProgress(TARGET_RUN_ID)).toMatchObject({
+          stage: "EVALUATION",
+          status: "READY",
+          restCompletedCount: 1
+        });
+      }
+
+      expect(await runs.getRestResult(TARGET_RUN_ID, "eval-error")).toEqual(
+        reevaluateOnly
+          ? expect.objectContaining({
+              ordinal: 0,
+              provenance: {
+                sourceKind: "RUN",
+                sourceId: SOURCE_RUN_ID,
+                sourceResultHash: "2".repeat(64)
+              }
+            })
+          : null
+      );
+      await expect(
+        service.create({ sourceRunId: SOURCE_RUN_ID, mode: "FORCE", caseKey: "missing" })
+      ).resolves.toMatchObject({ ok: false });
+      await expect(
+        service.create({
+          sourceRunId: SOURCE_RUN_ID,
+          mode: "FORCE",
+          caseKey: "rest-error",
+          reevaluateOnly: true
+        })
+      ).resolves.toMatchObject({ ok: false });
+    }
+  );
+
   it("内部 Retry 用例创建新执行版本、预置成功 REST，并保持来源 Run 不变", async () => {
     const source = sourceRun();
     const runs = new MemoryPlatformRunStore();
@@ -685,7 +771,7 @@ describe("平台失败重跑选择计划", () => {
   });
 
   it("Force 不预置结果；来源缺少完整 Eval Artifact 时 Retry 只复用 REST", async () => {
-    const source = sourceRun(false);
+    const source = { ...sourceRun(false), name: "原回归", description: "原目的" };
     const evaluations = [evalResult("pass", 0, "PASS")];
     for (const mode of ["FORCE", "RETRY_FAILED"] as const) {
       const runs = new MemoryPlatformRunStore();
@@ -708,7 +794,19 @@ describe("平台失败重跑选择计划", () => {
         clock: { now: (): string => NOW }
       });
 
-      const created = await service.create({ sourceRunId: SOURCE_RUN_ID, mode });
+      const created = await service.create({
+        sourceRunId: SOURCE_RUN_ID,
+        mode,
+        ...(mode === "FORCE" ? { name: " 新回归 ", description: "" } : {})
+      });
+      expect(created).toMatchObject({
+        ok: true,
+        run:
+          mode === "FORCE"
+            ? { name: "新回归", description: null }
+            : { name: "原回归", description: "原目的" }
+      });
+      expect(runs.values.get(SOURCE_RUN_ID)).toEqual(source);
       expect(created).toMatchObject({
         ok: true,
         plan: {

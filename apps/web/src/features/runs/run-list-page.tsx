@@ -1,5 +1,6 @@
+import { RunMetadataFields } from "./run-metadata-fields.tsx";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Activity, ArrowUpRight, Plus, RefreshCw, Trash2 } from "lucide-react";
 import {
   useEffect,
   useMemo,
@@ -11,7 +12,6 @@ import {
 } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert.tsx";
-import { Badge } from "../../components/ui/badge.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { Input } from "../../components/ui/input.tsx";
 import { Progress } from "../../components/ui/progress.tsx";
@@ -123,13 +123,13 @@ function selectionKey(selection: RunSelection): string {
   return [selection.suiteId, selection.endpointConfigId, selection.evaluatorConfigId].join("\n");
 }
 
-// Route a complete imported Run directly to its normalized Report page.
+// Platform and imported runs share the same workspace.
 function runPath(run: {
   readonly id: string;
   readonly sourceType: "PLATFORM" | "OFFLINE_IMPORT";
 }): string {
   const encodedId = encodeURIComponent(run.id);
-  return run.sourceType === "OFFLINE_IMPORT" ? `/runs/${encodedId}/report` : `/runs/${encodedId}`;
+  return `/runs/${encodedId}`;
 }
 
 // Resolve one closed Run source label at the presentation boundary.
@@ -149,9 +149,11 @@ export function RunListPage({
   const [history, setHistory] = useState<readonly (string | null)[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [suiteId, setSuiteId] = useState("");
+  const [customName, setCustomName] = useState<string | null>(null);
+  const [description, setDescription] = useState("");
   const [endpointConfigId, setEndpointConfigId] = useState("");
   const [evaluatorConfigId, setEvaluatorConfigId] = useState("");
-  const [runMode, setRunMode] = useState<"STAGED" | "PIPELINE">("STAGED");
+  const [runMode, setRunMode] = useState<"STAGED" | "PIPELINE">("PIPELINE");
   const [restConcurrency, setRestConcurrency] = useState(4);
   const [evalConcurrency, setEvalConcurrency] = useState(2);
   const [preflightFact, setPreflightFact] = useState<PreflightFact | null>(null);
@@ -245,8 +247,12 @@ export function RunListPage({
     create.reset();
     preflight.mutate({ selection, generation: preflightGeneration.current });
   };
+  const name =
+    customName ??
+    (options.data?.suites.find((suite) => suite.id === suiteId)?.name ?? "").slice(0, 120);
   const submitCreate = async (): Promise<void> => {
     if (
+      !name.trim() ||
       createPending.current ||
       selection === null ||
       currentSelectionKey === null ||
@@ -261,6 +267,8 @@ export function RunListPage({
     try {
       await create.mutateAsync({
         ...selection,
+        name: name.trim(),
+        description: description.trim(),
         runMode,
         runExecutionLimits: {
           contractVersion: "cortex.run-execution-limits.v1",
@@ -291,31 +299,44 @@ export function RunListPage({
   }
 
   return (
-    <section className="page-stack">
+    <section className="page-stack run-list-page">
       <header className="page-header split-header">
         <div>
-          <p className="eyebrow">{message("runs.eyebrow")}</p>
-          <h1>{message("runs.title")}</h1>
-          <p>{message("runs.description")}</p>
+          <p className="eyebrow">EVALUATION / RUNS</p>
+          <h1>评测运行</h1>
+          <p>{message("workspace.runDefault")}</p>
         </div>
         <Button type="button" onClick={() => setCreateOpen(true)}>
           <Plus aria-hidden="true" />
           {message("runs.create")}
         </Button>
       </header>
-      <div className="data-panel">
+      <div className="data-panel run-list-panel">
+        <div className="run-list-toolbar">
+          <div>
+            <h2>运行记录</h2>
+            <span>本页 {page.data.items.length} 条</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={page.isFetching}
+            onClick={() => void page.refetch()}
+          >
+            <RefreshCw size={14} aria-hidden="true" />
+            刷新
+          </Button>
+        </div>
         {page.data.items.length === 0 ? (
           <p className="empty-state">{message("runs.empty")}</p>
         ) : (
-          <Table>
+          <Table className="run-list-table">
             <TableHeader>
               <TableRow>
-                <TableHead>{message("runs.runId")}</TableHead>
+                <TableHead>运行 / 目的</TableHead>
                 <TableHead>{message("runs.suite")}</TableHead>
-                <TableHead>{message("runs.sourceType")}</TableHead>
-                <TableHead>{message("runs.stage")}</TableHead>
-                <TableHead>{message("runs.status")}</TableHead>
-                <TableHead>{message("runs.progress")}</TableHead>
+                <TableHead>运行状态</TableHead>
+                <TableHead>执行 / 评测进度</TableHead>
                 <TableHead>{message("common.updatedAt")}</TableHead>
                 <TableHead>{message("runs.actions")}</TableHead>
               </TableRow>
@@ -325,36 +346,67 @@ export function RunListPage({
                 <TableRow key={run.id}>
                   <TableCell>
                     <a
-                      className="resource-link run-id-link"
+                      className="resource-link run-name-link"
                       href={runPath(run)}
                       onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+                        if (
+                          event.button !== 0 ||
+                          event.metaKey ||
+                          event.ctrlKey ||
+                          event.shiftKey ||
+                          event.altKey
+                        )
+                          return;
                         event.preventDefault();
                         onNavigate(runPath(run));
                       }}
                     >
-                      {run.id}
+                      <span>{run.name ?? run.suiteName}</span>
+                      <ArrowUpRight size={14} aria-hidden="true" />
                     </a>
-                  </TableCell>
-                  <TableCell>{run.suiteName}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{runSourceLabel(run.sourceType)}</Badge>
-                  </TableCell>
-                  <TableCell>{runStageLabel(run.stage)}</TableCell>
-                  <TableCell>
-                    <Badge variant="accent">{runStatusLabel(run.status)}</Badge>
+                    {run.description && (
+                      <p className="run-list-description" title={run.description}>
+                        {run.description}
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell>
-                    {formatMessage("runs.progressCount", {
-                      completed: run.rest.completed,
-                      total: run.rest.total
-                    })}
+                    <span className="run-list-suite">{run.suiteName}</span>
+                    <span className="run-list-secondary">{runSourceLabel(run.sourceType)}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="run-list-status" data-status={run.status}>
+                      <i aria-hidden="true" />
+                      {runStatusLabel(run.status)}
+                    </span>
+                    <span className="run-list-secondary">{runStageLabel(run.stage)}</span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="run-list-progress">
+                      <span>
+                        执行{" "}
+                        <b>
+                          {run.rest.completed}
+                          <em> / {run.rest.total}</em>
+                        </b>
+                      </span>
+                      <span>
+                        评测{" "}
+                        <b>
+                          {run.evaluation.completed}
+                          <em> / {run.evaluation.total}</em>
+                        </b>
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>{displayRunDate(run.updatedAt)}</TableCell>
                   <TableCell>
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
+                      className="run-list-delete"
+                      aria-label={message("runs.delete")}
                       disabled={run.status === "RUNNING" || remove.isPending}
                       title={
                         run.status === "RUNNING"
@@ -446,6 +498,12 @@ export function RunListPage({
                     ))}
                   </select>
                 </label>
+                <RunMetadataFields
+                  name={name}
+                  description={description}
+                  onName={setCustomName}
+                  onDescription={setDescription}
+                />
                 <label className="run-field">
                   <span>{message("runs.endpoint")}</span>
                   <select
@@ -576,6 +634,7 @@ export function RunListPage({
                 <Button
                   type="submit"
                   disabled={
+                    !name.trim() ||
                     preflightFact?.selectionKey !== currentSelectionKey ||
                     preflightFact.generation !== preflightGeneration.current ||
                     preflight.isPending ||

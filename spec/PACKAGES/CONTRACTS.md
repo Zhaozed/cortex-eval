@@ -34,7 +34,7 @@ Contracts 只冻结协议，不代表对应 API、CLI、Web 或文件运行时�
 
 ## 当前样例与测试入口
 
-- [loona_promptfoo_tests.jsonl](../../test_suite/current/cases/loona_promptfoo_tests.jsonl)
+- [test_example2.json](../../test_suite/current/cases/test_example2.json)
 - [provider.json](../../test_suite/current/provider.json)
 - [llm_config.json](../../test_suite/current/llm_config.json)
 - `test_suite/current/eval_result/test_example.json`：当前已提交第三方结果 Fixture。
@@ -71,3 +71,11 @@ Schema 错误保留字段路径和稳定 Error Code。未知版本、未知联�
 ## 相关测试
 
 当前测试覆盖 Schema 正反例、版本拒绝、联合穷尽、资源与 Run DTO 严格键集合、Cursor、SSE、Artifact Manifest、闭合错误原因、脱敏、Canonical Serialization、Error Code、137 条 Assertion 能力、外部引用归一化与当前真实 Fixture。
+
+## A2UI 回归附件
+
+固定样例 Web 截图、独立人工状态和关联报告入口的唯一语义见 [A2UI_REVIEWS](../WEB/A2UI_REVIEWS.md)。不改变标准自动 Report、Artifact Manifest 或 Canonical Export。
+
+### 可选 Case 自动截图标记
+
+`metadata.a2ui_capture?: boolean`（Domain：`a2uiCapture`）默认缺省，行为等同关闭；不向历史定义自动补 `false`，避免改变内容 hash。Case 表单基础信息提供“自动采集 A2UI 截图”勾选，仅对需要截图的用例开启，无需手写 JSON。标记随 Case、导入导出与 Run 冻结定义保留；不是自动视觉评测或出卡断言。

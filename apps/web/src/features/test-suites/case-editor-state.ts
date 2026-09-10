@@ -37,6 +37,8 @@ export interface StructuredCaseFields {
   readonly businessModule: string;
   /** Scenario tag filter value. */
   readonly scenarioTag: string;
+  /** Opt-in screenshot collection using the real outbound payload. */
+  readonly a2uiCapture?: boolean;
 }
 
 /** Successful editor transition. */
@@ -103,7 +105,8 @@ export function applyStructuredCaseFields(
       req_id: fields.reqId,
       task_id: fields.taskId,
       business_module: fields.businessModule,
-      scenario_tag: fields.scenarioTag
+      scenario_tag: fields.scenarioTag,
+      ...(fields.a2uiCapture === undefined ? {} : { a2ui_capture: fields.a2uiCapture })
     }
   });
   if (!parsed.success) return { ok: false, state, errorPath: issuePath(parsed.error) };
@@ -191,4 +194,23 @@ export function caseApiPathToEditorField(path: string): string {
     "metadata.scenario_tag"
   ]);
   return known.has(normalized) ? normalized : "root";
+}
+
+/** Validate a whole edited assertion list, including additions and removals. */
+export function replaceAllAssertionsJson(
+  state: CaseEditorState,
+  texts: readonly string[]
+): CaseEditorResult {
+  const assertions: unknown[] = [];
+  for (const [index, text] of texts.entries()) {
+    const raw = parseJson(text);
+    if (!raw.ok) return { ok: false, state, errorPath: `assert.${index}` };
+    assertions.push(raw.value);
+  }
+  const parsed = CaseDefinitionV1Schema.safeParse({ ...state.draft, assert: assertions });
+  if (!parsed.success) return { ok: false, state, errorPath: issuePath(parsed.error) };
+  return {
+    ok: true,
+    state: { mode: "STRUCTURED", draft: parsed.data, jsonText: serialize(parsed.data) }
+  };
 }

@@ -446,3 +446,38 @@ describe("平台 Run API v1", () => {
     ).toBe(false);
   });
 });
+
+it("accepts bounded labels for creation/rerun, rejects blank names and invalid metadata", () => {
+  const selection = {
+    suiteId: RUN_ID,
+    endpointConfigId: CONFIG_ID,
+    evaluatorConfigId: CONFIG_ID,
+    runMode: "PIPELINE"
+  };
+  expect(
+    CreatePlatformRunRequestV1Schema.parse({
+      ...selection,
+      name: " 测跨日 ",
+      description: " 验证时间规则 "
+    })
+  ).toMatchObject({ name: "测跨日", description: "验证时间规则" });
+  expect(CreatePlatformRunRequestV1Schema.safeParse(selection).success).toBe(true);
+  for (const metadata of [
+    { name: "   " },
+    { name: "a".repeat(121) },
+    { description: "a".repeat(2001) },
+    { name: 123 },
+    { purpose: "unknown" }
+  ]) {
+    expect(CreatePlatformRunRequestV1Schema.safeParse({ ...selection, ...metadata }).success).toBe(
+      false
+    );
+    expect(
+      CreatePlatformRerunRequestV1Schema.safeParse({ mode: "FORCE", ...metadata }).success
+    ).toBe(false);
+  }
+  expect(CreatePlatformRerunRequestV1Schema.parse({ mode: "FORCE", description: "" })).toEqual({
+    mode: "FORCE",
+    description: ""
+  });
+});

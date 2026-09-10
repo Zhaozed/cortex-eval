@@ -2,6 +2,7 @@ import { IncrementalSuiteHasher } from "@cortex-eval/domain/src/domain-resource-
 
 import type {
   CaseImportStagingFactory,
+  CaseImportImpact,
   Clock,
   IdGenerator,
   TransactionManager
@@ -24,6 +25,8 @@ export interface StreamingCaseImportDependencies {
 
 /** Streaming full-import command. */
 export interface StreamingCaseImportCommand {
+  /** Validate and compare without replacing Cases or advancing suite revision. */
+  readonly previewOnly?: boolean;
   /** Target current Suite. */
   readonly suiteId: string;
   /** Aggregate concurrency token. */
@@ -36,7 +39,12 @@ export interface StreamingCaseImportCommand {
 
 /** Exact bounded streaming import result. */
 export type StreamingCaseImportResult =
-  | { readonly ok: true; readonly count: number; readonly suite: TestSuite }
+  | {
+      readonly ok: true;
+      readonly count: number;
+      readonly suite: TestSuite;
+      readonly preview?: CaseImportImpact;
+    }
   | {
       readonly ok: false;
       readonly error:
@@ -133,6 +141,11 @@ export class StreamingCaseImportService {
               cause: { code: "RUBRIC_PROMPT_NOT_FOUND", promptKey: missing.promptKey }
             }
           };
+        }
+        if (command.signal.aborted) return { ok: false, error: { code: "CASE_IMPORT_CANCELLED" } };
+        if (command.previewOnly) {
+          const preview = await stagedCases.compareCases(command.suiteId);
+          return { ok: true, count, suite, preview };
         }
         const updatedSuite = await transaction.testSuites.updateSuiteAggregate({
           suiteId: command.suiteId,

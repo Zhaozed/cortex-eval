@@ -148,6 +148,8 @@ export interface CaseAnalysisPromptTable {
 
 /** SQLite row for one immutable Run aggregate and progress facts. */
 export interface RunLogTable {
+  run_name: Generated<string | null>;
+  run_description: Generated<string | null>;
   /** Internal Run identity. */
   id: string;
   /** Platform or imported source. */

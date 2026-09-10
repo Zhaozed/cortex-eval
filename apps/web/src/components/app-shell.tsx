@@ -1,16 +1,17 @@
 import {
   Activity,
-  Beaker,
-  Bot,
-  Braces,
+  Cable,
   FlaskConical,
   Gauge,
-  Network,
+  ScanSearch,
+  SlidersHorizontal,
+  Sparkles,
+  Workflow,
   type LucideIcon
 } from "lucide-react";
 import type { MouseEvent, ReactElement, ReactNode } from "react";
 
-import { CURRENT_FEATURES } from "../features/feature-registry.ts";
+import { CURRENT_FEATURES, NAVIGATION_GROUPS } from "../features/feature-registry.ts";
 import { message, type MessageKey } from "../messages/messages.ts";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert.tsx";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip.tsx";
@@ -27,12 +28,12 @@ export interface AppShellProps {
 
 const ICONS: Readonly<Record<string, LucideIcon>> = {
   dashboard: Gauge,
+  "endpoint-configs": Cable,
+  "llm-configs": Sparkles,
+  "rubric-prompts": SlidersHorizontal,
+  "analysis-prompts": ScanSearch,
   runs: Activity,
-  "test-suites": FlaskConical,
-  "endpoint-configs": Network,
-  "llm-configs": Bot,
-  "rubric-prompts": Beaker,
-  "analysis-prompts": Braces
+  "test-suites": FlaskConical
 };
 
 // Convert one registry label key into the typed UI catalog key.
@@ -48,7 +49,8 @@ export function AppShell({ activePath, onNavigate, children }: AppShellProps): R
       event.button !== 0 ||
       event.metaKey ||
       event.ctrlKey ||
-      event.shiftKey
+      event.shiftKey ||
+      event.altKey
     ) {
       return;
     }
@@ -72,35 +74,44 @@ export function AppShell({ activePath, onNavigate, children }: AppShellProps): R
       <div className="app-frame">
         <aside className="lab-sidebar">
           <div className="brand-block">
-            <span className="brand-mark" aria-hidden="true">
-              {message("app.brandMark")}
-            </span>
+            <Workflow className="brand-symbol" aria-hidden="true" />
             <div>
-              <p className="brand-name">{message("app.brand")}</p>
-              <p className="brand-subtitle">{message("app.subtitle")}</p>
+              <p className="brand-name">
+                Cortex <span>Eval</span>
+              </p>
+              <p className="brand-subtitle">Agent 评测工作台</p>
             </div>
           </div>
           <nav aria-label={message("navigation.label")} className="primary-nav">
-            {CURRENT_FEATURES.map((feature) => {
-              const Icon = ICONS[feature.id];
-              if (Icon === undefined) return null;
-              const active =
-                feature.path === "/"
-                  ? activePath === "/"
-                  : activePath === feature.path || activePath.startsWith(`${feature.path}/`);
-              return (
-                <a
-                  key={feature.id}
-                  href={feature.path}
-                  aria-current={active ? "page" : undefined}
-                  className="nav-link"
-                  onClick={(event) => navigate(event, feature.path)}
-                >
-                  <Icon aria-hidden="true" />
-                  <span>{navigationLabel(feature.labelKey)}</span>
-                </a>
-              );
-            })}
+            {NAVIGATION_GROUPS.map((group) => (
+              <section className="nav-group" key={group.id} aria-labelledby={`nav-${group.id}`}>
+                <h2 className="nav-section-label" id={`nav-${group.id}`}>
+                  {message(group.labelKey)}
+                </h2>
+                {CURRENT_FEATURES.filter((feature) => feature.group === group.id).map((feature) => {
+                  const Icon = ICONS[feature.id];
+                  if (Icon === undefined) return null;
+                  const active =
+                    feature.path === "/"
+                      ? activePath === "/"
+                      : (feature.id === "runs" && activePath.startsWith("/a2ui-reviews")) ||
+                        activePath === feature.path ||
+                        activePath.startsWith(`${feature.path}/`);
+                  return (
+                    <a
+                      key={feature.id}
+                      href={feature.path}
+                      aria-current={active ? "page" : undefined}
+                      className="nav-link"
+                      onClick={(event) => navigate(event, feature.path)}
+                    >
+                      <Icon aria-hidden="true" />
+                      <span>{navigationLabel(feature.labelKey)}</span>
+                    </a>
+                  );
+                })}
+              </section>
+            ))}
           </nav>
           <Tooltip>
             <TooltipTrigger asChild>

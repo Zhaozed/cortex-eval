@@ -1,256 +1,168 @@
 // @vitest-environment jsdom
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardPage } from "../src/features/dashboard/dashboard-page.tsx";
-import { requestUrl } from "./request-fixture.ts";
 import { createResourceApi } from "../src/lib/resource-api.ts";
 import { createRunApi } from "../src/lib/run-api.ts";
-import { RUN_ID, runDetail, runPage, runReportOverview } from "./run-test-fixture.ts";
+import { runReviewApi } from "../src/lib/run-review-api.ts";
+import { requestUrl } from "./request-fixture.ts";
+import {
+  RUN_ID,
+  runDetail,
+  runPage,
+  runReportCase,
+  runReportOverview
+} from "./run-test-fixture.ts";
+import type { PlatformRunPage, RunReportCase } from "../src/lib/run-api.ts";
 
-interface SuiteSummaryFixture {
-  /** Test Suite identity. */
-  readonly id: string;
-  /** Test Suite display name. */
-  readonly name: string;
-  /** Empty fixture description. */
-  readonly description: string;
-  /** Aggregate Case count. */
-  readonly caseCount: number;
-  /** Fixture revision. */
-  readonly revision: number;
-  /** Fixture update timestamp. */
-  readonly updatedAt: string;
-  /** Latest platform Run is absent in this count fixture. */
-  readonly latestRun: null;
-}
-
-interface ConfigurationSummaryFixture {
-  /** Configuration discriminator. */
-  readonly kind: string;
-  /** Configuration identity. */
-  readonly id: string;
-  /** Configuration display name. */
-  readonly name: string;
-  /** Fixture revision. */
-  readonly revision: number;
-  /** Fixture update timestamp. */
-  readonly updatedAt: string;
-}
-
-const suite = (id: string, name: string, caseCount: number): SuiteSummaryFixture => ({
-  id,
-  name,
-  description: "",
-  caseCount,
-  revision: 0,
-  updatedAt: "2026-07-13T00:00:00.000Z",
-  latestRun: null
+vi.mock("../src/lib/run-review-api.ts", () => ({ runReviewApi: { list: vi.fn() } }));
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(runReviewApi.list).mockResolvedValue([]);
 });
-
-const config = (kind: string, id: string, name: string): ConfigurationSummaryFixture => ({
-  kind,
-  id,
-  name,
-  revision: 0,
-  updatedAt: "2026-07-13T00:00:00.000Z"
-});
-
 function response(body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json" }
   });
 }
-
-describe("资源 Dashboard", () => {
-  it("逐页计算测试集、Case 和四类配置的精确数量", async () => {
-    const ids = [
-      "018f0f4e-7b7a-7cc0-8000-000000000001",
-      "018f0f4e-7b7a-7cc0-8000-000000000002",
-      "018f0f4e-7b7a-7cc0-8000-000000000003"
-    ];
-    const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
-      const url = requestUrl(input);
-      if (url === "/api/v1/runs?limit=50") {
-        return Promise.resolve(response({ items: [], nextCursor: null }));
-      }
-      if (url === "/api/v1/test-suites?limit=200") {
-        return Promise.resolve(
-          response({
-            items: [suite(ids[0] ?? "", "A", 2), suite(ids[1] ?? "", "B", 3)],
-            nextCursor: "res_v1_next"
-          })
-        );
-      }
-      if (url === "/api/v1/test-suites?cursor=res_v1_next&limit=200") {
-        return Promise.resolve(
-          response({ items: [suite(ids[2] ?? "", "C", 4)], nextCursor: null })
-        );
-      }
-      const kind = url.includes("endpoint-configs")
-        ? "ENDPOINT"
-        : url.includes("llm-configs")
-          ? "LLM"
-          : url.includes("llm-rubric-prompts")
-            ? "LLM_RUBRIC_PROMPT"
-            : "CASE_ANALYSIS_PROMPT";
-      const count =
-        kind === "ENDPOINT" ? 2 : kind === "LLM" ? 1 : kind === "LLM_RUBRIC_PROMPT" ? 3 : 4;
+function completed(sourceType: "PLATFORM" | "OFFLINE_IMPORT" = "PLATFORM"): PlatformRunPage {
+  const page = runPage(runDetail({ status: "COMPLETED", stage: "DONE" }));
+  return {
+    ...page,
+    items: page.items.map((run) => ({
+      ...run,
+      name: "待办功能验收",
+      description: "验证查询和展示",
+      sourceType,
+      rest: { total: 1, completed: 1, succeeded: 1, error: 0 },
+      evaluation: { total: 1, completed: 1, passed: 1, failed: 0, error: 0, notEvaluated: 0 }
+    }))
+  };
+}
+function mount(
+  page = completed(),
+  cases: readonly RunReportCase[] = [runReportCase]
+): {
+  client: QueryClient;
+  fetcher: ReturnType<typeof vi.fn<typeof fetch>>;
+  navigate: ReturnType<typeof vi.fn>;
+} {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
+    const url = requestUrl(input);
+    if (url === "/api/v1/runs?limit=50") return Promise.resolve(response(page));
+    if (url === `/api/v1/runs/${RUN_ID}/report`)
+      return Promise.resolve(response(runReportOverview));
+    if (url.startsWith(`/api/v1/runs/${RUN_ID}/report/cases`))
+      return Promise.resolve(response({ items: cases, nextCursor: null }));
+    if (url === "/api/v1/test-suites?limit=200")
       return Promise.resolve(
         response({
-          items: Array.from({ length: count }, (_, index) =>
-            config(kind, ids[index % ids.length] ?? "", `${kind}-${index}`)
-          ),
+          items: [
+            {
+              id: runDetail().suite.id,
+              name: "待办",
+              description: "",
+              caseCount: 4,
+              revision: 0,
+              updatedAt: runReportOverview.completedAt,
+              latestRun: null
+            }
+          ],
+          nextCursor: "next"
+        })
+      );
+    if (url === "/api/v1/test-suites?cursor=next&limit=200")
+      return Promise.resolve(
+        response({
+          items: [
+            {
+              id: RUN_ID,
+              name: "客服",
+              description: "",
+              caseCount: 3,
+              revision: 0,
+              updatedAt: runReportOverview.completedAt,
+              latestRun: null
+            }
+          ],
           nextCursor: null
         })
       );
-    });
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
-    render(
-      <QueryClientProvider client={client}>
-        <DashboardPage
-          api={createResourceApi(fetcher)}
-          runApi={createRunApi(fetcher)}
-          onNavigate={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(await screen.findByRole("heading", { name: "资源仪表盘" })).toBeInTheDocument();
-    expect(await screen.findByTestId("count-test-suites")).toHaveTextContent("3");
-    expect(screen.getByTestId("count-cases")).toHaveTextContent("9");
-    expect(screen.getByTestId("count-endpoint-configs")).toHaveTextContent("2");
-    expect(screen.getByTestId("count-llm-configs")).toHaveTextContent("1");
-    expect(screen.getByTestId("count-rubric-prompts")).toHaveTextContent("3");
-    expect(screen.getByTestId("count-analysis-prompts")).toHaveTextContent("4");
-    expect(screen.getByRole("heading", { name: "最近运行" })).toBeInTheDocument();
-    expect(screen.getByText("当前没有完整报告运行。")).toBeInTheDocument();
+    throw new Error(`Unexpected request: ${url}`);
   });
-
-  it("请求失败时显示可重试页面错误，不永久 Loading", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ error: { invalid: true } }), {
-        status: 500,
-        headers: { "content-type": "application/json" }
-      })
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  const navigate = vi.fn();
+  render(
+    <QueryClientProvider client={client}>
+      <DashboardPage
+        api={createResourceApi(fetcher)}
+        runApi={createRunApi(fetcher)}
+        onNavigate={navigate}
+      />
+    </QueryClientProvider>
+  );
+  return { client, fetcher, navigate };
+}
+describe("验收仪表盘", () => {
+  it("精确计算两类测试资产，不再请求四类配置数量", async () => {
+    const { fetcher } = mount({ items: [], nextCursor: null });
+    expect(await screen.findByTestId("count-test-suites")).toHaveTextContent("2");
+    expect(screen.getByTestId("count-cases")).toHaveTextContent("7");
+    expect(screen.getByRole("heading", { name: "评测仪表盘" })).toBeVisible();
+    expect(await screen.findByText("还没有可展示的完整评测")).toBeVisible();
+    expect(fetcher.mock.calls.every(([input]) => !requestUrl(input).includes("configs"))).toBe(
+      true
     );
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
-    render(
-      <QueryClientProvider client={client}>
-        <DashboardPage
-          api={createResourceApi(fetcher)}
-          runApi={createRunApi(fetcher)}
-          onNavigate={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("资源数量读取失败");
-    expect(screen.getByRole("button", { name: "重新读取" })).toBeInTheDocument();
-    expect(screen.queryByText("正在读取资源数量")).not.toBeInTheDocument();
   });
-
-  it("展示统一来源最近运行和最近完整报告的规范化指标", async () => {
-    const page = runPage();
-    const item = page.items[0];
-    if (item === undefined) throw new Error("RUN_PAGE_FIXTURE_MISSING");
-    const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
-      const url = requestUrl(input);
-      if (url === "/api/v1/runs?limit=50") {
-        return Promise.resolve(
-          response({
-            ...page,
-            items: [
-              {
-                ...item,
-                sourceType: "OFFLINE_IMPORT",
-                status: "COMPLETED",
-                stage: "DONE",
-                rest: { total: 1, completed: 1, succeeded: 1, error: 0 },
-                evaluation: {
-                  total: 1,
-                  completed: 1,
-                  passed: 1,
-                  failed: 0,
-                  error: 0,
-                  notEvaluated: 0
-                }
-              }
-            ]
-          })
-        );
-      }
-      if (url === `/api/v1/runs/${RUN_ID}/report`) {
-        return Promise.resolve(response(runReportOverview));
-      }
-      return Promise.resolve(response({ items: [], nextCursor: null }));
-    });
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
-    render(
-      <QueryClientProvider client={client}>
-        <DashboardPage
-          api={createResourceApi(fetcher)}
-          runApi={createRunApi(fetcher)}
-          onNavigate={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(await screen.findByRole("heading", { name: "最近运行" })).toBeInTheDocument();
-    expect(screen.getByText("离线导入")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /客服回归集/ })).toHaveAttribute(
-      "href",
-      `/runs/${RUN_ID}/report`
-    );
-    expect(await screen.findByTestId("latest-report-effective-rate")).toHaveTextContent("100.0%");
-    expect(screen.getByTestId("latest-report-coverage-rate")).toHaveTextContent("100.0%");
-    expect(screen.getByTestId("latest-report-primary-metric")).toHaveTextContent("quality");
-    expect(screen.getByTestId("latest-report-primary-metric")).toHaveTextContent("100.0%");
+  it("展示运行目的、离线来源、场景与真实通过数，并保留报告跳转", async () => {
+    const { navigate } = mount(completed("OFFLINE_IMPORT"));
+    expect(await screen.findByTestId("quality-pass-count")).toHaveTextContent("1/ 1");
+    expect(screen.getByRole("heading", { name: "待办功能验收" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "业务场景表现" })).toBeVisible();
+    expect(screen.getByText("所选运行全部通过")).toBeVisible();
+    await userEvent.click(screen.getByRole("link", { name: "待办功能验收" }));
+    expect(navigate).toHaveBeenCalledWith(`/runs/${RUN_ID}`);
+    expect(runReviewApi.list).not.toHaveBeenCalled();
   });
-
-  it("同一 Run 从运行中推进到 Report 完成时重新读取最新报告", async () => {
-    const runningPage = runPage(runDetail({ status: "RUNNING", stage: "REPORT" }));
-    const completedPage = {
-      ...runningPage,
-      items: runningPage.items.map((item) => ({
-        ...item,
-        status: "COMPLETED" as const,
-        stage: "DONE" as const
-      }))
-    };
-    const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
-      const url = requestUrl(input);
-      if (url === "/api/v1/runs?limit=50") return Promise.resolve(response(runningPage));
-      if (url === `/api/v1/runs/${RUN_ID}/report`) {
-        return Promise.resolve(response(runReportOverview));
+  it("A2UI 自动通过但没有人工批准时计入待处理，不显示全部通过", async () => {
+    mount(completed(), [
+      {
+        ...runReportCase,
+        definition: {
+          ...runReportCase.definition,
+          metadata: { ...runReportCase.definition.metadata, a2ui_capture: true }
+        }
       }
-      return Promise.resolve(response({ items: [], nextCursor: null }));
-    });
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
-    render(
-      <QueryClientProvider client={client}>
-        <DashboardPage
-          api={createResourceApi(fetcher)}
-          runApi={createRunApi(fetcher)}
-          onNavigate={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(await screen.findByRole("heading", { name: "最近运行" })).toBeInTheDocument();
-    expect(fetcher.mock.calls.some(([request]) => requestUrl(request).endsWith("/report"))).toBe(
-      false
-    );
+    ]);
+    expect(await screen.findByTestId("quality-pass-count")).toHaveTextContent("0/ 1");
+    expect(screen.getByTestId("quality-pending-count")).toHaveTextContent("1条 Case");
+    expect(screen.getByText("自动评测通过 · 等待人工复核")).toBeVisible();
+    expect(screen.queryByText("所选运行全部通过")).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "关注结论筛选" }), "PASS");
+    expect(screen.getByText("当前筛选下没有 Case")).toBeVisible();
+  });
+  it("复核接口失败时不发布最终通过率", async () => {
+    vi.mocked(runReviewApi.list).mockRejectedValue(new Error("unavailable"));
+    mount();
+    expect(await screen.findByText("人工复核记录读取失败，暂不展示最终结论。")).toBeVisible();
+    expect(screen.queryByTestId("quality-pass-count")).not.toBeInTheDocument();
+  });
+  it("拒绝部分报告，不拿一部分 Case 冒充整体", async () => {
+    mount(completed(), []);
+    expect(await screen.findByText("完整评测证据读取失败，暂不展示验收统计。")).toBeVisible();
+    expect(screen.queryByTestId("quality-pass-count")).not.toBeInTheDocument();
+  });
+  it("运行完成后读取报告，运行中不展示伪造的验收数据", async () => {
+    const running = runPage(runDetail({ status: "RUNNING", stage: "REPORT" }));
+    const { client, fetcher } = mount(running);
+    await screen.findByRole("heading", { name: "还没有可展示的完整评测" });
+    expect(fetcher.mock.calls.some(([input]) => requestUrl(input).endsWith("/report"))).toBe(false);
     act(() => {
-      client.setQueryData(["dashboard", "recent-runs"], completedPage);
+      client.setQueryData(["dashboard", "recent-runs"], completed());
     });
-    expect(await screen.findByTestId("latest-report-effective-rate")).toHaveTextContent("100.0%");
+    await waitFor(() => expect(screen.getByTestId("quality-pass-count")).toHaveTextContent("1/ 1"));
   });
 });

@@ -163,7 +163,16 @@ function caseDefinition(source: DomainJsonObject): CaseDefinition {
   const variables = record(root.vars);
   const metadata = record(root.metadata);
   requireExactKeys(variables, ["task", "request_body"]);
-  requireExactKeys(metadata, ["case_id", "req_id", "task_id", "business_module", "scenario_tag"]);
+  requireExactKeys(metadata, [
+    "case_id",
+    "req_id",
+    "task_id",
+    "business_module",
+    "scenario_tag",
+    ...(Object.hasOwn(metadata, "a2ui_capture") ? ["a2ui_capture"] : [])
+  ]);
+  if (metadata.a2ui_capture !== undefined && typeof metadata.a2ui_capture !== "boolean")
+    throw new SqliteRowInvalidError();
   const assertions = root.assert;
   if (!Array.isArray(assertions)) throw new SqliteRowInvalidError();
   const definition: CaseDefinition = {
@@ -176,7 +185,8 @@ function caseDefinition(source: DomainJsonObject): CaseDefinition {
       requestId: stringMember(metadata, "req_id"),
       taskId: stringMember(metadata, "task_id"),
       businessModule: stringMember(metadata, "business_module"),
-      scenarioTag: stringMember(metadata, "scenario_tag")
+      scenarioTag: stringMember(metadata, "scenario_tag"),
+      ...(typeof metadata.a2ui_capture === "boolean" ? { a2uiCapture: metadata.a2ui_capture } : {})
     },
     assertions: assertions.map(assertion)
   };

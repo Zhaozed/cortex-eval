@@ -1,304 +1,275 @@
 import { useQuery } from "@tanstack/react-query";
-import { Database, RefreshCw } from "lucide-react";
-import type { MouseEvent, ReactElement } from "react";
-
-import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert.tsx";
-import { Badge } from "../../components/ui/badge.tsx";
+import { ArrowRight, Layers3, RefreshCw } from "lucide-react";
+import { useState, type ReactElement } from "react";
+import { Alert, AlertTitle } from "../../components/ui/alert.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { Progress } from "../../components/ui/progress.tsx";
-import { countCursorResources, resourceDashboardContributions } from "../feature-registry.ts";
-import { formatMessage, message, type MessageKey } from "../../messages/messages.ts";
-import { resourceKeys, type ConfigurationKind, type ResourceApi } from "../../lib/resource-api.ts";
-import { ApiClientError } from "../../lib/api-client.ts";
-import type { PlatformRunPage, RunApi, RunReportOverview } from "../../lib/run-api.ts";
-import { displayRunDate, runStageLabel, runStatusLabel } from "../runs/run-ui.ts";
+import { resourceKeys, type ResourceApi } from "../../lib/resource-api.ts";
+import type { RunApi } from "../../lib/run-api.ts";
+import { runReviewApi } from "../../lib/run-review-api.ts";
+import { countCursorResources } from "../feature-registry.ts";
+import { displayRunDate, runStatusLabel } from "../runs/run-ui.ts";
+import { DashboardResults } from "./dashboard-results.tsx";
+import { dashboardRunPath, loadDashboardEvidence, reportCandidates } from "./dashboard-model.ts";
 
-/** Exact P4 resource counts displayed by Dashboard contributions. */
-interface DashboardCounts {
-  /** Current Test Suite count. */
-  readonly "test-suites": number;
-  /** Current Case count derived from Suite summaries. */
-  readonly cases: number;
-  /** Current Endpoint configuration count. */
-  readonly "endpoint-configs": number;
-  /** Current LLM configuration count. */
-  readonly "llm-configs": number;
-  /** Current Rubric Prompt count. */
-  readonly "rubric-prompts": number;
-  /** Current Analysis Prompt count. */
-  readonly "analysis-prompts": number;
-}
-
-/** Dashboard page properties. */
 export interface DashboardPageProps {
-  /** Boundary-validating resource API. */
   readonly api: ResourceApi;
-  /** Boundary-validating Run API. */
   readonly runApi: RunApi;
-  /** Explicit History navigation callback. */
   readonly onNavigate: (path: string) => void;
 }
 
-// Read all Test Suite pages and aggregate their Case summary counts.
-async function loadSuiteCounts(
-  api: ResourceApi,
-  signal: AbortSignal
-): Promise<readonly [number, number]> {
-  let suiteCount = 0;
-  let caseCount = 0;
-  await countCursorResources(async (cursor, pageSignal) => {
-    const page = await api.listTestSuites({ limit: 200, cursor }, pageSignal);
-    suiteCount += page.items.length;
-    caseCount += page.items.reduce((sum, suite) => sum + suite.caseCount, 0);
-    return { count: page.items.length, next: page.nextCursor };
-  }, signal);
-  return [suiteCount, caseCount];
-}
-
-// Read one complete Configuration family through its cursor pages.
-function loadConfigurationCount(
-  api: ResourceApi,
-  kind: ConfigurationKind,
-  signal: AbortSignal
-): Promise<number> {
-  return countCursorResources(async (cursor, pageSignal) => {
-    const page = await api.listConfigurations(kind, { limit: 200, cursor }, pageSignal);
-    return { count: page.items.length, next: page.nextCursor };
-  }, signal);
-}
-
-// Load all P4 Dashboard contributions from current server facts.
-async function loadDashboardCounts(
-  api: ResourceApi,
-  signal: AbortSignal
-): Promise<DashboardCounts> {
-  const [[suites, cases], endpoints, llms, rubrics, analysisPrompts] = await Promise.all([
-    loadSuiteCounts(api, signal),
-    loadConfigurationCount(api, "ENDPOINT", signal),
-    loadConfigurationCount(api, "LLM", signal),
-    loadConfigurationCount(api, "LLM_RUBRIC_PROMPT", signal),
-    loadConfigurationCount(api, "CASE_ANALYSIS_PROMPT", signal)
-  ]);
-  return {
-    "test-suites": suites,
-    cases,
-    "endpoint-configs": endpoints,
-    "llm-configs": llms,
-    "rubric-prompts": rubrics,
-    "analysis-prompts": analysisPrompts
-  };
-}
-
-// Read the newest committed Report among the bounded newest Run facts.
-async function loadLatestReport(
-  api: RunApi,
-  page: PlatformRunPage,
-  signal: AbortSignal
-): Promise<RunReportOverview | null> {
-  const candidates = page.items.filter(
-    (run) =>
-      run.stage === "DONE" && (run.status === "COMPLETED" || run.status === "COMPLETED_WITH_ERRORS")
-  );
-  for (const run of candidates) {
-    try {
-      return await api.getReport(run.id, signal);
-    } catch (error) {
-      if (
-        error instanceof ApiClientError &&
-        (error.code === "RUN_STATE_CONFLICT" || error.code === "RUN_NOT_FOUND")
-      ) {
-        continue;
-      }
-      throw error;
-    }
-  }
-  return null;
-}
-
-// Render an exact stored Rate without manufacturing a zero for an empty denominator.
-function reportRate(value: number | null): string {
-  return value === null ? message("reports.rateUnavailable") : `${(value * 100).toFixed(1)}%`;
-}
-
-// Route imported history directly to its Report while retaining platform Run detail.
-function dashboardRunPath(run: PlatformRunPage["items"][number]): string {
-  const id = encodeURIComponent(run.id);
-  return run.sourceType === "OFFLINE_IMPORT" ? `/runs/${id}/report` : `/runs/${id}`;
-}
-
-/** Resource counts and recent platform Run facts registered through P5. */
+/** Management overview: real acceptance evidence first, editable configuration counts omitted. */
 export function DashboardPage({ api, runApi, onNavigate }: DashboardPageProps): ReactElement {
-  const query = useQuery({
+  const [selection, setSelection] = useState<string | null>(null);
+  const inventory = useQuery({
     queryKey: resourceKeys.dashboard(),
-    queryFn: ({ signal }) => loadDashboardCounts(api, signal)
+    queryFn: async ({ signal }) => {
+      let cases = 0;
+      const suites = await countCursorResources(async (cursor, requestSignal) => {
+        const page = await api.listTestSuites({ limit: 200, cursor }, requestSignal);
+        cases += page.items.reduce((sum, suite) => sum + suite.caseCount, 0);
+        return { count: page.items.length, next: page.nextCursor };
+      }, signal);
+      return { suites, cases };
+    }
   });
   const runs = useQuery({
-    queryKey: ["dashboard", "recent-runs"] as const,
+    queryKey: ["dashboard", "recent-runs"],
     queryFn: ({ signal }) => runApi.listRuns({ limit: 50, cursor: null }, signal),
-    refetchInterval: (current) =>
-      current.state.data?.items.some((run) => run.status === "RUNNING") === true ? 1_000 : false
+    refetchInterval: (query) =>
+      query.state.data?.items.some((run) => run.status === "RUNNING") ? 3000 : false
   });
-  const latestReport = useQuery({
-    queryKey: [
-      "dashboard",
-      "latest-report",
-      runs.data?.items.map((run) => [run.id, run.status, run.stage, run.updatedAt]) ?? []
-    ] as const,
+  const candidates = reportCandidates(runs.data?.items ?? []);
+  const selected = candidates.find((run) => run.id === selection) ?? candidates[0];
+  const evidence = useQuery({
+    queryKey: ["dashboard", "acceptance", selected?.id, selected?.updatedAt],
     queryFn: ({ signal }) => {
-      if (runs.data === undefined) return Promise.resolve(null);
-      return loadLatestReport(runApi, runs.data, signal);
+      if (!selected) throw new Error("DASHBOARD_RUN_UNSELECTED");
+      return loadDashboardEvidence(runApi, selected, signal);
     },
-    enabled: runs.data !== undefined
+    enabled: selected !== undefined,
+    retry: false
   });
-
-  if (query.isPending) {
-    return (
-      <section className="page-stack" aria-busy="true">
-        <header className="page-header">
-          <p className="eyebrow">{message("dashboard.eyebrow")}</p>
-          <h1>{message("dashboard.title")}</h1>
-        </header>
-        <div className="loading-panel">
-          <span>{message("dashboard.loading")}</span>
-          <Progress aria-label={message("dashboard.loading")} />
-        </div>
-      </section>
-    );
-  }
-
-  if (query.isError) {
-    return (
-      <section className="page-stack">
-        <header className="page-header">
-          <p className="eyebrow">{message("dashboard.eyebrow")}</p>
-          <h1>{message("dashboard.title")}</h1>
-        </header>
-        <Alert variant="destructive">
-          <AlertTitle>{message("dashboard.errorTitle")}</AlertTitle>
-          <AlertDescription>{message("dashboard.errorDescription")}</AlertDescription>
-          <Button type="button" variant="outline" onClick={() => void query.refetch()}>
-            <RefreshCw aria-hidden="true" />
-            {message("dashboard.retry")}
-          </Button>
-        </Alert>
-      </section>
-    );
-  }
-
+  const reviews = useQuery({
+    queryKey: ["run-reviews", selected?.id],
+    queryFn: ({ signal }) => {
+      if (!selected) throw new Error("DASHBOARD_RUN_UNSELECTED");
+      return runReviewApi.list(selected.id, signal);
+    },
+    enabled: selected?.sourceType === "PLATFORM",
+    retry: false
+  });
+  const refresh = (): void => {
+    void runs.refetch();
+    void inventory.refetch();
+    if (selected) void evidence.refetch();
+    if (selected?.sourceType === "PLATFORM") void reviews.refetch();
+  };
+  const reviewReady = selected?.sourceType !== "PLATFORM" || reviews.isSuccess;
+  const rows = evidence.data?.rows.map((row) => ({
+    ...row,
+    review: reviews.data?.find((review) => review.caseKey === row.caseKey)
+  }));
+  const busy = runs.isFetching || evidence.isFetching || reviews.isFetching || inventory.isFetching;
   return (
-    <section className="page-stack">
-      <header className="page-header dashboard-header">
+    <section className="quality-dashboard">
+      <header className="quality-header">
         <div>
-          <p className="eyebrow">{message("dashboard.eyebrow")}</p>
-          <h1>{message("dashboard.title")}</h1>
-          <p>{message("dashboard.description")}</p>
+          <p className="quality-eyebrow">CORTEX / EVALUATION</p>
+          <h1>评测仪表盘</h1>
+          <p>看清验收进展，把注意力留给还没解决的问题。</p>
         </div>
-        <Database className="header-symbol" aria-hidden="true" />
+        <div className="quality-header-actions">
+          <Button variant="outline" size="sm" onClick={refresh} disabled={busy}>
+            <RefreshCw aria-hidden="true" />
+            刷新
+          </Button>
+          <Button size="sm" onClick={() => onNavigate("/runs")}>
+            运行工作台
+            <ArrowRight aria-hidden="true" />
+          </Button>
+        </div>
       </header>
-      <div className="resource-count-grid">
-        {resourceDashboardContributions.map((contribution, index) => (
-          <article className="count-card" key={contribution.id}>
-            <div className="count-card-topline">
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <Badge variant="accent">{message("dashboard.current")}</Badge>
-            </div>
-            <strong data-testid={`count-${contribution.id}`}>
-              {query.data[contribution.id as keyof DashboardCounts]}
-            </strong>
-            <h2>{message(contribution.labelKey as MessageKey)}</h2>
-          </article>
-        ))}
-      </div>
-      <section className="dashboard-runs" aria-labelledby="dashboard-report-heading">
-        <div className="section-heading compact">
-          <div>
-            <p className="eyebrow">{message("dashboard.reportEyebrow")}</p>
-            <h2 id="dashboard-report-heading">{message("dashboard.latestReport")}</h2>
-          </div>
-        </div>
-        {latestReport.isPending && runs.data !== undefined ? (
-          <Progress aria-label={message("dashboard.reportLoading")} />
-        ) : null}
-        {latestReport.isError ? (
-          <Alert variant="destructive">
-            <AlertTitle>{message("dashboard.reportError")}</AlertTitle>
-          </Alert>
-        ) : null}
-        {latestReport.data === null ? (
-          <p className="empty-state">{message("dashboard.reportEmpty")}</p>
-        ) : null}
-        {latestReport.data === undefined || latestReport.data === null ? null : (
-          <div className="resource-count-grid report-summary-grid">
-            <article className="count-card" data-testid="latest-report-effective-rate">
-              <span>{message("reports.effectivePassRate")}</span>
-              <strong>{reportRate(latestReport.data.summary.effectivePassRate)}</strong>
-            </article>
-            <article className="count-card" data-testid="latest-report-coverage-rate">
-              <span>{message("reports.coverageRate")}</span>
-              <strong>{reportRate(latestReport.data.summary.coverageRate)}</strong>
-            </article>
-            <article className="count-card" data-testid="latest-report-primary-metric">
-              <span>
-                {latestReport.data.byMetric[0]?.metric ?? message("dashboard.primaryMetricEmpty")}
-              </span>
-              <strong>{reportRate(latestReport.data.byMetric[0]?.passRate ?? null)}</strong>
-            </article>
-          </div>
+      <div className="quality-inventory">
+        <Layers3 size={14} aria-hidden="true" />
+        {inventory.data && !inventory.isError ? (
+          <span>
+            测试资产 <b data-testid="count-test-suites">{inventory.data.suites}</b> 个测试集 <i />{" "}
+            <b data-testid="count-cases">{inventory.data.cases}</b> 条 Case
+          </span>
+        ) : (
+          <span>{inventory.isError ? "测试资产数量暂不可用" : "正在读取测试资产…"}</span>
         )}
-      </section>
-      <section className="dashboard-runs" aria-labelledby="dashboard-runs-heading">
-        <div className="section-heading compact">
-          <div>
-            <p className="eyebrow">{message("dashboard.runsEyebrow")}</p>
-            <h2 id="dashboard-runs-heading">{message("dashboard.recentRuns")}</h2>
-          </div>
-          <Badge variant="outline">{message("dashboard.allSources")}</Badge>
-        </div>
-        {runs.isPending ? <Progress aria-label={message("dashboard.runsLoading")} /> : null}
-        {runs.isError ? (
-          <Alert variant="destructive">
-            <AlertTitle>{message("dashboard.runsError")}</AlertTitle>
-            <Button type="button" variant="outline" onClick={() => void runs.refetch()}>
-              <RefreshCw aria-hidden="true" />
-              {message("dashboard.retry")}
-            </Button>
-          </Alert>
-        ) : null}
-        {runs.data?.items.length === 0 ? (
-          <p className="empty-state">{message("dashboard.runsEmpty")}</p>
-        ) : null}
-        {runs.data === undefined || runs.data.items.length === 0 ? null : (
-          <div className="dashboard-run-grid">
-            {runs.data.items.slice(0, 5).map((run) => (
-              <a
-                key={run.id}
-                href={dashboardRunPath(run)}
-                className="dashboard-run-card"
-                onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-                  event.preventDefault();
-                  onNavigate(dashboardRunPath(run));
-                }}
-              >
-                <div className="count-card-topline">
-                  <span>{runStageLabel(run.stage)}</span>
-                  <Badge variant="accent">{runStatusLabel(run.status)}</Badge>
-                </div>
-                <strong>{run.suiteName}</strong>
-                <Badge variant="outline">
-                  {run.sourceType === "PLATFORM"
-                    ? message("runs.platform")
-                    : message("runs.offlineImport")}
-                </Badge>
-                <span>
-                  {formatMessage("runs.progressCount", {
-                    completed: run.rest.completed,
-                    total: run.rest.total
-                  })}
+      </div>
+      {runs.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>运行记录读取失败，请刷新重试。</AlertTitle>
+        </Alert>
+      ) : null}
+      {runs.isPending ? <Progress aria-label="读取运行记录" /> : null}
+      {selected && !runs.isError ? (
+        <>
+          <section className="quality-scope" aria-label="统计范围">
+            <div className="quality-scope-description">
+              <div className="quality-kicker">
+                <span className="quality-dot" />
+                运行验收概览{" "}
+                <span className="quality-subtle">
+                  {selection === selected.id ? "已选运行" : "最近完成"}
                 </span>
-                <small>{displayRunDate(run.updatedAt)}</small>
-              </a>
-            ))}
+              </div>
+              <h2>{selected.name ?? selected.suiteName}</h2>
+              <p>{selected.description?.trim() ? selected.description : "未填写运行目的"}</p>
+              <div className="quality-scope-meta">
+                <span>测试集 · {selected.suiteName}</span>
+                <span>{displayRunDate(selected.createdAt)}</span>
+                {selected.sourceType === "OFFLINE_IMPORT" && <span>离线导入</span>}
+              </div>
+            </div>
+            <div className="quality-scope-control">
+              <label htmlFor="quality-run-select">切换统计运行</label>
+              <select
+                id="quality-run-select"
+                value={selected.id}
+                onChange={(event) => setSelection(event.target.value)}
+              >
+                {candidates.map((run) => (
+                  <option key={run.id} value={run.id}>
+                    {run.name ?? run.suiteName} · {displayRunDate(run.createdAt)}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onNavigate(dashboardRunPath(selected))}
+              >
+                查看完整运行
+                <ArrowRight aria-hidden="true" />
+              </Button>
+            </div>
+          </section>
+          {evidence.isError || (selected.sourceType === "PLATFORM" && reviews.isError) ? (
+            <Alert variant="destructive">
+              <AlertTitle>
+                {evidence.isError
+                  ? "完整评测证据读取失败，暂不展示验收统计。"
+                  : "人工复核记录读取失败，暂不展示最终结论。"}
+              </AlertTitle>
+              <Button size="sm" variant="outline" onClick={refresh}>
+                重新读取
+              </Button>
+            </Alert>
+          ) : evidence.isPending || !reviewReady ? (
+            <Progress aria-label="读取验收证据" />
+          ) : rows ? (
+            <DashboardResults
+              key={selected.id}
+              run={selected}
+              report={evidence.data.report}
+              rows={rows}
+              api={runApi}
+              onNavigate={onNavigate}
+            />
+          ) : null}
+        </>
+      ) : runs.isSuccess ? (
+        <section className="quality-panel quality-empty">
+          <Layers3 aria-hidden="true" />
+          <h2>还没有可展示的完整评测</h2>
+          <p>完成一次评测后，这里会展示场景结果和待处理问题。运行结束不代表验收通过。</p>
+          <Button size="sm" onClick={() => onNavigate("/runs")}>
+            前往运行工作台
+            <ArrowRight aria-hidden="true" />
+          </Button>
+        </section>
+      ) : null}
+      <section className="quality-panel quality-recent" aria-labelledby="quality-recent-heading">
+        <div className="quality-panel-heading">
+          <div>
+            <h2 id="quality-recent-heading">近期运行</h2>
+            <p>执行进展与自动评测结果；人工复核见运行详情</p>
           </div>
+          <Button variant="ghost" size="sm" onClick={() => onNavigate("/runs")}>
+            全部运行
+            <ArrowRight aria-hidden="true" />
+          </Button>
+        </div>
+        {runs.data && !runs.isError ? (
+          <>
+            <div className="quality-table-scroll">
+              <table className="quality-table">
+                <thead>
+                  <tr>
+                    <th>运行 / 测试目的</th>
+                    <th>测试集</th>
+                    <th>运行状态</th>
+                    <th>执行 / 评测进度</th>
+                    <th>自动通过 / 未通过 / 评测异常</th>
+                    <th>创建时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {runs.data.items.slice(0, 6).map((run) => (
+                    <tr key={run.id}>
+                      <td>
+                        <a
+                          href={dashboardRunPath(run)}
+                          onClick={(event) => {
+                            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+                              return;
+                            event.preventDefault();
+                            onNavigate(dashboardRunPath(run));
+                          }}
+                        >
+                          {run.name ?? run.suiteName}
+                          <ArrowRight size={13} aria-hidden="true" />
+                        </a>
+                        <span className="quality-cell-description">
+                          {run.description?.trim() ? run.description : "未填写运行目的"}
+                        </span>
+                      </td>
+                      <td>{run.suiteName}</td>
+                      <td>
+                        <span
+                          className={`quality-run-status ${run.status === "RUNNING" ? "is-running" : run.status === "FAILED" || run.status === "COMPLETED_WITH_ERRORS" ? "is-error" : ""}`}
+                        >
+                          {runStatusLabel(run.status)}
+                        </span>
+                        {run.sourceType === "OFFLINE_IMPORT" && <small>离线导入</small>}
+                      </td>
+                      <td>
+                        <span>
+                          执行 {run.rest.completed}/{run.rest.total}
+                        </span>
+                        <small>
+                          评测 {run.evaluation.completed}/{run.evaluation.total}
+                        </small>
+                      </td>
+                      <td>
+                        {run.evaluation.completed === 0 ? (
+                          <span className="quality-subtle">待评测</span>
+                        ) : (
+                          <span className="quality-auto-counts">
+                            <b>{run.evaluation.passed}</b> / <b>{run.evaluation.failed}</b> /{" "}
+                            <b>{run.evaluation.error}</b>
+                          </span>
+                        )}
+                      </td>
+                      <td className="quality-date">{displayRunDate(run.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {runs.data.items.length === 0 && <p className="quality-empty-text">暂无运行记录</p>}
+            <footer className="quality-panel-footer">
+              显示最近 {Math.min(6, runs.data.items.length)} 条运行 · 概览可选择最近 50
+              条记录中已完成的评测
+            </footer>
+          </>
+        ) : (
+          <p className="quality-empty-text">{runs.isError ? "运行记录暂不可用" : "正在读取…"}</p>
         )}
       </section>
     </section>

@@ -1,3 +1,4 @@
+import { ApiClientError } from "../../lib/api-client.ts";
 import type { PlatformRunDetail, PlatformRunPage } from "../../lib/run-api.ts";
 import { message, type MessageKey } from "../../messages/messages.ts";
 
@@ -53,4 +54,16 @@ export function displayRunDate(value: string): string {
 /** Whether one Run has reached a persisted terminal status. */
 export function isRunTerminal(run: Pick<RunSummary, "status">): boolean {
   return run.status !== "READY" && run.status !== "RUNNING";
+}
+
+/** Keep conflicts distinct: stale revision, unavailable stage, and another active Run. */
+export function runMutationErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiClientError) {
+    if (error.runStateReason === "STATE_OR_REVISION") return message("runs.mutationErrorStale");
+    if (error.runStateReason === "STAGE_UNAVAILABLE")
+      return message("runs.mutationErrorStageUnavailable");
+    if (error.runStateReason === "GLOBAL_RUNNING")
+      return message("runs.mutationErrorGlobalRunning");
+  }
+  return fallback;
 }

@@ -5,7 +5,6 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { RunDetailPage } from "../src/features/runs/run-detail-page.tsx";
 import { RunListPage } from "../src/features/runs/run-list-page.tsx";
 import { createResourceApi } from "../src/lib/resource-api.ts";
 import { createRunApi, type RunCaseDetail, type RunCasePage } from "../src/lib/run-api.ts";
@@ -368,6 +367,7 @@ describe("Run 页面", () => {
       screen.getByRole("combobox", { name: "Evaluator LLM" }),
       EVALUATOR_ID
     );
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "运行模式" }), "STAGED");
     await userEvent.click(screen.getByRole("button", { name: "运行前检查" }));
 
     expect(await screen.findByText("3 Cases")).toBeInTheDocument();
@@ -375,6 +375,13 @@ describe("Run 页面", () => {
     expect(screen.getByText("GEMINI_API_KEY")).toBeInTheDocument();
     expect(screen.getByRole("spinbutton", { name: "REST 并发" })).toHaveValue(4);
     expect(screen.getByRole("spinbutton", { name: "Eval 并发" })).toHaveValue(2);
+    expect(screen.getByRole("textbox", { name: "运行名称" })).toHaveValue("客服回归集");
+    await userEvent.clear(screen.getByRole("textbox", { name: "运行名称" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "运行名称" }), "客服意图修复回归");
+    await userEvent.type(
+      screen.getByRole("textbox", { name: /运行描述/ }),
+      "验证路由修复，关注澄清场景"
+    );
     await userEvent.click(screen.getByRole("button", { name: "创建运行" }));
 
     await waitFor(() => expect(onCommittedNavigate).toHaveBeenCalledWith(`/runs/${RUN_ID}`));
@@ -383,6 +390,8 @@ describe("Run 页面", () => {
       ([input, init]) => requestUrl(input) === "/api/v1/runs" && init?.method === "POST"
     );
     expect(JSON.parse(requestBody(createCall?.[1]))).toEqual({
+      name: "客服意图修复回归",
+      description: "验证路由修复，关注澄清场景",
       suiteId: SUITE_ID,
       endpointConfigId: ENDPOINT_ID,
       evaluatorConfigId: EVALUATOR_ID,
@@ -393,63 +402,6 @@ describe("Run 页面", () => {
         evalConcurrency: 2
       }
     });
-  });
-
-  it("从服务端 Revision 启动、展示逐 Case 事实并请求取消", async () => {
-    let current = runDetail();
-    const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
-      const url = requestUrl(input);
-      if (url.endsWith("/start") && init?.method === "POST") {
-        current = runDetail({
-          status: "RUNNING",
-          lockRevision: 1,
-          startedAt: RUN_TIME,
-          rest: { total: 3, completed: 1, succeeded: 1, error: 0 }
-        });
-        return Promise.resolve(response(runProgress(current)));
-      }
-      if (url.endsWith("/cancel") && init?.method === "POST") {
-        current = runDetail({
-          status: "RUNNING",
-          lockRevision: 2,
-          cancelRequestedAt: RUN_TIME,
-          startedAt: RUN_TIME,
-          rest: { total: 3, completed: 1, succeeded: 1, error: 0 }
-        });
-        return Promise.resolve(response(runProgress(current)));
-      }
-      if (url.endsWith("/cases/case-1")) return Promise.resolve(response(runCaseDetail));
-      if (url.includes("/cases?")) return Promise.resolve(response(runCasePage));
-      if (url === `/api/v1/runs/${RUN_ID}`) return Promise.resolve(response(current));
-      return Promise.resolve(response({ invalid: true }));
-    });
-
-    render(
-      <QueryClientProvider client={client()}>
-        <RunDetailPage
-          api={createRunApi(fetcher, inertEventSource)}
-          runId={RUN_ID}
-          onNavigate={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
-
-    await userEvent.click(await screen.findByRole("button", { name: "启动 REST 阶段" }));
-    expect(fetcher).toHaveBeenCalledWith(
-      `/api/v1/runs/${RUN_ID}/start`,
-      expect.objectContaining({ body: JSON.stringify({ expectedRevision: 0 }) })
-    );
-    expect(await screen.findByText("1 / 3")).toBeInTheDocument();
-    await userEvent.click(await screen.findByRole("button", { name: "查看 case-1" }));
-    expect(await screen.findByText(/"reply": "你好"/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "关闭" }));
-    await userEvent.click(screen.getByRole("button", { name: "请求取消" }));
-
-    expect(await screen.findByText("取消请求已提交，正在收口已派发请求。")).toBeInTheDocument();
-    expect(fetcher).toHaveBeenCalledWith(
-      `/api/v1/runs/${RUN_ID}/cancel`,
-      expect.objectContaining({ body: JSON.stringify({ expectedRevision: 1 }) })
-    );
   });
 
   it("Run 列表加载失败可重试，资源 Cursor 循环明确失败", async () => {
@@ -507,7 +459,7 @@ describe("Run 页面", () => {
 
     expect(await screen.findByText("运行列表读取失败")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "重新读取" }));
-    expect(await screen.findByText(RUN_ID)).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "客服回归集" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "新建运行" }));
     expect(await screen.findByText("运行资源选项读取失败")).toBeInTheDocument();
   });
@@ -601,17 +553,19 @@ describe("Run 页面", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("page-0")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("link", { name: RUN_ID }));
+    expect(await screen.findByRole("link", { name: "page-0" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "A2UI 模板回归" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("link", { name: "page-0" }));
     expect(onNavigate).toHaveBeenCalledWith(`/runs/${RUN_ID}`);
     await userEvent.click(screen.getByRole("button", { name: "下一页" }));
-    expect(await screen.findByText("page-1")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "page-1" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "下一页" }));
     expect(await screen.findByText("当前没有运行。")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "上一页" }));
-    expect(await screen.findByText("page-1")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "page-1" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "上一页" }));
-    expect(await screen.findByText("page-0")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "page-0" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "新建运行" }));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "测试集" }), SUITE_ID);
@@ -623,7 +577,7 @@ describe("Run 页面", () => {
       screen.getByRole("combobox", { name: "Evaluator LLM" }),
       EVALUATOR_ID
     );
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "运行模式" }), "PIPELINE");
+    expect(screen.getByRole("combobox", { name: "运行模式" })).toHaveValue("PIPELINE");
     await userEvent.click(screen.getByRole("button", { name: "运行前检查" }));
     expect(await screen.findByText("运行前检查失败")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "运行前检查" }));
@@ -723,321 +677,5 @@ describe("Run 页面", () => {
 
     act(() => createResponse.resolve(response(runDetail(), 201)));
     await waitFor(() => expect(onCommittedNavigate).toHaveBeenCalledWith(`/runs/${RUN_ID}`));
-  });
-
-  it("Run Detail 读取失败可重试，并呈现零 Case、Report 入口和系统错误", async () => {
-    let detailCalls = 0;
-    const current = {
-      ...runDetail({
-        stage: "REPORT",
-        rest: { total: 0, completed: 0, succeeded: 0, error: 0 }
-      }),
-      errorCode: "INTERNAL_ERROR"
-    };
-    const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
-      const url = requestUrl(input);
-      if (url === `/api/v1/runs/${RUN_ID}`) {
-        detailCalls += 1;
-        return Promise.resolve(detailCalls === 1 ? response({}, 500) : response(current));
-      }
-      if (url.includes("/cases?")) {
-        return Promise.resolve(response({ items: [], nextCursor: null }));
-      }
-      return Promise.resolve(response({ invalid: true }));
-    });
-    const onNavigate = vi.fn();
-    render(
-      <QueryClientProvider client={client()}>
-        <RunDetailPage
-          api={createRunApi(fetcher, inertEventSource)}
-          runId={RUN_ID}
-          onNavigate={onNavigate}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(await screen.findByText("运行详情读取失败")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "重新读取" }));
-    expect(await screen.findByRole("button", { name: "生成报告" })).toBeInTheDocument();
-    expect(screen.getByText("运行发生系统错误")).toBeInTheDocument();
-    expect(await screen.findByText("尚无已完成的真实 Case 结果。")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "返回运行" }));
-    expect(onNavigate).toHaveBeenCalledWith("/runs");
-  });
-
-  it("Run Detail 呈现错误 Case、空 HTTP、结果分页和已受理取消", async () => {
-    const hash = "a".repeat(64);
-    const errorPage: RunCasePage = {
-      items: [
-        {
-          runId: RUN_ID,
-          caseKey: "error-case",
-          ordinal: 0,
-          status: "ERROR",
-          httpStatus: null,
-          errorType: "NETWORK",
-          durationMs: 8,
-          completedAt: RUN_TIME,
-          resultHash: hash
-        }
-      ],
-      nextCursor: "next-case"
-    };
-    const errorDetail: RunCaseDetail = {
-      ...runCaseDetail,
-      caseKey: "error-case",
-      status: "ERROR",
-      httpStatus: null,
-      providerOutput: null,
-      error: { type: "NETWORK", message: "REST 网络连接失败。" }
-    };
-    const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
-      const url = requestUrl(input);
-      if (url === `/api/v1/runs/${RUN_ID}`) {
-        return Promise.resolve(
-          response(
-            runDetail({
-              status: "RUNNING",
-              lockRevision: 2,
-              cancelRequestedAt: RUN_TIME,
-              startedAt: RUN_TIME,
-              rest: { total: 2, completed: 1, succeeded: 0, error: 1 }
-            })
-          )
-        );
-      }
-      if (url.endsWith("/cases/error-case")) return Promise.resolve(response(errorDetail));
-      if (url.includes("cursor=next-case")) {
-        return Promise.resolve(
-          response({
-            ...runCasePage,
-            items: [{ ...runCasePage.items[0], caseKey: "case-2", ordinal: 1 }]
-          })
-        );
-      }
-      if (url.includes("/cases?")) return Promise.resolve(response(errorPage));
-      return Promise.resolve(response({ invalid: true }));
-    });
-    render(
-      <QueryClientProvider client={client()}>
-        <RunDetailPage
-          api={createRunApi(fetcher, inertEventSource)}
-          runId={RUN_ID}
-          onNavigate={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(await screen.findByText("取消请求已受理")).toBeInTheDocument();
-    expect(await screen.findByText("error-case")).toBeInTheDocument();
-    expect(screen.getAllByText("无").length).toBeGreaterThan(0);
-    await userEvent.click(screen.getByRole("button", { name: "查看 error-case" }));
-    expect(await screen.findByText("REST 错误")).toBeInTheDocument();
-    expect(screen.getByText(/REST 网络连接失败/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "关闭" }));
-    await userEvent.click(screen.getByRole("button", { name: "下一页" }));
-    expect(await screen.findByText("case-2")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "上一页" }));
-    expect(await screen.findByText("error-case")).toBeInTheDocument();
-  });
-
-  it("Run Detail 在 Evaluation 阶段提供启动入口，并展示归一化评估结果", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
-      const url = requestUrl(input);
-      if (url.endsWith("/start") && init?.method === "POST") {
-        return Promise.resolve(
-          response(
-            runProgress(runDetail({ status: "RUNNING", stage: "EVALUATION", lockRevision: 3 }))
-          )
-        );
-      }
-      if (url.includes("/evaluations?")) return Promise.resolve(response(runEvalPage));
-      if (url.includes("/cases?")) return Promise.resolve(response(runCasePage));
-      if (url === `/api/v1/runs/${RUN_ID}`) {
-        return Promise.resolve(response(runDetail({ stage: "EVALUATION", lockRevision: 2 })));
-      }
-      return Promise.resolve(response({ invalid: true }));
-    });
-    render(
-      <QueryClientProvider client={client()}>
-        <RunDetailPage
-          api={createRunApi(fetcher, inertEventSource)}
-          runId={RUN_ID}
-          onNavigate={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(await screen.findByText("逐 Case Evaluation 结果")).toBeInTheDocument();
-    expect(await screen.findByRole("columnheader", { name: "原因" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "评估错误" })).toBeInTheDocument();
-    expect(screen.getByText("匹配成功")).toBeInTheDocument();
-    expect(screen.getByText(/权重 1 · 分数 1 · 原因 断言匹配/)).toBeInTheDocument();
-    expect(screen.getByText("EVALUATOR_TIMEOUT：评估器响应超时")).toBeInTheDocument();
-    expect((await screen.findAllByText(/quality/)).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/通过/).length).toBeGreaterThan(0);
-    await userEvent.click(screen.getByRole("button", { name: "启动 Evaluation 阶段" }));
-    expect(fetcher).toHaveBeenCalledWith(
-      `/api/v1/runs/${RUN_ID}/start`,
-      expect.objectContaining({ body: JSON.stringify({ expectedRevision: 2 }) })
-    );
-  });
-
-  it("Run Detail 在启动版本冲突时展示具体原因而非通用文案", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
-      const url = requestUrl(input);
-      if (url.endsWith("/start") && init?.method === "POST") {
-        return Promise.resolve(
-          response(
-            {
-              error: {
-                code: "RUN_STATE_CONFLICT",
-                message: "运行状态发生冲突",
-                requestId: RUN_ID,
-                reason: "STATE_OR_REVISION"
-              }
-            },
-            409
-          )
-        );
-      }
-      if (url.includes("/evaluations?")) return Promise.resolve(response(runEvalPage));
-      if (url.includes("/cases?")) return Promise.resolve(response(runCasePage));
-      if (url === `/api/v1/runs/${RUN_ID}`) {
-        return Promise.resolve(response(runDetail({ stage: "EVALUATION", lockRevision: 2 })));
-      }
-      return Promise.resolve(response({ invalid: true }));
-    });
-    render(
-      <QueryClientProvider client={client()}>
-        <RunDetailPage
-          api={createRunApi(fetcher, inertEventSource)}
-          runId={RUN_ID}
-          onNavigate={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(await screen.findByText("逐 Case Evaluation 结果")).toBeInTheDocument();
-    await userEvent.click(await screen.findByRole("button", { name: "启动 Evaluation 阶段" }));
-    expect(
-      await screen.findByText("页面上的运行状态已过期，请刷新页面后重试。")
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText("运行状态已变化或操作失败，请以最新服务端事实重试。")
-    ).not.toBeInTheDocument();
-  });
-
-  it("Run Detail 在 Evaluation 完成后展示原子提交的完整分类计数", async () => {
-    const detail = runDetail({
-      status: "READY",
-      stage: "REPORT",
-      rest: { total: 3, completed: 3, succeeded: 2, error: 1 },
-      evaluation: {
-        total: 3,
-        completed: 3,
-        passed: 1,
-        failed: 1,
-        error: 1,
-        notEvaluated: 0
-      }
-    });
-    const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
-      const url = requestUrl(input);
-      if (url.includes("/evaluations?")) return Promise.resolve(response(runEvalPage));
-      if (url.includes("/cases?")) return Promise.resolve(response(runCasePage));
-      if (url === `/api/v1/runs/${RUN_ID}`) return Promise.resolve(response(detail));
-      return Promise.resolve(response({ invalid: true }));
-    });
-    render(
-      <QueryClientProvider client={client()}>
-        <RunDetailPage
-          api={createRunApi(fetcher, inertEventSource)}
-          runId={RUN_ID}
-          onNavigate={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
-
-    const stageHeading = await screen.findByRole("heading", { name: "Report" });
-    const stagePanel = stageHeading.closest("section");
-    if (stagePanel === null) throw new Error("TEST_STAGE_PANEL_MISSING");
-    expect([...stagePanel.querySelectorAll("article")].map((item) => item.textContent)).toEqual([
-      "3总数",
-      "3 / 3已完成",
-      "1通过",
-      "1未通过",
-      "1错误",
-      "0未评估"
-    ]);
-  });
-
-  it("Run Detail 显式呈现 Case 查询和状态写入失败", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
-      const url = requestUrl(input);
-      if (url.endsWith("/start") && init?.method === "POST")
-        return Promise.resolve(response({}, 409));
-      if (url.includes("/cases?")) return Promise.resolve(response({}, 500));
-      if (url === `/api/v1/runs/${RUN_ID}`) return Promise.resolve(response(runDetail()));
-      return Promise.resolve(response({ invalid: true }));
-    });
-    render(
-      <QueryClientProvider client={client()}>
-        <RunDetailPage
-          api={createRunApi(fetcher, inertEventSource)}
-          runId={RUN_ID}
-          onNavigate={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(await screen.findByText("Case 结果读取失败")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "启动 REST 阶段" }));
-    expect(
-      await screen.findByText("运行状态已变化或操作失败，请以最新服务端事实重试。")
-    ).toBeInTheDocument();
-  });
-
-  it("Run Detail 显式呈现启动、取消与 Case Detail 的 pending/error 状态", async () => {
-    let current = runDetail();
-    const startResponse = deferred<Response>();
-    const cancelResponse = deferred<Response>();
-    const caseResponse = deferred<Response>();
-    const fetcher = vi.fn<typeof fetch>().mockImplementation((input, init) => {
-      const url = requestUrl(input);
-      if (url.endsWith("/start") && init?.method === "POST") return startResponse.promise;
-      if (url.endsWith("/cancel") && init?.method === "POST") return cancelResponse.promise;
-      if (url.endsWith("/cases/case-1")) return caseResponse.promise;
-      if (url.includes("/cases?")) return Promise.resolve(response(runCasePage));
-      if (url === `/api/v1/runs/${RUN_ID}`) return Promise.resolve(response(current));
-      return Promise.resolve(response({ invalid: true }));
-    });
-    render(
-      <QueryClientProvider client={client()}>
-        <RunDetailPage
-          api={createRunApi(fetcher, inertEventSource)}
-          runId={RUN_ID}
-          onNavigate={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
-
-    await userEvent.click(await screen.findByRole("button", { name: "启动 REST 阶段" }));
-    expect(await screen.findByRole("button", { name: "正在启动" })).toBeDisabled();
-    current = runDetail({ status: "RUNNING", lockRevision: 1, startedAt: RUN_TIME });
-    act(() => startResponse.resolve(response(runProgress(current))));
-    await userEvent.click(await screen.findByRole("button", { name: "请求取消" }));
-    expect(await screen.findByRole("button", { name: "正在请求取消" })).toBeDisabled();
-    current = runDetail({
-      status: "RUNNING",
-      lockRevision: 2,
-      cancelRequestedAt: RUN_TIME,
-      startedAt: RUN_TIME
-    });
-    act(() => cancelResponse.resolve(response(runProgress(current))));
-    await userEvent.click(await screen.findByRole("button", { name: "查看 case-1" }));
-    expect(await screen.findByLabelText("正在读取 Case 详情")).toBeInTheDocument();
-    act(() => caseResponse.resolve(response({}, 500)));
-    expect(await screen.findByText("Case 详情读取失败")).toBeInTheDocument();
   });
 });

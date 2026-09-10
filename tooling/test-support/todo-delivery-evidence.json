@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "parsed_output": {
+    "request_identity": {
+      "root_req_id": "req_sanitized",
+      "included_req_ids": ["req_sanitized"],
+      "uid": 1001
+    },
+    "reply_type": "NOTICE",
+    "reply_text": "查询完成，结果为空",
+    "final_output": {
+      "asst_msg_id": "asst_sanitized",
+      "created_at": "2026-09-07T06:16:56.831196+00:00",
+      "kind": "NOTICE",
+      "links": [],
+      "req_id": "req_sanitized",
+      "role": "assistant",
+      "text": "查询完成，结果为空"
+    },
+    "delivered_messages": [
+      {
+        "asst_msg_id": "asst_sanitized",
+        "created_at": "2026-09-07T06:16:56.831196+00:00",
+        "kind": "NOTICE",
+        "links": [],
+        "req_id": "req_sanitized",
+        "role": "assistant",
+        "text": "查询完成，结果为空"
+      }
+    ]
+  }
+}

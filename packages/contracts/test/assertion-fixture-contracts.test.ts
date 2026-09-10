@@ -102,10 +102,11 @@ describe("Assertion 与当前 Fixture 契约", () => {
   });
 
   it("当前真实 Case Fixture 在边界补入版本后全部进入 v1", async () => {
-    const lines = (await readFile("test_suite/current/cases/loona_promptfoo_tests.jsonl", "utf8"))
-      .trim()
-      .split("\n");
-    const cases = lines.map((line) => parseCaseDefinitionV1FromFixture(JSON.parse(line)));
+    const fixtures: unknown = JSON.parse(
+      await readFile("test_suite/current/cases/test_example2.json", "utf8")
+    );
+    if (!Array.isArray(fixtures)) throw new Error("Expected Case fixture array");
+    const cases = fixtures.map((fixture) => parseCaseDefinitionV1FromFixture(fixture));
     expect(cases).toHaveLength(4);
     expect(cases.map((item) => item.contractVersion)).toEqual(
       Array.from({ length: 4 }, () => "cortex.case-definition.v1")
