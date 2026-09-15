@@ -1,3 +1,4 @@
+import { canRetryReport, platformRunProgress } from "../runs/platform-run-models.ts";
 import type { Clock } from "../../application-ports.ts";
 import type { ImportedReportRun } from "../execution-imports/execution-import-models.ts";
 import type {
@@ -339,10 +340,14 @@ export class PlatformReportService {
       transaction.runs.getPlatformRun(input.runId)
     );
     if (candidate === null) return { ok: false, error: { code: "RUN_NOT_FOUND" } };
-    if (candidate.stage !== "REPORT") {
+    const retry = canRetryReport(platformRunProgress(candidate));
+    if (!retry && candidate.stage !== "REPORT") {
       return { ok: false, error: { code: "RUN_STATE_CONFLICT", reason: "STAGE_UNAVAILABLE" } };
     }
-    if (candidate.status !== "READY" || candidate.lockRevision !== input.expectedRevision) {
+    if (
+      (!retry && candidate.status !== "READY") ||
+      candidate.lockRevision !== input.expectedRevision
+    ) {
       return { ok: false, error: { code: "RUN_STATE_CONFLICT", reason: "STATE_OR_REVISION" } };
     }
     let prepared: PreparedPlatformReport;
@@ -352,7 +357,12 @@ export class PlatformReportService {
       return { ok: false, error: { code: "REPORT_RECONCILIATION_FAILED" } };
     }
     const claim = await this.#runTransactions.execute(async (transaction) =>
-      transaction.runs.claimStage(input.runId, input.expectedRevision, this.#clock.now())
+      transaction.runs.claimStage(
+        input.runId,
+        input.expectedRevision,
+        this.#clock.now(),
+        retry ? "RETRY_REPORT" : undefined
+      )
     );
     if (!claim.ok) {
       return claim.reason === "NOT_FOUND"

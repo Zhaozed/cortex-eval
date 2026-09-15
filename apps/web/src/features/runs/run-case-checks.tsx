@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import type { DashboardCase } from "./run-dashboard-model.ts";
+import { manualOverride, type DashboardCase } from "./run-dashboard-model.ts";
 import { Badge } from "../../components/ui/badge.tsx";
 import { EvidenceJson } from "./run-trace-panel.tsx";
 
@@ -36,6 +36,11 @@ export function RunCaseChecks({ row }: { readonly row: DashboardCase }): ReactEl
                 ? "评测异常"
                 : "无法评测"}{" "}
           · 原始自动结果保留
+        </p>
+      )}
+      {evaluation && manualOverride(row) && (
+        <p className="run-check-overall" data-manual-override="true">
+          人工复核为最终结论，已覆盖自动结论；归因与说明见复核记录。
         </p>
       )}
       {indices.length === 0 && <p className="run-muted">未记录验收项</p>}

@@ -36,7 +36,7 @@
 - [run-dashboard-page.tsx](../../apps/web/src/features/runs/run-dashboard-page.tsx)：平台 Run 默认 Dashboard、冻结配置、独立进度、Token 与已有运行操作。
 - [run-dashboard-model.ts](../../apps/web/src/features/runs/run-dashboard-model.ts)：完整分页、互斥分类、Judge 用量和安全配置投影。
 - [run-dashboard-cases.tsx](../../apps/web/src/features/runs/run-dashboard-cases.tsx)：紧凑列表、即时筛选、分页与三页签 Case 抽屉。
-- [run-detail-page.tsx](../../apps/web/src/features/runs/run-detail-page.tsx)：保留旧执行路由的兼容视图。
+- [run-detail-page.tsx](../../apps/web/src/features/runs/run-dashboard-page.tsx)：统一运行详情，旧执行路由仅重定向。
 - [run-ui.ts](../../apps/web/src/features/runs/run-ui.ts)：状态和阶段的展示映射。
 - [run-api.ts](../../apps/web/src/lib/run-api.ts)：严格 Run API、身份校验、Cursor 和 SSE Envelope 边界。
 
@@ -98,8 +98,8 @@ REST 展示总数、完成、成功和错误；逐 Case 表只显示真实结果
 - 用量与耗时默认折叠，展开按模型调用展示角色、模型、输入/输出/总 Token、耗时，点击跳转对应 Trace 节点。唯一且同请求/同工具的调用与终态步骤可计算工具区间，否则耗时“未采集”；工具 Token“不适用”。Judge 仅展示已保存的 Case 汇总，不编造逐 Rubric 分摊；复用消耗注明历史来源。
 - “执行链路”只呈现可观测的动作、工具实际返回和模型审计，不展示内部思考字段。步骤顺序取 step_idx；有明确 parent_step_id / parent_call_id 时展示父子层级，缺失/冲突关联不推断；无步骤关联的模型调用另区展示。工具节点不展示 LLM Token。
 - A2UI 不单独开页签。在实际输出下方通过生产 Cortex Web 渲染器直接渲染本次保存的真实出站数据，允许滚动、切换和展开；不生成、上传或保留 Run 卡片 PNG。列表“查看卡片”定位同一抽屉。放大保留当前 iframe 状态，重新加载只读取保存证据，不调用 Agent 或工具。
-- 人工结论、根因标签、审核人及备注按 Run/Case 隔离保存，不覆盖自动结果。自动失败/异常不能被人工通过覆盖；有真实出站卡片或显式要求 A2UI 复核的 Case，自动通过后仍待人工检查。渲染未就绪、数据缺失、资源加载失败不能确认视觉通过。没有卡片且未要求复核不增加视觉门槛；要求出卡/禁止出卡由 Case 断言表达。
-- 保存以 REST resultHash + revision 校验，视觉人工通过另绑定 rendererVersion。执行证据或渲染资源版本变更必须重新审核；旧截图批准不能当作动态卡片批准。审核记录不可读时明确报错；不伪造已渲染状态。
+- 人工结论、根因标签、审核人及备注按 Run/Case 隔离保存。人工结论为最终结论：最新一条 `DECISION` 可以覆盖自动 `FAIL`、Judge `EVALUATION_ERROR` 与评测无法完成，自动记录原样保留，只在读取投影中被取代。执行未成功的 Case 没有可复核证据，仍按取消或执行异常分类，人工结论不参与。只有本轮真实采集到出站卡片的 Case，自动通过后仍待人工检查；零卡片的 Case 即使声明要采集 A2UI 也不进入待复核。渲染未就绪、数据缺失、资源加载失败都不门控人工结论。要求出卡/禁止出卡由 Case 断言表达。
+- 保存以 REST resultHash + revision 校验，证据变更必须重新读取后再审。`REVIEW_RENDER_REQUIRED` 已移除：提交的 rendererVersion 只写入审核记录留痕，不作为写入门槛；无卡、采集不完整、渲染资源不可用或卡面未全部加载都不得拒绝人工结论。归因非 `UNCLASSIFIED` 时说明必填，缺失返回 `REVIEW_NOTE_REQUIRED`。审核记录不可读时明确报错；不伪造已渲染状态。
 
 
 ## 单 Case 重跑、仅重评与对比
@@ -121,7 +121,7 @@ REST 展示总数、完成、成功和错误；逐 Case 表只显示真实结果
 - 两个字段通过可选请求字段向后兼容，服务端也校验长度、空名称和类型；SQLite 006 migration 只追加 nullable 列，不改写现有快照、Hash、Artifact 或评测结果。
 - 相关验证：[run-metadata.test.tsx](../../apps/web/test/run-metadata.test.tsx)、[sqlite-platform-case-rerun.test.ts](../../packages/storage-sqlite/test/sqlite-platform-case-rerun.test.ts)、[sqlite-run-metadata-migration.ts](../../packages/storage-sqlite/src/sqlite-run-metadata-migration.ts)。
 
-本轮抽屉定向验证：[输出及状态口径](../../apps/web/test/run-case-output.test.ts)、[抽屉交互](../../apps/web/test/run-case-drawer.test.tsx)。
+本轮抽屉定向验证：[输出及状态口径](../../apps/web/test/run-case-output.test.ts)、[抽屉交互](../../apps/web/test/run-case-drawer.test.tsx)、[复核表单](../../apps/web/test/run-review-form.test.tsx)。
 
 ### Case 动态卡片人工复核
 
@@ -135,15 +135,34 @@ REST 展示总数、完成、成功和错误；逐 Case 表只显示真实结果
 ### 复核表单按结论收敛
 
 - 卡片区域使用“视觉复核结论”，与 Case 自动结论区分；通过、待复核不显示失败归因，备注选填。不通过显示问题说明和选填失败归因，无需产品判断技术根因。
-- 切换为通过或待复核时清除当前失败归因；服务端新保存的非失败结论统一使用 `UNCLASSIFIED`，不修改历史记录。历史仍展示当时结论、归因与说明。
+- 切换为通过或待复核时清除当前失败归因。人工结论与自动结论不一致时视为覆盖，表单强制选择非 `UNCLASSIFIED` 的覆盖归因并填写覆盖说明，并提示被覆盖的自动结论；服务端按提交原样保存该归因。非覆盖的新结论保存为 `UNCLASSIFIED`。历史记录一律不改写，仍展示当时结论、归因与说明。
 
+
+### 复核门控放宽与输入分轮展示（2026-09-12）
+
+- 待复核只由真实卡片触发：`live.required` 等于本轮出站卡片数大于 0。`a2ui_capture` 声明、采集失败、渲染资源缺失都不再把零卡片 Case 停在待复核，Dashboard 待处理与列表徽标同步按该口径统计。
+- 人工结论不受渲染状态门控：服务端不再校验 rendererVersion（版本仅留痕），前端不再要求卡面全部成功加载，也不因证据刷新撤销已批准状态。覆盖自动结论仍需非 `UNCLASSIFIED` 归因与书面说明。
+- 抽屉证据区移除聚焦蓝色描边，点击旁白等非交互区域不再出现边框。
+- 用户输入按真实轮次分列：多轮显示“多轮 · N 轮”徽标与每轮独立条目，并把非本轮用户输入标为历史上下文；单轮显示“单轮”徽标与原文。轮次只来自 `request_body.conversation` 与 `turns`，不推断未采集的顺序；Agent 回复区在轮数与用户轮数一致时标注“第 N 轮 · Agent 回复”。
+- 当前实现：`run-live-preview-context.ts`、`run-review-store.ts`、`run-output-model.ts`、`run-dashboard-model.ts`、`run-evidence-model.ts`、`run-case-drawer.tsx`、`run-case-output.tsx`、`run-case-review.tsx`、`run-live-card.tsx`、`styles.css`。
+- 当前验证：[预览复核门槛](../../apps/local-server/test/run-live-preview.test.ts)、[审核记录写入](../../apps/local-server/test/run-review-store.test.ts)、[抽屉分轮与门控](../../apps/web/test/run-case-drawer.test.tsx)、[状态口径](../../apps/web/test/run-case-output.test.ts)、[分轮模型](../../apps/web/test/run-evidence-model.test.ts)、[Dashboard 待处理口径](../../apps/web/test/dashboard.test.tsx)。
+
+### 人工复核为最终结论（2026-09-11）
+
+- 人工复核是最高权限结论，不是自动结论的补充签核。Judge 会误判，断言口径也可能与真实链路不一致；产品对最终结果负责，人工 `PASS` / `FAIL` 直接决定 Case 归类。
+- 覆盖只有一条硬边界：执行本身未成功（取消、超时、请求错误）没有可复核证据，仍按取消或执行异常分类，不由人工结论改写。
+- 要求 A2UI 复核但本轮零卡片的 Case 不再永久停在待复核。无卡时前端开放通过入口，服务端不校验 rendererVersion，人工给出结论并说明证据缺口。（2026-09-12 起零卡片 Case 根本不进入待复核，见下节。）
+- 覆盖必须可追责：非 `UNCLASSIFIED` 归因与书面说明缺一不可，审核人、时间、归因、说明和结论进入不可变历史，列表徽标、验收检查区与 Dashboard 关注原因都标注人工覆盖。
+- 覆盖计入通过分类，但不伪装成自动通过：Case 行徽标与 Dashboard 关注原因显示“人工复核通过 · 已覆盖自动结论”，人工结论不修改 Token 用量与自动评测原始记录。
+- 当前实现：`run-review-store.ts`、`run-live-preview-context.ts`、`run-dashboard-model.ts`、`run-case-review.tsx`、`run-case-output.tsx`、`run-case-checks.tsx`。
+- 当前验证：[服务端结论边界](../../apps/local-server/test/run-review-store.test.ts)、[预览与渲染背书](../../apps/local-server/test/run-live-preview.test.ts)、[状态口径](../../apps/web/test/run-case-output.test.ts)、[覆盖表单](../../apps/web/test/run-review-form.test.tsx)、[零卡片复核](../../apps/web/test/run-case-drawer.test.tsx)、[Dashboard 覆盖标注](../../apps/web/test/management-dashboard-model.test.ts)。
 
 ### 执行证据工作台（2026-09-09）
 
 - Case 抽屉默认最大 1580px，可切换全宽。验收检查与文字输出并列，A2UI 独占宽区，视觉复核在侧栏；小屏上下排列。结果网格按内容高度滚动，禁止压缩卡片区域造成裁切。
 - 执行链路采用节点列表 + 证据检查器。点击节点显示可折叠 JSON、完整原始 JSON 与复制；长文本按需展开。展示每次模型调用耗时、输入/输出 Token；普通工具不展示模型用量。分组可折叠，异常可定位；缺失关联不会人为接成执行顺序。
 - A2UI 按保存的出站顺序提供卡面/阶段选择，默认最后一项。增量更新按原始前缀重放，支持单卡面检查；多个仍有效卡面另保留最终完整同屏状态，避免独立渲染取代真实组合效果。删除消息保留在原始证据，不作为空白卡面强行渲染。
-- 仅当前证据与渲染版本下所有展示项成功加载，前端才开放视觉通过；加载状态不等于人工批准。切换/加载失败立即撤销可批准状态，视觉通过不覆盖自动失败。InfoChip 与 SurfaceHost 都按实际渲染元素检查就绪。
+- 加载状态只用于提示，不再门控人工批准：不要求全部卡面成功加载，看一眼最终证据即可判过。切换/加载失败如实标注，但不撤销可批准状态。人工通过可以覆盖自动失败，覆盖需归因与说明并标注人工覆盖。InfoChip 与 SurfaceHost 仍按实际渲染元素汇报就绪情况。
 - 本次只改展示与只读回放，不调用真实 Agent / Judge，不生成或保存产品截图。
 
 ### Trace 节点的可读证据
@@ -158,3 +177,10 @@ REST 展示总数、完成、成功和错误；逐 Case 表只显示真实结果
 - 运行页面的“返回”沿应用创建的浏览器历史返回来源页（包括仪表盘、运行列表）；刷新保留来源，直接访问且没有应用内来源时回退到运行列表。不依赖外部 referrer。
 - 列表突出运行名称和目的；来源归入测试集列，阶段归入运行状态列。执行、评测使用各自的完成数与总数，不用执行完成代替评测通过。
 - 导航采用浅色背景、紧凑系统字体和明确选中态；保留原有导航路由、分页、删除确认及运行中禁止删除约束。
+
+## 失败阶段恢复与证据
+
+- 未提交评测结果的 `EVALUATION_STAGE_FAILED` 在 REST 集合完整时可原 Run 重试评测，不重新执行 Agent；已提交结果的仅重评仍新增版本，保留历史。
+- 未提交报告的 `REPORT_STAGE_FAILED` / `REPORT_RECONCILIATION_FAILED` 在 REST/Evaluation 集合完整时提供“重新生成报告”，不调用 Agent/Judge。启动仍使用 Revision CAS 和全局运行锁，取消及已提交报告不能借此覆盖。
+- Provider `ok=false` 可携带 `parsed_output` 部分证据；仍按执行异常统计，不因 HTTP 200 算通过。原始信封、Hash 与多轮 `turns` 保留；展示投影不得改变断言入参。
+- 多轮 Trace、回复、Token、A2UI 按 req_id 与轮次关联。缺少采集元数据按未知处理；采集不完整如实标注并可由人工给出最终结论，覆盖时填写归因与说明。每轮原始 JSON 及完整原记录均可查。

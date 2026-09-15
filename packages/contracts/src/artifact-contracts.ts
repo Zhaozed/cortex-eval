@@ -285,7 +285,7 @@ const EvalErrorV1Schema = z.strictObject({
   status: z.literal("EVALUATION_ERROR"),
   promptfooSuccess: z.null(),
   score: z.null(),
-  reason: z.null(),
+  reason: z.string().trim().min(1).nullable(),
   evaluationError: z.strictObject({
     code: z.string().trim().min(1)
   }),

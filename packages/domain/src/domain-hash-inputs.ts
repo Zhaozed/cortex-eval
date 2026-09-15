@@ -459,7 +459,12 @@ export function hashFinalCaseResult(input: FinalCaseResultHashInput): string {
 
 // Convert the closed Provider Output union to canonical transport-neutral field names.
 function providerOutputHashFact(value: ProviderOutput): DomainJsonObject {
-  if (!value.ok) return { ok: false, errorMessage: value.errorMessage };
+  if (!value.ok)
+    return {
+      ok: false,
+      errorMessage: value.errorMessage,
+      ...(value.parsedOutput === undefined ? {} : { parsedOutput: value.parsedOutput })
+    };
   return {
     ok: true,
     taskName: value.taskName,

@@ -1,3 +1,7 @@
+import {
+  isAssertionExecutionFailure,
+  assertionExecutionErrorReason
+} from "./promptfoo-assertion-error.ts";
 import { materializeJavascriptSource } from "./promptfoo-javascript-source.ts";
 import { assertionDefinitionJson } from "@cortex-eval/domain/src/domain-case-projection.ts";
 import {
@@ -403,28 +407,6 @@ function componentOutcome(
   return { pass: component.pass, score, reason };
 }
 
-// Promptfoo 0.121.18 encodes inline interpreter faults only through fixed component reasons.
-function isAssertionExecutionFailure(
-  definition: AssertionDefinition,
-  component: Record<string, unknown>
-): boolean {
-  if (component.pass !== false || component.score !== 0 || typeof component.reason !== "string") {
-    return false;
-  }
-  const type = definition.type.startsWith("not-")
-    ? definition.type.slice("not-".length)
-    : definition.type;
-  if (type === "javascript") {
-    return (
-      component.reason.startsWith("Custom function threw error:") &&
-      component.reason.includes("\nStack Trace:")
-    );
-  }
-  if (type === "python") return component.reason.startsWith("Python code execution failed:");
-  if (type === "ruby") return component.reason.startsWith("Ruby code execution failed:");
-  return false;
-}
-
 // Build a sanitized system-error result without retaining provider paths, stacks or messages.
 function importEvaluationErrorCase(
   expected: PromptfooImportCase,
@@ -702,7 +684,7 @@ function importEvaluatedCase(
         weight: definition.weight,
         status: componentError ? "ERROR" : outcome.pass ? "PASS" : "FAIL",
         score: componentError ? null : outcome.score,
-        reason: componentError ? "断言脚本执行异常，请检查脚本语法和运行环境。" : outcome.reason
+        reason: componentError ? assertionExecutionErrorReason(component) : outcome.reason
       });
       assertionIndex += 1;
       for (const child of children) {
@@ -729,7 +711,7 @@ function importEvaluatedCase(
           weight: child.weight,
           status: childError ? "ERROR" : childOutcome.pass ? "PASS" : "FAIL",
           score: childError ? null : childOutcome.score,
-          reason: childError ? "断言脚本执行异常，请检查脚本语法和运行环境。" : childOutcome.reason
+          reason: childError ? assertionExecutionErrorReason(childComponent) : childOutcome.reason
         });
         diffs.push(
           ...componentDiffs(
@@ -778,7 +760,7 @@ function importEvaluatedCase(
       weight: definition.weight,
       status: componentError ? "ERROR" : outcome.pass ? "PASS" : "FAIL",
       score: componentError ? null : outcome.score,
-      reason: componentError ? "断言脚本执行异常，请检查脚本语法和运行环境。" : outcome.reason
+      reason: componentError ? assertionExecutionErrorReason(component) : outcome.reason
     });
     diffs.push(
       ...componentDiffs(

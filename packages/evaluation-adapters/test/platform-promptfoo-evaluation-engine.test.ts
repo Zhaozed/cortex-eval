@@ -1,3 +1,4 @@
+import { importPartialPromptfooResultRows } from "@cortex-eval/application/src/features/evaluation/promptfoo-row-stream-importer.ts";
 import { readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -148,6 +149,114 @@ function run(): PlatformRun {
 }
 
 describe("平台 Promptfoo Evaluation Engine", () => {
+  it("Judge 异常只影响对应 Case，保留规则结果并继续评测其他 Case", async () => {
+    const base = run();
+    const cases = [0, 1, 2].map((ordinal) => {
+      const caseKey = `case-${ordinal + 1}`;
+      return {
+        caseKey,
+        ordinal,
+        definitionHash: "b".repeat(64),
+        definition: {
+          ...definition,
+          caseKey,
+          assertions: [
+            { type: "javascript", metric: "rule", weight: 1, value: "true" },
+            {
+              type: "llm-rubric",
+              metric: "quality",
+              weight: 1,
+              value: ordinal === 0 ? "DIAGNOSTIC_FAILURE" : "DIAGNOSTIC_SUCCESS"
+            }
+          ]
+        }
+      };
+    });
+    const rests: StoredRestCaseResult[] = cases.map((c) =>
+      c.ordinal === 2
+        ? {
+            ...restResult,
+            caseKey: c.caseKey,
+            ordinal: c.ordinal,
+            definition: c.definition,
+            status: "ERROR",
+            providerOutput: null,
+            errorType: "PROVIDER_OUTPUT_INVALID",
+            errorMessage: "REST Provider Output 无效"
+          }
+        : { ...restResult, caseKey: c.caseKey, ordinal: c.ordinal, definition: c.definition }
+    );
+    const frozen = { ...base, suite: { ...base.suite, cases } };
+    let calls = 0;
+    const engine = new PlatformPromptfooEvaluationEngine({
+      promptfooBinary: resolve("node_modules/.bin/promptfoo"),
+      temporaryContainmentRoot: tmpdir(),
+      temporaryParent: join(tmpdir(), "cortex-eval-judge-isolation"),
+      promptfooTimeoutMs: 15_000,
+      capabilityMatrixHash: HASH,
+      requiresEvaluator: (type) => type === "llm-rubric",
+      readSecret: () => undefined,
+      createCallId: () => CALL_ID,
+      createEvaluatorClient: () => ({
+        generate: async ({ prompt }) => {
+          calls += 1;
+          if (prompt.includes("DIAGNOSTIC_FAILURE")) throw new Error("private-provider-message");
+          return {
+            text: JSON.stringify({ pass: true, score: 1, reason: "correct" }),
+            structured: null,
+            tokenUsage: null
+          };
+        }
+      })
+    });
+    const result = await engine.execute({
+      run: frozen,
+      restResults: rests,
+      restResultSetHash,
+      signal: new AbortController().signal
+    });
+    try {
+      expect(calls).toBe(2);
+      expect(result.exitCode).toBe(100);
+      if (!isFrozenEvaluationRawSource(result.raw)) throw new Error("RAW_SOURCE_MISSING");
+      const imported = await importPartialPromptfooResultRows({
+        promptfooVersion: result.promptfooVersion,
+        rows: result.raw.openRows(),
+        cases: cases.map((c, index) => ({
+          caseKey: c.caseKey,
+          ordinal: c.ordinal,
+          caseDefinitionHash: c.definitionHash,
+          definition: c.definition,
+          restResult:
+            index === 2
+              ? { status: "ERROR", resultHash: restResult.resultHash }
+              : {
+                  status: "SUCCEEDED",
+                  resultHash: restResult.resultHash,
+                  providerOutput: { ok: false, errorMessage: "business" }
+                }
+        })),
+        rawEvidence: {
+          present: true,
+          path: `runs/${RUN_ID}/promptfoo-raw.json`,
+          expectedSha256: HASH,
+          expectedSizeBytes: 1
+        },
+        rubricPromptMaterializations: {}
+      });
+      expect(imported.map((row) => row.status)).toEqual([
+        "EVALUATION_ERROR",
+        "PASS",
+        "NOT_EVALUATED"
+      ]);
+      expect(imported[0]?.assertions.map((a) => a.status)).toEqual(["PASS", "ERROR"]);
+      expect(imported[0]?.assertions[1]?.reason).toContain("PROVIDER_REQUEST_FAILED");
+      expect(JSON.stringify(imported)).not.toContain("private-provider-message");
+    } finally {
+      await disposeFrozenEvaluationRaw(result.raw);
+    }
+  }, 25_000);
+
   it("即使 Case 不依赖脚本运行时也先拒绝不可用的固定 Promptfoo", async () => {
     const parent = join(
       tmpdir(),

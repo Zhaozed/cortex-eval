@@ -1,8 +1,13 @@
+import { evidenceTurns } from "@cortex-eval/contracts/src/e2e-evidence.ts";
 /** Only explicit outbound A2UI is renderable evidence, never planner intentions/tool results. */
 export function outboundA2ui(parsed: unknown): Record<string, unknown>[] {
   const object = (v: unknown): Record<string, unknown> =>
     v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
   const root = object(parsed);
+  if (Array.isArray(root.turns) && root.turns.length > 0)
+    return evidenceTurns(root).flatMap((turn, index) =>
+      outboundA2ui(turn).map((card) => ({ ...card, _eval_turn_index: index }))
+    );
   const read = (v: unknown): Record<string, unknown>[] => {
     if (v === undefined || v === null) return [];
     const list = Array.isArray(v) ? v : [v];

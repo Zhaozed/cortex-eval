@@ -54,7 +54,13 @@ export function mapReportRestResultToV1(value: StoredRestCaseResult): RestArtifa
                 resolved_config: value.providerOutput.resolvedConfig,
                 parsed_output: value.providerOutput.parsedOutput
               }
-            : { ok: false as const, err_msg: value.providerOutput.errorMessage }
+            : {
+                ok: false as const,
+                err_msg: value.providerOutput.errorMessage,
+                ...(value.providerOutput.parsedOutput === undefined
+                  ? {}
+                  : { parsed_output: value.providerOutput.parsedOutput })
+              }
         }
       : {
           ...common,

@@ -56,10 +56,15 @@ export function toolTimings(row: DashboardCase): ToolTiming[] {
     timeline = records(p.timeline);
   return records(p.tool_executions).map((execution) => {
     const starts = timeline.filter(
-      (s) => s.step_id === execution.call_step_id && typeof s.step_id === "string"
+      (s) =>
+        s.step_id === execution.call_step_id &&
+        typeof s.step_id === "string" &&
+        (!execution.req_id || s.req_id === execution.req_id)
     );
     const ids = Array.isArray(execution.terminal_step_ids) ? execution.terminal_step_ids : [];
-    const ends = timeline.filter((s) => ids.includes(s.step_id));
+    const ends = timeline.filter(
+      (s) => ids.includes(s.step_id) && (!execution.req_id || s.req_id === execution.req_id)
+    );
     const start = starts.length === 1 ? starts[0] : undefined,
       end = ends.length === 1 ? ends[0] : undefined;
     const from = Date.parse(text(start?.created_at) ?? ""),

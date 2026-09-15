@@ -94,3 +94,11 @@ SQLite 初始化先 canonicalize 显式项目根，再逐级以 `lstat + realpat
 ## 相关测试
 
 当前测试覆盖十表 Migration、约束、索引、删除、严格行映射、Case Writer、真实 SQLite Case 首/中/末删除和重排失败回滚、双连接 Revision/唯一字段/Execution 竞争、双进程唯一运行、Execution 身份幂等、平台 Run 阶段条件提交、跨进程取消/提交竞争、启动恢复、Run 有界投影、结果写入不触发完整 Run 读取、分页/Case 查询/Manifest、Eval/Report/Analysis 原子提交与回滚、离线完整导入、当前 Suite 可选关联、结构化 Evidence、当前 Analysis CAS、并发所有权、统一最近运行、复用 Provenance 和千级查询。
+
+## 失败阶段恢复与部分证据持久化
+
+[sqlite-platform-run-repository.ts](../../packages/storage-sqlite/src/sqlite-platform-run-repository.ts) 支持 Application 显式指定 `RETRY_EVALUATION` 或 `RETRY_REPORT` 抢占模式；必须重新校验重试资格与 Revision，且服从全局唯一运行约束。仅清理失败阶段的错误与完成时间，不替换冻结快照或上游结果。资格以 [platform-run-models.ts](../../packages/application/src/features/runs/platform-run-models.ts) 为准。
+
+Provider 失败信封的可选部分证据由 [sqlite-platform-run-mappers.ts](../../packages/storage-sqlite/src/sqlite-platform-run-mappers.ts) 往返保存，由 [sqlite-canonical-export-snapshot.ts](../../packages/storage-sqlite/src/sqlite-canonical-export-snapshot.ts) 保留到规范导出。Evaluation 的安全 reason 由 Eval Mapper 保留，不再无条件归零。
+
+测试入口为 [部分证据持久化测试](../../packages/storage-sqlite/test/sqlite-partial-provider-evidence.test.ts)、[Report 重试测试](../../packages/storage-sqlite/test/sqlite-report-retry.test.ts) 与 [Eval Mapper 测试](../../packages/storage-sqlite/test/sqlite-platform-eval-mappers.test.ts)。

@@ -65,7 +65,7 @@ describe("测试集列表页面", () => {
     expect(screen.getByRole("cell", { name: "4条" })).toBeInTheDocument();
     expect(screen.getByText("离线导入")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("link", { name: "已完成" }));
-    expect(onNavigate).toHaveBeenCalledWith("/runs/018f0f4e-7b7a-7cc0-8000-000000000009/report");
+    expect(onNavigate).toHaveBeenCalledWith("/runs/018f0f4e-7b7a-7cc0-8000-000000000009");
   });
 
   it.each([false, true])("列表删除先确认影响，运行中保护=%s", async (activeRunReference) => {

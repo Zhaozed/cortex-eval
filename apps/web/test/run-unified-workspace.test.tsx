@@ -29,13 +29,11 @@ it("shows imported evidence in the same dashboard, without invented platform act
   const api = {
     ...createRunApi(),
     getRun: vi.fn().mockRejectedValue(new ApiClientError("RUN_NOT_FOUND", { statusCode: 404 })),
-    getReport: vi
-      .fn()
-      .mockResolvedValue({
-        ...runReportOverview,
-        sourceType: "OFFLINE_IMPORT",
-        summary: { ...runReportOverview.summary, total: 1 }
-      }),
+    getReport: vi.fn().mockResolvedValue({
+      ...runReportOverview,
+      sourceType: "OFFLINE_IMPORT",
+      summary: { ...runReportOverview.summary, total: 1 }
+    }),
     listReportCases: vi.fn().mockResolvedValue({ items: [runReportCase], nextCursor: null })
   };
   mount(<RunDashboardPage api={api} runId={RUN_ID} onNavigate={vi.fn()} />);
@@ -79,17 +77,15 @@ it("only starts explicitly selected Run-wide analysis and invalidates Case evide
     .mockResolvedValue({ selectedCount: 2, succeededCount: 1, errorCount: 1 });
   const resourceApi = {
     ...createResourceApi(),
-    listConfigurations: vi
-      .fn()
-      .mockImplementation(async (kind) => ({
-        items: [
-          {
-            id: kind === "LLM" ? "model" : "prompt",
-            name: kind === "LLM" ? "分析模型配置" : "定位证据"
-          }
-        ],
-        nextCursor: null
-      }))
+    listConfigurations: vi.fn().mockImplementation(async (kind) => ({
+      items: [
+        {
+          id: kind === "LLM" ? "model" : "prompt",
+          name: kind === "LLM" ? "分析模型配置" : "定位证据"
+        }
+      ],
+      nextCursor: null
+    }))
   };
   const client = mount(
     <RunAnalysisControl
@@ -115,4 +111,28 @@ it("only starts explicitly selected Run-wide analysis and invalidates Case evide
     "本批次 2 条 · 分析完成 1 条 · 分析异常 1 条"
   );
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ["runs", "analysis", RUN_ID] });
+});
+
+it("失败运行的重试评测复用当前 Run，不创建新运行", async () => {
+  const failed = {
+    ...runDetail({ status: "FAILED", stage: "DONE" }),
+    canRetryEvaluation: true,
+    errorCode: "EVALUATION_STAGE_FAILED" as const
+  };
+  const api = {
+    ...createRunApi(),
+    getRun: vi.fn().mockResolvedValue(failed),
+    listReportCases: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
+    listCases: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
+    listEvaluations: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
+    start: vi.fn().mockResolvedValue({}),
+    rerun: vi.fn()
+  };
+  mount(<RunDashboardPage api={api} runId={RUN_ID} onNavigate={vi.fn()} />);
+  await screen.findByRole("button", { name: "重试评测" });
+  expect(screen.getByRole("alert")).toHaveTextContent("执行记录已保存");
+  expect(screen.getByRole("alert")).toHaveTextContent("不重跑 Agent");
+  await userEvent.click(screen.getByRole("button", { name: "重试评测" }));
+  expect(api.start).toHaveBeenCalledWith(RUN_ID, failed.lockRevision, expect.any(AbortSignal));
+  expect(api.rerun).not.toHaveBeenCalled();
 });

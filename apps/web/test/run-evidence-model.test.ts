@@ -3,11 +3,13 @@ import {
   agentUsage,
   observable,
   hasTrace,
-  traceBranches
+  traceBranches,
+  conversationTurns
 } from "../src/features/runs/run-evidence-model.ts";
 import {
   dashboardCounts,
   evaluationState,
+  manualOverride,
   type DashboardCase
 } from "../src/features/runs/run-dashboard-model.ts";
 import { compareCases } from "../src/features/runs/run-comparison.tsx";
@@ -65,7 +67,7 @@ it("does not display internal reasoning, including JSON encoded model outputs", 
     observable({ output: '{"reason":"private","tools":[]}', reason: "private", value: 2 })
   ).toEqual({ output: { tools: [] }, value: 2 });
 });
-it("manual pass cannot erase automatic failure; manual failure and pending affect all counts", () => {
+it("manual verdict decides the count: failure over automatic pass, pass over automatic failure", () => {
   const r = row([]);
   const reviewed = {
     ...r,
@@ -101,9 +103,14 @@ it("manual pass cannot erase automatic failure; manual failure and pending affec
       status: "FAIL",
       promptfooSuccess: false
     } as DashboardCase["evaluation"],
-    review: { ...reviewed.review, history: [{ ...decision, verdict: "PASS" as const }] }
+    review: {
+      ...reviewed.review,
+      history: [{ ...decision, verdict: "PASS" as const, rootCause: "CASE", note: "预期写错" }]
+    }
   };
-  expect(evaluationState(failed)).toBe("FAIL");
+  expect(manualOverride(failed)).toBe(true);
+  expect(evaluationState(failed)).toBe("PASS");
+  expect(dashboardCounts(1, [failed]).PASS).toBe(1);
 });
 it("comparison separates added, missing and changed definitions", () => {
   const a = row([]);
@@ -139,4 +146,38 @@ it("trace hierarchy retains siblings and does not invent links for cycles or dup
       "parent"
     )
   ).toHaveLength(2);
+});
+
+it("keeps multi-turn user input as separate rounds and never flattens it into one paragraph", () => {
+  type RequestBody = NonNullable<DashboardCase["definition"]>["vars"]["request_body"];
+  function body(request_body: RequestBody): DashboardCase {
+    const base = row([]);
+    if (!base.definition) throw new Error("Missing fixture definition");
+    return {
+      ...base,
+      definition: { ...base.definition, vars: { task: "route", request_body } }
+    };
+  }
+  expect(
+    conversationTurns(
+      body({
+        conversation: [
+          { role: "user", text: "创建边界任务" },
+          { role: "assistant", text: "已创建" },
+          { role: "user", content: "把它删掉" },
+          { role: "user", text: "   " }
+        ]
+      })
+    )
+  ).toEqual([
+    { round: 1, kind: "user", role: "user", text: "创建边界任务" },
+    { round: null, kind: "context", role: "assistant", text: "已创建" },
+    { round: 2, kind: "user", role: "user", text: "把它删掉" }
+  ]);
+  expect(conversationTurns(body({ text: "我在ClickUp里有哪些任务清单？" }))).toEqual([
+    { round: 1, kind: "user", role: "user", text: "我在ClickUp里有哪些任务清单？" }
+  ]);
+  // An unreadable body reports nothing instead of guessing a round.
+  expect(conversationTurns(body({ input: "你好" }))).toEqual([]);
+  expect(conversationTurns({ ...row([]), definition: undefined })).toEqual([]);
 });

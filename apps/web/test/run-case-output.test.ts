@@ -1,10 +1,16 @@
 import { expect, it } from "vitest";
 import { observedReplies, hasObservedCards } from "../src/features/runs/run-output-model.ts";
 import { toolTimings, uniqueModelCalls } from "../src/features/runs/run-call-model.ts";
-import { evaluationState } from "../src/features/runs/run-dashboard-model.ts";
+import {
+  evaluationState,
+  manualOverride,
+  resultBucket,
+  type DashboardCase
+} from "../src/features/runs/run-dashboard-model.ts";
 import { runReportCase } from "./run-test-fixture.ts";
 
 import { evidenceRow, reviewFixture } from "./run-case-drawer-fixture.ts";
+import type { RunReview } from "@cortex-eval/contracts/src/run-review-contracts.ts";
 it("shows all delivered replies, keeps repeated text with different IDs, excludes internal thoughts", () => {
   const row = evidenceRow({
     delivered_messages: [
@@ -90,22 +96,26 @@ it("actual cards require review; obsolete capture states do not create a require
     })
   ).toBe("PASS");
 });
-it("manual PASS requires matching live renderer revision and cannot cover auto FAIL", () => {
+function decision(
+  verdict: "PASS" | "FAIL" | "PENDING",
+  overrides: Partial<RunReview["history"][number]> = {}
+): RunReview["history"][number] {
+  return {
+    revision: 1,
+    at: "2026-09-09T00:00:00Z",
+    kind: "DECISION",
+    verdict,
+    reviewer: "产品",
+    rootCause: "UNCLASSIFIED",
+    note: "",
+    ...overrides
+  };
+}
+it("manual PASS is final and survives a renderer revision change or an unattested card", () => {
   if (runReportCase.evaluation.status !== "PASS") throw new Error("Expected PASS fixture");
   const review = reviewFixture({
     live: { required: true, available: true, rendererVersion: "b".repeat(64) },
-    history: [
-      {
-        revision: 1,
-        at: "2026-09-09T00:00:00Z",
-        kind: "DECISION",
-        verdict: "PASS",
-        reviewer: "ui",
-        rendererVersion: "b".repeat(64),
-        rootCause: "UNCLASSIFIED",
-        note: ""
-      }
-    ]
+    history: [decision("PASS", { rendererVersion: "b".repeat(64) })]
   });
   const base = { ...evidenceRow({ a2ui: { surfaceId: "s" } }), review };
   expect(evaluationState(base)).toBe("PASS");
@@ -114,23 +124,91 @@ it("manual PASS requires matching live renderer revision and cannot cover auto F
       ...base,
       review: {
         ...review,
-        live: { required: true, available: false, rendererVersion: "b".repeat(64) }
-      }
-    })
-  ).toBe("REVIEW_PENDING");
-  expect(
-    evaluationState({
-      ...base,
-      review: {
-        ...review,
         live: { required: true, available: true, rendererVersion: "c".repeat(64) }
       }
     })
-  ).toBe("REVIEW_PENDING");
+  ).toBe("PASS");
+  expect(evaluationState({ ...base, review: { ...review, history: [decision("PASS")] } })).toBe(
+    "PASS"
+  );
+  // Only newer evidence invalidates it; the same hash keeps the human verdict.
+  expect(resultBucket(base)).toBe("PASS");
+});
+it("a required A2UI review with no renderable card can still be settled by a human", () => {
+  const row = evidenceRow({});
+  if (!row.definition) throw new Error("Missing fixture definition");
+  const required = {
+    ...row,
+    definition: {
+      ...row.definition,
+      metadata: { ...row.definition.metadata, a2ui_capture: true }
+    },
+    review: reviewFixture({ live: { required: true, available: false, rendererVersion: null } })
+  };
+  expect(evaluationState(required)).toBe("REVIEW_PENDING");
+  const approved = {
+    ...required,
+    review: {
+      ...required.review,
+      revision: 1,
+      history: [
+        decision("PASS", { rootCause: "EVALUATOR", note: "澄清类 Case 本轮不应出卡，链路正确" })
+      ]
+    }
+  };
+  expect(evaluationState(approved)).toBe("PASS");
+  expect(resultBucket(approved)).toBe("PASS");
+  expect(manualOverride(approved)).toBe(false);
+});
+it("manual verdict is final and may overturn automatic failure or a broken Judge", () => {
+  const failing: DashboardCase = {
+    ...evidenceRow({}),
+    evaluation: {
+      ...runReportCase.evaluation,
+      status: "FAIL",
+      promptfooSuccess: false
+    } as DashboardCase["evaluation"]
+  };
+  expect(evaluationState(failing)).toBe("FAIL");
+  const review = reviewFixture({
+    revision: 1,
+    history: [decision("PASS", { rootCause: "CASE", note: "预期写错，链路正确" })]
+  });
+  const overridden = { ...failing, review };
+  expect(evaluationState(overridden)).toBe("PASS");
+  expect(resultBucket(overridden)).toBe("PASS");
+  expect(manualOverride(overridden)).toBe(true);
+  const judged: DashboardCase = {
+    ...failing,
+    evaluation: {
+      ...runReportCase.evaluation,
+      status: "EVALUATION_ERROR",
+      score: null,
+      reason: null,
+      promptfooSuccess: null,
+      evaluationError: { code: "EVALUATOR_TIMEOUT" }
+    }
+  };
+  expect(resultBucket(judged)).toBe("ERROR");
+  expect(resultBucket({ ...judged, review })).toBe("PASS");
+  // An execution fault leaves no evidence to review, so it stays an error.
+  expect(
+    resultBucket({
+      ...judged,
+      review,
+      rest: {
+        ...runReportCase.rest,
+        status: "ERROR",
+        httpStatus: null,
+        providerOutput: null,
+        error: { type: "TIMEOUT", message: "timeout" }
+      }
+    })
+  ).toBe("ERROR");
   expect(
     evaluationState({
-      ...base,
-      evaluation: { ...runReportCase.evaluation, status: "FAIL", promptfooSuccess: false }
+      ...evidenceRow({}),
+      review: reviewFixture({ revision: 1, history: [decision("FAIL", { rootCause: "PRODUCT" })] })
     })
   ).toBe("FAIL");
 });
@@ -181,7 +259,7 @@ it("does not discard different contents recorded under the same message id", () 
   );
 });
 
-it("explicit capture opt-in gates automatic PASS even when no card evidence arrived", () => {
+it("capture opt-in without any card no longer parks an automatic PASS in review", () => {
   const row = evidenceRow({});
   expect(evaluationState(row)).toBe("PASS");
   if (!row.definition) throw new Error("Missing fixture definition");
@@ -193,5 +271,7 @@ it("explicit capture opt-in gates automatic PASS even when no card evidence arri
         metadata: { ...row.definition.metadata, a2ui_capture: true }
       }
     })
-  ).toBe("REVIEW_PENDING");
+  ).toBe("PASS");
+  // A real card still requires a human eye; the flag itself never does.
+  expect(evaluationState(evidenceRow({ a2ui: { surfaceId: "s" } }))).toBe("REVIEW_PENDING");
 });

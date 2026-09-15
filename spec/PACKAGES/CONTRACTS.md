@@ -79,3 +79,13 @@ Schema 错误保留字段路径和稳定 Error Code。未知版本、未知联�
 ### 可选 Case 自动截图标记
 
 `metadata.a2ui_capture?: boolean`（Domain：`a2uiCapture`）默认缺省，行为等同关闭；不向历史定义自动补 `false`，避免改变内容 hash。Case 表单基础信息提供“自动采集 A2UI 截图”勾选，仅对需要截图的用例开启，无需手写 JSON。标记随 Case、导入导出与 Run 冻结定义保留；不是自动视觉评测或出卡断言。
+
+## 部分执行证据与规则作者契约
+
+[provider-contracts.ts](../../packages/contracts/src/provider-contracts.ts) 允许失败信封携带可选 `parsed_output`，未提供时兼容原有失败信封。`ok=false` 始终表示业务失败，不因存在证据而改写为成功。[artifact-contracts.ts](../../packages/contracts/src/artifact-contracts.ts) 允许 `EVALUATION_ERROR` 携带非空、可空的安全 reason；稳定错误 Code 仍为机器分类依据。
+
+[run-api-contracts.ts](../../packages/contracts/src/run-api-contracts.ts) 的 Run Detail 提供可选的安全阶段错误说明及 Evaluation/Report 重试资格，资格由服务端冻结事实计算。OpenAPI 必须与 Schema 同步。
+
+[agent-rule-authoring.ts](../../packages/contracts/src/assertion-rules/agent-rule-authoring.ts) 定义 Agent 执行、回复和调用策略的结构化作者模型，生成普通 JavaScript Assertion，不增加新的引擎断言类型。结构化识别只接受可无损识别的生成规则，不猜测任意用户脚本含义。[e2e-evidence.ts](../../packages/contracts/src/e2e-evidence.ts) 只提供只读证据投影，不改变原始信封或断言入参。
+
+测试入口为 [Agent 作者模型测试](../../packages/contracts/test/agent-rule-authoring.test.ts) 与 [E2E 证据测试](../../packages/contracts/test/e2e-evidence.test.ts)。

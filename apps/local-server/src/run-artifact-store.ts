@@ -126,7 +126,12 @@ async function ensureDirectory(canonicalParent: string, path: string): Promise<s
 function providerOutput(
   value: Extract<StoredRestCaseResult, { status: "SUCCEEDED" }>["providerOutput"]
 ): DomainJsonObject {
-  if (!value.ok) return { ok: false, err_msg: value.errorMessage };
+  if (!value.ok)
+    return {
+      ok: false,
+      err_msg: value.errorMessage,
+      ...(value.parsedOutput === undefined ? {} : { parsed_output: value.parsedOutput })
+    };
   return {
     ok: true,
     task_name: value.taskName,

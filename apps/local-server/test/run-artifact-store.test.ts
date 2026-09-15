@@ -286,6 +286,46 @@ function reportCases(
 }
 
 describe("LocalRunArtifactStore", () => {
+  it("评测异常保留原因和已完成分项，不能阻断整批结果落盘", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "cortex-eval-error-artifact-"));
+    roots.push(projectRoot);
+    const store = await LocalRunArtifactStore.create({ projectRoot });
+    const item: PlatformEvalCaseResult = {
+      ...EVAL_RESULT,
+      status: "EVALUATION_ERROR",
+      promptfooSuccess: null,
+      score: null,
+      reason: "PROMPTFOO_ASSERTION_EXECUTION_ERROR",
+      evaluationError: { code: "PROMPTFOO_ASSERTION_EXECUTION_ERROR" }
+    };
+    const published = await store.writeNormalizedEvalResults({
+      runId: RUN_ID,
+      runContextHash: "a".repeat(64),
+      evaluationContextHash: EVALUATION_CONTEXT_HASH,
+      completedAt: NOW,
+      expectedTotal: 1,
+      cases: streamEvalCases([item]),
+      resultSetHash: hashEvalResultSet({
+        contractVersion: "cortex.eval-result-set.v1",
+        owner: { kind: "RUN", id: RUN_ID },
+        evaluationContextHash: EVALUATION_CONTEXT_HASH,
+        cases: [
+          { caseKey: item.caseKey, ordinal: item.ordinal, evalResultHash: item.evalResultHash }
+        ]
+      })
+    });
+    const artifact = JSON.parse(
+      await readFile(
+        join(projectRoot, ".cortex-eval", "artifacts", published.descriptor.path),
+        "utf8"
+      )
+    );
+    expect(artifact.cases[0]).toMatchObject({
+      status: "EVALUATION_ERROR",
+      reason: item.reason,
+      assertions: item.assertions
+    });
+  });
   it("流式原子发布 Report JSON 与 Markdown，并支持逐文件精确补偿", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "cortex-report-artifacts-"));
     roots.push(projectRoot);

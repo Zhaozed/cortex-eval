@@ -26,7 +26,12 @@ import { validateDecodedJsonStringBytes } from "./json-value-runtime-limits.ts";
 function providerOutput(
   value: Extract<OfflineRestCaseResult, { status: "SUCCEEDED" }>["providerOutput"]
 ): unknown {
-  if (!value.ok) return { ok: false, err_msg: value.errorMessage };
+  if (!value.ok)
+    return {
+      ok: false,
+      err_msg: value.errorMessage,
+      ...(value.parsedOutput === undefined ? {} : { parsed_output: value.parsedOutput })
+    };
   return {
     ok: true,
     task_name: value.taskName,

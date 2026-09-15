@@ -26,7 +26,7 @@ beforeEach(() => {
 // Complete the new form rather than submitting an automatically passing placeholder.
 async function completeCreateForm(): Promise<void> {
   await userEvent.type(screen.getByRole("textbox", { name: "Case 描述" }), "确认实际输出字段存在");
-  await userEvent.type(screen.getByRole("combobox", { name: "任务" }), "agent-e2e");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "任务" }), "agent-e2e");
   await userEvent.selectOptions(screen.getByRole("combobox", { name: "业务模块" }), "客服");
   await userEvent.selectOptions(screen.getByRole("combobox", { name: "场景标签" }), "正常");
   await userEvent.type(screen.getByRole("combobox", { name: "目标字段 1" }), "parsed_output");

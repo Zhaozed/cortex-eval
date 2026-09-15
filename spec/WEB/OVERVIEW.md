@@ -27,7 +27,7 @@ UI Primitive 只负责表现、可访问性和基础交互，不负责请求、�
 - [app.tsx](../../apps/web/src/app.tsx)：闭合路由、Feature 动态加载和 Query 根装配。
 - [resource-api.ts](../../apps/web/src/lib/resource-api.ts)：Contracts 与请求上下文双重校验的资源 API Client、Query Key 和精确失效范围。
 - [run-api.ts](../../apps/web/src/lib/run-api.ts)：Run HTTP/SSE 严格协议和请求身份校验。
-- [report-page.tsx](../../apps/web/src/features/reports/report-page.tsx)：平台与离线导入统一 Report 页面。
+- [report-page.tsx](../../apps/web/src/features/runs/run-dashboard-page.tsx)：平台与离线导入统一 Report 页面。
 - [feature-registry.ts](../../apps/web/src/features/feature-registry.ts)：当前导航与 Dashboard 能力贡献。
 - [app-shell.tsx](../../apps/web/src/components/app-shell.tsx)：桌面外壳、跳转、焦点和小屏提示。
 - [styles.css](../../apps/web/src/styles.css)：浅色本地实验室仪表台视觉、目标尺寸和 Reduced Motion。
@@ -68,7 +68,7 @@ API Client 的服务端错误码从闭合错误响应 Schema 推导，客户端�
 
 页面满足 WCAG 2.2 AA、键盘操作、可见焦点、表单错误关联、Reduced Motion、可读状态和稳定加载反馈。千级 Case 使用服务端分页。Feature 通过能力注册进入导航与 Dashboard，未实现能力不显示占位、伪数据或永久 Loading。
 
-Dashboard 面向 AIPM 和产品决策：只保留测试集 / Case 资产数量为弱摘要；移除四类配置数量、无运行背景的最新报告大指标。默认选择最近 50 条记录内最近完成的运行，可切换运行；全部质量统计仅基于该次完整报告与当前人工复核，不跨测试集混算通过率。复用 Run 详情的互斥状态映射，自动失败不可被人工通过覆盖，必要视觉复核未通过前不计为通过；报告数量不完整或人工复核读取失败时不展示最终验收统计。业务模块 + 场景按冻结 Case 分组，未通过 / 异常优先；统计数字与场景行联动 Case 清单，平台 Case 复用详情抽屉、Trace 与动态 A2UI。近期运行表明确标注自动评测计数，状态完成不代表业务通过。首页只查询所选完整报告，不批量扫描所有运行的 Trace；刷新及浏览不发起业务运行。
+Dashboard 面向 AIPM 和产品决策：只保留测试集 / Case 资产数量为弱摘要；移除四类配置数量、无运行背景的最新报告大指标。默认选择最近 50 条记录内最近完成的运行，可切换运行；全部质量统计仅基于该次完整报告与当前人工复核，不跨测试集混算通过率。复用 Run 详情的互斥状态映射，人工结论为最终结论并可覆盖自动失败（覆盖需归因与说明并单独标注，执行失败除外），必要视觉复核未通过前不计为通过；报告数量不完整或人工复核读取失败时不展示最终验收统计。业务模块 + 场景按冻结 Case 分组，未通过 / 异常优先；统计数字与场景行联动 Case 清单，平台 Case 复用详情抽屉、Trace 与动态 A2UI。近期运行表明确标注自动评测计数，状态完成不代表业务通过。首页只查询所选完整报告，不批量扫描所有运行的 Trace；刷新及浏览不发起业务运行。
 
 ## 相关测试
 

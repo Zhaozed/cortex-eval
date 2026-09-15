@@ -1,3 +1,7 @@
+import {
+  canRetryEvaluation,
+  canRetryReport
+} from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
 import zhCnMessages from "@cortex-eval/contracts/messages/zh-CN.json" with { type: "json" };
 import type {
   PlatformRunService,
@@ -274,7 +278,11 @@ function providerOutput(
         resolved_config: value.resolvedConfig,
         parsed_output: value.parsedOutput
       }
-    : { ok: false, err_msg: value.errorMessage };
+    : {
+        ok: false,
+        err_msg: value.errorMessage,
+        ...(value.parsedOutput === undefined ? {} : { parsed_output: value.parsedOutput })
+      };
 }
 
 // Build fields shared by REST Case list and detail projections.
@@ -455,6 +463,9 @@ async function runDetail(
       status: item.status
     })),
     errorCode: value.errorCode,
+    errorMessage: value.errorMessage,
+    canRetryEvaluation: canRetryEvaluation(value),
+    canRetryReport: canRetryReport(value),
     startedAt: value.startedAt,
     completedAt: value.completedAt,
     createdAt: value.createdAt,
@@ -908,9 +919,9 @@ export function createApplicationRunHandlers(
         };
       }
       const result =
-        current.stage === "REPORT"
+        current.stage === "REPORT" || canRetryReport(current)
           ? await service.startReport({ runId: id.value, ...body.value })
-          : current.stage === "EVALUATION"
+          : current.stage === "EVALUATION" || canRetryEvaluation(current)
             ? await service.startEvaluation({ runId: id.value, ...body.value })
             : await service.start({ runId: id.value, ...body.value });
       return result.ok
@@ -930,7 +941,7 @@ export function createApplicationRunHandlers(
         };
       }
       const result =
-        current.stage === "REPORT"
+        current.stage === "REPORT" || canRetryReport(current)
           ? await service.cancelReport({ runId: id.value, ...body.value })
           : current.stage === "EVALUATION"
             ? await service.cancelEvaluation({ runId: id.value, ...body.value })

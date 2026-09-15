@@ -1,8 +1,8 @@
 import { parse, type Node } from "acorn";
 
-/** Find a return belonging to the script body, not a nested callback or quoted string. */
+/** Find a return or throw belonging to the script body, not a nested callback or quoted string. */
 function hasBodyReturn(node: Node): boolean {
-  if (node.type === "ReturnStatement") return true;
+  if (node.type === "ReturnStatement" || node.type === "ThrowStatement") return true;
   if (["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(node.type))
     return false;
   return Object.values(node).some((value: unknown) => {

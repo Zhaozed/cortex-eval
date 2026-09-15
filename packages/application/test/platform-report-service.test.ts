@@ -335,6 +335,46 @@ function reportService(
 }
 
 describe("Platform Report Service", () => {
+  it("失败后在原 Run 只重建报告，保留执行与评测事实并拒绝覆盖已完成报告", async () => {
+    const runs = new MemoryPlatformRunStore();
+    runs.values.set(RUN_ID, reportReadyRun());
+    runs.results.set(`${RUN_ID}:case-1`, restResult);
+    const evaluations = new MemoryPlatformEvalRepository(runs);
+    evaluations.queryItems = [passingEvaluation()];
+    const failed = reportService(runs, evaluations, new FailingReportArtifacts());
+    expect((await failed.start({ runId: RUN_ID, expectedRevision: 4 })).ok).toBe(true);
+    await failed.waitForIdle();
+    const failure = runs.values.get(RUN_ID);
+    if (!failure) throw new Error("TEST_RUN_MISSING");
+    expect(failure).toMatchObject({
+      status: "FAILED",
+      stage: "DONE",
+      errorCode: "REPORT_RECONCILIATION_FAILED"
+    });
+    const retry = reportService(runs, evaluations, new MemoryArtifacts());
+    expect(
+      (await retry.start({ runId: RUN_ID, expectedRevision: failure.lockRevision - 1 })).ok
+    ).toBe(false);
+    expect((await retry.start({ runId: RUN_ID, expectedRevision: failure.lockRevision })).ok).toBe(
+      true
+    );
+    await retry.waitForIdle();
+    const completed = runs.values.get(RUN_ID);
+    if (!completed) throw new Error("TEST_RUN_MISSING");
+    expect(completed).toMatchObject({
+      status: "COMPLETED",
+      stage: "DONE",
+      errorCode: null,
+      evaluationResultSetHash: EVALUATION_RESULT_SET_HASH,
+      resultSetHash: failure.resultSetHash
+    });
+    expect(runs.results.get(`${RUN_ID}:case-1`)).toBe(restResult);
+    expect(evaluations.queryItems).toEqual([passingEvaluation()]);
+    expect(
+      (await retry.start({ runId: RUN_ID, expectedRevision: completed.lockRevision })).ok
+    ).toBe(false);
+  });
+
   it("在抢占前拒绝缺失、错误阶段、过期版本和不完整 Evaluation 版本", async () => {
     const runs = new MemoryPlatformRunStore();
     const evaluations = new MemoryPlatformEvalRepository(runs);

@@ -97,10 +97,15 @@ it("rejects invalid capture without publishing a review", async () => {
   expect((await s.get(run, "case")).revision).toBe(0);
 });
 
-it("clears cause on non-failing decisions without rewriting earlier failure evidence", async () => {
+it("stores the submitted attribution verbatim and requires a reason for it", async () => {
   const s = await store();
   await s.change(run, "case", { ...decision, verdict: "FAIL" }, "DECISION");
-  await s.change(run, "case", { ...decision, expectedRevision: 1 }, "DECISION");
+  await s.change(
+    run,
+    "case",
+    { ...decision, expectedRevision: 1, rootCause: "UNCLASSIFIED" },
+    "DECISION"
+  );
   const result = await s.change(
     run,
     "case",
@@ -110,7 +115,24 @@ it("clears cause on non-failing decisions without rewriting earlier failure evid
   expect(result.history.map((event) => [event.verdict, event.rootCause])).toEqual([
     ["FAIL", "PRODUCT"],
     ["PASS", "UNCLASSIFIED"],
-    ["PENDING", "UNCLASSIFIED"]
+    ["PENDING", "EVIDENCE"]
   ]);
   expect(result.history[0]?.note).toBe(decision.note);
+  // A manual pass may overturn automation, but only with attribution and a written reason.
+  const overridden = await s.change(
+    run,
+    "case",
+    { ...decision, expectedRevision: 3, rootCause: "EVALUATOR", note: "判定规则误判" },
+    "DECISION"
+  );
+  expect(overridden.history.at(-1)).toMatchObject({ verdict: "PASS", rootCause: "EVALUATOR" });
+  await expect(
+    s.change(
+      run,
+      "case",
+      { ...decision, expectedRevision: 4, rootCause: "CASE", note: " " },
+      "DECISION"
+    )
+  ).rejects.toThrow("REVIEW_NOTE_REQUIRED");
+  expect((await s.get(run, "case")).revision).toBe(4);
 });

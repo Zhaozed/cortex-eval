@@ -18,6 +18,7 @@ import { RunCaseDrawer, type CaseTab } from "./run-case-drawer.tsx";
 import { hasTrace, scenarioName } from "./run-evidence-model.ts";
 import {
   evaluationState,
+  manualOverride,
   executionState,
   resultBucket,
   type DashboardCase,
@@ -207,8 +208,16 @@ export function RunDashboardCases({
                   {message(`rd.eval.${evaluationState(row)}`)}
                 </Badge>
                 {row.review?.history.length ? (
-                  <small className="run-human-mark" title="自动结果保留在详情中">
-                    {row.review.history.at(-1)?.kind === "CAPTURE" ? "待复核" : "人工复核"}
+                  <small
+                    className="run-human-mark"
+                    data-override={manualOverride(row) ? "true" : undefined}
+                    title="自动结果保留在详情中"
+                  >
+                    {manualOverride(row)
+                      ? "人工覆盖"
+                      : row.review.history.at(-1)?.kind === "CAPTURE"
+                        ? "待复核"
+                        : "人工复核"}
                   </small>
                 ) : null}
               </TableCell>
@@ -226,7 +235,7 @@ export function RunDashboardCases({
                   {hasObservedCards(row)
                     ? "查看卡片"
                     : visualReviewRequired(row)
-                      ? "查看 / 检查卡片"
+                      ? "未采集到卡片"
                       : "无卡片记录"}
                 </Button>
               </TableCell>

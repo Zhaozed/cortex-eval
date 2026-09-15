@@ -162,6 +162,8 @@ export interface ProviderOutputFailure {
   readonly ok: false;
   /** Business error message. */
   readonly errorMessage: string;
+  /** Partial observed evidence; never changes the failed business outcome. */
+  readonly parsedOutput?: Readonly<DomainJsonObject>;
 }
 
 /** Valid Provider Output union. */

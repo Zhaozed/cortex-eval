@@ -89,7 +89,7 @@ describe("Run 列表删除", () => {
         />
       </QueryClientProvider>
     );
-    expect(await screen.findByText(RUN_ID)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "删除" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "删除" }));
     expect(confirmSpy).toHaveBeenCalled();
     await waitFor(() =>

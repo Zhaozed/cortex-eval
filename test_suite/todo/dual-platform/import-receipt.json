@@ -1,0 +1,19 @@
+{
+  "suiteId": "01a08ae1-13bc-70ba-b68c-35817a814569",
+  "name": "待办｜双平台业务验收",
+  "revision": 4,
+  "caseCount": 20,
+  "preview": {
+    "added": 0,
+    "modified": 20,
+    "removed": 0
+  },
+  "exportMatchesGenerated": true,
+  "existingPlannerUnchanged": {
+    "revision": 10,
+    "caseCount": 36
+  },
+  "executed": false,
+  "accountBound": true,
+  "testUid": "2075490654049271808"
+}

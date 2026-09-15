@@ -15,13 +15,12 @@ import { ApiClientError } from "../../lib/api-client.ts";
 import type { RunApi } from "../../lib/run-api.ts";
 import { runReviewApi } from "../../lib/run-review-api.ts";
 import { evaluationState, type DashboardCase } from "./run-dashboard-model.ts";
-import { agentUsage, object, userText } from "./run-evidence-model.ts";
+import { agentUsage, conversationTurns, object, payload, records } from "./run-evidence-model.ts";
 import { EvidenceJson, RunTracePanel } from "./run-trace-panel.tsx";
-import { ReviewForm } from "./run-case-review.tsx";
 import { RunCaseChecks } from "./run-case-checks.tsx";
+import { RunCaseRounds } from "./run-case-rounds.tsx";
 import { RunCaseOutput } from "./run-case-output.tsx";
 import { RunCaseUsage } from "./run-case-usage.tsx";
-import { visualReviewRequired } from "./run-output-model.ts";
 import { message } from "../../messages/messages.ts";
 /** a2ui is a deep-link intent into the result pane, not a third tab. */
 export type CaseTab = "result" | "trace" | "a2ui";
@@ -82,7 +81,9 @@ export function RunCaseDrawer({
     const target = tab === "a2ui" ? "case-a2ui-evidence" : tab === "trace" ? traceTarget : null;
     if (!target) return;
     const frame = requestAnimationFrame(() => {
-      const element = document.getElementById(target);
+      const element = target.startsWith("turn:")
+        ? document.querySelector<HTMLElement>(`[data-round="${target.slice("turn:".length)}"]`)
+        : document.getElementById(target);
       let group = element?.closest("details");
       while (group) {
         group.open = true;
@@ -103,7 +104,10 @@ export function RunCaseDrawer({
   });
   const definition = fullRow.definition,
     evaluation = fullRow.evaluation,
-    usage = agentUsage([fullRow]);
+    usage = agentUsage([fullRow]),
+    inputTurns = conversationTurns(fullRow),
+    inputRounds = inputTurns.filter((turn) => turn.kind === "user"),
+    turnEvidence = records(payload(fullRow).turns).length > 0;
   return (
     <SheetContent className={`run-case-drawer${wide ? " run-case-drawer-wide" : ""}`}>
       <SheetHeader>
@@ -182,58 +186,119 @@ export function RunCaseDrawer({
         </TabsList>
         <TabsContent value="result" className="run-case-tab">
           {detail.isError && <p role="alert">执行证据读取失败。</p>}
-          <section className="run-case-input">
-            <h3>用户输入</h3>
-            <p className="run-readable">{userText(fullRow) ?? "未记录可读输入，请展开原始请求"}</p>
-            <details>
-              <summary>前置条件 / 测试数据</summary>
-              <p className="run-muted">保存的 Case 请求条件，不代表环境已自动准备。</p>
-              <EvidenceJson
-                value={{
-                  time: object(definition?.vars.request_body).time,
-                  timezone: object(definition?.vars.request_body).timezone,
-                  task: definition?.vars.task,
-                  metadata: definition?.metadata,
-                  preconditions: object(definition?.vars.request_body).preconditions ?? "未记录"
+          {turnEvidence ? (
+            <>
+              <RunCaseRounds
+                row={fullRow}
+                onTrace={(target) => {
+                  setTraceTarget(target);
+                  onTab("trace");
                 }}
               />
-            </details>
-          </section>
-          <div className="run-case-results-grid">
-            <RunCaseChecks row={fullRow} />
-            <RunCaseOutput
-              key={`${row.caseKey}-${fullRow.review?.revision ?? 0}`}
-              mode="messages"
-              row={fullRow}
-              review={fullRow.review}
-              reviewError={review.isError}
-            />
-          </div>
-          <RunCaseOutput
-            key={`cards-${row.caseKey}-${fullRow.review?.revision ?? 0}`}
-            mode="cards"
-            row={fullRow}
-            review={fullRow.review}
-            reviewError={review.isError}
-          />
-          <RunCaseUsage
-            row={fullRow}
-            onTrace={(target) => {
-              setTraceTarget(target);
-              onTab("trace");
-            }}
-          />
-          {fullRow.review && !visualReviewRequired(fullRow) && (
-            <details className="run-case-manual">
-              <summary>
-                人工复核 / 归因备注
-                {fullRow.review.history.at(-1)?.kind === "DECISION" ? " · 已有记录" : ""}
-              </summary>
-              <ReviewForm
-                key={`${row.caseKey}-${fullRow.review.revision}`}
+              <details className="run-case-raw">
+                <summary>前置条件 / 测试数据</summary>
+                <p className="run-muted">保存的 Case 请求条件，不代表环境已自动准备。</p>
+                <EvidenceJson
+                  value={{
+                    time: object(definition?.vars.request_body).time,
+                    timezone: object(definition?.vars.request_body).timezone,
+                    task: definition?.vars.task,
+                    metadata: definition?.metadata,
+                    preconditions: object(definition?.vars.request_body).preconditions ?? "未记录"
+                  }}
+                />
+              </details>
+              <RunCaseOutput
+                key={`cards-${row.caseKey}-${fullRow.review?.revision ?? 0}`}
+                mode="cards"
+                row={fullRow}
                 review={fullRow.review}
+                reviewError={review.isError}
               />
-            </details>
+              <RunCaseUsage
+                row={fullRow}
+                onTrace={(target) => {
+                  setTraceTarget(target);
+                  onTab("trace");
+                }}
+              />
+              <RunCaseChecks row={fullRow} />
+            </>
+          ) : (
+            <>
+              <section className="run-case-input">
+                <div className="run-case-input-head">
+                  <h3>用户输入</h3>
+                  <span className="run-input-mode" data-multi={inputRounds.length > 1}>
+                    {inputRounds.length > 1
+                      ? `多轮 · ${inputRounds.length} 轮`
+                      : inputRounds.length === 1
+                        ? "单轮"
+                        : "未记录"}
+                  </span>
+                </div>
+                {inputTurns.length === 0 ? (
+                  <p className="run-readable">未记录可读输入，请展开原始请求</p>
+                ) : inputTurns.length === 1 ? (
+                  <p className="run-readable">{inputTurns[0]?.text}</p>
+                ) : (
+                  <ol className="run-input-turns">
+                    {inputTurns.map((turn, index) =>
+                      turn.kind === "user" ? (
+                        <li className="run-input-turn" key={index}>
+                          <span className="run-input-turn-index">第 {turn.round} 轮</span>
+                          <p>{turn.text}</p>
+                        </li>
+                      ) : (
+                        <li className="run-input-context" key={index}>
+                          <span>
+                            {turn.role === "assistant" ? "Agent 历史" : `${turn.role} 历史`}
+                          </span>
+                          <p>{turn.text}</p>
+                        </li>
+                      )
+                    )}
+                  </ol>
+                )}
+                <details>
+                  <summary>前置条件 / 测试数据</summary>
+                  <p className="run-muted">保存的 Case 请求条件，不代表环境已自动准备。</p>
+                  <EvidenceJson
+                    value={{
+                      time: object(definition?.vars.request_body).time,
+                      timezone: object(definition?.vars.request_body).timezone,
+                      task: definition?.vars.task,
+                      metadata: definition?.metadata,
+                      preconditions: object(definition?.vars.request_body).preconditions ?? "未记录"
+                    }}
+                  />
+                </details>
+              </section>
+              <div className="run-case-results-grid">
+                <RunCaseChecks row={fullRow} />
+                <RunCaseOutput
+                  key={`${row.caseKey}-${fullRow.review?.revision ?? 0}`}
+                  mode="messages"
+                  row={fullRow}
+                  review={fullRow.review}
+                  reviewError={review.isError}
+                />
+              </div>
+              <RunCaseOutput
+                key={`cards-${row.caseKey}-${fullRow.review?.revision ?? 0}`}
+                mode="cards"
+                row={fullRow}
+                review={fullRow.review}
+                reviewError={review.isError}
+              />
+              <RunCaseUsage
+                row={fullRow}
+                onTrace={(target) => {
+                  setTraceTarget(target);
+                  onTab("trace");
+                }}
+              />
+            </>
           )}
           <details className="run-case-raw">
             <summary>原始请求 / 响应 / HTTP 状态</summary>

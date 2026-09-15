@@ -52,16 +52,14 @@ it("预检完成才可确认，文件和 Revision 改变后旧预检不得提交
 it("配置错误显示中文原因且禁止确认", async () => {
   const api = {
     ...createResourceApi(),
-    previewCases: vi
-      .fn()
-      .mockRejectedValue(
-        new ApiClientError("CASE_IMPORT_ITEM_INVALID", {
-          issueCode: "UNKNOWN_TYPE",
-          importIndex: 0,
-          caseKey: "bad",
-          fieldPath: "assert.0.type"
-        })
-      )
+    previewCases: vi.fn().mockRejectedValue(
+      new ApiClientError("CASE_IMPORT_ITEM_INVALID", {
+        issueCode: "UNKNOWN_TYPE",
+        importIndex: 0,
+        caseKey: "bad",
+        fieldPath: "assert.0.type"
+      })
+    )
   };
   render(
     <CaseImportDialog

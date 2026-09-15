@@ -18,13 +18,20 @@ const EVIDENCE_HASH = "c".repeat(64);
 
 function result(
   status: "PASS" | "FAIL" | "EVALUATION_ERROR" | "NOT_EVALUATED",
-  provenance: PlatformEvalCaseResult["provenance"] = null
+  provenance: PlatformEvalCaseResult["provenance"] = null,
+  errorReason: string | null = null
 ): PlatformEvalCaseResult {
   const observed = status === "PASS" || status === "FAIL";
   const passed = status === "PASS";
   const promptfooSuccess = observed ? passed : null;
   const score = observed ? (passed ? 1 : 0) : null;
-  const reason = observed ? (passed ? "passed" : "failed") : null;
+  const reason = observed
+    ? passed
+      ? "passed"
+      : "failed"
+    : status === "EVALUATION_ERROR"
+      ? errorReason
+      : null;
   const evaluationError = status === "EVALUATION_ERROR" ? { code: "EVALUATOR_TIMEOUT" } : null;
   const rawEvidence =
     status === "NOT_EVALUATED"
@@ -148,6 +155,11 @@ function row(value: PlatformEvalCaseResult): EvalResultRowProjection {
 }
 
 describe("SQLite 平台 Eval 行映射", () => {
+  it("评测异常原因可以落库并通过哈希校验读回", () => {
+    const value = result("EVALUATION_ERROR", null, "PROMPTFOO_ASSERTION_EXECUTION_ERROR");
+    expect(evalResultInsertValues(value).reason).toBe(value.reason);
+    expect(mapPlatformEvalResult(row(value))).toEqual(value);
+  });
   it("覆盖 PASS、FAIL、Evaluation Error、Not Evaluated 与两种来源写入形态", () => {
     const runProvenance = {
       sourceKind: "RUN" as const,

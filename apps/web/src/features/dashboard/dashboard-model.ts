@@ -3,6 +3,7 @@ import {
   dashboardCounts,
   evaluationState,
   loadDashboardCases,
+  manualOverride,
   resultBucket,
   type DashboardCase,
   type ResultBucket
@@ -99,6 +100,7 @@ export function attentionReason(row: DashboardCase): string {
   if (resultBucket(row) === "CANCELLED") return "执行已取消";
   if (row.rest.status === "ERROR") return "执行异常 · 查看执行记录";
   const state = evaluationState(row);
+  if (state === "PASS" && manualOverride(row)) return "人工复核通过 · 已覆盖自动结论";
   if (state === "REVIEW_PENDING") return "自动评测通过 · 等待人工复核";
   if (state === "EVALUATION_ERROR") return "评测异常 · 查看评测记录";
   if (state === "FAIL")

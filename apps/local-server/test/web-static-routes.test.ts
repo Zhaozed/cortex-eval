@@ -110,11 +110,7 @@ it("serves rebuilt hashed assets without a restart; unknown paths remain 404", a
     await writeFile(join(root, "index.html"), '<script src="/assets/rebuilt-123.js"></script>');
     const headers = { host: "127.0.0.1:4310" };
     expect((await server.inject({ url: "/assets/rebuilt-123.js", headers })).statusCode).toBe(200);
-    for (const url of [
-      "/runs/templates",
-      "/runs/templates/batch",
-      "/configurations"
-    ]) {
+    for (const url of ["/runs/templates", "/runs/templates/batch", "/configurations"]) {
       const response = await server.inject({ url, headers });
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("rebuilt-123.js");

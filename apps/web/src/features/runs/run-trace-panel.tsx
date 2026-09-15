@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactElement } from "react";
+import { Fragment, useRef, useState, type ReactElement } from "react";
 import {
   ArrowDown,
   Braces,
@@ -120,7 +120,8 @@ export function RunTracePanel({
       group = group.parentElement?.closest("details") ?? null;
     }
     next.click();
-    next.scrollIntoView?.({ block: "center", behavior: "smooth" });
+    if (typeof next.scrollIntoView === "function")
+      next.scrollIntoView({ block: "center", behavior: "smooth" });
     next.focus({ preventScroll: true });
     setErrorIndex(errorIndex + 1);
   };
@@ -200,6 +201,168 @@ export function RunTracePanel({
       evidence: call
     });
   };
+  const renderStep = (step: Record<string, unknown>): ReactElement => {
+    const body = object(step.payload),
+      call = object(body.tool_call),
+      result = object(body.tool_ret);
+    const tool = text(call.name) ?? text(result.name),
+      type = String(step.type);
+    const stage = recordedStage(step) ?? recordedStage(body);
+    const node = {
+      id:
+        identifier(step.step_id) !== null
+          ? traceStepId(step)
+          : `case-step-missing-${timeline.indexOf(step)}`,
+      title: `${typeof step.step_idx === "number" ? `步骤 ${step.step_idx} · ` : ""}${labels[type] ?? text(step.type) ?? "执行记录"}${tool ? ` · ${tool}` : ""}`,
+      ...(stage ? { stage } : {}),
+      kind: type.startsWith("TOOL") ? "工具" : type === "THINK" ? "动作" : "消息",
+      error: type.includes("ERROR"),
+      summary: [
+        text(body.user_text) ??
+          text(body.reply_text) ??
+          (type === "TOOL_CALL"
+            ? "查看调用参数"
+            : type === "THINK"
+              ? ({ CALL_TOOL: "决策：调用工具", DONE: "决策：结束本轮任务" }[String(body.action)] ??
+                "查看已保存的动作记录")
+              : "查看已保存的参数与结果"),
+        identifier(step.parallel_group_id) !== null
+          ? `并行组 ${identifier(step.parallel_group_id)}`
+          : null,
+        identifier(step.retry_of) !== null ? `重试来源 ${identifier(step.retry_of)}` : null
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      metrics: [
+        {
+          label: "记录时间",
+          value:
+            text(step.created_at) && Number.isFinite(Date.parse(String(step.created_at)))
+              ? new Date(String(step.created_at)).toLocaleTimeString("zh-CN", {
+                  hour12: false
+                })
+              : "未采集"
+        }
+      ],
+      evidence: step
+    };
+    return (
+      <div className="run-flow-step">
+        {draw(node)}
+        <EvidenceTree
+          branches={traceBranches(
+            calls.filter((call) => links.get(call) === step),
+            "call_id",
+            "parent_call_id"
+          )}
+          render={(call) => (
+            <div className="run-flow-linked">
+              <span className="run-flow-relation">关联模型调用</span>
+              {modelNode(call)}
+            </div>
+          )}
+        />
+      </div>
+    );
+  };
+  const routeRecords = (records(p.routes).length ? records(p.routes) : [object(p.route)]).filter(
+    (route) => Object.keys(route).some((key) => !["_eval_turn_index", "req_id"].includes(key))
+  );
+  const turnOf = (record: Record<string, unknown>): number | null =>
+    typeof record._eval_turn_index === "number" ? record._eval_turn_index : null;
+  const routeNode = (route: Record<string, unknown>): ReactElement =>
+    draw({
+      id: turnOf(route) === null ? "case-route" : `case-route-turn-${turnOf(route)}`,
+      title: "路由记录",
+      stage: "router",
+      kind: "路由",
+      summary: text(route.decision) ?? "路由决策未记录",
+      error: false,
+      evidence: route
+    });
+  const stepTree = (steps: readonly Record<string, unknown>[]): ReactElement => (
+    <EvidenceTree
+      branches={traceBranches(steps, "step_id", "parent_step_id")}
+      render={renderStep}
+    />
+  );
+  // A turn's routing decision opens that turn's own chain; only turn-less records stay above it.
+  const interleaved =
+    routeRecords.some((route) => turnOf(route) !== null) &&
+    sorted.some((step) => turnOf(step) !== null);
+  const multiTurn =
+    new Set(
+      [...routeRecords, ...sorted].map(turnOf).filter((turn): turn is number => turn !== null)
+    ).size > 1;
+  const segments: { turn: number | null; steps: Record<string, unknown>[] }[] = [];
+  if (sorted.some((step) => turnOf(step) !== null))
+    for (const step of sorted) {
+      const turn = turnOf(step);
+      const last = segments.at(-1);
+      if (last?.turn === turn) last.steps.push(step);
+      else segments.push({ turn, steps: [step] });
+    }
+  const opened = new Set<number>();
+  const blocks: ReactElement[] = [];
+  // Turn captions are standalone bullet rows: node titles never repeat "第 N 轮".
+  let currentTurn: number | null = null;
+  let dividerSeq = 0;
+  const emit = (turn: number | null, node: ReactElement): void => {
+    if (multiTurn && turn !== null && turn !== currentTurn) {
+      dividerSeq += 1;
+      blocks.push(
+        <div
+          className="run-flow-turn"
+          key={`case-turn-divider-${dividerSeq}`}
+          data-round={turn + 1}
+          data-testid={`turn-anchor-${turn + 1}`}
+          tabIndex={-1}
+        >
+          <span className="run-flow-turn-dot" />
+          <span className="run-flow-turn-label">第 {turn + 1} 轮</span>
+          <span className="run-flow-turn-rule" />
+        </div>
+      );
+    }
+    if (turn !== null) currentTurn = turn;
+    blocks.push(node);
+  };
+  if (interleaved) {
+    for (const route of routeRecords.filter((record) => turnOf(record) === null))
+      emit(null, routeNode(route));
+    segments.forEach((segment, index) => {
+      // Turns without recorded steps still happened: their router opens the next observed chain.
+      if (segment.turn !== null)
+        for (const route of routeRecords) {
+          const turn = turnOf(route);
+          if (turn !== null && turn <= segment.turn && !opened.has(turn)) {
+            opened.add(turn);
+            emit(turn, routeNode(route));
+          }
+        }
+      emit(
+        segment.turn,
+        <Fragment key={`turn-segment-${index}`}>{stepTree(segment.steps)}</Fragment>
+      );
+    });
+    for (const route of routeRecords) {
+      const turn = turnOf(route);
+      if (turn !== null && !opened.has(turn)) {
+        opened.add(turn);
+        emit(turn, routeNode(route));
+      }
+    }
+  } else {
+    for (const route of routeRecords) emit(turnOf(route), routeNode(route));
+    if (segments.length > 0)
+      segments.forEach((segment, index) =>
+        emit(
+          segment.turn,
+          <Fragment key={`turn-segment-${index}`}>{stepTree(segment.steps)}</Fragment>
+        )
+      );
+    else blocks.push(stepTree(sorted));
+  }
   const content = (
     <>
       <TraceAnalysisSummary
@@ -210,87 +373,10 @@ export function RunTracePanel({
         onOpen={onOpenAnalysis}
         onRefresh={onRefreshAnalysis}
       />
-      {Object.keys(object(p.route)).length > 0 &&
-        draw({
-          id: "case-route",
-          title: "路由记录",
-          stage: "router",
-          kind: "路由",
-          summary: text(object(p.route).decision) ?? "路由决策未记录",
-          error: false,
-          evidence: p.route
-        })}
       {timeline.length === 0 && (
         <p className="run-trace-notice">未采集步骤时间线；以下仅展示已有记录。</p>
       )}
-      <EvidenceTree
-        branches={traceBranches(sorted, "step_id", "parent_step_id")}
-        render={(step) => {
-          const body = object(step.payload),
-            call = object(body.tool_call),
-            result = object(body.tool_ret);
-          const tool = text(call.name) ?? text(result.name),
-            type = String(step.type);
-          const stage = recordedStage(step) ?? recordedStage(body);
-          const node = {
-            id:
-              identifier(step.step_id) !== null
-                ? traceStepId(step)
-                : `case-step-missing-${timeline.indexOf(step)}`,
-            title: `${typeof step.step_idx === "number" ? `${step.step_idx}. ` : ""}${labels[type] ?? text(step.type) ?? "执行记录"}${tool ? ` · ${tool}` : ""}`,
-            ...(stage ? { stage } : {}),
-            kind: type.startsWith("TOOL") ? "工具" : type === "THINK" ? "动作" : "消息",
-            error: type.includes("ERROR"),
-            summary: [
-              text(body.user_text) ??
-                text(body.reply_text) ??
-                (type === "TOOL_CALL"
-                  ? "查看调用参数"
-                  : type === "THINK"
-                    ? ({ CALL_TOOL: "决策：调用工具", DONE: "决策：结束本轮任务" }[
-                        String(body.action)
-                      ] ?? "查看已保存的动作记录")
-                    : "查看已保存的参数与结果"),
-              identifier(step.parallel_group_id) !== null
-                ? `并行组 ${identifier(step.parallel_group_id)}`
-                : null,
-              identifier(step.retry_of) !== null ? `重试来源 ${identifier(step.retry_of)}` : null
-            ]
-              .filter(Boolean)
-              .join(" · "),
-            metrics: [
-              {
-                label: "记录时间",
-                value:
-                  text(step.created_at) && Number.isFinite(Date.parse(String(step.created_at)))
-                    ? new Date(String(step.created_at)).toLocaleTimeString("zh-CN", {
-                        hour12: false
-                      })
-                    : "未采集"
-              }
-            ],
-            evidence: step
-          };
-          return (
-            <div className="run-flow-step">
-              {draw(node)}
-              <EvidenceTree
-                branches={traceBranches(
-                  calls.filter((call) => links.get(call) === step),
-                  "call_id",
-                  "parent_call_id"
-                )}
-                render={(call) => (
-                  <div className="run-flow-linked">
-                    <span className="run-flow-relation">关联模型调用</span>
-                    {modelNode(call)}
-                  </div>
-                )}
-              />
-            </div>
-          );
-        }}
-      />
+      {blocks}
       {records(p.tool_executions).length > 0 && (
         <details className="run-flow-group" open>
           <summary>
@@ -352,7 +438,22 @@ export function RunTracePanel({
           kind: "证据",
           summary: "查看采集覆盖度与截断标记",
           error: false,
-          evidence: p.coverage ?? "未记录"
+          evidence: records(p.turns).length
+            ? records(p.turns).map((turn) => ({
+                turn_index: turn.turn_index,
+                req_id: turn.req_id,
+                coverage: object(turn.parsed_output).coverage ?? "未记录",
+                outbound_capture: object(turn.parsed_output).outbound_capture ?? "未记录"
+              }))
+            : (p.coverage ?? "未记录")
+        })}
+        {draw({
+          id: "case-raw-evidence",
+          title: "完整原始记录",
+          kind: "证据",
+          summary: "保留所有轮次的原始响应与采集信息",
+          error: false,
+          evidence: "providerOutput" in row.rest ? row.rest.providerOutput : row.rest
         })}
       </details>
     </>

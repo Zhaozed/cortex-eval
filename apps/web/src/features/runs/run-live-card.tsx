@@ -5,6 +5,16 @@ import { runReviewApi } from "../../lib/run-review-api.ts";
 import { cardReplayFrames } from "./run-card-replay-model.ts";
 import { Button } from "../../components/ui/button.tsx";
 
+const renderErrors: Readonly<Record<string, string>> = {
+  RESOURCE: "卡片依赖资源加载失败，请检查资源服务后重新加载。",
+  RUNTIME: "卡片运行时异常，请检查出站 A2UI 数据与渲染器是否兼容。",
+  POLICY: "卡片资源被安全策略拦截，未确认渲染成功。",
+  ANIMATION: "卡片动画渲染失败，未确认视觉通过。",
+  EMPTY: "渲染器没有生成可见卡片，请检查 A2UI 结构。",
+  TIMEOUT: "卡片渲染超时，请重新加载。",
+  PAYLOAD: "渲染器无法识别这份 A2UI 数据。"
+};
+
 /** Live read-only production rendering. No PNG generation/upload, no Agent or tool requests. */
 export function RunLiveCard({
   review,
@@ -16,6 +26,7 @@ export function RunLiveCard({
   const frame = useRef<HTMLIFrameElement>(null);
   const [token, setToken] = useState(() => crypto.randomUUID());
   const [state, setState] = useState<"LOADING" | "READY" | "ERROR">("LOADING");
+  const [renderError, setRenderError] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const readyFrames = useRef(new Set<number>());
   const scopeRef = useRef("");
@@ -31,6 +42,7 @@ export function RunLiveCard({
     ],
     queryFn: ({ signal }) => runReviewApi.preview(review.runId, review.caseKey, signal),
     retry: false,
+    refetchOnWindowFocus: false,
     staleTime: 0
   });
   const data = preview.data;
@@ -46,6 +58,7 @@ export function RunLiveCard({
   useEffect(() => {
     onReady(null);
     setState("LOADING");
+    setRenderError(null);
     if (scopeRef.current !== scope) {
       readyFrames.current.clear();
       scopeRef.current = scope;
@@ -56,6 +69,7 @@ export function RunLiveCard({
     const targetOrigin = data.origin;
     const timer = setTimeout(() => {
       setState("ERROR");
+      setRenderError(renderErrors.TIMEOUT ?? null);
       onReady(null);
     }, 25_000);
     const receive = (event: MessageEvent): void => {
@@ -83,10 +97,13 @@ export function RunLiveCard({
           setState("READY");
           readyFrames.current.add(activeIndex);
           setLoaded(readyFrames.current.size);
-          onReady(readyFrames.current.size === frames.length ? data.rendererVersion : null);
+          // Provenance only: the first rendered frame already attests the frozen revision.
+          onReady(data.rendererVersion);
         } else if (message.state === "ERROR") {
           clearTimeout(timer);
           setState("ERROR");
+          const code = "code" in message && typeof message.code === "string" ? message.code : "";
+          setRenderError(renderErrors[code] ?? "卡片或依赖资源未能完整加载，请重新加载。");
           readyFrames.current.delete(activeIndex);
           setLoaded(readyFrames.current.size);
           onReady(null);
@@ -119,7 +136,17 @@ export function RunLiveCard({
       <header className="run-panel-heading">
         <div>
           <h3>A2UI 卡片</h3>
-          <span>{state === "READY" ? "已渲染 · 待人工检查" : "Web 只读回放"}</span>
+          <span>
+            {data?.error
+              ? data.payloads.length
+                ? valid
+                  ? "部分证据 · 不可批准"
+                  : "渲染资源不可用"
+                : "未保存可回放数据"
+              : state === "READY"
+                ? "已渲染 · 待人工检查"
+                : "Web 只读回放"}
+          </span>
         </div>
         <div className="run-live-card-actions">
           <Button
@@ -148,7 +175,7 @@ export function RunLiveCard({
               </span>
             </strong>
             <span className="run-muted">
-              已加载 {loaded}/{frames.length} · 请逐项人工检查
+              已加载 {loaded}/{frames.length} · 未加载完也可直接给结论
             </span>
           </div>
           <div>
@@ -180,7 +207,9 @@ export function RunLiveCard({
               下一项
             </Button>
           </div>
-          <p>默认展示最后一项；按出站顺序保留各卡面及更新阶段，删除消息见原始数据。</p>
+          <p>
+            按出站顺序查看各阶段；同名卡面重新创建时独立回放。组合视图不代表客户端实际同屏，原始数据保持不变。
+          </p>
         </div>
       )}
       {activeFrame?.surface && (
@@ -193,9 +222,10 @@ export function RunLiveCard({
           渲染资源：<code>{data.rendererSource}</code>
         </p>
       )}
+      {data?.error && valid && <p role="alert">{data.error}</p>}
       {preview.isError ? (
         <p role="alert">卡片数据读取失败，请重新加载。</p>
-      ) : data?.error ? (
+      ) : data?.error && !valid ? (
         <p role="alert">{data.error}</p>
       ) : !data ? (
         <p role="status">正在读取卡片…</p>
@@ -204,11 +234,9 @@ export function RunLiveCard({
       ) : (
         <>
           {state === "LOADING" && <p role="status">正在渲染卡片…</p>}
-          {state === "ERROR" && (
-            <p role="alert">卡片或依赖资源未能完整加载，不能确认视觉通过。请重新加载。</p>
-          )}
+          {state === "ERROR" && <p role="alert">{renderError ?? "卡片渲染失败，请重新加载。"}</p>}
           <iframe
-            key={token}
+            key={`${token}/${scope}/${data.origin}/${data.previewPath}`}
             ref={frame}
             title="本次执行的 A2UI 动态卡片"
             className="run-live-card-frame"

@@ -43,7 +43,8 @@ test.afterEach(async () => {
 async function collectBrowserDiagnostics(page: Page): Promise<BrowserDiagnostics> {
   const diagnostics: BrowserDiagnostics = { consoleErrors: [], pageErrors: [] };
   page.on("console", (event) => {
-    if (event.type() === "error") diagnostics.consoleErrors.push(event.text());
+    if (event.type() === "error")
+      diagnostics.consoleErrors.push(`${event.text()} (${event.location().url})`);
   });
   page.on("pageerror", (error) => diagnostics.pageErrors.push(error.message));
   await page.addInitScript(() => {
@@ -57,13 +58,17 @@ async function collectBrowserDiagnostics(page: Page): Promise<BrowserDiagnostics
 }
 
 // Verify accessibility, CSP and browser runtime health at a stable UI state.
-async function expectHealthyPage(page: Page, diagnostics: BrowserDiagnostics): Promise<void> {
+async function expectHealthyPage(
+  page: Page,
+  diagnostics: BrowserDiagnostics,
+  expectedConsoleErrors: readonly string[] = []
+): Promise<void> {
   const csp = await page.evaluate(() => {
     const target = window as typeof window & { __cortexCspViolations?: string[] };
     return target.__cortexCspViolations ?? [];
   });
   expect(csp).toEqual([]);
-  expect(diagnostics.consoleErrors).toEqual([]);
+  expect(diagnostics.consoleErrors).toEqual(expectedConsoleErrors);
   expect(diagnostics.pageErrors).toEqual([]);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 }
@@ -77,7 +82,7 @@ async function startRestStub(): Promise<string> {
         ok: true,
         task_name: "browser-e2e",
         resolved_config: { source: "stub" },
-        parsed_output: { answer: "ok" }
+        parsed_output: { reply_text: "ok" }
       })
     );
   });
@@ -117,7 +122,7 @@ async function importedRunId(
   return body.runId;
 }
 
-test("平台 Run 可完成 REST 并保持未完成报告不进入最近运行", async ({ page, request }, testInfo) => {
+test("平台 Run 从 REST 自动完成评测报告并更新最近运行", async ({ page, request }, testInfo) => {
   const diagnostics = await collectBrowserDiagnostics(page);
   const prefix = `run-${testInfo.project.name.replaceAll(/[^a-z0-9]/gi, "-").toLowerCase()}`;
   const suiteName = `${prefix}-suite`;
@@ -198,24 +203,27 @@ test("平台 Run 可完成 REST 并保持未完成报告不进入最近运行", 
 
   await expect(page).toHaveURL(/\/runs\/[0-9a-f-]+$/);
   await expect(page.getByRole("heading", { name: suiteName })).toBeVisible();
-  await page.getByRole("button", { name: "启动 REST 阶段" }).click();
-  await expect(page.getByRole("heading", { name: "逐 Case REST 结果" })).toBeVisible();
+  await page.getByRole("button", { name: "继续阶段 · REST" }).click();
+  await expect(page.getByRole("heading", { name: "Case 结果", exact: true })).toBeVisible();
   await expect(page.getByText("browser-case", { exact: true })).toBeVisible();
-  await expect(page.getByText("Evaluation", { exact: true })).toBeVisible();
+  await expect(page.getByText("评测记录完成 1/1", { exact: true })).toBeVisible({
+    timeout: 45_000
+  });
+  await expect(page.getByRole("button", { name: "通过 1", exact: true })).toBeVisible();
 
   await page.reload();
   await expect(page.getByText("browser-case", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "查看 browser-case" }).click();
-  await expect(page.getByRole("heading", { name: "Case 结果 · browser-case" })).toBeVisible();
-  await expect(page.getByText(/"answer": "ok"/)).toBeVisible();
-  await page.getByRole("button", { name: "关闭" }).click();
+  await page.getByRole("button", { name: "详情", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /^browser-case/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "实际输出", exact: true })).toContainText("ok");
+  await page.getByRole("dialog").getByRole("button", { name: "关闭", exact: true }).first().click();
 
   await page.getByRole("link", { name: "仪表盘" }).click();
-  await expect(page.getByRole("heading", { name: "最近运行" })).toBeVisible();
-  await expect(page.getByText(suiteName, { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "近期运行" })).toBeVisible();
+  await expect(page.getByRole("link", { name: suiteName, exact: true })).toBeVisible();
   await page.getByRole("link", { name: "测试集" }).click();
   const suiteRow = page.getByRole("row").filter({ hasText: suiteName });
-  await expect(suiteRow).toContainText("尚无运行");
+  await expect(suiteRow).toContainText("已完成");
   await expectHealthyPage(page, diagnostics);
 });
 
@@ -339,6 +347,7 @@ test("真实离线 Report 导入统一更新 Dashboard、Run 与测试集最近�
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "评测仪表盘" })).toBeVisible();
+  await page.getByLabel("切换统计运行", { exact: true }).selectOption(runId);
   await expect(page.getByTestId("quality-pass-count")).toContainText("0");
   await expect(page.getByRole("heading", { name: "业务场景表现" })).toBeVisible();
   const reportHref = `/runs/${runId}`;
@@ -356,18 +365,24 @@ test("真实离线 Report 导入统一更新 Dashboard、Run 与测试集最近�
   await page.locator(".run-dashboard-more > summary").click();
   await page.getByRole("button", { name: "AI 辅助分析", exact: true }).click();
   await page.getByLabel("分析模型", { exact: true }).selectOption({ label: analyzerName });
-  await page.getByLabel("分析 Prompt", { exact: true }).selectOption({ label: "offline-report-e2e-analysis" });
+  await page
+    .getByLabel("分析 Prompt", { exact: true })
+    .selectOption({ label: "offline-report-e2e-analysis" });
   await page.getByRole("button", { name: "开始分析", exact: true }).click();
   await expect(page.getByText("本批次 1 条 · 分析完成 1 条 · 分析异常 0 条")).toBeVisible();
   await page.getByRole("button", { name: "详情", exact: true }).click();
   await page.getByRole("tab", { name: "执行链路", exact: true }).click();
   await page.getByText("分析依据与建议", { exact: false }).click();
-  await expect(page.getByText("运行上下文确认该 Case 未通过评估")).toBeVisible();
+  await expect(page.getByText("运行上下文确认该 Case 未通过评估", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "关闭", exact: true }).first().click();
 
   await page.goto("/test-suites");
   const suiteRow = page.getByRole("row").filter({ hasText: suiteName });
   await expect(suiteRow).toContainText("离线导入");
   await expect(suiteRow.getByRole("link", { name: "已完成" })).toHaveAttribute("href", reportHref);
-  await expectHealthyPage(page, diagnostics);
+  // Imported runs have no platform-execution detail: the existing route probes it once,
+  // handles RUN_NOT_FOUND, then loads the verified report. No other errors are accepted.
+  await expectHealthyPage(page, diagnostics, [
+    `Failed to load resource: the server responded with a status of 404 (Not Found) (${new URL(`/api/v1/runs/${runId}`, page.url()).href})`
+  ]);
 });

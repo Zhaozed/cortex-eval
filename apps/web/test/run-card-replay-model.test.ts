@@ -34,3 +34,47 @@ it("retains prior stages while deletion-only updates do not become broken empty 
   expect(frames).toHaveLength(1);
   expect(frames[0]?.batch).toBe(0);
 });
+it("replays repeated IDs as separate incarnations while preserving later deltas and other surfaces", () => {
+  const create = (surfaceId: string) => ({ createSurface: { surfaceId } });
+  const update = (surfaceId: string, value: number) => ({ updateDataModel: { surfaceId, value } });
+  const payloads = [
+    { messages: [create("chip"), update("chip", 1), create("tasks")] },
+    { messages: [create("chip"), update("chip", 2)] },
+    { messages: [update("chip", 3)] }
+  ];
+  const original = JSON.stringify(payloads);
+  const frames = cardReplayFrames(payloads);
+  expect(frames[0]?.payloads).toEqual([{ messages: [create("chip"), update("chip", 1)] }]);
+  expect(frames.find((f) => f.batch === 1 && f.surface === "chip")?.payloads).toEqual([
+    payloads[1]
+  ]);
+  expect(frames.at(-1)?.payloads).toEqual([
+    { messages: [create("tasks")] },
+    payloads[1],
+    payloads[2]
+  ]);
+  expect(JSON.stringify(payloads)).toBe(original);
+});
+
+it("isolates identical surface IDs across conversation turns", () => {
+  const frames = cardReplayFrames([
+    {
+      _eval_turn_index: 0,
+      messages: [
+        { createSurface: { surfaceId: "same", catalogId: "a" } },
+        { updateDataModel: { surfaceId: "same", value: { title: "first" } } }
+      ]
+    },
+    {
+      _eval_turn_index: 1,
+      messages: [
+        { createSurface: { surfaceId: "same", catalogId: "a" } },
+        { updateDataModel: { surfaceId: "same", value: { title: "second" } } }
+      ]
+    }
+  ]);
+  expect(frames).toHaveLength(2);
+  expect(frames[0]?.label).toContain("第 1 轮");
+  expect(frames[1]?.label).toContain("第 2 轮");
+  expect(JSON.stringify(frames[1]?.payloads)).not.toContain("first");
+});

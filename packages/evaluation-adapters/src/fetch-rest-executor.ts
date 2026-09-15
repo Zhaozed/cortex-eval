@@ -122,7 +122,16 @@ function parseProviderOutput(
   const parsed = ProviderOutputV1Schema.safeParse(dirty);
   if (!parsed.success) return { ok: false, errorType: "PROVIDER_OUTPUT_INVALID" };
   if (!parsed.data.ok) {
-    return { ok: true, value: { ok: false, errorMessage: parsed.data.err_msg } };
+    return {
+      ok: true,
+      value: {
+        ok: false,
+        errorMessage: parsed.data.err_msg,
+        ...(parsed.data.parsed_output === undefined
+          ? {}
+          : { parsedOutput: parsed.data.parsed_output })
+      }
+    };
   }
   return {
     ok: true,

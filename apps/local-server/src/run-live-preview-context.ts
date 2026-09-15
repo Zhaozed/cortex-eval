@@ -1,3 +1,4 @@
+import { outboundEvidenceIncomplete } from "@cortex-eval/contracts/src/e2e-evidence.ts";
 import type { StoredRestCaseResult } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
 import type { RunLivePreview, RunReview } from "@cortex-eval/contracts/src/run-review-contracts.ts";
 import { outboundA2ui } from "./run-auto-capture-model.ts";
@@ -13,16 +14,15 @@ export async function livePreviewContext(
   let payloads: Record<string, unknown>[] = [],
     error: string | null = null;
   try {
-    if (result.status === "SUCCEEDED" && result.providerOutput.ok)
+    if (result.status === "SUCCEEDED" && result.providerOutput.parsedOutput !== undefined)
       payloads = outboundA2ui(result.providerOutput.parsedOutput);
     else error = "本次执行没有保存可用的出站数据。";
   } catch {
     error = "已记录的 A2UI 数据格式无效，无法渲染。";
   }
-  const required =
-    result.definition.metadata.a2uiCapture === true ||
-    payloads.length > 0 ||
-    error?.startsWith("已记录") === true;
+  // Only a card that actually exists needs a human eye. The capture opt-in flag alone
+  // must not park a zero-card Case in review; missing/forbidden cards are Case assertions.
+  const required = payloads.length > 0;
   let origin: string | null = null,
     rendererVersion: string | null = null;
   let previewPath: string | undefined, rendererSource: string | undefined;
@@ -47,9 +47,13 @@ export async function livePreviewContext(
       error = `被测 endpoint 的 Web 渲染资源不可用：${detail ?? "请检查该环境的静态资源、网络或本地 CORTEX_A2UI_STATIC_ROOT 配置。"}不会回退到其他环境。`;
     }
   } else
-    error ??= required
-      ? "此 Case 要求视觉复核，但未保存可渲染的 A2UI 数据。"
-      : "本次执行未记录 A2UI 卡片。";
+    error ??=
+      "本次执行未记录 A2UI 卡片，无需视觉复核。要求出卡或禁止出卡由 Case 断言检查；人工仍可依据执行链路与文字证据给出最终结论。";
+  const incomplete =
+    result.status === "SUCCEEDED" &&
+    (!result.providerOutput.ok || outboundEvidenceIncomplete(result.providerOutput.parsedOutput));
+  if (incomplete && payloads.length > 0 && error === null)
+    error = "仅展示已采集的部分卡片；请求或出站采集未完成。人工可给出最终结论，需填写归因与说明。";
   return {
     preview: {
       runId: result.runId,
@@ -62,6 +66,10 @@ export async function livePreviewContext(
       payloads,
       error
     },
-    live: { required, available: origin !== null && payloads.length > 0, rendererVersion }
+    live: {
+      required,
+      available: origin !== null && payloads.length > 0 && !incomplete,
+      rendererVersion
+    }
   };
 }

@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert.t
 import { Button } from "../../components/ui/button.tsx";
 import { Input } from "../../components/ui/input.tsx";
 import { Progress } from "../../components/ui/progress.tsx";
+import { RunProgressMini } from "./run-progress-tracker.tsx";
 import {
   Sheet,
   SheetContent,
@@ -383,6 +384,7 @@ export function RunListPage({
                   </TableCell>
                   <TableCell>
                     <div className="run-list-progress">
+                      <RunProgressMini run={run} />
                       <span>
                         执行{" "}
                         <b>

@@ -28,7 +28,7 @@ Assertion 失败退出码属于 Eval `FAIL`，不是系统错误。进程启动�
 
 Importer 遇到重复 Case、错位 Assertion、未知结构或无法确认聚合状态时拒绝完整阶段提交。Raw Promptfoo 文件可以保留为排障证据，但不能直接写入业务事实。
 
-Evaluator Bridge 的 Capability、Run/Execution 绑定、Schema、调用预算、超时或 Provider 能力错误统一为结构化阶段错误。Promptfoo、Bridge 与 SDK 均不自动重试。
+Evaluator Bridge 的错误返回结构化诊断。Promptfoo 标记 `graderError` 的组件，以及可确认的内联脚本执行异常，归一化为断言 `ERROR`，不冒充质量 `FAIL`；进程或完整结果导入失败仍使阶段失败。Promptfoo、Bridge HTTP 调用与 SDK 内置重试保持关闭；冻结 Evaluator Adapter 对已分类的瞬态 Provider 故障实施有界重试，具体边界见 [EVALUATION_ADAPTERS](PACKAGES/EVALUATION_ADAPTERS.md)。
 
 ## 报告错误
 
@@ -87,3 +87,11 @@ P5 的部分或全部 REST Error 都按完整 REST 阶段提交为 `READY/EVALUA
 - 当前中文消息资源：[packages/contracts/messages/zh-CN.json](../packages/contracts/messages/zh-CN.json)
 - 当前资源 Application 错误入口：[packages/application/src](../packages/application/src)
 - 当前 Local Server 错误映射与 Adapter：[apps/local-server/src](../apps/local-server/src)
+
+## 失败证据与安全诊断
+
+HTTP 2xx 中合法的 `ok=false` Provider Output 不属于传输解析失败，可以携带 `parsed_output` 部分证据并作为 REST 响应事实保存；它不代表业务执行成功。Web 按执行异常展示，人工结论不能覆盖执行失败。非法信封、网络或解析失败仍不生成 Provider Output。原始证据参与 Hash、Artifact 与 SQLite 往返，不凭空补齐未执行轮次。
+
+Evaluation 阶段失败由 [evaluation-failure-diagnostic.ts](../packages/application/src/features/evaluation/evaluation-failure-diagnostic.ts) 提取最多五层闭合诊断原因，不保存任意异常文本。进程诊断超限独立归为 `PROMPTFOO_PROCESS_DIAGNOSTIC_LIMIT`，不再伪装成超时；进程仍必须结束和回收。已知解析器/日志器错误只保留机器码。
+
+Provider 诊断由 [evaluator-model-errors.ts](../packages/evaluation-adapters/src/evaluator-model-errors.ts) 清洗、截断后进入 Bridge；[promptfoo-assertion-error.ts](../packages/application/src/features/evaluation/promptfoo-assertion-error.ts) 生成用户可见的评测错误 reason，禁止传播原始请求、认证值和堆栈。阶段恢复只能走 [Runs 的显式重试约束](APPLICATION/RUNS.md)，不能自动重复业务写请求。

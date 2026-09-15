@@ -1,28 +1,11 @@
-import type {
-  PlatformRunResourceReader,
-  PlatformRunTransactionManager
-} from "../src/features/runs/platform-run-ports.ts";
-import type { RunArtifactStore } from "../src/features/runs/run-artifact-port.ts";
-import type {
-  RestExecutionErrorType,
-  RestExecutionInput,
-  RestExecutionSummary,
-  RestExecutor
-} from "../src/features/runs/run-rest-models.ts";
+import { describe, expect, it, vi } from "vitest";
+import type { ConfigurationResource } from "../src/features/configurations/configuration-models.ts";
+import type { PlatformRunTransactionManager } from "../src/features/runs/platform-run-ports.ts";
 import {
   PlatformRunService,
   type PlatformRunMutationResult
 } from "../src/features/runs/platform-run-service.ts";
-import type { ConfigurationResource } from "../src/features/configurations/configuration-models.ts";
-import type { StoredTestCase, TestSuite } from "../src/features/test-suites/test-suite-models.ts";
-import { caseDefinitionJson } from "@cortex-eval/domain/src/domain-case-projection.ts";
-import { hashCaseDefinition } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
-import {
-  hashEndpointConfig,
-  hashLlmConfig,
-  hashSuite
-} from "@cortex-eval/domain/src/domain-resource-hashes.ts";
-import { describe, expect, it, vi } from "vitest";
+import type { RestExecutionErrorType, RestExecutor } from "../src/features/runs/run-rest-models.ts";
 
 import {
   CancellationWinsCompletionRunStore,
@@ -46,202 +29,21 @@ import {
   SuccessfulRestExecutor,
   ThrowingRestExecutor
 } from "../test-support/platform-run-resilience-fixtures.ts";
-
-const RUN_ID = "01900000-0000-7000-8000-000000000001";
-const SUITE_ID = "01900000-0000-7000-8000-000000000100";
-const ENDPOINT_ID = "01900000-0000-7000-8000-000000000200";
-const EVALUATOR_ID = "01900000-0000-7000-8000-000000000300";
-const NOW = "2026-07-13T00:00:00.000Z";
-const HASH = "a".repeat(64);
-
-const definition = {
-  caseKey: "case-1",
-  description: "Case",
-  threshold: 1,
-  task: "route",
-  requestBody: { input: "hello" },
-  metadata: {
-    requestId: "request-1",
-    taskId: "task-1",
-    businessModule: "chat",
-    scenarioTag: "smoke"
-  },
-  assertions: [{ type: "equals", metric: "quality", weight: 1 }]
-} as const;
-const definitionJson = caseDefinitionJson(definition);
-const definitionHash = hashCaseDefinition({
-  contractVersion: "cortex.case-definition.v1",
-  caseKey: definition.caseKey,
-  definition: definitionJson
-});
-const suiteHash = hashSuite({
-  contractVersion: "cortex.suite.v1",
-  cases: [{ caseKey: definition.caseKey, ordinal: 0, definitionHash }]
-});
-const endpointDefinition = {
-  urlTemplate: "https://example.test/{{vars.task}}",
-  method: "POST" as const,
-  headers: {},
-  bodySelector: "/request_body",
-  timeoutMs: 1_000,
-  defaultConcurrency: 7
-};
-const evaluatorDefinition = {
-  providerType: "GOOGLE_GEMINI" as const,
-  apiKey: { kind: "ENV_SECRET" as const, envKey: "GEMINI_API_KEY" },
-  model: "gemini-test",
-  thinkingLevel: "OFF" as const,
-  temperature: 0,
-  topP: 1,
-  maxOutputTokens: 1_024,
-  timeoutMs: 60_000,
-  structuredOutput: "JSON_SCHEMA" as const
-};
-const suite: TestSuite = {
-  id: SUITE_ID,
-  name: "Suite",
-  description: "Suite",
-  caseCount: 1,
-  suiteHash,
-  revision: 0,
-  createdAt: NOW,
-  updatedAt: NOW
-};
-const storedCase: StoredTestCase = {
-  id: "01900000-0000-7000-8000-000000000400",
-  suiteId: SUITE_ID,
-  caseKey: definition.caseKey,
-  ordinal: 0,
-  description: definition.description,
-  businessModule: "chat",
-  scenarioTag: "smoke",
-  assertionTypes: ["equals"],
-  metrics: ["quality"],
-  definition,
-  definitionJson,
-  rubricPromptKeys: [],
-  definitionHash,
-  revision: 0,
-  createdAt: NOW,
-  updatedAt: NOW
-};
-const endpoint: ConfigurationResource = {
-  kind: "ENDPOINT",
-  id: ENDPOINT_ID,
-  name: "Endpoint",
-  semanticHash: hashEndpointConfig({
-    contractVersion: "cortex.endpoint-config.v1",
-    config: endpointDefinition
-  }),
-  definition: endpointDefinition,
-  revision: 0,
-  createdAt: NOW,
-  updatedAt: NOW
-};
-const evaluator: ConfigurationResource = {
-  kind: "LLM",
-  id: EVALUATOR_ID,
-  name: "Evaluator",
-  semanticHash: hashLlmConfig({
-    contractVersion: "cortex.llm-config.v1",
-    config: evaluatorDefinition
-  }),
-  definition: evaluatorDefinition,
-  revision: 0,
-  createdAt: NOW,
-  updatedAt: NOW
-};
-
-class MemoryResources implements PlatformRunResourceReader {
-  /** Current Suite returned to the service. */
-  suiteValue: TestSuite | null = suite;
-  /** Current Cases returned to the service. */
-  caseValues: readonly StoredTestCase[] = [storedCase];
-  /** Current Endpoint returned to the service. */
-  endpointValue: ConfigurationResource | null = endpoint;
-  /** Current Evaluator returned to the service. */
-  evaluatorValue: ConfigurationResource | null = evaluator;
-  /** Current Rubric Prompt set returned to the service. */
-  rubricValues: readonly ConfigurationResource[] = [];
-
-  /** Read the one test Suite. */
-  public getSuite(id: string): Promise<TestSuite | null> {
-    return Promise.resolve(id === SUITE_ID ? this.suiteValue : null);
-  }
-
-  /** Read the one test Case. */
-  public listCases(id: string): Promise<readonly StoredTestCase[]> {
-    return Promise.resolve(id === SUITE_ID ? this.caseValues : []);
-  }
-
-  /** Read one test Configuration. */
-  public getConfiguration(
-    kind: "ENDPOINT" | "LLM" | "LLM_RUBRIC_PROMPT" | "CASE_ANALYSIS_PROMPT",
-    id: string
-  ): Promise<ConfigurationResource | null> {
-    if (kind === "ENDPOINT" && id === ENDPOINT_ID) return Promise.resolve(this.endpointValue);
-    if (kind === "LLM" && id === EVALUATOR_ID) return Promise.resolve(this.evaluatorValue);
-    return Promise.resolve(null);
-  }
-
-  /** No test Case references a Rubric Prompt. */
-  public listRubricPrompts(): Promise<readonly ConfigurationResource[]> {
-    return Promise.resolve(this.rubricValues);
-  }
-}
-
-class BlockingRestExecutor implements RestExecutor {
-  /** Emit one cancelled real result after the owner Abort signal fires. */
-  public execute(input: RestExecutionInput): Promise<RestExecutionSummary> {
-    return new Promise((resolve, reject) => {
-      const finish = (): void => {
-        input
-          .onResult({
-            caseKey: "case-1",
-            ordinal: 0,
-            status: "ERROR",
-            httpStatus: null,
-            providerOutput: undefined,
-            errorType: "CANCELLED",
-            durationMs: 1
-          })
-          .then(() => resolve({ dispatchedCount: 1 }), reject);
-      };
-      if (input.signal.aborted) finish();
-      else input.signal.addEventListener("abort", finish, { once: true });
-    });
-  }
-}
-
-function serviceFixture(
-  restExecutor: RestExecutor,
-  artifacts: RunArtifactStore = new MemoryArtifacts(),
-  runs: MemoryPlatformRunStore = new MemoryPlatformRunStore(),
-  resources: MemoryResources = new MemoryResources(),
-  events: MemoryRunEvents = new MemoryRunEvents()
-): {
-  readonly service: PlatformRunService;
-  readonly runs: MemoryPlatformRunStore;
-  readonly events: MemoryRunEvents;
-} {
-  const manager: PlatformRunTransactionManager = {
-    execute: (work) => work({ resources, runs })
-  };
-  return {
-    runs,
-    events,
-    service: new PlatformRunService({
-      transactionManager: manager,
-      restExecutor,
-      artifactStore: artifacts,
-      clock: { now: (): string => NOW },
-      idGenerator: { nextId: (): string => RUN_ID },
-      messageResolver: { message: (code): string => code },
-      eventSink: events,
-      cancellationPollMs: 25
-    })
-  };
-}
+import {
+  BlockingRestExecutor,
+  endpoint,
+  ENDPOINT_ID,
+  endpointDefinition,
+  evaluator,
+  EVALUATOR_ID,
+  HASH,
+  MemoryResources,
+  NOW,
+  RUN_ID,
+  serviceFixture,
+  storedCase,
+  SUITE_ID
+} from "../test-support/platform-run-service-setup.ts";
 
 describe("PlatformRunService", () => {
   it("拒绝非法取消轮询与执行限制，并冻结合法显式限制", async () => {
@@ -539,43 +341,55 @@ describe("PlatformRunService", () => {
     });
   });
 
-  it("PIPELINE 在 REST 提交后以最新 Revision 自动启动 Evaluation", async () => {
-    const runs = new MemoryPlatformRunStore();
-    const resources = new MemoryResources();
-    const manager: PlatformRunTransactionManager = {
-      execute: (work) => work({ resources, runs })
-    };
-    const starts: { readonly runId: string; readonly expectedRevision: number }[] = [];
-    const service = new PlatformRunService({
-      transactionManager: manager,
-      restExecutor: new SuccessfulRestExecutor(),
-      artifactStore: new MemoryArtifacts(),
-      clock: { now: (): string => NOW },
-      idGenerator: { nextId: (): string => RUN_ID },
-      messageResolver: { message: (code): string => code },
-      eventSink: new MemoryRunEvents(),
-      cancellationPollMs: 25,
-      pipelineEvaluationStarter: {
-        start: (input): Promise<PlatformRunMutationResult> => {
-          starts.push(input);
-          const run = runs.values.get(input.runId);
-          if (run === undefined) throw new Error("TEST_RUN_MISSING");
-          return Promise.resolve({ ok: true, run });
+  it.each([
+    ["REST 成功", new SuccessfulRestExecutor(), 0],
+    ["REST 失败也继续", new ErrorRestExecutor("PROVIDER_OUTPUT_INVALID"), 1]
+  ] as const)(
+    "PIPELINE 在 REST 提交后自动启动 Evaluation：%s",
+    async (_label, executor, restErrors) => {
+      const runs = new MemoryPlatformRunStore();
+      const resources = new MemoryResources();
+      const manager: PlatformRunTransactionManager = {
+        execute: (work) => work({ resources, runs })
+      };
+      const starts: { readonly runId: string; readonly expectedRevision: number }[] = [];
+      const service = new PlatformRunService({
+        transactionManager: manager,
+        restExecutor: executor,
+        artifactStore: new MemoryArtifacts(),
+        clock: { now: (): string => NOW },
+        idGenerator: { nextId: (): string => RUN_ID },
+        messageResolver: { message: (code): string => code },
+        eventSink: new MemoryRunEvents(),
+        cancellationPollMs: 25,
+        pipelineEvaluationStarter: {
+          start: (input): Promise<PlatformRunMutationResult> => {
+            starts.push(input);
+            const run = runs.values.get(input.runId);
+            if (run === undefined) throw new Error("TEST_RUN_MISSING");
+            return Promise.resolve({ ok: true, run });
+          }
         }
-      }
-    });
+      });
 
-    await service.create({
-      suiteId: SUITE_ID,
-      endpointConfigId: ENDPOINT_ID,
-      evaluatorConfigId: EVALUATOR_ID,
-      runMode: "PIPELINE"
-    });
-    await service.start({ runId: RUN_ID, expectedRevision: 0 });
-    await service.waitForIdle();
+      await service.create({
+        suiteId: SUITE_ID,
+        endpointConfigId: ENDPOINT_ID,
+        evaluatorConfigId: EVALUATOR_ID,
+        runMode: "PIPELINE"
+      });
+      await service.start({ runId: RUN_ID, expectedRevision: 0 });
+      await service.waitForIdle();
 
-    expect(starts).toEqual([{ runId: RUN_ID, expectedRevision: 3 }]);
-  });
+      expect(starts).toEqual([{ runId: RUN_ID, expectedRevision: 3 }]);
+      expect(runs.values.get(RUN_ID)).toMatchObject({
+        restCompletedCount: 1,
+        restErrorCount: restErrors,
+        stage: "EVALUATION",
+        status: "READY"
+      });
+    }
+  );
 
   it.each([
     [
@@ -614,7 +428,7 @@ describe("PlatformRunService", () => {
       status: "FAILED",
       stage: "DONE",
       errorCode: "EVALUATION_STAGE_FAILED",
-      errorMessage: "EVALUATION_STAGE_FAILED"
+      errorMessage: expect.stringContaining("EVALUATION_STAGE_FAILED（")
     });
   });
 

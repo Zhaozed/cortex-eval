@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from "react";
+import { useId, useState, type ReactElement } from "react";
 import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../../components/ui/button.tsx";
 import { createResourceApi, type ResourceApi } from "../../lib/resource-api.ts";
@@ -17,6 +17,7 @@ export function RunAnalysisControl({
   readonly runId: string;
   readonly resourceApi?: ResourceApi;
 }): ReactElement {
+  const fieldId = useId();
   const client = useQueryClient();
   const busy = useIsMutating({ mutationKey: ["runs", "analysis-start", runId] }) > 0;
   const [modelId, setModelId] = useState("");
@@ -25,7 +26,9 @@ export function RunAnalysisControl({
   const configurations = useQuery({
     queryKey: ["configurations", "run-analysis-options"],
     queryFn: async ({ signal }) => {
-      const load = (kind: "LLM" | "CASE_ANALYSIS_PROMPT") =>
+      const load = (
+        kind: "LLM" | "CASE_ANALYSIS_PROMPT"
+      ): Promise<Awaited<ReturnType<ResourceApi["listConfigurations"]>>["items"]> =>
         dashboardPages((cursor) =>
           resourceApi.listConfigurations(kind, { cursor, limit: 100 }, signal)
         );
@@ -71,9 +74,11 @@ export function RunAnalysisControl({
         </p>
       ) : (
         <div className="run-analysis-control-fields">
-          <label>
+          <label htmlFor={`${fieldId}-model`}>
             分析模型
             <select
+              id={`${fieldId}-model`}
+              aria-label="分析模型"
               value={modelId}
               disabled={busy}
               onChange={(event) => setModelId(event.target.value)}
@@ -86,9 +91,11 @@ export function RunAnalysisControl({
               ))}
             </select>
           </label>
-          <label>
+          <label htmlFor={`${fieldId}-prompt`}>
             分析 Prompt
             <select
+              id={`${fieldId}-prompt`}
+              aria-label="分析 Prompt"
               value={promptId}
               disabled={busy}
               onChange={(event) => setPromptId(event.target.value)}
@@ -101,9 +108,11 @@ export function RunAnalysisControl({
               ))}
             </select>
           </label>
-          <label>
+          <label htmlFor={`${fieldId}-scope`}>
             分析范围
             <select
+              id={`${fieldId}-scope`}
+              aria-label="分析范围"
               value={selector}
               disabled={busy}
               onChange={(event) => setSelector(event.target.value as typeof selector)}

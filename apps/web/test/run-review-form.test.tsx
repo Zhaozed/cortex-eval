@@ -13,7 +13,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(runReviewApi.save).mockResolvedValue(reviewFixture());
 });
-function mount(verdict: "PASS" | "FAIL" | "PENDING", visual = true): RunReview {
+function mount(
+  verdict: "PASS" | "FAIL" | "PENDING",
+  visual = true,
+  autoStatus?: "PASS" | "FAIL" | "EVALUATION_ERROR" | "NOT_EVALUATED"
+): RunReview {
   const review = reviewFixture({
     revision: 1,
     live: { required: true, available: true, rendererVersion: "b".repeat(64) },
@@ -34,7 +38,12 @@ function mount(verdict: "PASS" | "FAIL" | "PENDING", visual = true): RunReview {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}
     >
-      <ReviewForm review={review} visual={visual} rendererVersion={"b".repeat(64)} />
+      <ReviewForm
+        review={review}
+        visual={visual}
+        rendererVersion={"b".repeat(64)}
+        {...(autoStatus ? { autoStatus } : {})}
+      />
     </QueryClientProvider>
   );
   return review;
@@ -79,4 +88,40 @@ it("retains the separate general manual review label for nonvisual Cases", () =>
   mount("PENDING", false);
   expect(screen.getByRole("combobox", { name: "人工结论" })).toBeVisible();
   expect(screen.queryByRole("combobox", { name: "失败归因（选填）" })).not.toBeInTheDocument();
+});
+it("requires attribution and a written reason to overturn an automatic failure", async () => {
+  const review = mount("PENDING", true, "FAIL");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "视觉复核结论" }), "PASS");
+  expect(screen.getByText(/自动结论：未通过/)).toBeVisible();
+  const cause = screen.getByRole("combobox", { name: "覆盖归因（必填）" });
+  expect(cause).toHaveValue("UNCLASSIFIED");
+  const save = screen.getByRole("button", { name: "保存复核" });
+  expect(save).toBeDisabled();
+  await userEvent.clear(screen.getByRole("textbox", { name: "覆盖说明（必填）" }));
+  await userEvent.selectOptions(cause, "EVALUATOR");
+  expect(save).toBeDisabled();
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "覆盖说明（必填）" }),
+    "判定规则误判，链路正确"
+  );
+  expect(save).toBeEnabled();
+  await userEvent.click(save);
+  await waitFor(() =>
+    expect(runReviewApi.save).toHaveBeenCalledWith(
+      review.runId,
+      review.caseKey,
+      expect.objectContaining({
+        verdict: "PASS",
+        rootCause: "EVALUATOR",
+        note: "判定规则误判，链路正确"
+      })
+    )
+  );
+});
+it("keeps a matching automatic pass free of attribution and never claims an override", () => {
+  mount("PASS", true, "PASS");
+  expect(screen.queryByText(/自动结论：/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("combobox", { name: "覆盖归因（必填）" })).not.toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "备注（选填）" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "保存复核" })).toBeEnabled();
 });

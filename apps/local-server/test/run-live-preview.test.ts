@@ -43,7 +43,7 @@ it("serves only read-only renderer resources on an isolated origin", async () =>
     await rm(root, { recursive: true, force: true });
   }
 });
-it("requires real outbound evidence but never starts rendering for a no-card Case", async () => {
+it("requires review only for real outbound cards, never for the capture opt-in flag", async () => {
   const renderer = new RunLivePreviewService(undefined);
   const base = captureResult(false);
   const empty = { ...base, providerOutput: { ...base.providerOutput, parsedOutput: { a2ui: [] } } };
@@ -51,20 +51,22 @@ it("requires real outbound evidence but never starts rendering for a no-card Cas
     required: false,
     available: false
   });
-  const required = {
+  const optedIn = {
     ...empty,
     definition: {
       ...empty.definition,
       metadata: { ...empty.definition.metadata, a2uiCapture: true }
     }
   };
-  expect((await livePreviewContext(required, renderer)).preview.error).toContain("未保存");
+  const flagged = await livePreviewContext(optedIn, renderer);
+  expect(flagged.live).toMatchObject({ required: false, available: false });
+  expect(flagged.preview.error).toContain("未记录 A2UI 卡片");
   const real = await livePreviewContext(captureResult(false), renderer);
   expect(real.live).toMatchObject({ required: true, available: false });
   expect(real.preview.payloads).toHaveLength(1);
   expect(real.preview.error).toContain("资源不可用");
 });
-it("binds manual approval to current execution evidence and renderer revision", async () => {
+it("records the renderer revision for provenance without gating any human verdict", async () => {
   const root = await mkdtemp(join(tmpdir(), "live-review-"));
   let available = true;
   const version = "b".repeat(64);
@@ -82,24 +84,51 @@ it("binds manual approval to current execution evidence and renderer revision", 
     note: "人工检查"
   };
   try {
-    await expect(store.change(captureRunId, "capture", input, "DECISION")).rejects.toThrow(
-      "REVIEW_RENDER_REQUIRED"
-    );
-    await expect(
-      store.change(captureRunId, "capture", { ...input, rendererVersion: captureHash }, "DECISION")
-    ).rejects.toThrow("REVIEW_RENDER_REQUIRED");
+    // Cards are renderable but not yet attested: loading state never blocks the reviewer.
+    const unattested = await store.change(captureRunId, "capture", input, "DECISION");
+    expect(unattested.history.at(-1)).toMatchObject({ verdict: "PASS" });
+    expect(unattested.history.at(-1)?.rendererVersion).toBeUndefined();
     available = false;
-    await expect(
-      store.change(captureRunId, "capture", { ...input, rendererVersion: version }, "DECISION")
-    ).rejects.toThrow("REVIEW_RENDER_REQUIRED");
+    // Nothing to render: the human verdict is final and still bound to this evidence hash.
+    const unrendered = await store.change(
+      captureRunId,
+      "capture",
+      { ...input, expectedRevision: 1 },
+      "DECISION"
+    );
+    expect(unrendered.history.at(-1)?.verdict).toBe("PASS");
     available = true;
+    await expect(
+      store.change(
+        captureRunId,
+        "capture",
+        {
+          ...input,
+          expectedRevision: 2,
+          rendererVersion: version,
+          rootCause: "EVALUATOR",
+          note: "   "
+        },
+        "DECISION"
+      )
+    ).rejects.toThrow("REVIEW_NOTE_REQUIRED");
     const review = await store.change(
       captureRunId,
       "capture",
-      { ...input, rendererVersion: version },
+      {
+        ...input,
+        expectedRevision: 2,
+        rendererVersion: version,
+        rootCause: "EVALUATOR",
+        note: "判定规则误判，链路正确"
+      },
       "DECISION"
     );
-    expect(review.history[0]?.rendererVersion).toBe(version);
+    expect(review.history.at(-1)).toMatchObject({
+      verdict: "PASS",
+      rendererVersion: version,
+      rootCause: "EVALUATOR"
+    });
     expect(review.images).toEqual([]);
   } finally {
     await rm(root, { recursive: true, force: true });

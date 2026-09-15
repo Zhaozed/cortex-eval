@@ -141,18 +141,20 @@ function sameBinding(
         (expected as { readonly kind: "EXECUTION"; readonly executionId: string }).executionId;
 }
 
-// Write one strict stable error response without provider payloads.
+// Write one strict stable error response; detail is already sanitized and bounded upstream.
 function writeFailure(
   response: ServerResponse,
   statusCode: number,
   callId: string,
-  code: BridgeErrorCode
+  code: BridgeErrorCode,
+  detail?: string
 ): void {
+  const bounded = detail === undefined ? code : `${code}｜${detail}`.slice(0, 240);
   const payload = {
     contractVersion: "cortex.evaluator-bridge-response.v2",
     callId,
     status: "ERROR",
-    error: { code, retryable: false, message: code }
+    error: { code, retryable: false, message: bounded }
   };
   const parsed = EvaluatorBridgeResponseV2Schema.parse(payload);
   response.writeHead(statusCode, { "content-type": "application/json" });
@@ -309,13 +311,12 @@ export async function startEvaluatorBridgeV2(
         return;
       }
       if (outcome.kind === "ERROR") {
-        if (
-          outcome.error instanceof EvaluatorModelError &&
-          outcome.error.code === "PROVIDER_CAPABILITY_UNSUPPORTED"
-        ) {
-          writeFailure(response, 422, callId, "PROVIDER_CAPABILITY_UNSUPPORTED");
+        const providerError = outcome.error instanceof EvaluatorModelError ? outcome.error : null;
+        const detail = providerError?.detailText() ?? undefined;
+        if (providerError?.code === "PROVIDER_CAPABILITY_UNSUPPORTED") {
+          writeFailure(response, 422, callId, "PROVIDER_CAPABILITY_UNSUPPORTED", detail);
         } else {
-          writeFailure(response, 502, callId, "PROVIDER_REQUEST_FAILED");
+          writeFailure(response, 502, callId, "PROVIDER_REQUEST_FAILED", detail);
         }
         return;
       }

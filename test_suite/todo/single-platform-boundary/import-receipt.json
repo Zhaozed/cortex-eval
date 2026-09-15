@@ -1,0 +1,137 @@
+{
+  "generatedAt": "2026-09-11T11:07:12.839Z",
+  "executed": false,
+  "authoring": {
+    "contractVersion": "cortex.case-definition.v1",
+    "builder": "build-cases.ts",
+    "verifier": "verify-cases.ts",
+    "verifyResult": "SYNTHETIC CHECK PASSED",
+    "casesTotal": 18,
+    "goodTrajectoriesTotal": 20,
+    "goodTrajectoriesGreen": 20,
+    "badEvidenceTotal": 113,
+    "badEvidenceBlocked": 113,
+    "note": "B9（client 多轮）有两条正确轨迹（第2轮直接删 / 先反问第4轮再删）均判绿，故正确轨迹数 20 > Case 数 18。"
+  },
+  "uid": "2075490654049271808",
+  "concurrency": {
+    "sameUid": 1,
+    "reason": "同 UID 并发必须=1：隔离单轮串行、client 多轮(B9)更依赖单会话顺序；同 UID 并发>1 会互相踩会话产生假失败。eval 与 rest 阶段同 UID 均不可并发。"
+  },
+  "entrypoint": {
+    "singleTurn": {
+      "task": "agent-e2e",
+      "timezone": "Asia/Shanghai",
+      "lang": "zh-Hans",
+      "a2uiCapture": true,
+      "turns": 1,
+      "appliesTo": "B1–B8"
+    },
+    "multiTurn": {
+      "task": "agent-e2e",
+      "timezone": "Asia/Shanghai",
+      "lang": "zh-Hans",
+      "a2uiCapture": true,
+      "execution_mode": "client",
+      "sid": "spb2-client-<CASE_ID>",
+      "conversationTurns": 6,
+      "appliesTo": "B9",
+      "note": "隔离模式(默认)遇 >1 user 轮返回 EVAL_E2E_CONTEXT_MODE_REQUIRED；client 模式必须显式带 uid+sid。断言读 parsed_output.turns[] 逐轮聚合。"
+    }
+  },
+  "suites": [
+    {
+      "platform": "clickup",
+      "suiteId": "01a08f50-0507-705e-b0de-5fd64537425f",
+      "name": "ClickUp｜单平台评测边界",
+      "file": "cases.clickup.jsonl",
+      "revisionBefore": 3,
+      "revisionAfterImport": 4,
+      "revisionAfterDescriptionUpdate": 5,
+      "caseCount": 9,
+      "suiteHash": "292622a022c244f446d0eb5a55aa2e24242a358c5474e2e80e036c46ff899556",
+      "importPreview": {
+        "added": 1,
+        "modified": 0,
+        "removed": 0,
+        "unchanged": 8,
+        "reordered": 0
+      },
+      "idempotencyDryRun": {
+        "added": 0,
+        "modified": 0,
+        "removed": 0,
+        "unchanged": 9,
+        "reordered": 0
+      },
+      "caseKeys": ["CU-B1", "CU-B2", "CU-B3", "CU-B4", "CU-B5", "CU-B6", "CU-B7", "CU-B8", "CU-B9"],
+      "preconditions": [
+        "ClickUp 已连接授权且为 UID 2075490654049271808 的账号",
+        "存在唯一名为 Project 2 的清单（id 901820364132）；Project 1 在 Space/Team Space 重名，本套件不使用",
+        "账号中不存在标题 边界-不存在-ZZZ 的任务（B8 前提）",
+        "账号中不存在标题 边界-多轮删除链路 的任务（B9 前提：B9 自建自删该任务）"
+      ],
+      "residue": "B3/B5/B6/B7 每跑一轮新增 4 条任务（边界-全字段、边界-最小字段、边界-回读链路、边界-修改链路，后两条会被改优先级/备注），需在 ClickUp 原生界面人工清理；B9 自建自删 边界-多轮删除链路，正常不留残留（仅多轮链路中断时才可能遗留）。"
+    },
+    {
+      "platform": "todo",
+      "suiteId": "01a08f50-0516-753a-85d7-6e2e44823eec",
+      "name": "Microsoft To Do｜单平台评测边界",
+      "file": "cases.todo.jsonl",
+      "revisionBefore": 3,
+      "revisionAfterImport": 4,
+      "revisionAfterDescriptionUpdate": 5,
+      "caseCount": 9,
+      "suiteHash": "e9bccea4921103c73fe7a09560ecbfc0803d7f181443902ecf8200ccca537330",
+      "importPreview": {
+        "added": 1,
+        "modified": 0,
+        "removed": 0,
+        "unchanged": 8,
+        "reordered": 0
+      },
+      "idempotencyDryRun": {
+        "added": 0,
+        "modified": 0,
+        "removed": 0,
+        "unchanged": 9,
+        "reordered": 0
+      },
+      "caseKeys": ["TD-B1", "TD-B2", "TD-B3", "TD-B4", "TD-B5", "TD-B6", "TD-B7", "TD-B8", "TD-B9"],
+      "preconditions": [
+        "Microsoft To Do 已连接授权且为 UID 2075490654049271808 的账号",
+        "账号只有 1 个清单：API 名 Tasks，中文界面显示 任务；collection_id 可省略走默认清单",
+        "截止时间只支持到日期，回显 T00:00:00Z 属正常；备注回显可能追加 \\r\\n",
+        "账号中不存在标题 边界-不存在-ZZZ 的任务（B8 前提）",
+        "账号中不存在标题 边界-多轮删除链路 的任务（B9 前提：B9 自建自删该任务）"
+      ],
+      "residue": "B3/B5/B6/B7 每跑一轮新增 4 条任务（边界-全字段、边界-最小字段、边界-回读链路、边界-修改链路），需在 To Do 原生界面人工清理；B9 自建自删 边界-多轮删除链路，正常不留残留（仅多轮链路中断时才可能遗留）。"
+    }
+  ],
+  "deliberatelyExcluded": [
+    {
+      "item": "隔离模式下跑多轮",
+      "reason": "隔离模式(默认)遇 >1 user 轮会清上轮上下文并返回 EVAL_E2E_CONTEXT_MODE_REQUIRED；多轮本身已纳入——由 B9 用 execution_mode=client+sid 承载"
+    },
+    {
+      "item": "删除需二次确认（作为硬规则）",
+      "reason": "Planner 系统提示词中不存在该产品规则，断言它等于凭空造规则；故 B9 两条正确轨迹（第2轮直接删 / 先反问第4轮再删）都判绿"
+    },
+    {
+      "item": "重名清单必须 QUESTION",
+      "reason": "依赖账号里 Project 1 的重名状态，账号态变化即成坏 Case"
+    },
+    {
+      "item": "创建后 search_tasks 回查",
+      "reason": "To Do 无全文搜索、ClickUp 搜索 coverage 不稳；改用 get_task 按真实 ID 回读"
+    },
+    {
+      "item": "断言 delivered_messages / final_output 非空",
+      "reason": "同一 Case 跨 run 出现空↔非空抖动，属采集不稳定项"
+    },
+    {
+      "item": "硬断言必须产出 A2UI 卡片",
+      "reason": "同一 Case 实测 2 卡↔0 卡，present_mode 恒为 none；卡片由 Rubric/人工记录而非硬判"
+    }
+  ]
+}

@@ -169,7 +169,11 @@ export const ProviderOutputV1Schema = z.discriminatedUnion("ok", [
     resolved_config: PersistedJsonObjectSchema,
     parsed_output: PersistedJsonObjectSchema
   }),
-  z.strictObject({ ok: z.literal(false), err_msg: z.string().trim().min(1) })
+  z.strictObject({
+    ok: z.literal(false),
+    err_msg: z.string().trim().min(1),
+    parsed_output: PersistedJsonObjectSchema.optional()
+  })
 ]);
 const RelativePathSchema = z
   .string()
@@ -473,7 +477,12 @@ function promptFromV1(value: z.infer<typeof PromptDefinitionV1Schema>): PromptDe
 export function providerOutputFromV1(
   value: z.infer<typeof ProviderOutputV1Schema>
 ): ProviderOutput {
-  if (!value.ok) return { ok: false, errorMessage: value.err_msg };
+  if (!value.ok)
+    return {
+      ok: false,
+      errorMessage: value.err_msg,
+      ...(value.parsed_output === undefined ? {} : { parsedOutput: value.parsed_output })
+    };
   return {
     ok: true,
     taskName: value.task_name,
@@ -491,7 +500,11 @@ export function providerOutputToV1(value: ProviderOutput): DomainJsonObject {
         resolved_config: value.resolvedConfig,
         parsed_output: value.parsedOutput
       }
-    : { ok: false, err_msg: value.errorMessage };
+    : {
+        ok: false,
+        err_msg: value.errorMessage,
+        ...(value.parsedOutput === undefined ? {} : { parsed_output: value.parsedOutput })
+      };
 }
 
 // Convert Endpoint headers to a mutable canonical JSON record.

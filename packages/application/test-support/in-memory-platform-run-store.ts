@@ -1,3 +1,8 @@
+import {
+  canRetryEvaluation,
+  canRetryReport,
+  platformRunProgress as retryProgress
+} from "../src/features/runs/platform-run-models.ts";
 import type {
   ClaimRunStageResult,
   DeletePlatformRunResult,
@@ -103,16 +108,32 @@ export class MemoryPlatformRunStore implements PlatformRunRepository {
   public claimStage(
     runId: string,
     expectedRevision: number,
-    updatedAt: string
+    updatedAt: string,
+    mode?: "RETRY_EVALUATION" | "RETRY_REPORT"
   ): Promise<ClaimRunStageResult> {
     const run = this.values.get(runId);
     if (run === undefined) return Promise.resolve({ ok: false, reason: "NOT_FOUND" });
-    if (run.status !== "READY" || run.lockRevision !== expectedRevision) {
+    if (
+      (mode !== undefined
+        ? !(mode === "RETRY_REPORT"
+            ? canRetryReport(retryProgress(run))
+            : canRetryEvaluation(retryProgress(run)))
+        : run.status !== "READY") ||
+      run.lockRevision !== expectedRevision
+    ) {
       return Promise.resolve({ ok: false, reason: "STATE_OR_REVISION" });
     }
     const claimed = {
       ...run,
       status: "RUNNING" as const,
+      ...(mode !== undefined
+        ? {
+            stage: mode === "RETRY_REPORT" ? ("REPORT" as const) : ("EVALUATION" as const),
+            errorCode: null,
+            errorMessage: null,
+            completedAt: null
+          }
+        : {}),
       lockRevision: run.lockRevision + 1,
       startedAt: run.startedAt ?? updatedAt,
       updatedAt

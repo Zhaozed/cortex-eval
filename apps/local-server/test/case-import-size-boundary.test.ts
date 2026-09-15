@@ -31,7 +31,7 @@ const definition = {
     business_module: "chat",
     scenario_tag: "smoke"
   },
-  assert: [{ type: "contains", metric: "quality", weight: 1 }]
+  assert: [{ type: "contains", value: "expected", metric: "quality", weight: 1 }]
 };
 
 // Generate one exact-size top-level JSON array without retaining its whitespace padding.

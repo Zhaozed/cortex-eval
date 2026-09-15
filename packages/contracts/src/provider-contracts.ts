@@ -161,7 +161,8 @@ export const ProviderOutputSuccessV1Schema = z.strictObject({
 /** Provider Output business-failure branch. */
 export const ProviderOutputFailureV1Schema = z.strictObject({
   ok: z.literal(false),
-  err_msg: z.string().trim().min(1)
+  err_msg: z.string().trim().min(1),
+  parsed_output: JsonObjectSchema.optional()
 });
 
 /** Valid HTTP 2xx Provider Output. */

@@ -95,7 +95,6 @@ const RUN_CONTEXT_HASH = hashRunContext({
   runExecutionLimits: LIMITS
 });
 
-
 function seedCurrentResources(databasePath: string): void {
   const database = new Database(databasePath);
   database.pragma("foreign_keys = ON");

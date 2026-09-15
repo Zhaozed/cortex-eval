@@ -22,7 +22,7 @@ const options = {
 };
 async function fillBasics(): Promise<void> {
   await userEvent.type(screen.getByRole("textbox", { name: "Case 描述" }), "查询结果真实返回");
-  await userEvent.type(screen.getByRole("combobox", { name: "任务" }), "agent-e2e");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "任务" }), "agent-e2e");
   await userEvent.selectOptions(screen.getByRole("combobox", { name: "业务模块" }), "待办");
   await userEvent.selectOptions(screen.getByRole("combobox", { name: "场景标签" }), "正常查询");
 }

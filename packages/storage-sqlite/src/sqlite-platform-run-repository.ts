@@ -22,6 +22,10 @@ import type {
   RunArtifactManifest,
   StoredRestCaseResult
 } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
+import {
+  canRetryEvaluation,
+  canRetryReport
+} from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
 import type { ImportedReportRun } from "@cortex-eval/application/src/features/execution-imports/execution-import-models.ts";
 import type {
   ConfigurationResource,
@@ -371,22 +375,42 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
   public async claimStage(
     runId: string,
     expectedRevision: number,
-    updatedAt: string
+    updatedAt: string,
+    mode?: "RETRY_EVALUATION" | "RETRY_REPORT"
   ): Promise<ClaimRunStageResult> {
     requireRunTimestamp(updatedAt);
+    const retry = mode !== undefined;
+    if (retry) {
+      const current = await this.getPlatformRunProgress(runId);
+      if (current === null) return { ok: false, reason: "NOT_FOUND" };
+      if (
+        !(mode === "RETRY_REPORT" ? canRetryReport(current) : canRetryEvaluation(current)) ||
+        current.lockRevision !== expectedRevision
+      ) {
+        return { ok: false, reason: "STATE_OR_REVISION" };
+      }
+    }
     try {
       const result = await this.#database
         .updateTable("run_log")
         .set((expression) => ({
           status: "RUNNING",
+          ...(retry
+            ? {
+                stage: mode === "RETRY_REPORT" ? ("REPORT" as const) : ("EVALUATION" as const),
+                error_code: null,
+                error_message: null,
+                completed_at: null
+              }
+            : {}),
           lock_revision: expression("lock_revision", "+", 1),
           started_at: expression.fn.coalesce("started_at", expression.val(updatedAt)),
           updated_at: updatedAt
         }))
         .where("id", "=", runId)
         .where("source_type", "=", "PLATFORM")
-        .where("status", "=", "READY")
-        .where("stage", "!=", "DONE")
+        .where("status", "=", retry ? "FAILED" : "READY")
+        .where("stage", retry ? "=" : "!=", "DONE")
         .where("lock_revision", "=", expectedRevision)
         .returningAll()
         .executeTakeFirst();

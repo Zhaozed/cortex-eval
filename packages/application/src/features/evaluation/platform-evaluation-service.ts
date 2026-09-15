@@ -1,3 +1,5 @@
+import { canRetryEvaluation, platformRunProgress } from "../runs/platform-run-models.ts";
+import { evaluationFailureDiagnostic } from "./evaluation-failure-diagnostic.ts";
 import type { Clock } from "../../application-ports.ts";
 import type { DomainJsonObject } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 import type { ProviderOutput } from "@cortex-eval/domain/src/domain-evaluation.ts";
@@ -40,6 +42,8 @@ import { readArtifactBackedEvaluationResults } from "./platform-evaluation-reuse
 
 /** Safe Evaluation lifecycle event names. */
 export type PlatformEvaluationBusinessEventName =
+  | "RUN_EVALUATION_RETRIED"
+  | "RUN_EVALUATION_FAILED"
   | "RUN_EVALUATION_STARTED"
   | "RUN_EVALUATION_COMPLETED"
   | "RUN_EVALUATION_RAW_CLEANUP_FAILED"
@@ -54,6 +58,8 @@ export interface PlatformEvaluationBusinessEvent {
   readonly runId: string;
   /** Durable event timestamp. */
   readonly timestamp: string;
+  /** Closed diagnostic code, never a raw exception. */
+  readonly errorCode?: string | undefined;
 }
 
 /** Entrypoint-owned safe Evaluation event sink. */
@@ -118,7 +124,12 @@ async function* evalResultStream<T>(values: readonly T[]): AsyncGenerator<T> {
 
 // Copy the closed Provider Output union into the Domain JSON boundary.
 function providerOutputJson(value: ProviderOutput): DomainJsonObject {
-  if (!value.ok) return { ok: false, errorMessage: value.errorMessage };
+  if (!value.ok)
+    return {
+      ok: false,
+      errorMessage: value.errorMessage,
+      ...(value.parsedOutput === undefined ? {} : { parsed_output: value.parsedOutput })
+    };
   return {
     ok: true,
     task_name: value.taskName,
@@ -174,25 +185,35 @@ export class PlatformEvaluationService {
     this.#pollMs = poll;
   }
 
-  /** Claim and asynchronously execute only READY/EVALUATION. */
+  /** Claim a ready Evaluation or retry an uncommitted failed Evaluation. */
   public async start(input: PlatformRunRevisionInput): Promise<PlatformRunMutationResult> {
     const candidate = await this.#runTransactions.execute(async (transaction) =>
       transaction.runs.getPlatformRun(input.runId)
     );
     if (candidate === null) return { ok: false, error: { code: "RUN_NOT_FOUND" } };
-    if (candidate.stage !== "EVALUATION") {
+    if (this.#tasks.has(input.runId)) {
+      return { ok: false, error: { code: "RUN_STATE_CONFLICT", reason: "STATE_OR_REVISION" } };
+    }
+    const retry = canRetryEvaluation(platformRunProgress(candidate));
+    if (candidate.stage !== "EVALUATION" && !retry) {
       return {
         ok: false,
         error: { code: "RUN_STATE_CONFLICT", reason: "STAGE_UNAVAILABLE" }
       };
     }
-    if (candidate.status !== "READY" || candidate.lockRevision !== input.expectedRevision) {
+    if (
+      (!retry && candidate.status !== "READY") ||
+      candidate.lockRevision !== input.expectedRevision
+    ) {
       return {
         ok: false,
         error: { code: "RUN_STATE_CONFLICT", reason: "STATE_OR_REVISION" }
       };
     }
     const availableRestResults = await this.#loadAvailableRestResults(candidate);
+    if (retry && availableRestResults.length !== candidate.suite.cases.length) {
+      return { ok: false, error: { code: "RUN_STATE_CONFLICT", reason: "STAGE_UNAVAILABLE" } };
+    }
     const reusable = await this.#loadReusableEvaluationResults(candidate, availableRestResults);
     const preflightCases = availableRestResults.flatMap((result) => {
       if (result.status !== "SUCCEEDED" || reusable.has(result.ordinal)) return [];
@@ -209,11 +230,13 @@ export class PlatformEvaluationService {
     const claim = await this.#runTransactions.execute(async (transaction) => {
       const current = await transaction.runs.getPlatformRunProgress(input.runId);
       if (current === null) return { kind: "NOT_FOUND" as const };
-      if (current.stage !== "EVALUATION") return { kind: "STAGE_UNAVAILABLE" as const };
+      if (retry ? !canRetryEvaluation(current) : current.stage !== "EVALUATION")
+        return { kind: "STAGE_UNAVAILABLE" as const };
       const result = await transaction.runs.claimStage(
         input.runId,
         input.expectedRevision,
-        this.#clock.now()
+        this.#clock.now(),
+        retry ? "RETRY_EVALUATION" : undefined
       );
       return { kind: "CLAIM" as const, result };
     });
@@ -233,7 +256,7 @@ export class PlatformEvaluationService {
           };
     }
     await this.#recordEvent(
-      "RUN_EVALUATION_STARTED",
+      retry ? "RUN_EVALUATION_RETRIED" : "RUN_EVALUATION_STARTED",
       claim.result.run.id,
       claim.result.run.updatedAt
     );
@@ -283,7 +306,7 @@ export class PlatformEvaluationService {
   // Register one background Evaluation owner before returning the accepted claim.
   #launch(run: PlatformRun): void {
     const task = this.#execute(run)
-      .catch(async () => this.#settleFailure(run.id))
+      .catch(async (error: unknown) => this.#settleFailure(run.id, error))
       .then(async () => {
         if (this.#interrupting.has(run.id)) await this.#settleInterruption(run.id);
       })
@@ -614,8 +637,8 @@ export class PlatformEvaluationService {
     );
   }
 
-  // Re-read current state and settle one system failure without exposing the cause.
-  async #settleFailure(runId: string): Promise<void> {
+  // Preserve a safe cause while retaining cancellation and concurrency ownership rules.
+  async #settleFailure(runId: string, error: unknown): Promise<void> {
     const current = await this.#getProgress(runId).catch(() => null);
     if (current?.status !== "RUNNING") return;
     if (this.#interrupting.has(runId)) {
@@ -626,15 +649,27 @@ export class PlatformEvaluationService {
       await this.#commitCancellation(current);
       return;
     }
-    await this.#runTransactions.execute(async (transaction) =>
+    const diagnostic = evaluationFailureDiagnostic(error);
+    const completedAt = this.#clock.now();
+    const settled = await this.#runTransactions.execute(async (transaction) =>
       transaction.runs.failRun({
         runId,
         expectedRevision: current.lockRevision,
         errorCode: "EVALUATION_STAGE_FAILED",
-        errorMessage: this.#messages.message("EVALUATION_STAGE_FAILED"),
-        completedAt: this.#clock.now()
+        errorMessage: `${this.#messages.message("EVALUATION_STAGE_FAILED")}（${diagnostic}）`,
+        completedAt
       })
     );
+    if (settled !== null) {
+      await this.#events
+        .record({
+          event: "RUN_EVALUATION_FAILED",
+          runId,
+          timestamp: completedAt,
+          errorCode: diagnostic
+        })
+        .catch(() => undefined);
+    }
   }
 
   // Re-read and interrupt only a still-active owner after shutdown.

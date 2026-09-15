@@ -99,12 +99,10 @@ it("does not show zero classifications when loading Case evidence fails", async 
 
 it("pipeline handoff keeps polling without offering manual start of an automatic stage", async () => {
   const api = createRunApi();
-  const getRun = vi
-    .spyOn(api, "getRun")
-    .mockResolvedValue({
-      ...runDetail({ status: "READY", stage: "EVALUATION" }),
-      runMode: "PIPELINE"
-    });
+  const getRun = vi.spyOn(api, "getRun").mockResolvedValue({
+    ...runDetail({ status: "READY", stage: "EVALUATION" }),
+    runMode: "PIPELINE"
+  });
   vi.spyOn(api, "listCases").mockResolvedValue(runCasePage);
   vi.spyOn(api, "listEvaluations").mockResolvedValue({ items: [], nextCursor: null });
   vi.spyOn(api, "getCase").mockResolvedValue(runCaseDetail);

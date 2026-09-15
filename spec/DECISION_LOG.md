@@ -1289,3 +1289,61 @@ P10 Live 配置引用当前运行环境提供的 `GOOGLE_API_KEY`。Gemini `resp
 ### 状态
 
 确定性实现、独立门禁和变更复审已生效；同一次 `pnpm verify:release` 的两项真实 Gemini Smoke 已通过，P10 完成。
+
+## 人工复核为最高权限结论
+
+### 决策
+
+Case 的最终评测结论由最新一条人工 `DECISION` 决定，可以覆盖自动 `FAIL`、Judge `EVALUATION_ERROR` 与评测无法完成；自动记录不改写，只在读取投影中被取代。执行未成功（取消、超时、请求错误）的 Case 没有可复核证据，仍按取消或执行异常分类，人工结论不参与。`rendererVersion` 背书只在本次确实存在可渲染卡片时要求，无卡、采集不完整或渲染资源不可用不得拒绝人工结论。覆盖必须选择非 `UNCLASSIFIED` 归因并填写书面说明，归因按提交原样进入不可变历史。
+
+### 原因
+
+Judge 与断言口径都会出错，产品必须能对结果定论。旧规则把人工通过限制为自动结论的附属签核：服务端对 `PASS` 硬校验渲染器版本，状态投影在机器 `FAIL` 或零卡片时恒定回到待复核，表单同时禁用通过入口。要求 A2UI 复核但本轮没有采集到卡片的 Case 因此既不能通过也不能定论，评测无法收敛，人工被迫去修改 Case 或忽略结果。人工结论为最高权限让判定责任回到产品，归因、说明、审核人与历史留痕保留可追溯性，避免覆盖被静默计入自动通过。
+
+### 代码影响
+
+`run-review-store.ts` 仅在存在可渲染证据时校验 `rendererVersion`，对非 `UNCLASSIFIED` 归因强制说明并按提交保存归因；`run-live-preview-context.ts` 的无卡与证据不完整文案改为说明人工可给出最终结论；`run-dashboard-model.ts` 以最新人工结论决定 `evaluationState`，执行失败仍优先分类，并单独判定 `manualOverride`；`run-case-review.tsx`、`run-case-output.tsx`、`run-case-checks.tsx`、`run-case-drawer.tsx`、`run-dashboard-cases.tsx` 与 Dashboard 结果展示开放覆盖路径并标注人工覆盖。
+
+### 测试影响
+
+`run-review-store.test.ts` 固定归因原样保存与缺说明被拒；`run-live-preview.test.ts` 固定无卡不阻止结论、可渲染时仍绑定版本；`run-case-output.test.ts` 覆盖人工结论推翻自动失败与坏 Judge、零卡片可定论、执行失败不被覆盖；`run-review-form.test.tsx` 覆盖覆盖表单必填与一致通过不误判为覆盖；`run-case-drawer.test.tsx` 覆盖零卡片 Case 可复核；`management-dashboard-model.test.ts` 覆盖人工覆盖的统计与标注口径。
+
+### 状态
+
+已生效。
+
+## 未提交失败阶段允许原 Run 恢复
+
+### 决策
+
+满足 `canRetryEvaluation` 或 `canRetryReport` 的失败 Run 可显式恢复未提交阶段，不重发 REST，不生成新的冻结快照；创建新 Run 的 Retry/Force 保持原语义。本决策替代“所有终态均不可重入”的绝对限制，不取消已提交结果的不可变边界。
+
+### 原因
+
+评测基础设施或报告生成失败不应迫使用户再次执行可能有副作用的业务请求。已有完整上游事实可支持安全的下游阶段重试。
+
+### 代码、测试与排障影响
+
+资格和 CAS 以 [platform-run-models.ts](../packages/application/src/features/runs/platform-run-models.ts) 与 [sqlite-platform-run-repository.ts](../packages/storage-sqlite/src/sqlite-platform-run-repository.ts) 为准；[Evaluation 服务测试](../packages/application/test/platform-evaluation-service.test.ts) 和 [Report 重试测试](../packages/storage-sqlite/test/sqlite-report-retry.test.ts) 固定资格与竞争。排障先确认完整结果、Manifest、取消状态和 Revision，而非只读错误文案。
+
+### 状态
+
+生效。
+
+## Evaluator 瞬态故障采用 Adapter 有界重试
+
+### 决策
+
+仅冻结 Evaluator 的已分类瞬态 Provider 故障采用 SDK 外层有界重试；SDK 内置重试、REST 与 Analyzer 自动重试保持关闭。该决策替代 Evaluator 全链路无重试的运行时描述，不放宽 Release Gate 对真实 Smoke 实际 Provider 尝试数精确为 1 的要求。
+
+### 原因
+
+限流和短暂网络故障需要与永久配置/能力错误区分；由单一 Adapter 控制重试，避免 SDK、Bridge 和调度层叠加放大调用。
+
+### 代码、测试与排障影响
+
+事实入口为 [frozen-evaluator-model-client.ts](../packages/evaluation-adapters/src/frozen-evaluator-model-client.ts) 与 [evaluator-model-errors.ts](../packages/evaluation-adapters/src/evaluator-model-errors.ts)；[Client 测试](../packages/evaluation-adapters/test/frozen-evaluator-model-client.test.ts) 固定瞬态恢复、上限与取消语义。排障使用清洗后的诊断，不能把四次以内的 Provider 尝试误报为一次，也不能将未运行的 Live Gate 标为通过。
+
+### 状态
+
+生效；本次推送的校验状态以开发交付记录为准。

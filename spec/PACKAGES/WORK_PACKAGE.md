@@ -75,3 +75,7 @@ Import 任一身份、Owner、路径、顺序、Base Hash、REST/Eval/Raw 关系
 目录与普通文件仅当前用户可访问。日志记录 Package ID、Execution ID、阶段、文件 Hash 和 Error Code，不记录 Secret 与敏感正文。`.env.example` 只含空值 Key 与用途；用户 Env 文件不属于工作包，也不参与 Hash 或导入。
 
 当前 v2 Golden Manifest Hash 固定为 `9f618b2173cde449b8ecf0d86e117c13732b147dd1257219e3493e44b586c86e`。Tests、REST 与 Normalized Eval 的 JSONL 文件协议已经冻结；若协议无法满足，必须新建版本而不是静默修改 Fixture。
+
+## 失败信封的部分证据往返
+
+[work-package-rest-artifact-writer.ts](../../packages/work-package/src/work-package-rest-artifact-writer.ts) 与 [work-package-rest-retry-reader.ts](../../packages/work-package/src/work-package-rest-retry-reader.ts) 保留合法 `ok=false` 信封中的可选 `parsed_output`，重放和复用不得静默丢失已保存证据。其 Hash 输入以 [domain-hash-inputs.ts](../../packages/domain/src/domain-hash-inputs.ts) 为准：提供部分证据时参与哈希，未提供时维持原失败分支形状。展示用多轮展平不得写回 Artifact 或替代哈希输入。

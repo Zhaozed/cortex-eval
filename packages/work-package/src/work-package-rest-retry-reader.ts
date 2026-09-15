@@ -89,7 +89,13 @@ export function workPackageRestApplicationResult(value: RestArtifactCaseV1): Off
         resolvedConfig: value.providerOutput.resolved_config,
         parsedOutput: value.providerOutput.parsed_output
       }
-    : { ok: false as const, errorMessage: value.providerOutput.err_msg };
+    : {
+        ok: false as const,
+        errorMessage: value.providerOutput.err_msg,
+        ...(value.providerOutput.parsed_output === undefined
+          ? {}
+          : { parsedOutput: value.providerOutput.parsed_output })
+      };
   return {
     ...common,
     status: value.status,

@@ -1,3 +1,4 @@
+import { displayEvidence, evidenceTurns } from "@cortex-eval/contracts/src/e2e-evidence.ts";
 import type { DashboardCase } from "./run-dashboard-model.ts";
 
 /** Read only explicit objects in saved evidence; never guess missing fields. */
@@ -16,8 +17,8 @@ export function amount(value: unknown): number | null {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 export function payload(row: DashboardCase): Record<string, unknown> {
-  if (!("providerOutput" in row.rest) || !row.rest.providerOutput?.ok) return {};
-  return object(row.rest.providerOutput.parsed_output);
+  if (!("providerOutput" in row.rest) || !row.rest.providerOutput) return {};
+  return displayEvidence(row.rest.providerOutput.parsed_output);
 }
 /** Cortex E2E v1 stores per-call audit records, not an aggregate span tree. */
 export function modelCalls(row: DashboardCase): Record<string, unknown>[] {
@@ -56,15 +57,15 @@ export function agentUsage(rows: readonly DashboardCase[]): AgentUsage {
   };
   for (const row of rows) {
     const p = payload(row);
-    const audit = object(object(object(p.coverage).source_coverage).llm_audit);
+    const incomplete =
+      evidenceTurns(p).some(
+        (turn) =>
+          object(object(object(turn.coverage).source_coverage).llm_audit).completeness !==
+            "COMPLETE" || object(turn.coverage).truncated === true
+      ) || object(p.conversation_execution).complete === false;
     const calls = modelCalls(row);
     if (calls.length > 0) sum.coveredCases++;
-    if (
-      audit.completeness !== "COMPLETE" ||
-      object(p.coverage).truncated === true ||
-      calls.length === 0
-    )
-      sum.complete = false;
+    if (incomplete || calls.length === 0) sum.complete = false;
     const seen = new Map<string, string>();
     for (const call of calls) {
       const id = call.call_id;
@@ -124,14 +125,34 @@ export function finalText(row: DashboardCase): string | null {
   const p = payload(row);
   return text(object(p.final_output).text) ?? text(p.reply_text);
 }
-export function userText(row: DashboardCase): string | null {
-  const body = object(row.definition?.vars.request_body);
-  const conversation = records(body.conversation)
-    .filter((item) => item.role === "user")
-    .map((item) => text(item.text) ?? text(item.content))
-    .filter(Boolean)
-    .join("\n");
-  return text(conversation) ?? text(body.text) ?? text(body.message);
+export interface ConversationTurn {
+  /** 1-based user round; history entries are context and carry no round. */
+  readonly round: number | null;
+  readonly kind: "user" | "context";
+  /** Role exactly as frozen in the request body; an absent role is a user message. */
+  readonly role: string;
+  readonly text: string;
+}
+/**
+ * Rounds come only from the frozen request body, in saved order.
+ * Nothing is inferred from reply payloads, and non-user history stays visible instead of
+ * being flattened into one paragraph, so a multi-turn Case reads as separate turns.
+ */
+export function conversationTurns(row: DashboardCase): ConversationTurn[] {
+  const body = object(row.definition?.vars.request_body),
+    turns: ConversationTurn[] = [];
+  let round = 0;
+  for (const item of records(body.conversation)) {
+    const role = text(item.role) ?? "user",
+      value = text(item.text) ?? text(item.content);
+    if (value === null || value.trim().length === 0) continue;
+    const user = role === "user";
+    if (user) round += 1;
+    turns.push({ round: user ? round : null, kind: user ? "user" : "context", role, text: value });
+  }
+  if (turns.length > 0) return turns;
+  const single = text(body.text) ?? text(body.message);
+  return single === null ? [] : [{ round: 1, kind: "user", role: "user", text: single }];
 }
 export function hasTrace(row: DashboardCase): boolean {
   const p = payload(row);

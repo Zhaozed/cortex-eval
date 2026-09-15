@@ -1,6 +1,7 @@
 import { parse } from "acorn";
 import type { AssertionDefinitionV1 } from "../case-contracts.ts";
 import payloads from "./promptfoo-payloads.json" with { type: "json" };
+import { AgentAuthoringRuleSchema, readAgentAuthoringRule } from "./agent-rule-authoring.ts";
 import { readCaseFieldRule } from "./field-rules.ts";
 
 /** Stable, non-sensitive validation reasons; never include submitted JS or credentials. */
@@ -9,6 +10,8 @@ export const ASSERTION_ISSUES = {
   INVALID_VALUE: "预期值缺失或类型不符合该断言要求。",
   INVALID_THRESHOLD: "该检查需要有效的非负阈值。",
   INVALID_PATH: "请填写有效的目标字段路径，使用点分隔字段或列表下标。",
+  INVALID_AGENT_RULE:
+    "工具或回复规则配置无效：检查工具名、失败错误码、结果路径、集合重复项及带时区时间。",
   INVALID_COUNT: "列表数量必须是非负整数。",
   INVALID_FIELD_TYPE: "请选择有效的字段类型。",
   INVALID_REGEX: "正则表达式无效，请检查语法。",
@@ -107,6 +110,9 @@ export function assertionAuthoringIssue(
   if (base === "javascript" && typeof assertion.value === "string") {
     if (!assertion.value.trim() || !javascriptValid(assertion.value))
       return issue("INVALID_JAVASCRIPT");
+    const agentRule = readAgentAuthoringRule(assertion.value);
+    if (agentRule && !AgentAuthoringRuleSchema.safeParse(agentRule).success)
+      return issue("INVALID_AGENT_RULE");
     const rule = readCaseFieldRule(assertion.value);
     if (rule) {
       if (!rule.path.trim() || rule.path.split(".").some((part) => !part.trim()))

@@ -99,7 +99,8 @@ export interface PlatformRunRepository {
   claimStage(
     runId: string,
     expectedRevision: number,
-    updatedAt: string
+    updatedAt: string,
+    mode?: "RETRY_EVALUATION" | "RETRY_REPORT"
   ): Promise<ClaimRunStageResult>;
   /** Record an explicit cancellation request through one CAS write. */
   requestCancel(

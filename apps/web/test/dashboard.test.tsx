@@ -127,13 +127,24 @@ describe("验收仪表盘", () => {
     expect(navigate).toHaveBeenCalledWith(`/runs/${RUN_ID}`);
     expect(runReviewApi.list).not.toHaveBeenCalled();
   });
-  it("A2UI 自动通过但没有人工批准时计入待处理，不显示全部通过", async () => {
+  it("采到真实卡片但没有人工批准时计入待处理，不显示全部通过", async () => {
     mount(completed(), [
       {
         ...runReportCase,
         definition: {
           ...runReportCase.definition,
           metadata: { ...runReportCase.definition.metadata, a2ui_capture: true }
+        },
+        rest: {
+          ...runReportCase.rest,
+          status: "SUCCEEDED",
+          httpStatus: 200,
+          providerOutput: {
+            ok: true,
+            task_name: "EVAL_E2E",
+            resolved_config: {},
+            parsed_output: { reply: "你好", a2ui: { surfaceId: "surface-1" } }
+          }
         }
       }
     ]);
@@ -143,6 +154,21 @@ describe("验收仪表盘", () => {
     expect(screen.queryByText("所选运行全部通过")).not.toBeInTheDocument();
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "关注结论筛选" }), "PASS");
     expect(screen.getByText("当前筛选下没有 Case")).toBeVisible();
+  });
+  it("没有采到卡片时不进入待复核，即使 Case 声明要采集 A2UI", async () => {
+    mount(completed(), [
+      {
+        ...runReportCase,
+        definition: {
+          ...runReportCase.definition,
+          metadata: { ...runReportCase.definition.metadata, a2ui_capture: true }
+        }
+      }
+    ]);
+    expect(await screen.findByTestId("quality-pass-count")).toHaveTextContent("1/ 1");
+    expect(screen.getByTestId("quality-pending-count")).toHaveTextContent("0");
+    expect(screen.queryByText("自动评测通过 · 等待人工复核")).not.toBeInTheDocument();
+    expect(screen.getByText("所选运行全部通过")).toBeVisible();
   });
   it("复核接口失败时不发布最终通过率", async () => {
     vi.mocked(runReviewApi.list).mockRejectedValue(new Error("unavailable"));

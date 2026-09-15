@@ -149,7 +149,7 @@ test("资源 Dashboard 与测试集/Case 全流程", async ({ page }, testInfo) 
   // Manual authoring uses fields and rule choices, never raw JSON.
   await page.getByRole("button", { name: "新建 Case", exact: true }).click();
   await page.getByRole("textbox", { name: "Case 描述" }).fill(`${prefix} guided case`);
-  await page.getByRole("combobox", { name: "任务", exact: true }).fill("agent-e2e");
+  await page.getByRole("combobox", { name: "任务", exact: true }).selectOption("agent-e2e");
   await page.getByRole("combobox", { name: "业务模块", exact: true }).selectOption("客服");
   await page.getByRole("combobox", { name: "场景标签", exact: true }).selectOption("正常");
   await page.getByRole("button", { name: "填入 E2E 常用字段" }).click();

@@ -101,7 +101,7 @@ Assertion 失败退出码属于评估事实。进程启动、配置、文件、�
 - Runtime Shutdown 在 Artifact 写入和阶段提交后重查中断门禁，最终把仍未 `DONE` 的本地 Owner 修正为 `INTERRUPTED/DONE`。
 - 进程启动时把遗留 `RUNNING` 收敛为 `INTERRUPTED/DONE`，不自动续跑或推测未知副作用。
 - 外部进程、临时文件和临时目录由 Adapter 在资源回收路径中清理。
-- REST、Evaluator 和 Analyzer 不自动重试。Promptfoo 取消先发送 `SIGTERM`，5 秒未退出再发送 `SIGKILL`；离线阶段收敛为 `EVALUATOR_CANCELLED`，不登记部分 Artifact，CLI 返回 130。
+- REST 和 Analyzer 不自动重试；Evaluator 仅在 Adapter 内对已分类的瞬态 Provider 故障执行有界重试，SDK 内置重试仍关闭。Promptfoo 取消先发送 `SIGTERM`，5 秒未退出再发送 `SIGKILL`；离线阶段收敛为 `EVALUATOR_CANCELLED`，不登记部分 Artifact，CLI 返回 130。
 
 ## 相关事实入口
 

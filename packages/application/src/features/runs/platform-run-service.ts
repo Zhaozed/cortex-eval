@@ -1,3 +1,4 @@
+import { evaluationFailureDiagnostic } from "../evaluation/evaluation-failure-diagnostic.ts";
 import { validateRunMetadata } from "@cortex-eval/domain/src/domain-run-metadata.ts";
 import type { Clock, IdGenerator } from "../../application-ports.ts";
 import { collectRubricPromptKeys } from "@cortex-eval/domain/src/domain-resource-models.ts";
@@ -115,6 +116,7 @@ export interface PlatformRunMessageResolver {
 
 /** Safe Run lifecycle event names exposed to an entrypoint logger. */
 export type PlatformRunBusinessEventName =
+  | "RUN_EVALUATION_FAILED"
   | "RUN_INPUT_FROZEN"
   | "RUN_REST_STARTED"
   | "RUN_REST_COMPLETED"
@@ -129,6 +131,8 @@ export interface PlatformRunBusinessEvent {
   readonly runId: string;
   /** Durable event timestamp. */
   readonly timestamp: string;
+  /** Safe evaluation startup diagnostic. */
+  readonly errorCode?: string | undefined;
 }
 
 /** Entrypoint-owned safe business-event sink. */
@@ -735,17 +739,30 @@ export class PlatformRunService {
           return;
         }
         if (run.runMode === "PIPELINE" && this.#pipelineEvaluationStarter !== undefined) {
+          let failure: unknown = new Error("EVALUATION_START_REJECTED");
           try {
             const started = await this.#pipelineEvaluationStarter.start({
               runId: run.id,
               expectedRevision: completed.lockRevision
             });
             if (started.ok) return;
-          } catch {
-            // The unchanged handoff Revision below prevents overriding another owner.
+            if (started.error.code === "VALIDATION_FAILED") {
+              const paths: Readonly<Record<string, string>> = {
+                "runtime.promptfoo": "EVALUATION_PREFLIGHT_PROMPTFOO",
+                "runtime.python": "EVALUATION_PREFLIGHT_PYTHON",
+                "runtime.ruby": "EVALUATION_PREFLIGHT_RUBY"
+              };
+              failure = new Error(paths[started.error.path] ?? "EVALUATION_START_REJECTED");
+            }
+          } catch (error) {
+            failure = error;
           }
           if (completed.stage === "EVALUATION") {
-            await this.#settlePipelineEvaluationStartFailure(run.id, completed.lockRevision);
+            await this.#settlePipelineEvaluationStartFailure(
+              run.id,
+              completed.lockRevision,
+              failure
+            );
           }
         }
         return;
@@ -942,7 +959,8 @@ export class PlatformRunService {
   // Persist an automatic transition failure only while the Run remains at its untouched handoff.
   async #settlePipelineEvaluationStartFailure(
     runId: string,
-    expectedRevision: number
+    expectedRevision: number,
+    error: unknown
   ): Promise<void> {
     const current = await this.getProgress(runId);
     if (
@@ -953,14 +971,25 @@ export class PlatformRunService {
       return;
     }
     const completedAt = this.#clock.now();
-    await this.#transactionManager.execute(async (transaction) =>
+    const diagnostic = evaluationFailureDiagnostic(error);
+    const settled = await this.#transactionManager.execute(async (transaction) =>
       transaction.runs.failRun({
         runId,
         expectedRevision,
         errorCode: "EVALUATION_STAGE_FAILED",
-        errorMessage: this.#messageResolver.message("EVALUATION_STAGE_FAILED"),
+        errorMessage: `${this.#messageResolver.message("EVALUATION_STAGE_FAILED")}（${diagnostic}）`,
         completedAt
       })
     );
+    if (settled !== null) {
+      await this.#eventSink
+        .record({
+          event: "RUN_EVALUATION_FAILED",
+          runId,
+          timestamp: completedAt,
+          errorCode: diagnostic
+        })
+        .catch(() => undefined);
+    }
   }
 }

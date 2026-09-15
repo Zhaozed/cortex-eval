@@ -8,6 +8,7 @@ import { resourceKeys, type ResourceApi } from "../../lib/resource-api.ts";
 import type { RunApi } from "../../lib/run-api.ts";
 import { runReviewApi } from "../../lib/run-review-api.ts";
 import { countCursorResources } from "../feature-registry.ts";
+import { RunProgressMini } from "../runs/run-progress-tracker.tsx";
 import { displayRunDate, runStatusLabel } from "../runs/run-ui.ts";
 import { DashboardResults } from "./dashboard-results.tsx";
 import { dashboardRunPath, loadDashboardEvidence, reportCandidates } from "./dashboard-model.ts";
@@ -239,6 +240,7 @@ export function DashboardPage({ api, runApi, onNavigate }: DashboardPageProps): 
                         {run.sourceType === "OFFLINE_IMPORT" && <small>离线导入</small>}
                       </td>
                       <td>
+                        <RunProgressMini run={run} />
                         <span>
                           执行 {run.rest.completed}/{run.rest.total}
                         </span>

@@ -47,8 +47,8 @@ describe("已有检查规则无损表单编辑", () => {
         }}
       />
     );
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "评测指标 1" }), "业务结果");
     await userEvent.click(screen.getByText("高级配置 · 权重、阈值与原始 JSON"));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "评测指标 1" }), "业务结果");
     const raw = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Assertion JSON 1" });
     expect(JSON.parse(raw.value)).toEqual({
       type: "javascript",

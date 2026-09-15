@@ -85,6 +85,57 @@ describe("Evaluator Bridge v2", () => {
     }
   });
 
+  it("上游限流失败保留可诊断细节，不再只丢一个稳定码", async () => {
+    const bridge = await startEvaluatorBridgeV2({
+      rawCapability: TOKEN,
+      capability: {
+        contractVersion: "cortex.evaluator-bridge-capability.v2",
+        capabilityHash: TOKEN_HASH,
+        binding: { kind: "RUN", runId: ID },
+        evaluationContextHash: HASH,
+        evaluatorConfigHash: HASH,
+        maxCalls: 1,
+        maxConcurrency: 1,
+        timeoutMs: 1_000,
+        expiresAt: "2099-01-01T00:00:00.000Z"
+      },
+      createCallId: () => ID,
+      evaluator: {
+        generate: () =>
+          Promise.reject(
+            new EvaluatorModelError("PROVIDER_REQUEST_FAILED", {
+              status: 429,
+              providerCode: "Throttling.BurstRate",
+              providerMessage: "Requests throttling triggered. Please try again later.",
+              transient: true,
+              retryAfterMs: 2_000
+            })
+          )
+      }
+    });
+
+    try {
+      const response = await fetch(bridge.url, {
+        method: "POST",
+        headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" },
+        body: JSON.stringify(requestBody())
+      });
+      expect(response.status).toBe(502);
+      const payload = (await response.json()) as {
+        status: string;
+        error: { code: string; retryable: boolean; message: string };
+      };
+      expect(payload.status).toBe("ERROR");
+      expect(payload.error.code).toBe("PROVIDER_REQUEST_FAILED");
+      expect(payload.error.message).toBe(
+        "PROVIDER_REQUEST_FAILED｜HTTP 429 Throttling.BurstRate Requests throttling triggered. Please try again later."
+      );
+      expect(payload.error.message.length).toBeLessThanOrEqual(240);
+    } finally {
+      await bridge.close();
+    }
+  });
+
   it("达到并发上限时排队而不是把并行评分误报为预算耗尽", async () => {
     let active = 0;
     let maxObserved = 0;

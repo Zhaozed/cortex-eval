@@ -273,11 +273,18 @@ process.exit(1);
       status: "EVALUATION_ERROR",
       promptfooSuccess: null,
       score: null,
-      reason: null,
+      reason: "部分评测器执行异常；已完成的分项结论保留，整体不能判定通过。",
       evaluationError: {
         code: "PROMPTFOO_ASSERTION_EXECUTION_ERROR"
       },
-      assertions: [{ metric: "runtime", status: "ERROR", score: null, reason: null }],
+      assertions: [
+        {
+          metric: "runtime",
+          status: "ERROR",
+          score: null,
+          reason: "断言脚本执行异常，请检查脚本语法和运行环境。"
+        }
+      ],
       metrics: [{ metric: "runtime", status: "ERROR" }]
     });
     expect(JSON.stringify(normalized)).not.toContain("PRIVATE_THROW");
@@ -341,7 +348,7 @@ while true; do sleep 1; done
     }
   }, 15_000);
 
-  it("主进程先退出时仍把剩余 TERM 宽限期留给解释器后代清理", async () => {
+  it("取消时主进程先退出仍把剩余 TERM 宽限期留给解释器后代清理", async () => {
     const root = await mkdtemp(join(tmpdir(), "cortex-eval-process-grace-"));
     const binary = join(root, "fake-promptfoo");
     const descendantPidPath = join(root, "descendant.pid");
@@ -386,8 +393,9 @@ setInterval(() => {}, 1000);
       requiresEvaluator: () => false
     });
 
+    const controller = new AbortController();
     try {
-      await expect(
+      const rejected = expect(
         runPromptfooEvaluationProcess({
           promptfooBinary: binary,
           config: generated.config,
@@ -395,16 +403,25 @@ setInterval(() => {}, 1000);
           rawCapability: TOKEN,
           temporaryContainmentRoot: root,
           temporaryParent: join(root, "temporary"),
-          timeoutMs: 1_000,
-          signal: new AbortController().signal
+          timeoutMs: 8_000,
+          signal: controller.signal
         })
-      ).rejects.toThrow("PROMPTFOO_PROCESS_TIMEOUT");
+      ).rejects.toThrow("PROMPTFOO_PROCESS_CANCELLED");
+      // Wait for the descendant's TERM handler, not a machine-speed-dependent startup delay.
+      await expect
+        .poll(async () => readFile(descendantReadyPath, "utf8").catch(() => ""), {
+          timeout: 5_000
+        })
+        .toBe("ready");
+      controller.abort();
+      await rejected;
       const observedPid = Number.parseInt(await readFile(descendantPidPath, "utf8"), 10);
       descendantPid = observedPid;
       expect(await readFile(cleanupMarkerPath, "utf8")).toBe("cleaned");
       expect(() => process.kill(observedPid, 0)).toThrow();
       expect(await readdir(join(root, "temporary"))).toEqual([]);
     } finally {
+      controller.abort();
       if (descendantPid !== null) {
         try {
           process.kill(descendantPid, "SIGKILL");
@@ -500,7 +517,7 @@ if (process.argv.includes("--version")) {
           timeoutMs: 5_000,
           signal: new AbortController().signal
         })
-      ).rejects.toThrow("PROMPTFOO_PROCESS_TIMEOUT");
+      ).rejects.toThrow("PROMPTFOO_PROCESS_DIAGNOSTIC_LIMIT");
       expect(await readdir(join(root, "temporary"))).toEqual([]);
     } finally {
       await rm(root, { force: true, recursive: true });

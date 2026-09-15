@@ -29,9 +29,19 @@ export const FIELD_RULE_CATALOG = [
 export const AGENT_RULE_CATALOG = [
   {
     id: "agent-executions",
-    label: "实际工具执行及结果",
+    label: "实际工具执行与业务结果",
     evidence: "Cortex E2E parsed_output.tool_executions；不接受 Planner tools 替代",
     collections: "执行预期无序匹配，检查次数及请求 ID；sets 无序且禁止重复"
+  },
+  {
+    id: "agent-forbid",
+    label: "禁止工具调用 / 写入",
+    evidence: "明确列出禁止工具；缺少实际执行列表不能证明未调用"
+  },
+  {
+    id: "agent-limit",
+    label: "限制重复调用次数",
+    evidence: "每个指定工具按实际执行次数设上限；不按参数去重，允许列表外的工具"
   },
   {
     id: "agent-reply",

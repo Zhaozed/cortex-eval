@@ -40,7 +40,7 @@ describe("管理视图统计口径", () => {
     expect(Object.values(dashboardCounts(3, rows)).reduce((a, b) => a + b, 0)).toBe(3);
     expect(attentionReason(failing)).toBe("标题不一致");
   });
-  it("人工失败不展示自动通过的理由，人工通过不能覆盖自动失败", () => {
+  it("人工失败不展示自动通过的理由，人工通过覆盖自动失败并标注", () => {
     const review = reviewFixture({
       history: [
         {
@@ -71,6 +71,7 @@ describe("管理视图统计口径", () => {
         evaluationError: null
       }
     };
-    expect(dashboardCounts(1, [failed]).FAIL).toBe(1);
+    expect(dashboardCounts(1, [failed]).PASS).toBe(1);
+    expect(attentionReason(failed)).toBe("人工复核通过 · 已覆盖自动结论");
   });
 });

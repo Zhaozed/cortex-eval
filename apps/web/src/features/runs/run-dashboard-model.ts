@@ -105,30 +105,53 @@ export async function loadDashboardCases(
 export function executionState(
   row: DashboardCase
 ): "COMPLETED" | "TIMEOUT" | "ERROR" | "CANCELLED" {
-  if (row.rest.status === "SUCCEEDED") return "COMPLETED";
+  if (row.rest.status === "SUCCEEDED") {
+    if ("providerOutput" in row.rest && !row.rest.providerOutput.ok)
+      return row.rest.providerOutput.err_msg === "EVAL_E2E_TIMEOUT" ? "TIMEOUT" : "ERROR";
+    return "COMPLETED";
+  }
   const error = "errorType" in row.rest ? row.rest.errorType : row.rest.error.type;
   return error === "CANCELLED" ? "CANCELLED" : error === "TIMEOUT" ? "TIMEOUT" : "ERROR";
 }
-/** Preserve evaluation evidence even when execution itself failed. */
+export type ReviewDecision = NonNullable<RunReview["history"]>[number];
+/** The newest entry only: a later capture upload invalidates the approval before it. */
+export function manualDecision(row: DashboardCase): ReviewDecision | undefined {
+  const last = row.review?.history.at(-1);
+  return last?.kind === "DECISION" ? last : undefined;
+}
+/**
+ * A human PASS is final. It stays bound to the evidence hash it was made against, but never to
+ * a renderer revision or to whether every card frame finished loading; the revision is provenance.
+ */
+function approvalIsCurrent(decision: ReviewDecision | undefined): boolean {
+  return decision?.verdict === "PASS";
+}
+/** True only when the newest human verdict contradicts the automatic one. */
+export function manualOverride(row: DashboardCase): boolean {
+  const decision = manualDecision(row),
+    status = row.evaluation?.status;
+  if (!decision || status === undefined) return false;
+  return decision.verdict === "PASS"
+    ? status !== "PASS"
+    : decision.verdict === "FAIL" && status === "PASS";
+}
+/**
+ * Preserve evaluation evidence even when execution itself failed.
+ * The newest human decision is the final verdict and may overturn automation;
+ * automatic records are never rewritten, only superseded in this projection.
+ */
 export function evaluationState(
   row: DashboardCase
 ): "PASS" | "FAIL" | "EVALUATION_ERROR" | "UNAVAILABLE" | "PENDING" | "REVIEW_PENDING" {
   const status = row.evaluation?.status;
-  const manual = row.review?.history.at(-1);
-  if (status === "PASS" && manual?.verdict === "FAIL") return "FAIL";
-  if (status === "PASS" && visualReviewRequired(row)) {
-    if (
-      !row.review?.live?.available ||
-      !manual?.rendererVersion ||
-      manual.rendererVersion !== row.review.live.rendererVersion ||
-      manual.kind !== "DECISION" ||
-      manual.verdict !== "PASS"
-    )
-      return "REVIEW_PENDING";
-  }
-  if (status === "PASS" && manual?.verdict === "PENDING" && manual.kind === "DECISION")
-    return "REVIEW_PENDING";
+  const decision = manualDecision(row);
+  if (decision?.verdict === "FAIL") return "FAIL";
+  if (approvalIsCurrent(decision)) return "PASS";
   if (status === "NOT_EVALUATED") return "UNAVAILABLE";
+  if (status === "PASS") {
+    if (visualReviewRequired(row) || decision?.verdict === "PENDING") return "REVIEW_PENDING";
+    return "PASS";
+  }
   if (status !== undefined) return status;
   return executionState(row) === "COMPLETED" ? "PENDING" : "UNAVAILABLE";
 }
@@ -136,10 +159,12 @@ export function evaluationState(
 export function resultBucket(row: DashboardCase): ResultBucket {
   const execution = executionState(row);
   if (execution === "CANCELLED") return "CANCELLED";
-  if (execution !== "COMPLETED" || row.evaluation?.status === "EVALUATION_ERROR") return "ERROR";
-  if (evaluationState(row) === "PASS") return "PASS";
-  if (evaluationState(row) === "FAIL") return "FAIL";
-  return "PENDING";
+  // A failed execution leaves no evidence to review; a failed Judge can still be settled by a human.
+  if (execution !== "COMPLETED") return "ERROR";
+  const state = evaluationState(row);
+  if (state === "PASS") return "PASS";
+  if (state === "FAIL") return "FAIL";
+  return state === "EVALUATION_ERROR" ? "ERROR" : "PENDING";
 }
 /** A full category partition, not a sum of overlapping execution/evaluation counters. */
 export function dashboardCounts(

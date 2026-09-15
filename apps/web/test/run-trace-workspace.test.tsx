@@ -35,7 +35,7 @@ it("opens complete observable node evidence without exposing internal thought or
       })}
     />
   );
-  const tool = screen.getByRole("button", { name: /1. 发起工具调用/ });
+  const tool = screen.getByRole("button", { name: /步骤 1 · 发起工具调用/ });
   expect(within(tool).queryByText(/Token/)).not.toBeInTheDocument();
   await userEvent.click(tool);
   const inspector = screen.getByRole("complementary", { name: "节点证据" });
@@ -88,8 +88,8 @@ it("keeps raw JSON reachable on every node kind and marks only recorded model st
   );
   for (const name of [
     /router/,
-    /1. 用户输入/,
-    /2. Agent 动作/,
+    /步骤 1 · 用户输入/,
+    /步骤 2 · Agent 动作/,
     /planner/,
     /ResponseGate/,
     /unknown-stage/
@@ -150,7 +150,7 @@ it("prefixes only recorded stages inline and defaults every node to generic key 
   expect(within(inspector).getByText("documents")).toBeVisible();
   expect(within(inspector).getByText("0.8")).toBeVisible();
   expect(within(inspector).getByText("research")).toBeVisible();
-  const reply = screen.getByRole("button", { name: /2. 用户回复/ });
+  const reply = screen.getByRole("button", { name: /步骤 2 · 用户回复/ });
   expect(reply.querySelector(".run-flow-stage")).toBeNull();
   await userEvent.click(reply);
   expect(
@@ -173,7 +173,7 @@ it("marks AI references separately from real errors and clears stale highlightin
   const { RUN_ID } = await import("./run-test-fixture.ts");
   const analysis = traceAnalysisFixture(row);
   const { rerender } = render(<RunTracePanel row={row} runId={RUN_ID} analysis={analysis} />);
-  const node = screen.getByRole("button", { name: /1. 发起工具调用/ });
+  const node = screen.getByRole("button", { name: /步骤 1 · 发起工具调用/ });
   expect(node).toHaveAttribute("data-ai", "true");
   expect(node).toHaveAttribute("data-error", "false");
   await userEvent.click(screen.getByRole("button", { name: "AI 关联 · 1" }));
@@ -193,4 +193,148 @@ it("marks AI references separately from real errors and clears stale highlightin
   expect(node).toHaveAttribute("data-ai", "false");
   expect(screen.queryByText("AI 关联证据 · 待确认")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "原始 JSON" })).toBeVisible();
+});
+
+it("opens each turn's routing record at the head of that turn's own chain", () => {
+  render(
+    <RunTracePanel
+      row={evidenceRow({
+        routes: [
+          { decision: "NEW", _eval_turn_index: 0, req_id: "r1" },
+          { decision: "EXISTING", _eval_turn_index: 1, req_id: "r2" }
+        ],
+        timeline: [
+          {
+            step_id: "input-1",
+            step_idx: 1,
+            type: "USER_INPUT",
+            req_id: "r1",
+            _eval_turn_index: 0,
+            payload: { user_text: "第一轮" }
+          },
+          {
+            step_id: "reply-1",
+            step_idx: 2,
+            type: "ASSISTANT_REPLY",
+            req_id: "r1",
+            _eval_turn_index: 0,
+            payload: { reply_text: "第一轮回复" }
+          },
+          {
+            step_id: "input-2",
+            step_idx: 1,
+            type: "USER_INPUT",
+            req_id: "r2",
+            _eval_turn_index: 1,
+            payload: { user_text: "第二轮" }
+          }
+        ]
+      })}
+    />
+  );
+  const ids = Array.from(document.querySelectorAll(".run-flow-node")).map((node) => node.id);
+  expect(ids).toEqual([
+    "case-route-turn-0",
+    "case-step-r1-input-1",
+    "case-step-r1-reply-1",
+    "case-route-turn-1",
+    "case-step-r2-input-2",
+    "case-trace-coverage",
+    "case-raw-evidence"
+  ]);
+  expect(
+    Array.from(document.querySelectorAll(".run-flow-turn-label")).map((node) => node.textContent)
+  ).toEqual(["第 1 轮", "第 2 轮"]);
+  expect(document.getElementById("case-step-r1-input-1")).not.toHaveTextContent("第 1 轮");
+  expect(document.getElementById("case-route-turn-0")).not.toHaveTextContent("第 1 轮");
+});
+it("keeps a single-turn routing record above the chain when turns are not recorded", () => {
+  render(
+    <RunTracePanel
+      row={evidenceRow({
+        route: { decision: "NEW" },
+        timeline: [
+          { step_id: "input", step_idx: 1, type: "USER_INPUT", payload: { user_text: "你好" } }
+        ]
+      })}
+    />
+  );
+  const ids = Array.from(document.querySelectorAll(".run-flow-node")).map((node) => node.id);
+  expect(ids).toEqual([
+    "case-route",
+    "case-step-input",
+    "case-trace-coverage",
+    "case-raw-evidence"
+  ]);
+  expect(document.querySelectorAll(".run-flow-turn")).toHaveLength(0);
+});
+
+it("places a turn that only left a routing record before the next observed chain", () => {
+  render(
+    <RunTracePanel
+      row={evidenceRow({
+        routes: [
+          { decision: "NEW", _eval_turn_index: 0, req_id: "r1" },
+          { decision: "CHAT", _eval_turn_index: 1, req_id: "r2" },
+          { decision: "EXISTING", _eval_turn_index: 2, req_id: "r3" }
+        ],
+        timeline: [
+          {
+            step_id: "input-1",
+            step_idx: 1,
+            type: "USER_INPUT",
+            req_id: "r1",
+            _eval_turn_index: 0,
+            payload: { user_text: "第一轮" }
+          },
+          {
+            step_id: "input-3",
+            step_idx: 1,
+            type: "USER_INPUT",
+            req_id: "r3",
+            _eval_turn_index: 2,
+            payload: { user_text: "第三轮" }
+          }
+        ]
+      })}
+    />
+  );
+  const ids = Array.from(document.querySelectorAll(".run-flow-node")).map((node) => node.id);
+  expect(ids.slice(0, 5)).toEqual([
+    "case-route-turn-0",
+    "case-step-r1-input-1",
+    "case-route-turn-1",
+    "case-route-turn-2",
+    "case-step-r3-input-3"
+  ]);
+  expect(
+    Array.from(document.querySelectorAll(".run-flow-turn-label")).map((node) => node.textContent)
+  ).toEqual(["第 1 轮", "第 2 轮", "第 3 轮"]);
+});
+
+it("gives every turn bullet its own routing record when steps were never collected", () => {
+  render(
+    <RunTracePanel
+      row={evidenceRow({
+        routes: [
+          { decision: "NEW", _eval_turn_index: 0, req_id: "r1" },
+          { decision: "EXISTING", _eval_turn_index: 1, req_id: "r2" },
+          { decision: "CHAT", _eval_turn_index: 2, req_id: "r3" }
+        ],
+        timeline: []
+      })}
+    />
+  );
+  const ids = Array.from(document.querySelectorAll(".run-flow-node")).map((node) => node.id);
+  expect(ids).toEqual([
+    "case-route-turn-0",
+    "case-route-turn-1",
+    "case-route-turn-2",
+    "case-trace-coverage",
+    "case-raw-evidence"
+  ]);
+  expect(
+    Array.from(document.querySelectorAll(".run-flow-turn-label")).map((node) => node.textContent)
+  ).toEqual(["第 1 轮", "第 2 轮", "第 3 轮"]);
+  expect(screen.getByRole("button", { name: /CHAT/ })).not.toHaveTextContent("第 3 轮");
 });

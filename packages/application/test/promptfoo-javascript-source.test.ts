@@ -2,9 +2,10 @@ import { importPromptfooResults } from "../src/features/evaluation/promptfoo-res
 import { expect, it } from "vitest";
 import { materializeJavascriptSource } from "../src/features/evaluation/promptfoo-javascript-source.ts";
 
-it("only normalizes explicit script returns, never callback returns or expressions", () => {
+it("only normalizes explicit script returns and throws, never callback returns or expressions", () => {
   for (const source of [
     "return true;",
+    "throw new Error('EVIDENCE_INSUFFICIENT');",
     "const x=1; return x===1;",
     "if(output) return true; return false;"
   ])
@@ -13,6 +14,7 @@ it("only normalizes explicit script returns, never callback returns or expressio
     "output === 'return'",
     "const x=1; x===1",
     "[1].some(x=>{return x===1})",
+    "[1].some(x=>{throw new Error('nested')})",
     "return (",
     "\nreturn true;"
   ])

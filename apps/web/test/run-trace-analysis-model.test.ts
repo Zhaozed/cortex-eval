@@ -93,3 +93,29 @@ it("maps each evidence kind and rejects conflicting duplicate audit copies", () 
   ]);
   expect(result.unlinked).toHaveLength(1);
 });
+
+it("maps last-turn and explicit turn pointers without shifting to an earlier turn", () => {
+  const first = { timeline: [{ ...step, req_id: "r1" }] };
+  const last = { timeline: [{ ...step, req_id: "r2" }] };
+  const row = evidenceRow({
+    ...last,
+    turns: [
+      { req_id: "r1", parsed_output: first },
+      { req_id: "r2", parsed_output: last }
+    ]
+  });
+  const analysis = traceAnalysisFixture(row);
+  const paths = ["/parsedOutput/timeline/0", "/parsedOutput/turns/0/parsed_output/timeline/0"];
+  const result = traceAnalysisOverlay(row, RUN_ID, {
+    ...analysis,
+    output: {
+      ...analysis.output!,
+      evidence: paths.map((fieldPath) => ({
+        source: "provider_output",
+        fieldPath,
+        conclusion: "check"
+      }))
+    }
+  });
+  expect([...result.byNode.keys()]).toEqual(["case-step-r2-s1", "case-step-r1-s1"]);
+});

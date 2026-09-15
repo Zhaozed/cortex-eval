@@ -32,13 +32,13 @@ P9 已完成 `/runs/:runId/analysis`，冲突刷新、Case/配置完整 Cursor �
 
 ## 当前代码事实入口
 
-- [analysis-page.tsx](../../apps/web/src/features/analysis/analysis-page.tsx)：选择、启动、当前版本、结构化 Evidence 和 Proposal 决策工作台。
+- [analysis-page.tsx](../../apps/web/src/features/runs/run-analysis-control.tsx)：选择、启动、当前版本、结构化 Evidence 和 Proposal 决策工作台。
 - [run-api.ts](../../apps/web/src/lib/run-api.ts)：Analysis 启动、读取和三类决策的严格客户端契约。
 - [web-route.ts](../../apps/web/src/lib/web-route.ts)：Analysis 路由解析。
 
 ## 当前样例与测试入口
 
-- [analysis-page.test.tsx](../../apps/web/test/analysis-page.test.tsx)：启动、结构化 Evidence、完整身份、严格编辑和冲突保留。
+- [run-trace-workspace.test.tsx](../../apps/web/test/run-trace-workspace.test.tsx)：启动、结构化 Evidence、完整身份、严格编辑和冲突保留。
 - [run-api.test.ts](../../apps/web/test/run-api.test.ts)：五个 Analysis 操作及身份校验。
 - [run-rest.spec.ts](../../apps/web/e2e/run-rest.spec.ts)：真实离线 Report→Analysis 浏览器闭环。
 

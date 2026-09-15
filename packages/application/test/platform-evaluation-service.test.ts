@@ -42,6 +42,134 @@ import {
 } from "../test-support/platform-evaluation-orchestration-fixtures.ts";
 
 describe("Platform Evaluation Application 编排", () => {
+  it("失败后在同一 Run 重试评测，保留 REST 与快照且清除当前故障状态", async () => {
+    const runs = new MemoryPlatformRunStore();
+    const original = evaluationRun();
+    runs.values.set(RUN_ID, original);
+    runs.results.set(`${RUN_ID}:case-1`, restResult);
+    const transactions = new RunTransactions(runs);
+    const success = new SuccessfulEvaluationEngine(transactions);
+    let attempts = 0;
+    const events: PlatformEvaluationBusinessEvent[] = [];
+    const service = new PlatformEvaluationService({
+      ...evaluationDependencies(runs, {
+        execute: async () => {
+          if (++attempts === 1) throw new Error("PROMPTFOO_PROCESS_EXIT:1");
+          return success.execute();
+        }
+      }),
+      eventSink: {
+        record: async (event) => {
+          events.push(event);
+        }
+      }
+    });
+    expect((await service.start({ runId: RUN_ID, expectedRevision: 2 })).ok).toBe(true);
+    await service.waitForIdle();
+    const failed = runs.values.get(RUN_ID)!;
+    expect(failed).toMatchObject({ status: "FAILED", stage: "DONE", evalCompletedCount: 0 });
+    expect((await service.start({ runId: RUN_ID, expectedRevision: 2 })).ok).toBe(false);
+    expect((await service.start({ runId: RUN_ID, expectedRevision: failed.lockRevision })).ok).toBe(
+      true
+    );
+    await service.waitForIdle();
+    expect(runs.values.get(RUN_ID)).toMatchObject({
+      id: RUN_ID,
+      status: "READY",
+      stage: "REPORT",
+      errorCode: null,
+      errorMessage: null,
+      completedAt: null,
+      evalCompletedCount: 1,
+      suite: original.suite,
+      resultSetHash: original.resultSetHash
+    });
+    expect(runs.results.get(`${RUN_ID}:case-1`)).toEqual(restResult);
+    expect(attempts).toBe(2);
+    expect(events.map((event) => event.event)).toContain("RUN_EVALUATION_FAILED");
+    expect(events.map((event) => event.event)).toContain("RUN_EVALUATION_RETRIED");
+  });
+
+  it.each([
+    { errorCode: "REST_STAGE_FAILED" },
+    { errorCode: "REPORT_STAGE_FAILED" },
+    { restCompletedCount: 0 },
+    { resultSetHash: null },
+    { evalCompletedCount: 1 },
+    { evaluationResultSetHash: HASH },
+    { cancelRequestedAt: NOW },
+    { status: "CANCELLED" as const }
+  ])("拒绝不具备重试条件的终态 %j", async (overrides) => {
+    const runs = new MemoryPlatformRunStore();
+    runs.values.set(RUN_ID, {
+      ...evaluationRun(),
+      status: "FAILED",
+      stage: "DONE",
+      errorCode: "EVALUATION_STAGE_FAILED",
+      ...overrides
+    });
+    const service = new PlatformEvaluationService(
+      evaluationDependencies(runs, {
+        execute: async () => {
+          throw new Error("MUST_NOT_EXECUTE");
+        }
+      })
+    );
+    expect((await service.start({ runId: RUN_ID, expectedRevision: 2 })).ok).toBe(false);
+  });
+
+  it("计数完整但实际缺少 REST 记录时不启动重试", async () => {
+    const runs = new MemoryPlatformRunStore();
+    runs.values.set(RUN_ID, {
+      ...evaluationRun(),
+      status: "FAILED",
+      stage: "DONE",
+      errorCode: "EVALUATION_STAGE_FAILED"
+    });
+    const service = new PlatformEvaluationService(
+      evaluationDependencies(runs, {
+        execute: async () => {
+          throw new Error("MUST_NOT_EXECUTE");
+        }
+      })
+    );
+    expect((await service.start({ runId: RUN_ID, expectedRevision: 2 })).ok).toBe(false);
+    expect(runs.values.get(RUN_ID)?.status).toBe("FAILED");
+  });
+
+  it("评测进程故障保留安全原因并写入事件，不丢成通用错误", async () => {
+    const runs = new MemoryPlatformRunStore();
+    runs.values.set(RUN_ID, evaluationRun());
+    runs.results.set(`${RUN_ID}:case-1`, restResult);
+    const events: PlatformEvaluationBusinessEvent[] = [];
+    const service = new PlatformEvaluationService({
+      ...evaluationDependencies(runs, {
+        execute: async () => {
+          throw new Error("PROMPTFOO_PROCESS_EXIT:1", {
+            cause: new Error("PROVIDER_REQUEST_FAILED")
+          });
+        }
+      }),
+      eventSink: {
+        record: async (event) => {
+          events.push(event);
+        }
+      }
+    });
+    await service.start({ runId: RUN_ID, expectedRevision: 2 });
+    await service.waitForIdle();
+    expect(runs.values.get(RUN_ID)).toMatchObject({
+      status: "FAILED",
+      errorMessage: expect.stringContaining("PROMPTFOO_PROCESS_EXIT:1 → PROVIDER_REQUEST_FAILED")
+    });
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        event: "RUN_EVALUATION_FAILED",
+        errorCode: "PROMPTFOO_PROCESS_EXIT:1 → PROVIDER_REQUEST_FAILED"
+      })
+    );
+  });
+
   it("PIPELINE 在 Evaluation 提交后以独立 Evaluation 版本启动 Report", async () => {
     const runs = new MemoryPlatformRunStore();
     runs.values.set(RUN_ID, { ...evaluationRun(), runMode: "PIPELINE" });

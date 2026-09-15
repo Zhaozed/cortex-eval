@@ -233,7 +233,12 @@ function materializeAssertion(
 
 // Expose REST success to Promptfoo in the same public shape used by REST artifacts.
 function providerOutputJson(value: ProviderOutput): ProviderOutputJson {
-  if (!value.ok) return { ok: false, errorMessage: value.errorMessage };
+  if (!value.ok)
+    return {
+      ok: false,
+      errorMessage: value.errorMessage,
+      ...(value.parsedOutput === undefined ? {} : { parsed_output: value.parsedOutput })
+    };
   return {
     ok: true,
     task_name: value.taskName,
@@ -335,7 +340,7 @@ export function materializePromptfooConfigV1(
                 prompt: "{{ prompt }}"
               },
               responseParser:
-                "json.output.tokenUsage === null ? ({ output: json.output.text }) : ({ output: json.output.text, tokenUsage: ({ prompt: json.output.tokenUsage.inputTokens, completion: json.output.tokenUsage.outputTokens, total: json.output.tokenUsage.totalTokens, numRequests: 1 }) })",
+                "json?.status === 'ERROR' ? ({ output: 'EVALUATOR_ERROR', error: json.error.message || json.error.code }) : !json?.output || typeof json.output.text !== 'string' ? ({ output: 'EVALUATOR_ERROR', error: 'EVALUATOR_PROVIDER_RESPONSE_INVALID' }) : json.output.tokenUsage == null ? ({ output: json.output.text }) : ({ output: json.output.text, tokenUsage: ({ prompt: json.output.tokenUsage.inputTokens, completion: json.output.tokenUsage.outputTokens, total: json.output.tokenUsage.totalTokens, numRequests: 1 }) })",
               maxRetries: 0
             }
           }

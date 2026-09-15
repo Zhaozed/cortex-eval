@@ -79,7 +79,7 @@ Route 不持有业务事务。Application 决定事务边界和幂等语义。Ca
 
 ## Run Case 人工审核
 
-`GET /api/v1/runs/:runId/reviews`、`GET/POST /api/v1/runs/:runId/cases/:caseKey/review` 提供独立人工审核记录。`GET .../preview` 返回真实保存的 A2UI 数据、证据哈希和只读渲染器版本/地址。写入要求 evidenceHash 与 expectedRevision；视觉通过另要求当前 rendererVersion。沿用 Host/Origin 防护，保存到 `.cortex-eval/run-case-reviews/`，不覆盖自动 Report。旧截图上传、自动采集、图片读取接口已移除。完整语义见 [Web Runs](../WEB/RUNS.md)。
+`GET /api/v1/runs/:runId/reviews`、`GET/POST /api/v1/runs/:runId/cases/:caseKey/review` 提供独立人工审核记录。`GET .../preview` 返回真实保存的 A2UI 数据、证据哈希和只读渲染器版本/地址。写入要求 evidenceHash 与 expectedRevision；`live.required` 只在本轮真实采集到出站卡片时为 true，视觉通过不校验 rendererVersion（提交的版本仅写入历史留痕），`REVIEW_RENDER_REQUIRED` 已移除；归因非 `UNCLASSIFIED` 时说明必填，缺失返回 `REVIEW_NOTE_REQUIRED`。沿用 Host/Origin 防护，保存到 `.cortex-eval/run-case-reviews/`，不覆盖自动 Report。旧截图上传、自动采集、图片读取接口已移除。完整语义见 [Web Runs](../WEB/RUNS.md)。
 
 
 ### Run 展示元数据
@@ -96,3 +96,11 @@ Route 不持有业务事务。Application 决定事务边界和幂等语义。Ca
 - 主平台 CSP 只许可当前渲染资源源。只读源仅 GET `/renderers/:id/preview` 与该快照的 `/renderers/:id/static/` 资源可用，无业务 API；禁止未知 Host、目录穿越、写请求和跨目录符号链接。
 - 独立源 iframe 隔离生产样式与脚本；它自己的 runtime iframe 保持同源以兼容原引擎。父子消息核对 origin/source/token，使用保存数据按顺序呈现最终状态；无真实业务 action 桥。
 - 渲染版本哈希绑定资源源身份、生产资源内容与宿主。按 Run + 来源缓存，不共享不同环境的资源。资源首次复核时加载，非运行开始时归档；服务重启后重新获取。历史 Run 不声称使用当时的渲染版本；使用当前资源复核，版本变化需重新审批。不做 AI 视觉判断。
+
+## Run 阶段恢复与多轮预览
+
+[application-run-handlers.ts](../../apps/local-server/src/application-run-handlers.ts) 在 Run Detail 返回安全 `errorMessage` 与服务端计算的 `canRetryEvaluation`、`canRetryReport`，现有阶段启动处理根据资格路由到 Evaluation 或 Report 服务。请求仍携带 `expectedRevision`，非法资格和版本竞争返回状态冲突；不新增绕过服务资格校验的重试接口。协议以 [run-api-contracts.ts](../../packages/contracts/src/run-api-contracts.ts) 和生成的 [OpenAPI](../../apps/local-server/openapi.json) 为准。
+
+[run-auto-capture-model.ts](../../apps/local-server/src/run-auto-capture-model.ts) 与 [run-live-preview-context.ts](../../apps/local-server/src/run-live-preview-context.ts) 读取多轮真实出站 A2UI 并保留轮次。部分失败证据由 [run-artifact-store.ts](../../apps/local-server/src/run-artifact-store.ts) 写入原始规范化信封，不用 UI 投影替代。人工复核资格与渲染版本约束仍按实际证据判断。
+
+测试入口为 [Run Handler 测试](../../apps/local-server/test/application-run-handlers.test.ts)、[Artifact Store 测试](../../apps/local-server/test/run-artifact-store.test.ts) 和 [动态预览测试](../../apps/local-server/test/run-live-preview.test.ts)。

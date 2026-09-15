@@ -173,6 +173,8 @@ const TABLE_SPECS: readonly EntityTableSpec[] = [
       "execution_id",
       "source_run_id",
       "rerun_mode",
+      "run_name",
+      "run_description",
       "suite_id",
       "endpoint_config_id",
       "evaluator_config_id",

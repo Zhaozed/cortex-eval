@@ -1,8 +1,9 @@
+import { executionIssue } from "./run-execution-issue.ts";
 import { RunLiveCard } from "./run-live-card.tsx";
 import { useState, type ReactElement } from "react";
 import type { RunReview } from "@cortex-eval/contracts/src/run-review-contracts.ts";
 import type { DashboardCase } from "./run-dashboard-model.ts";
-import { object, payload, records } from "./run-evidence-model.ts";
+import { conversationTurns, object, payload, records } from "./run-evidence-model.ts";
 import { hasCardData, observedReplies, visualReviewRequired } from "./run-output-model.ts";
 import { ReviewForm } from "./run-case-review.tsx";
 import { EvidenceJson } from "./run-trace-panel.tsx";
@@ -22,7 +23,11 @@ export function RunCaseOutput({
     p = payload(row),
     [rendererVersion, setRendererVersion] = useState<string | null>(null);
   const visual = visualReviewRequired(row);
+  const issue = executionIssue(row);
   const hasUnconfirmed = replies.some((r) => r.source !== "DELIVERED");
+  // Replies are labelled by round only when execution turns map 1:1 onto the sent user rounds.
+  const rounds = conversationTurns(row).filter((turn) => turn.kind === "user").length,
+    perRound = rounds > 1 && records(p.turns).length === rounds;
   return (
     <section
       className={`run-result-panel run-output-panel${mode === "cards" ? " run-card-workbench" : ""}`}
@@ -34,6 +39,11 @@ export function RunCaseOutput({
             <h3>实际输出</h3>
             <span>{replies.length} 条已记录回复</span>
           </div>
+          {issue && (
+            <p className="run-output-warning" role="alert">
+              {issue}
+            </p>
+          )}
           {hasUnconfirmed && (
             <p className="run-output-warning">
               部分回复仅见于生成记录，未找到对应交付证据；不代表用户已收到。
@@ -43,7 +53,11 @@ export function RunCaseOutput({
             {replies.map((reply, index) => (
               <article className="run-output-message" key={reply.key} data-source={reply.source}>
                 <header>
-                  <strong>{index + 1}. Agent 回复</strong>
+                  <strong>
+                    {perRound && typeof reply.data._eval_turn_index === "number"
+                      ? `第 ${reply.data._eval_turn_index + 1} 轮 · Agent 回复`
+                      : `${index + 1}. Agent 回复`}
+                  </strong>
                   <span>
                     {reply.source === "DELIVERED"
                       ? "已交付"
@@ -96,14 +110,12 @@ export function RunCaseOutput({
                     review={review}
                     visual
                     rendererVersion={rendererVersion}
-                    canApprove={
-                      rendererVersion !== null && rendererVersion === review.live?.rendererVersion
-                    }
+                    autoStatus={row.evaluation?.status}
                   />
                 </>
               ) : (
                 <p className="run-muted">
-                  本次执行未记录 A2UI 卡片，无需视觉复核。要求出卡或禁止出卡由 Case 断言检查。
+                  本次执行未记录 A2UI 卡片。要求出卡或禁止出卡由 Case 断言检查。
                 </p>
               )}
             </>

@@ -124,6 +124,9 @@ export function CaseEditor({
   const [assertionTexts, setAssertionTexts] = useState(() =>
     initialDefinition.assert.map(formattedJson)
   );
+  const [assertionKeys, setAssertionKeys] = useState(() =>
+    initialDefinition.assert.map(() => crypto.randomUUID())
+  );
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [structuredError, setStructuredError] = useState<StructuredEditorError | null>(null);
   const [saving, setSaving] = useState(false);
@@ -293,6 +296,7 @@ export function CaseEditor({
     form.reset(structuredValues(result.state.draft));
     setRequestBodyText(formattedJson(result.state.draft.vars.request_body));
     setAssertionTexts(result.state.draft.assert.map(formattedJson));
+    setAssertionKeys(result.state.draft.assert.map(() => crypto.randomUUID()));
   };
 
   // Save only the currently validated shared Draft.
@@ -349,112 +353,23 @@ export function CaseEditor({
               <TabsTrigger value="STRUCTURED">{message("caseEditor.structured")}</TabsTrigger>
               <TabsTrigger value="JSON">{message("caseEditor.json")}</TabsTrigger>
             </TabsList>
-            <TabsContent value="STRUCTURED" className="case-structured-grid">
-              <div className="field-wide case-section-heading">
-                <div>
-                  <h3>基本信息</h3>
-                  <p>描述要验收的业务目标，选择分类。技术字段和 JSON 放在高级设置中。</p>
-                </div>
-              </div>
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem className="field-wide">
-                    <FormLabel>{message("caseEditor.description")}</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {(
-                [
-                  ["task", "caseEditor.task"],
-                  ["businessModule", "caseEditor.businessModule"],
-                  ["scenarioTag", "caseEditor.scenarioTag"]
-                ] as const
-              ).map(([name, label]) => (
-                <FormField
-                  key={name}
-                  control={form.control}
-                  name={name}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{message(label)}</FormLabel>
-                      {name === "businessModule" || name === "scenarioTag" ? (
-                        <CaseCreatableSelect
-                          label={message(label)}
-                          selectRef={field.ref}
-                          invalid={form.formState.errors[name] !== undefined}
-                          value={field.value}
-                          options={
-                            name === "businessModule"
-                              ? options.businessModules
-                              : options.scenarioTags
-                          }
-                          onChange={field.onChange}
-                        />
-                      ) : (
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder="任务名称，与运行配置约定保持一致"
-                            list="case-task-options"
-                          />
-                        </FormControl>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ))}
-              <FormField
-                control={form.control}
-                name="a2uiCapture"
-                render={({ field }) => (
-                  <FormItem className="field-wide case-capture-option">
-                    <FormLabel>
-                      <FormControl>
-                        <input
-                          type="checkbox"
-                          checked={field.value ?? false}
-                          onChange={(event) => field.onChange(event.target.checked)}
-                        />
-                      </FormControl>
-                      要求 A2UI 人工复核
-                    </FormLabel>
-                    <p>
-                      仅此 Case
-                      开启：在结果抽屉用真实出站数据动态渲染卡片，供人工复核。无卡片数据或渲染失败不会算视觉通过。
-                    </p>
-                  </FormItem>
-                )}
-              />
-              <datalist id="case-task-options">
-                <option value="agent-e2e" />
-                <option value="planner" />
-              </datalist>
-              <details
-                className="case-advanced field-wide"
-                open={
-                  form.formState.errors.caseId ||
-                  form.formState.errors.threshold ||
-                  form.formState.errors.reqId ||
-                  form.formState.errors.taskId
-                    ? true
-                    : undefined
-                }
-              >
-                <summary>高级设置 · 自动生成的标识与通过阈值</summary>
-                <div className="case-structured-grid">
+            <TabsContent value="STRUCTURED" className="case-authoring-layout">
+              <div className="case-authoring-context">
+                <section className="case-authoring-basics case-structured-grid">
+                  <div className="field-wide case-section-heading">
+                    <div>
+                      <h3>
+                        <span className="case-section-number">01</span> 基本信息
+                      </h3>
+                      <p>用一句话说明这条 Case 要验证什么。</p>
+                    </div>
+                  </div>
                   <FormField
                     control={form.control}
-                    name="caseId"
+                    name="description"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{message("caseEditor.caseId")}</FormLabel>
+                      <FormItem className="field-wide">
+                        <FormLabel>{message("caseEditor.description")}</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -462,30 +377,11 @@ export function CaseEditor({
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="threshold"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{message("caseEditor.threshold")}</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            {...field}
-                            onChange={(event) => field.onChange(event.currentTarget.valueAsNumber)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                   {(
                     [
-                      ["reqId", "caseEditor.reqId"],
-                      ["taskId", "caseEditor.taskId"]
+                      ["task", "caseEditor.task"],
+                      ["businessModule", "caseEditor.businessModule"],
+                      ["scenarioTag", "caseEditor.scenarioTag"]
                     ] as const
                   ).map(([name, label]) => (
                     <FormField
@@ -495,35 +391,118 @@ export function CaseEditor({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{message(label)}</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
+                          <CaseCreatableSelect
+                            label={message(label)}
+                            selectRef={field.ref}
+                            invalid={form.formState.errors[name] !== undefined}
+                            value={field.value}
+                            options={
+                              name === "businessModule"
+                                ? options.businessModules
+                                : name === "scenarioTag"
+                                  ? options.scenarioTags
+                                  : ["agent-e2e", "planner"]
+                            }
+                            onChange={field.onChange}
+                          />
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   ))}
-                </div>
-                <p className="field-hint">
-                  默认通过阈值为 1。降低阈值或把断言权重设为 0，可能让部分检查失败仍然通过。
-                </p>
-              </details>
-              <CaseRequestFields
-                text={requestBodyText}
-                rawRef={requestBodyRef}
-                error={structuredError?.target === "REQUEST_BODY"}
-                onChange={(text) => {
-                  setRequestBodyText(text);
-                  if (structuredError?.target === "REQUEST_BODY") setStructuredError(null);
-                }}
-              />
-              <section className="case-editor-section field-wide">
+                  <details
+                    className="case-advanced field-wide"
+                    open={
+                      form.formState.errors.caseId ||
+                      form.formState.errors.threshold ||
+                      form.formState.errors.reqId ||
+                      form.formState.errors.taskId
+                        ? true
+                        : undefined
+                    }
+                  >
+                    <summary>高级设置 · 自动生成的标识与通过阈值</summary>
+                    <div className="case-structured-grid">
+                      <FormField
+                        control={form.control}
+                        name="caseId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{message("caseEditor.caseId")}</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="threshold"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{message("caseEditor.threshold")}</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="0"
+                                max="1"
+                                step="0.01"
+                                {...field}
+                                onChange={(event) =>
+                                  field.onChange(event.currentTarget.valueAsNumber)
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      {(
+                        [
+                          ["reqId", "caseEditor.reqId"],
+                          ["taskId", "caseEditor.taskId"]
+                        ] as const
+                      ).map(([name, label]) => (
+                        <FormField
+                          key={name}
+                          control={form.control}
+                          name={name}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{message(label)}</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+                    <p className="field-hint">
+                      默认通过阈值为 1。降低阈值或把断言权重设为 0，可能让部分检查失败仍然通过。
+                    </p>
+                  </details>
+                </section>
+                <CaseRequestFields
+                  text={requestBodyText}
+                  rawRef={requestBodyRef}
+                  error={structuredError?.target === "REQUEST_BODY"}
+                  onChange={(text) => {
+                    setRequestBodyText(text);
+                    if (structuredError?.target === "REQUEST_BODY") setStructuredError(null);
+                  }}
+                />
+              </div>
+              <section className="case-editor-section case-authoring-rules">
                 <div className="case-section-heading">
                   <div>
-                    <h3>验收检查项</h3>
-                    <p>
-                      选择规则，再填写目标和预期。字段规则检查实际证据；不代替业务操作的安全拦截。
-                    </p>
+                    <h3>
+                      <span className="case-section-number">03</span> 验收检查项{" "}
+                      <span className="case-count-badge">{assertionTexts.length}</span>
+                    </h3>
+                    <p>选择规则、填写参数；保存时自动检查配置。</p>
                   </div>
                 </div>
                 <datalist id="case-output-paths">
@@ -540,7 +519,7 @@ export function CaseEditor({
                 </datalist>
                 {assertionTexts.map((text, index) => (
                   <CaseAssertionFields
-                    key={`assertion-${index}`}
+                    key={assertionKeys[index] ?? `assertion-${index}`}
                     text={text}
                     index={index}
                     metrics={options.metrics}
@@ -568,6 +547,9 @@ export function CaseEditor({
                         setStructuredError(null);
                     }}
                     onRemove={() => {
+                      setAssertionKeys((current) =>
+                        current.filter((_, position) => position !== index)
+                      );
                       setAssertionTexts((current) =>
                         current.filter((_, position) => position !== index)
                       );
@@ -575,15 +557,35 @@ export function CaseEditor({
                     }}
                   />
                 ))}
+                <FormField
+                  control={form.control}
+                  name="a2uiCapture"
+                  render={({ field }) => (
+                    <FormItem className="field-wide case-capture-option">
+                      <FormLabel>
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            checked={field.value ?? false}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                          />
+                        </FormControl>
+                        要求 A2UI 人工复核
+                      </FormLabel>
+                      <p>自动检查通过后，还需人工确认真实出站卡片；缺少卡片不能视为复核通过。</p>
+                    </FormItem>
+                  )}
+                />
                 {assertionTexts.length === 0 ? (
                   <p role="status">尚无检查项，至少添加一项才能保存。</p>
                 ) : null}
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() =>
-                    setAssertionTexts((current) => [...current, formattedJson(newCaseAssertion())])
-                  }
+                  onClick={() => {
+                    setAssertionKeys((current) => [...current, crypto.randomUUID()]);
+                    setAssertionTexts((current) => [...current, formattedJson(newCaseAssertion())]);
+                  }}
                 >
                   ＋ 添加检查项
                 </Button>
@@ -616,7 +618,11 @@ export function CaseEditor({
               )}
             </TabsContent>
           </Tabs>
-          <div className="editor-actions">
+          <div className="editor-actions case-authoring-actions">
+            <div>
+              <strong>{creating ? "新建 Case" : "编辑 Case"}</strong>
+              <span>保存仅更新用例，不执行 Agent 或业务写入</span>
+            </div>
             <Button type="button" disabled={saving || disabled} onClick={() => void save()}>
               {saving ? message("caseEditor.saving") : message("caseEditor.save")}
             </Button>

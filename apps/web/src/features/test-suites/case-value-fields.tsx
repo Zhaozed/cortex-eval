@@ -52,19 +52,26 @@ export function CaseValueFields({
   onChange,
   label,
   fixedObject = false,
-  suggestions = []
+  allowedTypes,
+  suggestions = [],
+  dedicatedFields = []
 }: {
   readonly value: JsonValue;
   readonly onChange: (value: JsonValue) => void;
   readonly label: string;
   readonly fixedObject?: boolean;
+  readonly allowedTypes?: readonly string[];
   readonly suggestions?: readonly string[];
+  /** Fields edited by a dedicated control; retain their values without duplicate editors. */
+  readonly dedicatedFields?: readonly string[];
 }): ReactElement {
   const id = useId();
   const [newKey, setNewKey] = useState("");
   const type = caseValueType(value);
   const key = newKey.trim();
-  const duplicate = value !== null && typeof value === "object" && Object.hasOwn(value, key);
+  const duplicate =
+    dedicatedFields.includes(key) ||
+    (value !== null && typeof value === "object" && Object.hasOwn(value, key));
   return (
     <div className="case-value-fields">
       {!fixedObject ? (
@@ -75,11 +82,13 @@ export function CaseValueFields({
             value={type}
             onChange={(e) => onChange(structuredClone(DEFAULTS[e.currentTarget.value] ?? null))}
           >
-            {Object.entries(TYPES).map(([name, text]) => (
-              <option key={name} value={name}>
-                {text}
-              </option>
-            ))}
+            {Object.entries(TYPES)
+              .filter(([name]) => !allowedTypes || allowedTypes.includes(name) || name === type)
+              .map(([name, text]) => (
+                <option key={name} value={name}>
+                  {text}
+                </option>
+              ))}
           </select>
         </div>
       ) : null}
@@ -156,27 +165,29 @@ export function CaseValueFields({
       ) : null}
       {value !== null && typeof value === "object" && !Array.isArray(value) && !isInt64(value) ? (
         <div className="case-nested-fields">
-          {Object.entries(value).map(([name, item]) => (
-            <div key={name} className="case-value-row">
-              <CaseValueFields
-                label={fixedObject ? name : `${label}.${name}`}
-                value={item}
-                onChange={(next) => onChange({ ...value, [name]: next })}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                aria-label={`删除字段 ${name}`}
-                onClick={() =>
-                  onChange(
-                    Object.fromEntries(Object.entries(value).filter(([field]) => field !== name))
-                  )
-                }
-              >
-                删除
-              </Button>
-            </div>
-          ))}
+          {Object.entries(value)
+            .filter(([name]) => !dedicatedFields.includes(name))
+            .map(([name, item]) => (
+              <div key={name} className="case-value-row">
+                <CaseValueFields
+                  label={fixedObject ? name : `${label}.${name}`}
+                  value={item}
+                  onChange={(next) => onChange({ ...value, [name]: next })}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-label={`删除字段 ${name}`}
+                  onClick={() =>
+                    onChange(
+                      Object.fromEntries(Object.entries(value).filter(([field]) => field !== name))
+                    )
+                  }
+                >
+                  删除
+                </Button>
+              </div>
+            ))}
           <div className="case-inline-add">
             <Input
               aria-label={`${label}新字段名`}
@@ -187,7 +198,7 @@ export function CaseValueFields({
             />
             <datalist id={`${id}-keys`}>
               {suggestions
-                .filter((name) => !Object.hasOwn(value, name))
+                .filter((name) => !Object.hasOwn(value, name) && !dedicatedFields.includes(name))
                 .map((name) => (
                   <option key={name} value={name} />
                 ))}

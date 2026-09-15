@@ -93,7 +93,6 @@ const EvalCaseStorageSchema = z
       (value.status === "EVALUATION_ERROR" &&
         (value.promptfooSuccess !== null ||
           value.score !== null ||
-          value.reason !== null ||
           value.evaluationError === null)) ||
       (value.status === "NOT_EVALUATED" &&
         (value.promptfooSuccess !== null ||

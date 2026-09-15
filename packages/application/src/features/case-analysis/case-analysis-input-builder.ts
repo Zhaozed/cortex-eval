@@ -114,7 +114,12 @@ export interface BuiltAnalysisInput {
 
 // Copy the closed Provider Output union into JSON without exposing transport objects.
 function providerOutputJson(value: ProviderOutput): DomainJsonObject {
-  if (!value.ok) return { ok: false, errorMessage: value.errorMessage };
+  if (!value.ok)
+    return {
+      ok: false,
+      errorMessage: value.errorMessage,
+      ...(value.parsedOutput === undefined ? {} : { parsedOutput: value.parsedOutput })
+    };
   return {
     ok: true,
     taskName: value.taskName,

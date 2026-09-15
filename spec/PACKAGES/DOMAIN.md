@@ -67,3 +67,7 @@ Domain 规则必须确定、可穷尽测试且不访问时钟、随机数或环�
 ## 相关测试
 
 当前测试覆盖 Case、Assertion、Provider Output、Run/Analysis 状态机、取消请求、REST/Eval/Analysis Result Hash、执行版本化 Result Set Hash、Metric、Rate、Canonical Hash、结构化 Evidence、四种分析分类、Proposal 联合、Revision 竞争和非法状态。
+
+## Provider 失败证据的哈希边界
+
+[domain-evaluation.ts](../../packages/domain/src/domain-evaluation.ts) 的失败 Provider Output 可携带部分 `parsedOutput`。[domain-hash-inputs.ts](../../packages/domain/src/domain-hash-inputs.ts) 将已提供的部分证据纳入规范化哈希；未提供时不添加空对象或空字段，保留旧失败分支的哈希输入形状。该证据不改变 `ok=false` 的业务失败语义，UI 展平字段不写回 Domain。持久化往返由 [部分证据测试](../../packages/storage-sqlite/test/sqlite-partial-provider-evidence.test.ts) 覆盖。

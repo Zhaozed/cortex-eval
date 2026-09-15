@@ -256,7 +256,8 @@ export async function createLocalServerRuntime(
         businessLogger.record({
           event: event.event,
           timestamp: event.timestamp,
-          resourceId: event.runId
+          resourceId: event.runId,
+          errorCode: "errorCode" in event ? event.errorCode : undefined
         })
     };
     const promptfooBinary = join(process.cwd(), "node_modules", ".bin", "promptfoo");

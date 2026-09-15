@@ -111,7 +111,7 @@ P10 Release Gate 由 [release-gate.ts](../tooling/src/release-gate.ts) 固定同
 - 测试集导入覆盖 `200 MiB-1`、等于和超过 200 MiB。
 - REST 请求覆盖 `5 MiB-1`、等于和超过 5 MiB；响应覆盖 `10 MiB-1`、等于和超过 10 MiB。
 - Timeout 覆盖 100 毫秒、10 分钟及上下越界。
-- `pnpm verify` 运行全部确定性门禁；`pnpm verify:release` 额外运行一次真实 Gemini Rubric 和一次真实 Analyzer，所有层重试为 0。
+- `pnpm verify` 运行全部确定性门禁；`pnpm verify:release` 额外运行一次真实 Gemini Rubric 和一次真实 Analyzer，Release Gate 仍要求该次真实调用观测到的 Provider 总尝试数为 1；不能据此声称 Evaluator Adapter 没有瞬态重试能力。
 - Runtime Doctor 验证 Python 3.7+ 和 Ruby 解释器；发布环境必须真实执行两种内联 Assertion，并记录实际命令与版本。
 - 当前只对实际运行通过的 macOS ARM64 声明支持。
 
@@ -139,7 +139,7 @@ P10 Release Gate 由 [release-gate.ts](../tooling/src/release-gate.ts) 固定同
 
 [A2UI 页面测试](../apps/web/test/a2ui-review-page.test.tsx) 覆盖历史截图与审批留痕、无新审批或导入控件、图片加载错误与查询失败。HTTP 测试验证 POST 返回 410、GET 保持可用且原记录不变。测试使用隔离数据，不批准真实批次。
 
-[默认运行工作区测试](../apps/web/test/run-workspace-page.test.tsx) 覆盖报告实际可用时结果优先，否则回到执行状态。[执行状态测试](../apps/web/test/run-detail-states.test.tsx) 独立覆盖分阶段执行与运行状态，避免单文件膨胀。[导航测试](../apps/web/test/workspace-navigation.test.ts) 覆盖历史书签及非法路径。业务报告审核列仅呈现“未采集”真实截图的事实，不以模板附件替代业务截图。
+[默认运行工作区测试](../apps/web/test/run-workspace-page.test.tsx) 覆盖报告实际可用时结果优先，否则回到执行状态。[执行状态测试](../apps/web/test/run-unified-workspace.test.tsx) 独立覆盖分阶段执行与运行状态，避免单文件膨胀。[导航测试](../apps/web/test/workspace-navigation.test.ts) 覆盖历史书签及非法路径。业务 A2UI 在 Case 抽屉回放真实出站帧，不以固定模板附件替代；部分证据与无卡明确显示。人工结论为最终结论并可覆盖自动失败（执行失败除外），覆盖需归因与说明，由 [复核表单测试](../apps/web/test/run-review-form.test.tsx) 与 [状态口径测试](../apps/web/test/run-case-output.test.ts) 固定。
 
 ## Todo 分层断言回归
 
@@ -148,3 +148,13 @@ P10 Release Gate 由 [release-gate.ts](../tooling/src/release-gate.ts) 固定同
 [Promptfoo进程测试](../tooling/test/todo-promptfoo-process.test.ts) 用预计算输出验证最终聚合会被关键失败阻断，未知类型和非法schema为评测错误，不运行Agent或语义模型。
 
 [准备CLI测试](../tooling/test/todo-prepare-cli.test.ts) 验证生成与草稿一致、源不改、已有目录拒写、非法输入不留下产物。离线测试通过不构成真实E2E、视觉或发布验收；使用边界归属 [TEST_SUITES](APPLICATION/TEST_SUITES.md)。
+
+## 当前开发回归入口
+
+失败阶段重试覆盖 [Evaluation 服务](../packages/application/test/platform-evaluation-service.test.ts)、[Report 服务](../packages/application/test/platform-report-service.test.ts) 和 [SQLite Report 重试](../packages/storage-sqlite/test/sqlite-report-retry.test.ts)，验证上游事实不重跑、已提交结果拒绝重入和 Revision 竞争。
+
+部分证据覆盖 [REST Executor](../packages/evaluation-adapters/test/rest-http-executor.test.ts)、[SQLite 往返](../packages/storage-sqlite/test/sqlite-partial-provider-evidence.test.ts) 与 [E2E 展示投影](../packages/contracts/test/e2e-evidence.test.ts)。Agent 编辑覆盖 [作者契约](../packages/contracts/test/agent-rule-authoring.test.ts) 与 [结构化表单](../apps/web/test/case-agent-rule-fields.test.tsx)。多轮 UI 入口见 [E2E_EVIDENCE](WEB/E2E_EVIDENCE.md)。
+
+Provider 瞬态重试、永久失败与清洗边界由 [Client 测试](../packages/evaluation-adapters/test/frozen-evaluator-model-client.test.ts)、[错误分类测试](../packages/evaluation-adapters/test/evaluator-model-errors.test.ts)、[断言错误测试](../packages/application/test/promptfoo-assertion-error.test.ts) 和 [阶段诊断测试](../packages/application/test/evaluation-failure-diagnostic.test.ts) 固定。
+
+Todo 双平台与单平台边界用例分别以 [dual-platform/README](../test_suite/todo/dual-platform/README.md) 和 [single-platform-boundary/README](../test_suite/todo/single-platform-boundary/README.md) 为入口。离线合成校验不能替代真实第三方执行；推送前验证不自动导入测试集、不重复创建或删除真实任务。本次实际门禁结果见 [开发交付记录](../docs/development-spec-2026-09-15.md)，历史发布通过记录不能代表当前工作树通过。

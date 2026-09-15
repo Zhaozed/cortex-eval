@@ -51,7 +51,7 @@ P5 已建立 `packages/evaluation-adapters` 并落地 Fetch REST Executor。当�
 
 REST Adapter 解析受控模板语法和 RFC 6901 Selector，展开 EnvSecretRef，限制并发并校验 Provider Output。URL 变量可以选择 `vars` 下任意层级标量叶子，不使用变量名白名单，但不能替换协议、Host 或端口。
 
-单个 Case 在网络前完成模板、Selector、Header、Secret 和 UTF-8 请求大小校验。Fetch 固定 `POST`、`redirect: manual` 和组合 Abort Signal；只有 HTTP 2xx 才读取有界响应并校验 Provider Output。合法 `ok=false` 是成功事实。
+单个 Case 在网络前完成模板、Selector、Header、Secret 和 UTF-8 请求大小校验。Fetch 固定 `POST`、`redirect: manual` 和组合 Abort Signal；只有 HTTP 2xx 才读取有界响应并校验 Provider Output。合法 `ok=false` 是已完成的 REST 响应事实，不是业务成功；可选 `parsed_output` 作为部分证据保留。
 
 Promptfoo 的物化不按 Assertion 类型设置平台白名单。锁定版本真实进程探针证明默认 Grading HTTP Provider 请求不携带 Assertion 身份，因此 Bridge v2 不接收 Case、Assertion、Metric 或组件身份，而以 Evaluation 调用期总预算和 FIFO 并发限制保护冻结 Evaluator。Metric、完整 Definition 和组件结构只在 Raw Result/Importer 中对齐。`select-best`、`max-score` 等类型可进入配置；平台不复现、替代或限制其执行流程。排队请求取得并发槽后必须重新校验 TTL；过期时不调用 Evaluator，并释放槽位。官方 SDK 未提供完整 Token Usage 时保持 `null`，Promptfoo HTTP Provider 省略 Usage 映射；Bridge 对调用与超时/关闭信号做受控竞速，上游忽略 Abort 时仍能结束 HTTP 与 Owner，并为迟到 Promise 安装终态处理。
 
@@ -74,3 +74,13 @@ REST 错误闭合为 `TIMEOUT`、`NETWORK`、`HTTP_STATUS`、`RESPONSE_PARSE`、
 ## 相关测试
 
 当前测试覆盖 REST HTTP、网络、状态码、解析、Provider Output、模板、Selector、Secret、合法 `ok=false`、请求/响应大小边界、超时、取消、并发和 Worker 收口。P6/P7 已覆盖无类型白名单的矩阵 Assert 构建、递归 config 安全边界、紧凑组合敏感键及大小写/前导空白外部引用绕过拒绝、Bridge Capability/绑定/预算/FIFO 并发/精确 Host/排队 TTL 复验/非协作上游的超时与关闭、Provider 400/422、双官方 SDK 无重试与无认证 Header、固定 Promptfoo 真实进程、普通 Assert 前的固定版本预检、Raw Row 在完整文档到达前背压交付、固定版本拒绝、版本检查共享整体截止时间、有界诊断输出、Root 外路径与临时父目录符号链接拒绝、主进程提前退出时后代保留剩余 TERM 宽限期、函数返回前完整进程组回收、真实子进程取消到 CLI 130、非零及缺失 Token Usage、内联执行错误清洗、Rubric Prompt 身份恢复和严格 Importer。P9 追加 Gemini/OpenAI-compatible Analyzer 严格结构输出、结构化 Evidence、大小、取消、无自动重试和安全错误收敛。Evaluator Promise 在超时或关闭后若忽略 Abort，HTTP 与 Owner 可以先收口，但真实并发槽持续占用到该 Promise 自身结束；关闭后的统计仍反映无法强制终止的实际在途调用，且监听器关闭后不再接收新调用。平台不逐类复现或限制 Promptfoo Assert 执行；Analyzer 不调用 Bridge。
+
+## 冻结 Evaluator 的瞬态重试与错误分类
+
+[frozen-evaluator-model-client.ts](../../packages/evaluation-adapters/src/frozen-evaluator-model-client.ts) 在 SDK 外层统一处理 Gemini 与 OpenAI-compatible 的 Provider 错误。SDK 内置重试仍关闭；Adapter 对已分类的限流、瞬态 HTTP 和网络故障最多尝试四次，采用有界退避或有上限的 Retry-After，并受 Bridge 的取消与整体超时约束。永久能力/鉴权/请求错误立即失败，不重试。此策略只作用于 Evaluator 模型调用，不扩大为 REST 业务请求、Analyzer 或失败 Run 的自动重跑。
+
+[evaluator-model-errors.ts](../../packages/evaluation-adapters/src/evaluator-model-errors.ts) 是瞬态分类、Retry-After 和诊断清洗的事实入口。Provider 提示经脱敏和长度限制后才可展示；原始异常正文不能跨边界。Bridge 失败响应与 Promptfoo 配置的 grader-error 映射配合，Importer 将其区分为评测错误，而非断言质量失败。
+
+[promptfoo-evaluation-process.ts](../../packages/evaluation-adapters/src/promptfoo-evaluation-process.ts) 禁用上游文件 debug/error logger，仍保留平台有界诊断；超限触发独立的诊断限额错误及进程组回收。这里只提取闭合错误签名，不持久化 stdout/stderr 原文。
+
+测试入口为 [Evaluator Client 测试](../../packages/evaluation-adapters/test/frozen-evaluator-model-client.test.ts)、[Provider 错误测试](../../packages/evaluation-adapters/test/evaluator-model-errors.test.ts)、[Bridge 测试](../../packages/evaluation-adapters/test/evaluator-bridge-v2.test.ts) 和 [Promptfoo 进程测试](../../packages/evaluation-adapters/test/promptfoo-evaluation-process.test.ts)。

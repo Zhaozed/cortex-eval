@@ -15,7 +15,10 @@ import type {
 } from "openai/resources/chat/completions/completions.js";
 
 import type { EvaluatorModelClient, EvaluatorModelResult } from "./evaluator-bridge-v2.ts";
-import { evaluatorModelErrorFromProvider } from "./evaluator-model-errors.ts";
+import {
+  classifyEvaluatorProviderFailure,
+  MAX_PROVIDER_RETRY_AFTER_MS
+} from "./evaluator-model-errors.ts";
 
 /** Narrow OpenAI SDK surface owned by this Adapter. */
 export interface FrozenOpenAiSdkClient {
@@ -135,13 +138,73 @@ function requiredSecret(
   return value;
 }
 
-// Convert provider failures into one stable boundary error without leaking payloads or Secrets.
-async function stableProviderCall<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    return await operation();
-  } catch (error) {
-    throw evaluatorModelErrorFromProvider(error);
+/**
+ * Bounded retry policy for transient provider faults such as HTTP 429 burst throttling.
+ * Retries live above the SDK on purpose: the frozen contract keeps SDK retries disabled.
+ */
+const PROVIDER_RETRY_POLICY = {
+  maxAttempts: 4,
+  baseDelayMs: 1_500,
+  maxDelayMs: 20_000
+} as const;
+
+// Exponential backoff with ±10% jitter, capped so one call stays inside the Bridge budget.
+function backoffDelayMs(attempt: number): number {
+  const exponential = PROVIDER_RETRY_POLICY.baseDelayMs * 2 ** (attempt - 1);
+  const capped = Math.min(exponential, PROVIDER_RETRY_POLICY.maxDelayMs);
+  return Math.round(capped * (0.9 + Math.random() * 0.2));
+}
+
+// Wait one bounded interval, rejecting early when the Bridge cancels or times out.
+function waitBeforeRetry(ms: number, signal: AbortSignal | undefined): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted === true) {
+      reject(new Error("EVALUATOR_CANCELLED"));
+      return;
+    }
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      reject(new Error("EVALUATOR_CANCELLED"));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/**
+ * Convert provider failures into one stable boundary error without leaking payloads or Secrets.
+ * Transient faults get a bounded number of smoothed attempts; permanent faults fail at once.
+ */
+async function stableProviderCall<T>(
+  operation: () => Promise<T>,
+  signal?: AbortSignal
+): Promise<T> {
+  let failure: Error | null = null;
+  for (let attempt = 1; attempt <= PROVIDER_RETRY_POLICY.maxAttempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      const classified = classifyEvaluatorProviderFailure(error);
+      failure = classified.error;
+      const exhausted = attempt >= PROVIDER_RETRY_POLICY.maxAttempts;
+      if (!classified.detail.transient || exhausted || signal?.aborted === true) {
+        throw classified.error;
+      }
+      const waitMs = Math.min(
+        classified.detail.retryAfterMs ?? backoffDelayMs(attempt),
+        MAX_PROVIDER_RETRY_AFTER_MS
+      );
+      try {
+        await waitBeforeRetry(waitMs, signal);
+      } catch {
+        throw classified.error;
+      }
+    }
   }
+  throw failure ?? new Error("EVALUATOR_PROVIDER_REQUEST_FAILED");
 }
 
 // Construct the OpenAI-compatible Evaluator path from one frozen definition.
@@ -163,23 +226,25 @@ function createOpenAiEvaluator(
   });
   return {
     generate: async ({ prompt, signal }): Promise<EvaluatorModelResult> => {
-      const response = await stableProviderCall(() =>
-        client.create(
-          {
-            model: config.model,
-            messages: [{ role: "user", content: prompt }],
-            reasoning_effort: openAiReasoningEffort(config.thinkingLevel),
-            temperature: config.temperature,
-            top_p: config.topP,
-            max_tokens: config.maxOutputTokens
-          },
-          {
-            signal,
-            timeout: config.timeoutMs,
-            maxRetries: 0,
-            ...(noAuth ? { headers: { authorization: null } } : {})
-          }
-        )
+      const response = await stableProviderCall(
+        () =>
+          client.create(
+            {
+              model: config.model,
+              messages: [{ role: "user", content: prompt }],
+              reasoning_effort: openAiReasoningEffort(config.thinkingLevel),
+              temperature: config.temperature,
+              top_p: config.topP,
+              max_tokens: config.maxOutputTokens
+            },
+            {
+              signal,
+              timeout: config.timeoutMs,
+              maxRetries: 0,
+              ...(noAuth ? { headers: { authorization: null } } : {})
+            }
+          ),
+        signal
       );
       const text = response.choices[0]?.message.content;
       if (typeof text !== "string") throw new Error("EVALUATOR_PROVIDER_RESPONSE_INVALID");
@@ -200,19 +265,21 @@ function createGeminiEvaluator(
   const client = factories.gemini({ apiKey, httpOptions });
   return {
     generate: async ({ prompt, signal }): Promise<EvaluatorModelResult> => {
-      const response = await stableProviderCall(() =>
-        client.generateContent({
-          model: config.model,
-          contents: prompt,
-          config: {
-            abortSignal: signal,
-            httpOptions,
-            thinkingConfig: geminiThinkingConfig(config.thinkingLevel),
-            temperature: config.temperature,
-            topP: config.topP,
-            maxOutputTokens: config.maxOutputTokens
-          }
-        })
+      const response = await stableProviderCall(
+        () =>
+          client.generateContent({
+            model: config.model,
+            contents: prompt,
+            config: {
+              abortSignal: signal,
+              httpOptions,
+              thinkingConfig: geminiThinkingConfig(config.thinkingLevel),
+              temperature: config.temperature,
+              topP: config.topP,
+              maxOutputTokens: config.maxOutputTokens
+            }
+          }),
+        signal
       );
       const text = response.text;
       if (typeof text !== "string") throw new Error("EVALUATOR_PROVIDER_RESPONSE_INVALID");

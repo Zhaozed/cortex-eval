@@ -88,7 +88,7 @@ JSON Report 是导入事实，Markdown 只由规范化 JSON 派生，不能反�
 
 UI 和 CLI 对同一规范化输入生成相同统计。错误返回稳定 Error Code、可读消息和必要字段路径。千级 Case 的分页、搜索、组合过滤和报告生成保持可用。
 
-最终发布门禁为 `pnpm verify:release`，包含完整确定性测试、性能门禁和两条不自动重试的真实 Gemini Smoke。
+最终发布门禁为 `pnpm verify:release`，包含完整确定性测试、性能门禁和两条要求实际 Provider 尝试数为 1 的真实 Gemini Smoke。
 
 ## 相关模块
 

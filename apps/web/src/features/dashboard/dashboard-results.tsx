@@ -7,6 +7,7 @@ import type { RunApi, RunReportOverview } from "../../lib/run-api.ts";
 import {
   dashboardCounts,
   evaluationState,
+  manualOverride,
   resultBucket,
   type DashboardCase,
   type ResultBucket
@@ -172,7 +173,7 @@ export function DashboardResults({
             <p>
               {allPassed
                 ? "仅代表本次测试范围，不等同于发布批准。"
-                : "执行完成不等于验收通过；自动失败不会被人工通过覆盖。"}
+                : "执行完成不等于验收通过；人工复核为最终结论，覆盖自动结论需填归因与说明。"}
             </p>
           </div>
         </div>
@@ -339,7 +340,9 @@ export function DashboardResults({
                 </div>
                 <strong>{row.definition?.description ?? row.caseKey}</strong>
                 <p>
-                  {resultBucket(row) === "PASS" ? "已通过所需评测与复核" : attentionReason(row)}
+                  {resultBucket(row) === "PASS" && !manualOverride(row)
+                    ? "已通过所需评测与复核"
+                    : attentionReason(row)}
                 </p>
               </button>
             ))}

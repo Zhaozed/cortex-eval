@@ -4,7 +4,7 @@
 
 `spec/` 是 Cortex Eval 目标系统的稳定事实入口，服务人类工程师和 AI coding agent。产品行为以 [REQ.md](../REQ.md) 为来源，技术架构以 [TECH.md](../TECH.md) 为来源，文档组织规则以 [SPEC_DOC.md](../SPEC_DOC.md) 为来源。
 
-当前仓库已完成 P0–P10。平台与离线 REST→Evaluation→Report→显式 Analysis、Work Package v2、Retry/Force、结构化 Evidence、完整 Execution Report/Analysis Import、Artifact 安全发布和受控 Promptfoo/Bridge 链已闭环。Case Assert 构建不设类型白名单，平台不复现或限制 Assert 执行；Bridge 只执行冻结 Evaluator 调用，不识别 Assertion/Metric。P10 已闭环 Canonical Export API/CLI、SQLite Backup 快照、十实体稳定 JSONL、复合 Result 身份、Artifact Presence/Inclusion、服务器与 CLI 双重四类对账、原子发布以及日志、资源压力、性能、安全、OpenAPI、WCAG、完整 E2E、Runtime Doctor 与独立变更复审；使用 `GOOGLE_API_KEY` 的真实 Gemini Rubric 与 Analyzer 已在同一次完整 `pnpm verify:release` 中通过。当前状态由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
+P0–P10 历史发布验收已完成；这不代表当前工作树已通过门禁，本次状态见 [开发交付记录](../docs/development-spec-2026-09-15.md)。平台与离线 REST→Evaluation→Report→显式 Analysis、Work Package v2、Retry/Force、结构化 Evidence、完整 Execution Report/Analysis Import、Artifact 安全发布和受控 Promptfoo/Bridge 链已闭环。Case Assert 构建不设类型白名单，平台不复现或限制 Assert 执行；Bridge 只执行冻结 Evaluator 调用，不识别 Assertion/Metric。P10 已闭环 Canonical Export API/CLI、SQLite Backup 快照、十实体稳定 JSONL、复合 Result 身份、Artifact Presence/Inclusion、服务器与 CLI 双重四类对账、原子发布以及日志、资源压力、性能、安全、OpenAPI、WCAG、完整 E2E、Runtime Doctor 与独立变更复审；使用 `GOOGLE_API_KEY` 的真实 Gemini Rubric 与 Analyzer 已在同一次完整 `pnpm verify:release` 中通过。当前状态由 [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) 统一说明。
 
 Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入口。每个阶段必须同步更新本索引和直接相关 spec，未落地能力不得提前改写为代码事实。
 
@@ -151,3 +151,11 @@ Goal 分阶段执行方案以 [tasks/00_INDEX.md](../tasks/00_INDEX.md) 为入�
 ## Todo分层回归
 
 Todo Planner修正、E2E草稿和实际执行证据断言复用既有Case与Promptfoo能力，事实owner为 [TEST_SUITES](APPLICATION/TEST_SUITES.md)，离线验证入口为 [TEST](TEST.md)。不把生成样板、接口成功或空A2UI投影作为业务完成证据。
+
+## 当前开发补充入口
+
+- [WEB/E2E_EVIDENCE.md](WEB/E2E_EVIDENCE.md)：多轮输入、回复交付、Trace、A2UI 与部分执行证据的展示边界。
+- [APPLICATION/RUNS.md](APPLICATION/RUNS.md)：未提交 Evaluation/Report 失败阶段的原 Run 显式重试及 CAS 约束。
+- [PACKAGES/EVALUATION_ADAPTERS.md](PACKAGES/EVALUATION_ADAPTERS.md)：冻结 Evaluator 瞬态重试、Provider 诊断与进程错误分类。
+- [WEB/TEST_SUITES.md](WEB/TEST_SUITES.md)：Agent 执行、回复与调用策略的结构化编辑。
+- [本次开发交付记录](../docs/development-spec-2026-09-15.md)：本次推送的变更范围、对应 spec 与实际校验记录；不替代模块事实文档。

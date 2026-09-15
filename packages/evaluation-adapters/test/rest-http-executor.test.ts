@@ -284,3 +284,41 @@ describe("Fetch REST Executor", () => {
     );
   });
 });
+
+it("real HTTP preserves partial Cortex failure evidence and continues the following Case", async () => {
+  const evidence = {
+    turns: [{ req_id: "r1", parsed_output: { a2ui: [], timeline: [{ step_idx: 1 }] } }],
+    conversation_execution: { complete: false }
+  };
+  const stub = await startRestStub((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(
+      JSON.stringify({
+        ok: false,
+        err_msg: "EVAL_E2E_MULTI_TURN_INCOMPLETE",
+        parsed_output: evidence
+      })
+    );
+  });
+  opened.push(stub);
+  const results: RestCaseExecutionResult[] = [];
+  await new FetchRestExecutor({ readSecret: () => undefined }).execute({
+    cases: [testCase, { ...testCase, caseKey: "next", ordinal: 1 }],
+    endpoint: endpoint(stub.origin),
+    concurrency: 1,
+    signal: new AbortController().signal,
+    onResult: async (result) => {
+      results.push(result);
+    }
+  });
+  expect(results).toHaveLength(2);
+  for (const result of results)
+    expect(result).toMatchObject({
+      status: "SUCCEEDED",
+      providerOutput: {
+        ok: false,
+        errorMessage: "EVAL_E2E_MULTI_TURN_INCOMPLETE",
+        parsedOutput: evidence
+      }
+    });
+});

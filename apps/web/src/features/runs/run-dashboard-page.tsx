@@ -16,6 +16,7 @@ import { RunAnalysisControl } from "./run-analysis-control.tsx";
 import { message } from "../../messages/messages.ts";
 import { RunTokenSummary } from "./run-token-summary.tsx";
 import { RunDashboardCases } from "./run-dashboard-cases.tsx";
+import { RunProgressTracker } from "./run-progress-tracker.tsx";
 import {
   dashboardConfig,
   dashboardCounts,
@@ -97,7 +98,9 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
     refetchInterval: runNeedsPolling(run) ? 3000 : false
   });
   const operation = useMutation({
-    mutationFn: async (action: "start" | "cancel" | "delete") => {
+    mutationFn: async (
+      action: "start" | "retry-evaluation" | "retry-report" | "cancel" | "delete"
+    ) => {
       if (!run) throw new Error("RUN_NOT_LOADED");
       const signal = new AbortController().signal;
       if (action === "delete") {
@@ -107,12 +110,16 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
       // Progress commits advance the revision; fetch it at the moment of an explicit action.
       const current = await api.getRun(runId, signal);
       client.setQueryData(["runs", "detail", runId], current);
-      if (action === "start") {
+      if (action === "start" || action === "retry-evaluation" || action === "retry-report") {
         // A fresh revision must not accidentally authorize a different automatic stage.
         if (
-          current.status !== "READY" ||
-          current.stage !== run.stage ||
-          (current.runMode === "PIPELINE" && current.stage !== "REST")
+          action === "retry-report"
+            ? !current.canRetryReport
+            : action === "retry-evaluation"
+              ? !current.canRetryEvaluation
+              : current.status !== "READY" ||
+                current.stage !== run.stage ||
+                (current.runMode === "PIPELINE" && current.stage !== "REST")
         )
           return { navigate: null };
         await api.start(runId, current.lockRevision, signal);
@@ -216,6 +223,26 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
           </Badge>
         </div>
         <div className="run-dashboard-actions">
+          {run.canRetryReport && (
+            <Button
+              size="sm"
+              disabled={operation.isPending}
+              title="复用已保存的执行和评测结果，不调用 Agent 或 Judge"
+              onClick={() => operation.mutate("retry-report")}
+            >
+              重新生成报告
+            </Button>
+          )}
+          {run.canRetryEvaluation && (
+            <Button
+              size="sm"
+              disabled={operation.isPending}
+              title="复用本次已保存的执行结果，仅重试评测，不调用 Agent"
+              onClick={() => operation.mutate("retry-evaluation")}
+            >
+              {operation.isPending ? "正在启动…" : "重试评测"}
+            </Button>
+          )}
           {canStart && (
             <Button
               size="sm"
@@ -287,7 +314,10 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
         <p className="run-dashboard-meta">
           <span>测试集：{run.suite.name}</span> ·{" "}
           {run.startedAt ? displayRunDate(run.startedAt) : message("rd.notStarted")} ·{" "}
-          {message("rd.duration")}: {duration} <span title={run.id}>Run {run.id.slice(0, 8)}…</span>{" "}
+          <span title="开始至最近结束的时间，包含等待和重试间隔，不是 Agent 实际执行耗时">
+            运行跨度: {duration}
+          </span>{" "}
+          <span title={run.id}>Run {run.id.slice(0, 8)}…</span>{" "}
           <Button size="sm" variant="ghost" onClick={() => void copyId()}>
             {copyState === "done" ? message("rd.copied") : message("rd.copyId")}
           </Button>
@@ -298,6 +328,7 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
           )}
         </p>
       </header>
+      <RunProgressTracker run={run} hasReport={hasReport} />
       {operation.isError && (
         <Alert variant="destructive">
           <AlertTitle>
@@ -316,9 +347,19 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
         </Alert>
       )}
       {run.errorCode && (
-        <p role="alert" className="run-dashboard-note">
-          {message("rd.runError")}: {run.errorCode}
-        </p>
+        <div role="alert" className="run-dashboard-note">
+          {run.canRetryReport
+            ? "报告生成失败，执行和评测结果已保存。可重新生成报告，不重跑 Agent 或 Judge。"
+            : run.canRetryEvaluation
+              ? `评测阶段失败，${run.rest.completed} 条执行记录已保存。点击「重试评测」继续：评测 ${run.rest.succeeded} 条，跳过 ${run.rest.error} 条执行异常。不重跑 Agent；AI 评测仍会产生 Judge 调用费用。`
+              : `${message("rd.runError")}: ${run.errorMessage ?? run.errorCode}`}
+          {run.canRetryEvaluation && (
+            <details>
+              <summary>失败原因</summary>
+              {run.errorMessage ?? run.errorCode}
+            </details>
+          )}
+        </div>
       )}
       <section className="run-dashboard-config" aria-label={message("rd.config")}>
         <div className="run-config-summary">
@@ -381,11 +422,8 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
           ))}
         </div>
         <div className="run-dashboard-progress">
-          <span>
-            {message("rd.executionProgress")} {run.rest.completed}/{run.rest.total}
-          </span>
-          <span>
-            {message("rd.evaluationProgress")} {run.evaluation.completed}/{run.evaluation.total}
+          <span className="run-dashboard-progress-note">
+            顶部进度条按 执行 / 评测 / 报告 / 完成 四段等权计算，每段填充为该阶段已完成条目占比。
           </span>
           <details>
             <summary>{message("rd.statusHelp")}</summary>

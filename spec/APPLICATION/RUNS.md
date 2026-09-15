@@ -65,13 +65,13 @@ PIPELINE 在 REST 提交后的固定交接 Revision 启动 Evaluation。Starter 
 
 Evaluation Start 先在短事务中读取候选 Run 并校验 Stage/Revision，再读取当前 REST 与可复用 Eval 事实；事务外只对 REST 成功、未复用且会进入 Promptfoo 的冻结 Case 所需 Python/Ruby 执行真实内联能力检查。REST Error 与完整复用 Case 不要求解释器。失败不抢占 Stage；检查通过后才以新的短事务执行全局运行与 Revision 条件抢占，竞态仍由 CAS 收敛。
 
-Importer 把 Promptfoo Raw 视为脏边界。`failureReason=2` 只有在非空 Error、`gradingResult=null`、`score=0`、无 Response、非负耗时/成本、空 Named Scores 与合法 Token Usage 全部符合固定版本形状时才归一化；矛盾或缺失字段拒绝整次导入。规范化 Evaluation Error 只保存稳定 Code，Hash、Artifact 和 SQLite 不保存消息；Web 用消息资源显示可读说明。
+Importer 把 Promptfoo Raw 视为脏边界。`failureReason=2` 只有在非空 Error、`gradingResult=null`、`score=0`、无 Response、非负耗时/成本、空 Named Scores 与合法 Token Usage 全部符合固定版本形状时才归一化；矛盾或缺失字段拒绝整次导入。规范化 Evaluation Error 保留稳定 Code，并允许保存经过清洗的可读 `reason`；不得保存 SDK 原始异常、Secret 或堆栈。Artifact、SQLite 与报告投影保留该 reason，Web 将评测错误与质量不通过分开显示。
 
 ## 状态、事务与幂等
 
 合法 Run Status 为 `READY`、`RUNNING`、`COMPLETED`、`COMPLETED_WITH_ERRORS`、`FAILED`、`CANCELLED` 和 `INTERRUPTED`。Stage 为 `REST`、`EVALUATION`、`REPORT` 和 `DONE`。所有转换校验 Status、Stage 和 Lock Revision。
 
-全库最多一条 `RUNNING`。终态不可重入。冻结后只使用 Snapshot，不读取当前资源。
+全库最多一条 `RUNNING`。终态默认不可重入；只有满足 `canRetryEvaluation` 或 `canRetryReport` 的未提交失败阶段允许显式原 Run 重试。冻结后只使用 Snapshot，不读取当前资源。
 
 平台 Create Run 接受并冻结 `RunExecutionLimitsV1`：REST 默认来自 Endpoint 配置且新建 Endpoint 默认为 4，Eval 默认 2，范围 1–64 和 1–16。限制进入 Run Snapshot 与 Context Hash；REST Adapter 的最大在途数服从冻结值。Analysis 限制由独立 Analysis 请求冻结，不属于原 Run Context。
 
@@ -88,3 +88,13 @@ Report Artifact 生成完成不等于 Report 已提交。Application 在发布 A
 ## 相关测试
 
 当前测试覆盖状态机、REST/Eval/Report Result Hash、冻结一致性、阶段抢占、三阶段 Pipeline、双进程唯一运行、跨进程取消/提交竞争、逐 Case结果、Artifact 提交/失败/孤儿清理、小型查询投影、轮询拒绝、Shutdown 竞态、大小/超时/并发边界、真实 HTTP API、Eval/Report 原子提交/回滚/分页、REST/Eval Provenance、官方模型 SDK 和对外 Retry/Force。
+
+## 未提交失败阶段的显式重试
+
+Evaluation 重试只接受 `FAILED/DONE`、`EVALUATION_STAGE_FAILED`、无取消请求、非空且完整的 REST 结果与 REST Result Set Hash；Eval 完成数必须为零，Eval/Report Hash 为空，Manifest 不含规范化 Eval 或 Raw Promptfoo Artifact。服务还校验完整 REST 明细、冻结 Case 对齐与解释器预检。已提交结果、取消、中断和执行失败不得借此重入。
+
+Report 重试只接受 `FAILED/DONE` 的 `REPORT_STAGE_FAILED` 或 `REPORT_RECONCILIATION_FAILED`，要求 REST/Eval 计数完整、各自 Hash 已存在、Report Hash 与 JSON/Markdown Artifact 均未提交，且无取消请求。报告输入仍须先完成对账。
+
+重试沿用 Run ID、冻结快照和已有上游事实，不重新发送 REST 请求；这与创建新 Run 的 Retry/Force 是两个操作。SQLite 按 `expectedRevision` 和当前失败状态抢占，递增 Revision、清空阶段错误与完成时间后进入目标阶段的 `RUNNING`。全局唯一运行约束仍然生效。Run Detail 的 `canRetryEvaluation`、`canRetryReport` 来自服务端判定；客户端不能仅凭错误文案开放重试。
+
+事实入口为 [platform-run-models.ts](../../packages/application/src/features/runs/platform-run-models.ts)、[platform-evaluation-service.ts](../../packages/application/src/features/evaluation/platform-evaluation-service.ts)、[platform-report-service.ts](../../packages/application/src/features/reporting/platform-report-service.ts) 与 [sqlite-platform-run-repository.ts](../../packages/storage-sqlite/src/sqlite-platform-run-repository.ts)。测试入口为 [Evaluation 服务测试](../../packages/application/test/platform-evaluation-service.test.ts)、[Report 服务测试](../../packages/application/test/platform-report-service.test.ts) 与 [SQLite Report 重试测试](../../packages/storage-sqlite/test/sqlite-report-retry.test.ts)。

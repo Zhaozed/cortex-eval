@@ -126,7 +126,6 @@ const evaluator: ConfigurationResource = {
   updatedAt: NOW
 };
 
-
 class MemoryResources implements PlatformRunResourceReader {
   /** Current Suite returned to the service. */
   suiteValue: TestSuite | null = suite;
@@ -164,7 +163,6 @@ class MemoryResources implements PlatformRunResourceReader {
     return Promise.resolve(this.rubricValues);
   }
 }
-
 
 function serviceFixture(
   restExecutor: RestExecutor,

@@ -98,15 +98,11 @@ export class RunReviewStore {
       const revision = current.revision + 1;
       let next: RunReview;
       if ("verdict" in input) {
-        // Manual approval attests to the displayed renderer revision, not to PNG existence.
-        if (
-          input.verdict === "PASS" &&
-          current.live?.required &&
-          (!current.live.available ||
-            !input.rendererVersion ||
-            input.rendererVersion !== current.live.rendererVersion)
-        )
-          throw new Error("REVIEW_RENDER_REQUIRED");
+        // A human verdict is final and is never gated on rendering state. The renderer revision
+        // is recorded for provenance only; unrendered or partially loaded cards cannot block it.
+        // Overriding automation stays traceable: any attribution requires a written reason.
+        if (input.rootCause !== "UNCLASSIFIED" && input.note.trim().length === 0)
+          throw new Error("REVIEW_NOTE_REQUIRED");
         if (!current.live)
           for (const image of current.images) await this.image(runId, key, image.file);
         next = {
@@ -123,8 +119,8 @@ export class RunReviewStore {
               at: new Date().toISOString(),
               verdict: input.verdict,
               reviewer: input.reviewer,
-              // A failure classification never carries into a non-failing decision.
-              rootCause: input.verdict === "FAIL" ? input.rootCause : "UNCLASSIFIED",
+              // Stored as submitted so an override keeps its attribution; earlier entries are untouched.
+              rootCause: input.rootCause,
               note: input.note,
               ...(input.rendererVersion ? { rendererVersion: input.rendererVersion } : {})
             }

@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { RunReview } from "@cortex-eval/contracts/src/run-review-contracts.ts";
+import type { DashboardCase } from "./run-dashboard-model.ts";
 import { runReviewApi } from "../../lib/run-review-api.ts";
 import { Button } from "../../components/ui/button.tsx";
 export const causeNames = {
@@ -12,38 +13,48 @@ export const causeNames = {
   EVALUATOR: "评测工具问题",
   EVIDENCE: "证据不足"
 } as const;
+const autoStatusNames: Readonly<Record<string, string | undefined>> = {
+  PASS: "通过",
+  FAIL: "未通过",
+  EVALUATION_ERROR: "评测异常",
+  NOT_EVALUATED: "无法评测",
+  PENDING: "待评测",
+  RUNNING: "评测中"
+};
 export function ReviewForm({
   review,
   visual = false,
-  canApprove = true,
-  rendererVersion
+  rendererVersion,
+  autoStatus
 }: {
   readonly review: RunReview;
   readonly visual?: boolean;
-  readonly canApprove?: boolean;
   readonly rendererVersion?: string | null;
+  readonly autoStatus?: NonNullable<DashboardCase["evaluation"]>["status"] | undefined;
 }): ReactElement {
   const last = review.history.at(-1),
     client = useQueryClient();
-  const staleApproval =
-    visual &&
-    last?.verdict === "PASS" &&
-    (!last.rendererVersion || last.rendererVersion !== review.live?.rendererVersion);
-  const [verdict, setVerdict] = useState<"PASS" | "FAIL" | "PENDING">(
-    staleApproval ? "PENDING" : (last?.verdict ?? "PENDING")
-  );
+  // A saved human verdict is never silently reset: it stays until the reviewer changes it.
+  const [verdict, setVerdict] = useState<"PASS" | "FAIL" | "PENDING">(last?.verdict ?? "PENDING");
   const [cause, setCause] = useState<keyof typeof causeNames>(
-    (last?.verdict === "FAIL" ? last.rootCause : "UNCLASSIFIED") as keyof typeof causeNames
+    (last?.kind === "DECISION" && last.rootCause in causeNames
+      ? last.rootCause
+      : "UNCLASSIFIED") as keyof typeof causeNames
   );
   const [note, setNote] = useState(last?.note ?? ""),
     [reviewer, setReviewer] = useState(last?.reviewer ?? "");
+  // Overturning automation is allowed, but it must stay attributable and written down.
+  const override = verdict === "PASS" && autoStatus !== undefined && autoStatus !== "PASS",
+    showCause = verdict === "FAIL" || override,
+    causeLabel = override ? "覆盖归因（必填）" : "失败归因（选填）",
+    noteLabel = override ? "覆盖说明（必填）" : verdict === "FAIL" ? "问题说明" : "备注（选填）";
   const save = useMutation({
     mutationFn: () =>
       runReviewApi.save(review.runId, review.caseKey, {
         expectedRevision: review.revision,
         evidenceHash: review.evidenceHash,
         verdict,
-        rootCause: verdict === "FAIL" ? cause : "UNCLASSIFIED",
+        rootCause: verdict === "FAIL" || override ? cause : "UNCLASSIFIED",
         note,
         reviewer,
         ...(visual && rendererVersion ? { rendererVersion } : {})
@@ -52,17 +63,25 @@ export function ReviewForm({
       await client.invalidateQueries({ queryKey: ["run-reviews", review.runId] });
     }
   });
+  const blocked =
+    save.isPending ||
+    !reviewer.trim() ||
+    (override && cause === "UNCLASSIFIED") ||
+    ((override || cause !== "UNCLASSIFIED") && !note.trim());
   return (
     <section className="run-review-form">
       <h3>{visual ? "视觉复核" : "人工复核"}</h3>
       <p className="run-muted">
         {visual
-          ? "查看本 Case 的动态卡片后确认；更换执行记录或渲染版本需重新审核。"
+          ? "结合动态卡片与执行链路判断；卡片未全部加载也可以直接给结论。"
           : "人工结论独立保留。"}
-        人工通过不覆盖自动失败。
+        人工结论为最终结论，可覆盖自动评测；自动结果原样保留，覆盖需填写归因与说明。
       </p>
-      {visual && !canApprove && (
-        <p className="run-output-warning">卡面尚未全部成功加载，请逐项查看后再确认视觉通过。</p>
+      {override && (
+        <p className="run-output-warning" role="alert">
+          自动结论：{autoStatusNames[autoStatus] ?? "非通过"}
+          。人工通过将覆盖它，请选择覆盖归因并填写说明；覆盖记录会连同审核人一起留痕。
+        </p>
       )}
       <div className="run-review-fields" data-verdict={verdict}>
         <label>
@@ -77,23 +96,21 @@ export function ReviewForm({
             }}
           >
             <option value="PENDING">待复核</option>
-            <option value="PASS" disabled={!canApprove}>
-              {visual ? "通过" : "人工通过"}
-            </option>
+            <option value="PASS">{visual ? "通过" : "人工通过"}</option>
             <option value="FAIL">{visual ? "不通过" : "人工不通过"}</option>
           </select>
         </label>
-        {verdict === "FAIL" && (
+        {showCause && (
           <label>
-            失败归因（选填）
+            {causeLabel}
             <select
-              aria-label="失败归因（选填）"
+              aria-label={causeLabel}
               value={cause}
               onChange={(e) => setCause(e.target.value as typeof cause)}
             >
               {Object.entries(causeNames).map(([k, v]) => (
                 <option key={k} value={k}>
-                  {k === "UNCLASSIFIED" ? "暂不归因" : v}
+                  {k === "UNCLASSIFIED" ? (override ? "请选择归因" : "暂不归因") : v}
                 </option>
               ))}
             </select>
@@ -110,23 +127,23 @@ export function ReviewForm({
         </label>
       </div>
       <label>
-        {verdict === "FAIL" ? "问题说明" : "备注（选填）"}
+        {noteLabel}
         <textarea
-          aria-label={verdict === "FAIL" ? "问题说明" : "备注（选填）"}
+          aria-label={noteLabel}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}
           maxLength={4000}
           placeholder={
-            verdict === "FAIL" ? "描述看到的问题即可，不要求判断技术原因" : "可补充审核依据"
+            override
+              ? "说明为什么自动结论不成立，例如链路正确但判定规则或环境不符合预期"
+              : verdict === "FAIL"
+                ? "描述看到的问题即可，不要求判断技术原因"
+                : "可补充审核依据"
           }
         />
       </label>
-      <Button
-        size="sm"
-        disabled={save.isPending || !reviewer.trim() || (verdict === "PASS" && !canApprove)}
-        onClick={() => save.mutate()}
-      >
+      <Button size="sm" disabled={blocked} onClick={() => save.mutate()}>
         保存复核
       </Button>
       {save.isError && <p role="alert">保存失败，记录可能已更新。请关闭后重新打开再试。</p>}

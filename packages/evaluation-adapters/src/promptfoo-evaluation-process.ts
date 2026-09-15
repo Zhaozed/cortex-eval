@@ -108,7 +108,7 @@ interface ChildResult {
   /** Bounded standard error. */
   readonly stderr: string;
   /** Cancellation source if the child was terminated. */
-  readonly terminatedBy: "CANCELLED" | "TIMEOUT" | null;
+  readonly terminatedBy: "CANCELLED" | "TIMEOUT" | "DIAGNOSTIC_LIMIT" | null;
 }
 
 // Capture the canonical executable identity without following a mutable lexical alias twice.
@@ -262,6 +262,9 @@ function createPromptfooChildEnvironment(
   environment.PROMPTFOO_DISABLE_TELEMETRY = "true";
   environment.PROMPTFOO_DISABLE_UPDATE = "true";
   environment.PROMPTFOO_CACHE_ENABLED = "false";
+  // Platform owns bounded diagnostics. Avoid upstream file-logger shutdown races on errors.
+  environment.PROMPTFOO_DISABLE_DEBUG_LOG = "true";
+  environment.PROMPTFOO_DISABLE_ERROR_LOG = "true";
   return environment;
 }
 
@@ -324,7 +327,7 @@ async function runChild(
       const nextSize = currentSize + chunk.byteLength;
       if (nextSize > MAX_PROMPTFOO_DIAGNOSTIC_BYTES) {
         diagnosticsExceeded = true;
-        terminate("TIMEOUT");
+        terminate("DIAGNOSTIC_LIMIT");
         return;
       }
       if (stream === "stdout") stdoutSize = nextSize;
@@ -373,6 +376,27 @@ async function runChild(
   });
 }
 
+// Never retain raw child diagnostics: they can contain prompts, outputs and capabilities.
+function childFailure(result: ChildResult, code: string): Error {
+  const text = result.stderr + "\n" + result.stdout;
+  const signatures: readonly [string, string][] = [
+    [
+      "Cannot read properties of undefined (reading 'tokenUsage')",
+      "PROMPTFOO_RESPONSE_PARSER_ERROR"
+    ],
+    ["write after end", "PROMPTFOO_LOGGER_WRITE_AFTER_END"],
+    ["PROVIDER_CAPABILITY_UNSUPPORTED", "PROVIDER_CAPABILITY_UNSUPPORTED"],
+    ["PROVIDER_REQUEST_FAILED", "PROVIDER_REQUEST_FAILED"],
+    ["EVALUATOR_TIMEOUT", "EVALUATOR_TIMEOUT"],
+    ["EVALUATOR_PROVIDER_RESPONSE_INVALID", "EVALUATOR_PROVIDER_RESPONSE_INVALID"]
+  ];
+  let cause: Error | undefined;
+  for (const [signature, diagnostic] of signatures.toReversed()) {
+    if (text.includes(signature)) cause = new Error(diagnostic, { cause });
+  }
+  return new Error(code, { cause });
+}
+
 // Reject version drift before writing or executing an Evaluation config.
 async function verifyPromptfooVersion(
   binary: string,
@@ -382,9 +406,10 @@ async function verifyPromptfooVersion(
   signal: AbortSignal
 ): Promise<void> {
   const result = await runChild(binary, ["--version"], cwd, environment, timeoutMs, signal);
-  if (result.terminatedBy !== null) throw new Error(`PROMPTFOO_PROCESS_${result.terminatedBy}`);
+  if (result.terminatedBy !== null)
+    throw childFailure(result, `PROMPTFOO_PROCESS_${result.terminatedBy}`);
   if (result.exitCode !== 0 || result.stdout.trim() !== PROMPTFOO_EVALUATION_VERSION) {
-    throw new Error("PROMPTFOO_VERSION_MISMATCH");
+    throw childFailure(result, "PROMPTFOO_VERSION_MISMATCH");
   }
 }
 
@@ -480,9 +505,10 @@ export async function runPromptfooEvaluationProcess(
       remainingTimeout(),
       input.signal
     );
-    if (result.terminatedBy !== null) throw new Error(`PROMPTFOO_PROCESS_${result.terminatedBy}`);
+    if (result.terminatedBy !== null)
+      throw childFailure(result, `PROMPTFOO_PROCESS_${result.terminatedBy}`);
     if (result.exitCode !== 0 && result.exitCode !== 100) {
-      throw new Error(`PROMPTFOO_PROCESS_EXIT:${result.exitCode}`);
+      throw childFailure(result, `PROMPTFOO_PROCESS_EXIT:${result.exitCode}`);
     }
     await validatePromptfooOutputRuntimeLimits(createReadStream(outputPath), input.rawCapability);
     const rows = streamPromptfooResultRows(createReadStream(outputPath));

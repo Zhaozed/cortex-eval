@@ -504,7 +504,7 @@ export function TestSuiteDetailPage({
           }
         }}
       >
-        <SheetContent className="w-[min(880px,94vw)] management-sheet">
+        <SheetContent className="management-sheet case-authoring-sheet">
           <SheetHeader>
             <SheetTitle>
               {formatMessage("caseList.editTitle", { caseKey: editingCaseKey ?? "" })}
@@ -668,7 +668,7 @@ export function TestSuiteDetailPage({
           }
         }}
       >
-        <SheetContent className="w-[min(880px,94vw)] management-sheet">
+        <SheetContent className="management-sheet case-authoring-sheet">
           <SheetHeader>
             <SheetTitle>{message("caseList.createTitle")}</SheetTitle>
             <SheetDescription>{message("caseList.createDescription")}</SheetDescription>

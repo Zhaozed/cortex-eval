@@ -49,9 +49,15 @@ export function RunRerunDialog({
         <SheetHeader>
           <SheetTitle>再次运行</SheetTitle>
           <SheetDescription>
-            沿用原运行的冻结配置和 Case，创建新的运行，原结果保持不变。
+            沿用原配置创建新运行。开始后会重新调用
+            Agent，产生执行费用，并可能再次写入业务数据；原结果保持不变。
           </SheetDescription>
         </SheetHeader>
+        {run.canRetryEvaluation && (
+          <p role="note" className="run-dashboard-note">
+            本次只是评测阶段失败。若要继续评测，请关闭此窗口，使用「重试评测」，无需重新执行 Agent。
+          </p>
+        )}
         <form
           className="form-stack"
           onSubmit={(event) => {

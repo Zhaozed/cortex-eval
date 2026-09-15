@@ -32,9 +32,9 @@ P8 已落地平台与离线导入统一 Report 页面、Dashboard 报告指标�
 
 ## 当前代码事实入口
 
-- [report-page.tsx](../../apps/web/src/features/reports/report-page.tsx)：统一 Report Overview、过滤、详情、Evidence 和导出。
+- [report-page.tsx](../../apps/web/src/features/runs/run-dashboard-page.tsx)：统一 Report Overview、过滤、详情、Evidence 和导出。
 - [dashboard-page.tsx](../../apps/web/src/features/dashboard/dashboard-page.tsx)：最近完整报告指标与最近运行。
-- [run-detail-page.tsx](../../apps/web/src/features/runs/run-detail-page.tsx)：平台 Report 入口和 Retry/Force 版本动作。
+- [run-detail-page.tsx](../../apps/web/src/features/runs/run-dashboard-page.tsx)：平台 Report 入口和 Retry/Force 版本动作。
 
 ## 当前样例与测试入口
 

@@ -9,7 +9,7 @@ import type {
   ChatCompletion,
   ChatCompletionCreateParamsNonStreaming
 } from "openai/resources/chat/completions/completions.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createFrozenEvaluatorModelClient,
@@ -226,5 +226,165 @@ describe("冻结 Evaluator 官方 SDK Adapter", () => {
         maxOutputTokens: 256
       }
     });
+  });
+});
+
+// 复刻一次上游限流失败：SDK 关掉了自身重试，退避只发生在平台边界之上。
+function throttleFailure(retryAfter = "2"): Error {
+  return Object.assign(new Error("Requests throttling triggered. Please try again later."), {
+    status: 429,
+    error: { code: "Throttling.BurstRate" },
+    headers: new Map([["retry-after", retryAfter]])
+  });
+}
+
+// 构造一个可编程的 OpenAI-compatible Evaluator：按 failures 次数先失败再成功。
+function throttleClient(
+  failures: number,
+  retryAfter = "2"
+): {
+  readonly client: ReturnType<typeof createFrozenEvaluatorModelClient>;
+  readonly calls: () => number;
+} {
+  let calls = 0;
+  const client = createFrozenEvaluatorModelClient({
+    config: {
+      providerType: "OPENAI_COMPATIBLE",
+      model: "judge-model",
+      baseUrl: "https://models.example.test/v1",
+      auth: { kind: "BEARER_ENV", secret: { kind: "ENV_SECRET", envKey: "JUDGE_KEY" } },
+      thinkingLevel: "OFF",
+      temperature: 0,
+      topP: 1,
+      maxOutputTokens: 128,
+      timeoutMs: 1_000,
+      structuredOutput: "JSON_OBJECT"
+    },
+    readSecret: () => "secret",
+    factories: {
+      openAi: () => ({
+        create: (): Promise<ChatCompletion> => {
+          calls += 1;
+          if (calls <= failures) return Promise.reject(throttleFailure(retryAfter));
+          return Promise.resolve({
+            choices: [{ message: { content: "judge result" } }],
+            usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }
+          } as unknown as ChatCompletion);
+        }
+      }),
+      gemini: () => {
+        throw new Error("unexpected");
+      }
+    }
+  });
+  return { client, calls: () => calls };
+}
+
+describe("Evaluator Provider 瞬态失败重试", () => {
+  it("限流失败按有界退避重试后成功，不把上游限流当成评分结论", async () => {
+    vi.useFakeTimers();
+    try {
+      const { client, calls } = throttleClient(2);
+      const pending = client.generate({ prompt: "grade", signal });
+      await vi.advanceTimersByTimeAsync(20_000);
+      await expect(pending).resolves.toMatchObject({ text: "judge result" });
+      expect(calls()).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("尊重 Retry-After，并被 30 秒上限截断", async () => {
+    vi.useFakeTimers();
+    try {
+      const { client, calls } = throttleClient(1, "600");
+      let settled = false;
+      const pending = client
+        .generate({ prompt: "grade", signal })
+        .then(() => {
+          settled = true;
+        })
+        .catch(() => {
+          settled = true;
+        });
+      await vi.advanceTimersByTimeAsync(29_000);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await pending;
+      expect(settled).toBe(true);
+      expect(calls()).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("重试耗尽后抛出携带 Provider 事实的稳定错误", async () => {
+    vi.useFakeTimers();
+    try {
+      const { client, calls } = throttleClient(99);
+      const pending = client.generate({ prompt: "grade", signal });
+      // 先挂断言再推进时钟，避免退避窗口内的拒绝被判定为未处理。
+      const assertion = expect(pending).rejects.toMatchObject({
+        code: "PROVIDER_REQUEST_FAILED",
+        detail: { status: 429, providerCode: "Throttling.BurstRate", transient: true }
+      });
+      await vi.advanceTimersByTimeAsync(120_000);
+      await assertion;
+      expect(calls()).toBe(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("非瞬态失败立即失败，不消耗退避预算", async () => {
+    let calls = 0;
+    const client = createFrozenEvaluatorModelClient({
+      config: {
+        providerType: "OPENAI_COMPATIBLE",
+        model: "judge-model",
+        baseUrl: "https://models.example.test/v1",
+        auth: { kind: "BEARER_ENV", secret: { kind: "ENV_SECRET", envKey: "JUDGE_KEY" } },
+        thinkingLevel: "OFF",
+        temperature: 0,
+        topP: 1,
+        maxOutputTokens: 128,
+        timeoutMs: 1_000,
+        structuredOutput: "JSON_OBJECT"
+      },
+      readSecret: () => "secret",
+      factories: {
+        openAi: () => ({
+          create: (): Promise<ChatCompletion> => {
+            calls += 1;
+            return Promise.reject(Object.assign(new Error("invalid api key"), { status: 401 }));
+          }
+        }),
+        gemini: () => {
+          throw new Error("unexpected");
+        }
+      }
+    });
+
+    await expect(client.generate({ prompt: "grade", signal })).rejects.toMatchObject({
+      code: "PROVIDER_REQUEST_FAILED",
+      detail: { status: 401, transient: false }
+    });
+    expect(calls).toBe(1);
+  });
+
+  it("取消信号在退避等待中立即中断，不再打上游", async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    try {
+      const { client, calls } = throttleClient(99);
+      const pending = client.generate({ prompt: "grade", signal: controller.signal });
+      const assertion = expect(pending).rejects.toMatchObject({ code: "PROVIDER_REQUEST_FAILED" });
+      await vi.advanceTimersByTimeAsync(10);
+      controller.abort();
+      await assertion;
+      expect(calls()).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

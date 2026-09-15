@@ -515,3 +515,42 @@ export interface PlatformRunPage {
   /** Next cursor when another page exists. */
   readonly nextCursor: PlatformRunPageCursor | null;
 }
+
+/** Retry only an uncommitted Evaluation failure with a complete frozen REST set. */
+export function canRetryEvaluation(run: PlatformRunProgress): boolean {
+  return (
+    run.status === "FAILED" &&
+    run.stage === "DONE" &&
+    run.errorCode === "EVALUATION_STAGE_FAILED" &&
+    run.cancelRequestedAt === null &&
+    run.restTotalCount > 0 &&
+    run.restCompletedCount === run.restTotalCount &&
+    run.resultSetHash !== null &&
+    run.evalCompletedCount === 0 &&
+    run.evaluationResultSetHash === null &&
+    run.reportResultSetHash === null &&
+    !run.artifactManifest.artifacts.some(
+      (artifact) =>
+        artifact.kind === "NORMALIZED_EVAL_RESULTS" || artifact.kind === "RAW_PROMPTFOO_EVIDENCE"
+    )
+  );
+}
+
+/** Rebuild only an uncommitted report from complete frozen REST and Evaluation facts. */
+export function canRetryReport(run: PlatformRunProgress): boolean {
+  return (
+    run.status === "FAILED" &&
+    run.stage === "DONE" &&
+    (run.errorCode === "REPORT_STAGE_FAILED" || run.errorCode === "REPORT_RECONCILIATION_FAILED") &&
+    run.cancelRequestedAt === null &&
+    run.restTotalCount > 0 &&
+    run.restCompletedCount === run.restTotalCount &&
+    run.resultSetHash !== null &&
+    run.evalCompletedCount === run.restTotalCount &&
+    run.evaluationResultSetHash !== null &&
+    run.reportResultSetHash === null &&
+    !run.artifactManifest.artifacts.some(
+      (a) => a.kind === "REPORT_JSON" || a.kind === "REPORT_MARKDOWN"
+    )
+  );
+}

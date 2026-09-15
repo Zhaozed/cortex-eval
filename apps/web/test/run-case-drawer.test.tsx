@@ -84,6 +84,42 @@ it("merges checks with results and shows generated follow-ups beside delivered o
   expect(checks.querySelector("details.run-check-item")).not.toHaveAttribute("open");
   await screen.findByText(/本次执行未记录 A2UI 卡片/);
 });
+it("shows every user round separately for a multi-turn Case", () => {
+  const row = evidenceRow({});
+  if (!row.definition) throw new Error("Missing fixture definition");
+  const definition = {
+    ...row.definition,
+    vars: {
+      ...row.definition.vars,
+      request_body: {
+        conversation: [
+          { role: "user", text: "创建边界-多轮删除链路" },
+          { role: "user", text: "把它删掉" }
+        ]
+      }
+    }
+  };
+  mount({ ...row, definition });
+  expect(screen.getByText("多轮 · 2 轮")).toBeVisible();
+  expect(screen.getByText("第 1 轮")).toBeVisible();
+  expect(screen.getByText("创建边界-多轮删除链路")).toBeVisible();
+  expect(screen.getByText("第 2 轮")).toBeVisible();
+  expect(screen.getByText("把它删掉")).toBeVisible();
+});
+it("labels a single request as one round without a turn list", () => {
+  const row = evidenceRow({});
+  if (!row.definition) throw new Error("Missing fixture definition");
+  mount({
+    ...row,
+    definition: {
+      ...row.definition,
+      vars: { ...row.definition.vars, request_body: { text: "我在ClickUp里有哪些任务清单？" } }
+    }
+  });
+  expect(screen.getByText("单轮")).toBeVisible();
+  expect(screen.getByText("我在ClickUp里有哪些任务清单？")).toBeVisible();
+  expect(document.querySelector(".run-input-turns")).toBeNull();
+});
 it("does not silently drop assertions missing a grading result", async () => {
   const row = evidenceRow({});
   mount({
@@ -111,7 +147,9 @@ it("opens a live iframe in the result pane without screenshots or another tab", 
   expect(frame.getAttribute("src")).toContain(`/renderers/${"a".repeat(64)}/preview?parent=`);
   expect(screen.getByText("https://dev.example/web_ui/static/")).toBeVisible();
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
-  expect(screen.getByRole("option", { name: "通过" })).toBeDisabled();
+  // Rendering state is provenance, not a gate: the reviewer can decide at any point.
+  expect(screen.getByRole("option", { name: "通过" })).toBeEnabled();
+  expect(screen.getByText("正在渲染卡片…")).toBeVisible();
   const target = (frame as HTMLIFrameElement).contentWindow!;
   const send = vi.spyOn(target, "postMessage").mockImplementation(() => undefined);
   fireEvent.load(frame);
@@ -125,7 +163,7 @@ it("opens a live iframe in the result pane without screenshots or another tab", 
       data: ready
     })
   );
-  expect(screen.getByRole("option", { name: "通过" })).toBeDisabled();
+  expect(screen.getByText("正在渲染卡片…")).toBeVisible();
   fireEvent(
     window,
     new MessageEvent("message", {
@@ -134,21 +172,22 @@ it("opens a live iframe in the result pane without screenshots or another tab", 
       data: { ...ready, token: "wrong" }
     })
   );
-  expect(screen.getByRole("option", { name: "通过" })).toBeDisabled();
+  expect(screen.getByText("正在渲染卡片…")).toBeVisible();
   fireEvent(
     window,
     new MessageEvent("message", { origin: "http://127.0.0.1:40000", source: target, data: ready })
   );
-  expect(screen.getByRole("option", { name: "通过" })).toBeEnabled();
+  expect(screen.getByText("已渲染 · 待人工检查")).toBeVisible();
   fireEvent(
     window,
     new MessageEvent("message", {
       origin: "http://127.0.0.1:40000",
       source: target,
-      data: { ...ready, state: "ERROR" }
+      data: { ...ready, state: "ERROR", code: "RESOURCE" }
     })
   );
-  expect(screen.getByRole("option", { name: "通过" })).toBeDisabled();
+  expect(screen.getByText("卡片依赖资源加载失败，请检查资源服务后重新加载。")).toBeVisible();
+  expect(screen.getByRole("option", { name: "通过" })).toBeEnabled();
   send.mockRestore();
   await userEvent.click(screen.getByRole("button", { name: "放大" }));
   expect(screen.getByRole("region", { name: "A2UI 动态卡片" })).toHaveClass(
@@ -157,15 +196,41 @@ it("opens a live iframe in the result pane without screenshots or another tab", 
   await userEvent.click(screen.getByRole("button", { name: "收起" }));
   expect(screen.getByTitle("本次执行的 A2UI 动态卡片")).toBe(frame);
 });
-it("blocks visual approval before live rendering is ready and keeps automatic failure visible", async () => {
+it("keeps an automatic failure visible without gating the human verdict on rendering", async () => {
   if (runReportCase.evaluation.status !== "PASS") throw new Error("Expected PASS fixture");
   mount({
     ...evidenceRow({ a2ui: { surfaceId: "s" } }),
     evaluation: { ...runReportCase.evaluation, status: "FAIL", promptfooSuccess: false }
   });
   await screen.findByRole("heading", { name: "视觉复核" });
-  expect(screen.getByRole("option", { name: "通过" })).toBeDisabled();
+  expect(screen.getByRole("option", { name: "通过" })).toBeEnabled();
   expect(screen.getByText(/自动结论：未通过/)).toBeVisible();
+  // Overturning automation stays attributable, but never waits for the cards to load.
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "视觉复核结论" }), "PASS");
+  expect(screen.getByRole("combobox", { name: "覆盖归因（必填）" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "保存复核" })).toBeDisabled();
+});
+it("asks for no visual review when this round captured no card, even with capture opted in", async () => {
+  vi.mocked(runReviewApi.get).mockResolvedValue(
+    reviewFixture({ live: { required: false, available: false, rendererVersion: null } })
+  );
+  const row = evidenceRow({});
+  if (!row.definition) throw new Error("Missing fixture definition");
+  mount(
+    {
+      ...row,
+      definition: {
+        ...row.definition,
+        metadata: { ...row.definition.metadata, a2ui_capture: true }
+      }
+    },
+    "a2ui"
+  );
+  await screen.findByText(/本次执行未记录 A2UI 卡片/);
+  expect(screen.queryByRole("heading", { name: "视觉复核" })).not.toBeInTheDocument();
+  // Zero-card Cases carry nothing a human eye must settle: no review form at all.
+  expect(screen.queryByText(/人工复核 \/ 归因备注/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "保存复核" })).not.toBeInTheDocument();
 });
 it("lists per-call tokens and timing, deduplicates copies, and links to the actual Trace node", async () => {
   const call = {
@@ -195,7 +260,7 @@ it("lists per-call tokens and timing, deduplicates copies, and links to the actu
   expect(within(inspector).getAllByText("20")[0]).toBeVisible();
   expect(document.getElementById("case-model--1")).toBeVisible();
 });
-it("requires every replay frame to render and preserves update prefixes when switching", async () => {
+it("preserves update prefixes when switching frames and never gates approval on frame count", async () => {
   vi.mocked(runReviewApi.get).mockResolvedValue(
     reviewFixture({ live: { required: true, available: true, rendererVersion: "d".repeat(64) } })
   );
@@ -234,8 +299,95 @@ it("requires every replay frame to render and preserves update prefixes when swi
     "0"
   );
   await ready([first]);
-  expect(screen.getByRole("option", { name: "通过" })).toBeDisabled();
+  expect(screen.getByText("已渲染 · 待人工检查")).toBeVisible();
+  expect(screen.getByRole("option", { name: "通过" })).toBeEnabled();
   await userEvent.click(screen.getByRole("button", { name: "下一项" }));
   await ready([first, second]);
   expect(screen.getByRole("option", { name: "通过" })).toBeEnabled();
+});
+
+it("pairs every executed turn with its own input, output, usage and links that round's trace", async () => {
+  const row = evidenceRow({
+    turns: [
+      {
+        req_id: "req-1",
+        parsed_output: {
+          delivered_messages: [{ asst_msg_id: "a", req_id: "req-1", text: "已创建" }],
+          llm_calls: [
+            {
+              call_id: 1,
+              req_id: "req-1",
+              task: "router",
+              model: "test-model",
+              token_usage: { input: 100, output: 20 }
+            }
+          ],
+          timeline: [
+            {
+              req_id: "req-1",
+              created_at: "2026-09-07T06:16:29Z",
+              payload: { asst_msg_id: "a", reply_text: "已创建", reason: "private" }
+            }
+          ]
+        }
+      },
+      {
+        req_id: "req-2",
+        parsed_output: {
+          delivered_messages: [{ asst_msg_id: "b", req_id: "req-2", text: "确定要删除吗？" }],
+          llm_calls: [
+            {
+              call_id: 2,
+              req_id: "req-2",
+              task: "planner",
+              model: "test-model",
+              token_usage: { input: 50, output: 10 }
+            }
+          ],
+          timeline: [
+            {
+              req_id: "req-2",
+              created_at: "2026-09-07T06:17:29Z",
+              payload: { asst_msg_id: "b", reply_text: "确定要删除吗？", reason: "private" }
+            }
+          ]
+        }
+      }
+    ]
+  });
+  if (!row.definition) throw new Error("Missing fixture definition");
+  mount({
+    ...row,
+    definition: {
+      ...row.definition,
+      vars: {
+        ...row.definition.vars,
+        request_body: {
+          conversation: [
+            { role: "user", text: "创建边界-多轮删除链路" },
+            { role: "user", text: "把它删掉" }
+          ]
+        }
+      }
+    }
+  });
+  // Multi-turn evidence pivots to per-round rows: no legacy input list or flat output panel.
+  expect(screen.queryByRole("region", { name: "实际输出" })).not.toBeInTheDocument();
+  expect(document.querySelector(".run-input-turns")).toBeNull();
+  const first = screen.getByRole("listitem", { name: "第 1 轮" }),
+    second = screen.getByRole("listitem", { name: "第 2 轮" });
+  expect(within(first).getByText("创建边界-多轮删除链路")).toBeVisible();
+  expect(within(first).getByText("已创建")).toBeVisible();
+  expect(within(first).getByText(/Agent 120 Token/)).toBeVisible();
+  expect(within(second).getByText("把它删掉")).toBeVisible();
+  expect(within(second).getByText("确定要删除吗？")).toBeVisible();
+  expect(within(second).getByText(/Agent 60 Token/)).toBeVisible();
+  expect(within(first).queryByText("private")).not.toBeInTheDocument();
+  // The overall acceptance check stays as the whole-task verdict.
+  expect(screen.getByRole("region", { name: "验收检查" })).toBeVisible();
+  // Clicking a round opens the shared Trace tab anchored at that round's chain.
+  await userEvent.click(within(first).getByRole("button", { name: "查看链路" }));
+  expect(screen.getByRole("tab", { name: "执行链路" })).toHaveAttribute("aria-selected", "true");
+  const anchor = await screen.findByTestId("turn-anchor-1");
+  expect(anchor).toBeVisible();
 });

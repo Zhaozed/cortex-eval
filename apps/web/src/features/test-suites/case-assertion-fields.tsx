@@ -1,9 +1,18 @@
-import { FIELD_RULE_CATALOG } from "@cortex-eval/contracts/src/assertion-rules/catalog.ts";
+import {
+  compileAgentAuthoringRule,
+  readAgentAuthoringRule,
+  type AgentAuthoringRule
+} from "@cortex-eval/contracts/src/assertion-rules/agent-rule-authoring.ts";
+import { CaseAgentRuleFields, emptyExecution } from "./case-agent-rule-fields.tsx";
+import {
+  FIELD_RULE_CATALOG,
+  AGENT_RULE_CATALOG
+} from "@cortex-eval/contracts/src/assertion-rules/catalog.ts";
 import {
   AssertionDefinitionV1Schema,
   type AssertionDefinitionV1
 } from "@cortex-eval/contracts/src/case-contracts.ts";
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import { CaseNumberInput } from "./case-number-input.tsx";
 import { Button } from "../../components/ui/button.tsx";
@@ -15,6 +24,7 @@ import { CaseValueFields } from "./case-value-fields.tsx";
 
 const CHECKS = [
   ...FIELD_RULE_CATALOG.map((rule) => [rule.id, rule.label] as const),
+  ...AGENT_RULE_CATALOG.map((rule) => [rule.id, rule.label] as const),
   ["contains", "输出包含文本"],
   ["not-contains", "输出不包含文本"],
   ["equals", "完整输出等于"],
@@ -44,6 +54,7 @@ export function CaseAssertionFields({
   readonly guidedError?: string | null;
   readonly rawRef: (element: HTMLTextAreaElement | null) => void;
 }): ReactElement {
+  const [pendingType, setPendingType] = useState<string | null>(null);
   let assertion: AssertionDefinitionV1 | null = null;
   try {
     const parsed = AssertionDefinitionV1Schema.safeParse(JSON.parse(text));
@@ -53,13 +64,77 @@ export function CaseAssertionFields({
   }
   const current = assertion;
   const rule = current?.type === "javascript" ? readCaseFieldRule(current.value) : null;
-  const selected = rule ? `field-${rule.operation}` : (current?.type ?? "");
+  const agentRule = current?.type === "javascript" ? readAgentAuthoringRule(current.value) : null;
+  const selected = rule
+    ? `field-${rule.operation}`
+    : agentRule?.kind === "agent-call-policy"
+      ? `agent-${agentRule.policy.mode}`
+      : (agentRule?.kind ?? current?.type ?? "");
   const known = CHECKS.some(([type]) => type === selected);
   const update = (patch: Partial<AssertionDefinitionV1>): void => {
     if (current) onChange(JSON.stringify({ ...current, ...patch }, null, 2));
   };
   const updateRule = (patch: Partial<CaseFieldRule>): void => {
     if (rule) update({ value: compileCaseFieldRule({ ...rule, ...patch }) });
+  };
+  const changeRule = (type: string): void => {
+    if (!current) return;
+    const generatedMetrics = new Set([
+      "字段检查",
+      "文本检查",
+      "语义评分",
+      "结构检查",
+      "自定义检查",
+      "执行｜实际调用、终态与业务结果",
+      "执行｜禁止工具调用",
+      "执行｜调用次数上限",
+      "回复｜终局回复已交付",
+      "回复｜决策正文存在（不代表交付）"
+    ]);
+    const base = { metric: current.metric, weight: current.weight ?? 1 };
+    const withMetric = (fallback: string): { metric: string; weight: number } => ({
+      ...base,
+      metric: generatedMetrics.has(current.metric) ? fallback : current.metric
+    });
+    if (type.startsWith("agent-")) {
+      const next: AgentAuthoringRule =
+        type === "agent-executions"
+          ? { kind: "agent-executions", expectations: [emptyExecution()] }
+          : type === "agent-reply"
+            ? { kind: "agent-reply", options: { type: "NOTICE", delivered: true } }
+            : {
+                kind: "agent-call-policy",
+                policy: {
+                  mode: type === "agent-forbid" ? "forbid" : "limit",
+                  tools: [""],
+                  maxCalls: type === "agent-forbid" ? 0 : 1
+                }
+              };
+      const generated = compileAgentAuthoringRule(next);
+      onChange(JSON.stringify({ ...generated, ...withMetric(generated.metric) }));
+    } else if (type.startsWith("field-")) {
+      const operation = type.slice(6) as CaseFieldRule["operation"];
+      onChange(
+        JSON.stringify({
+          ...withMetric("字段检查"),
+          type: "javascript",
+          value: compileCaseFieldRule({
+            operation,
+            path: rule?.path ?? "",
+            expected:
+              operation === "type"
+                ? "string"
+                : operation === "count"
+                  ? 0
+                  : operation === "exists"
+                    ? null
+                    : ""
+          })
+        })
+      );
+    } else
+      onChange(JSON.stringify({ ...base, type, ...(type === "is-json" ? {} : { value: "" }) }));
+    setPendingType(null);
   };
   return (
     <section className="case-rule-card">
@@ -76,7 +151,7 @@ export function CaseAssertionFields({
       </div>
       {current ? (
         <>
-          <div className="case-rule-grid">
+          <div className="case-rule-selector">
             <label>
               检查规则
               <select
@@ -84,35 +159,14 @@ export function CaseAssertionFields({
                 value={selected}
                 onChange={(e) => {
                   const type = e.currentTarget.value;
-                  const base = { metric: current.metric, weight: current.weight ?? 1 };
-                  if (type.startsWith("field-")) {
-                    const operation = type.slice(6) as CaseFieldRule["operation"];
-                    onChange(
-                      JSON.stringify({
-                        ...base,
-                        type: "javascript",
-                        value: compileCaseFieldRule({
-                          operation,
-                          path: rule?.path ?? "",
-                          expected:
-                            operation === "type"
-                              ? "string"
-                              : operation === "count"
-                                ? 0
-                                : operation === "exists"
-                                  ? null
-                                  : ""
-                        })
-                      })
-                    );
-                  } else
-                    onChange(
-                      JSON.stringify({
-                        ...base,
-                        type,
-                        value: type === "is-json" ? { type: "object" } : ""
-                      })
-                    );
+                  if (type === selected) return;
+                  const configured = rule
+                    ? Boolean(rule.path)
+                    : agentRule
+                      ? true
+                      : Boolean(current.value);
+                  if (configured) setPendingType(type);
+                  else changeRule(type);
                 }}
               >
                 <option value="" disabled>
@@ -126,19 +180,33 @@ export function CaseAssertionFields({
                 ))}
               </select>
             </label>
-            <label>
-              评测指标
-              <CaseCreatableSelect
-                label={`评测指标 ${index + 1}`}
-                value={current.metric}
-                options={metrics}
-                onChange={(metric) => update({ metric })}
-              />
-            </label>
           </div>
-          <p className="field-hint">
-            切换检查规则会替换本项的预期与高级配置。新建规则默认权重为 1。
-          </p>
+          {pendingType ? (
+            <div className="case-rule-switch" role="alert">
+              <p>
+                切换为「{CHECKS.find(([id]) => id === pendingType)?.[1] ?? pendingType}
+                」会替换本项参数和高级配置。
+              </p>
+              <Button type="button" variant="outline" onClick={() => setPendingType(null)}>
+                保留当前规则
+              </Button>
+              <Button type="button" onClick={() => changeRule(pendingType)}>
+                确认切换
+              </Button>
+            </div>
+          ) : null}
+          {agentRule ? (
+            <>
+              <p className="case-rule-scope">
+                证据来源：Cortex E2E 实际执行结果，不适用于仅返回计划的 Planner 接口。
+              </p>
+              <CaseAgentRuleFields
+                key={selected}
+                rule={agentRule}
+                onChange={(next) => update({ value: compileAgentAuthoringRule(next).value })}
+              />
+            </>
+          ) : null}
           {rule ? (
             <div className="case-rule-grid">
               <label className="field-wide">
@@ -250,7 +318,7 @@ export function CaseAssertionFields({
               />
             )
           ) : null}
-          {current.type === "javascript" && !rule ? (
+          {current.type === "javascript" && !rule && !agentRule ? (
             <label>
               自定义检查代码
               <Textarea
@@ -274,6 +342,55 @@ export function CaseAssertionFields({
       {guidedError ? <p className="form-error">{guidedError}</p> : null}
       <details className="case-advanced" open={error || !current ? true : undefined}>
         <summary>高级配置 · 权重、阈值与原始 JSON</summary>
+        {current ? (
+          <div className="case-rule-grid">
+            <label>
+              评测指标
+              <CaseCreatableSelect
+                label={`评测指标 ${index + 1}`}
+                value={current.metric}
+                options={metrics}
+                onChange={(metric) => update({ metric })}
+              />
+            </label>
+            <label>
+              判定权重
+              <CaseNumberInput
+                label={`判定权重 ${index + 1}`}
+                min={0}
+                value={current.weight ?? 1}
+                onChange={(weight) => update({ weight })}
+              />
+            </label>
+            <label className="case-inline-check">
+              <input
+                type="checkbox"
+                checked={current.threshold !== undefined}
+                onChange={(e) =>
+                  onChange(
+                    JSON.stringify({
+                      ...current,
+                      threshold: e.currentTarget.checked ? 0.8 : undefined
+                    })
+                  )
+                }
+              />
+              设置单项阈值
+            </label>
+            {current.threshold !== undefined ? (
+              <label>
+                单项通过阈值
+                <CaseNumberInput
+                  label={`单项通过阈值 ${index + 1}`}
+                  min={0}
+                  value={current.threshold}
+                  onChange={(threshold) => update({ threshold })}
+                />
+              </label>
+            ) : null}
+            <p className="field-hint">默认 1；权重 0 仅观察，不参与得分，不能作为阻断检查。</p>
+          </div>
+        ) : null}
         <label htmlFor={`case-assertion-${index}`}>Assertion JSON {index + 1}</label>
         <Textarea
           ref={rawRef}
