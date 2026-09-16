@@ -3,6 +3,7 @@ import { useState, type ReactElement } from "react";
 import { Badge } from "../../components/ui/badge.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { Input } from "../../components/ui/input.tsx";
+import { Progress } from "../../components/ui/progress.tsx";
 import { Sheet } from "../../components/ui/sheet.tsx";
 import {
   Table,
@@ -13,6 +14,7 @@ import {
   TableRow
 } from "../../components/ui/table.tsx";
 import type { RunApi } from "../../lib/run-api.ts";
+import { aggregateAssertionsByDimension, softFailureCount } from "../../lib/assertion-metric.ts";
 import { message } from "../../messages/messages.ts";
 import { RunCaseDrawer, type CaseTab } from "./run-case-drawer.tsx";
 import { hasTrace, scenarioName } from "./run-evidence-model.ts";
@@ -24,6 +26,11 @@ import {
   type DashboardCase,
   type ResultBucket
 } from "./run-dashboard-model.ts";
+
+// A green verdict must not hide `【质量】` misses: they never veto, but they are still defects.
+function softMisses(row: DashboardCase): number {
+  return softFailureCount(row.evaluation?.assertions ?? []);
+}
 
 /** Compact Case list and local pagination; all evidence actions preserve the current filters. */
 export function RunDashboardCases({
@@ -61,6 +68,12 @@ export function RunDashboardCases({
     setSelected(key);
     setTab(initialTab);
   };
+  // Dimension pass rates are counted per Assertion, never per Case (see SPEC §6).
+  // 维度通过率按 Assertion 统计；只渲染 D1–D6，未分类断言不占用维度卡片。
+  const dimensionRates = aggregateAssertionsByDimension(
+    rows.flatMap((row) => row.evaluation?.assertions ?? [])
+  ).filter((rate) => rate.dimension !== null);
+  const dimensionAssertions = dimensionRates.reduce((total, rate) => total + rate.total, 0);
   const scenarios = [
     ...new Set(
       rows.flatMap((row) => (row.definition ? [row.definition.metadata.scenario_tag] : []))
@@ -93,6 +106,44 @@ export function RunDashboardCases({
         <span>
           {filtered.length} {message("rd.recordedCases")}
         </span>
+      </div>
+      <div className="run-dimension-rates">
+        <div className="run-dimension-head">
+          <h3>维度通过率（D1–D6）</h3>
+          <span>按断言条数统计，不是按 case 数</span>
+        </div>
+        {dimensionAssertions === 0 ? (
+          <p className="run-dimension-empty">
+            本次 run 没有任何断言带 D1–D6 标记（旧套件的 metric
+            名没有维度前缀），无法给出维度通过率。
+          </p>
+        ) : (
+          <ul className="run-dimension-list">
+            {dimensionRates.map((rate) => (
+              <li
+                className="run-dimension-row"
+                key={rate.dimension ?? "UNMARKED"}
+                data-level={rate.level}
+              >
+                <div className="run-dimension-card-head">
+                  <span className="run-dimension-label" title={rate.label}>
+                    {rate.label}
+                  </span>
+                  <strong className="run-dimension-value">
+                    {rate.total === 0
+                      ? "无断言"
+                      : `${rate.percent}% · ${rate.pass}/${rate.total} 通过`}
+                  </strong>
+                </div>
+                <Progress
+                  className="run-dimension-bar"
+                  value={rate.percent}
+                  aria-label={`${rate.label} 断言通过率`}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       <div className="run-dashboard-filters">
         <Input
@@ -207,6 +258,14 @@ export function RunDashboardCases({
                 <Badge variant="outline" data-status={evaluationState(row)}>
                   {message(`rd.eval.${evaluationState(row)}`)}
                 </Badge>
+                {evaluationState(row) === "PASS" && softMisses(row) > 0 && (
+                  <small
+                    className="run-soft-miss"
+                    title="质量项未达标不阻断 PASS 结论，逐项原因见「结果详情」"
+                  >
+                    {softMisses(row)} 项质量未达标
+                  </small>
+                )}
                 {row.review?.history.length ? (
                   <small
                     className="run-human-mark"

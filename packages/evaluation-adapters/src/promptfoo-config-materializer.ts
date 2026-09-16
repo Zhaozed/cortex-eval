@@ -1,3 +1,4 @@
+import { materializeGradingEvidenceTransform } from "@cortex-eval/application/src/features/evaluation/promptfoo-grading-evidence.ts";
 import { materializeJavascriptSource } from "@cortex-eval/application/src/features/evaluation/promptfoo-javascript-source.ts";
 import type { FrozenRunCase } from "@cortex-eval/application/src/features/runs/run-rest-models.ts";
 import type {
@@ -221,7 +222,8 @@ function materializeAssertion(
     if (prompt === undefined) throw new Error("PROMPTFOO_RUBRIC_PROMPT_MISSING");
     result.rubricPrompt = prompt;
   }
-  if (assertion.transform !== undefined) result.transform = assertion.transform;
+  const transform = materializeGradingEvidenceTransform(assertion);
+  if (transform !== undefined) result.transform = transform;
   if (assertion.contextTransform !== undefined) {
     result.contextTransform = assertion.contextTransform;
   }

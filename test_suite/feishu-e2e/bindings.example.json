@@ -1,0 +1,413 @@
+{
+  "uid": "2075490654049271808",
+  "run_label": "feishu-20260915-待实际准备后生成",
+  "selected_case_ids": [
+    "FS-D01-01",
+    "FS-D02-01",
+    "FS-D03-01",
+    "FS-D04-01",
+    "FS-D05-01",
+    "FS-D06-01",
+    "FS-M01-01",
+    "FS-M02-01",
+    "FS-M03-01",
+    "FS-M04-01",
+    "FS-M05-01",
+    "FS-M06-01",
+    "FS-M07-01",
+    "FS-C01-01",
+    "FS-C02-01",
+    "FS-C03-01",
+    "FS-C04-01",
+    "FS-C05-01",
+    "FS-C06-01",
+    "FS-C07-01",
+    "FS-C08-01",
+    "FS-X01-01",
+    "FS-X02-01",
+    "FS-X03-01",
+    "FS-X04-01",
+    "FS-X05-01",
+    "FS-X06-01",
+    "FS-X07-01",
+    "FS-X08-01",
+    "FS-X09-01",
+    "FS-X10-01",
+    "FS-X11-01",
+    "FS-X12-01"
+  ],
+  "preflight": {
+    "test_scope_approved": true,
+    "endpoint_full_output_verified": false,
+    "tool_schema_verified": false,
+    "fixtures_reviewed": false,
+    "write_tool_inventory_complete": false,
+    "writes_approved": true,
+    "client_context_verified": false
+  },
+  "active_write_tools": [
+    "feishu_create_doc",
+    "feishu_update_doc",
+    "feishu_send_message",
+    "create_event",
+    "update_event",
+    "delete_events"
+  ],
+  "tokens": {
+    "person_name": "秦宇龙",
+    "group_name": "飞书测试群",
+    "doc_query": "飞书测试文档-auto",
+    "retrieval_tool": "web_search"
+  },
+  "cases": {
+    "FS-D01-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "doc_url": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-D02-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "doc_url": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-D03-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "source_doc_url": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-D04-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "append_text": "REPLACE_ME",
+        "doc_url": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-D05-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "date": "REPLACE_ME",
+        "date_block_id": "REPLACE_ME",
+        "doc_url": "REPLACE_ME",
+        "last_two_block_ids": []
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-D06-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "doc_url": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-M01-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {},
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-M02-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "person_id": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-M03-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "group_id": "REPLACE_ME",
+        "person_id": "REPLACE_ME",
+        "window_end": "REPLACE_ME",
+        "window_start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-M04-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "group_id": "REPLACE_ME",
+        "message_id": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-M05-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "group_id": "REPLACE_ME",
+        "window_end": "REPLACE_ME",
+        "window_start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-M06-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "message_text": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-M07-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "group_id": "REPLACE_ME",
+        "message_id": "REPLACE_ME",
+        "message_text": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-C01-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "window_end": "REPLACE_ME",
+        "window_start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-C02-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "date": "REPLACE_ME",
+        "event_id": "REPLACE_ME",
+        "window_end": "REPLACE_ME",
+        "window_start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-C03-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "person_id": "REPLACE_ME",
+        "window_end": "REPLACE_ME",
+        "window_start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-C04-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "end": "REPLACE_ME",
+        "person_id": "REPLACE_ME",
+        "start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-C05-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "event_id": "REPLACE_ME",
+        "merged_attendees": []
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-C06-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "end": "REPLACE_ME",
+        "person_id": "REPLACE_ME",
+        "room_name": "REPLACE_ME",
+        "start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-C07-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "end": "REPLACE_ME",
+        "event_id": "REPLACE_ME",
+        "start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-C08-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "event_id": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X01-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "message_id": "REPLACE_ME",
+        "message_text": "REPLACE_ME",
+        "person_id": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X02-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "person_id": "REPLACE_ME",
+        "window_end": "REPLACE_ME",
+        "window_start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X03-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "end": "REPLACE_ME",
+        "person_id": "REPLACE_ME",
+        "start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X04-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "end": "REPLACE_ME",
+        "new_attendees": [],
+        "room_name": "REPLACE_ME",
+        "start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X05-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "event_id": "REPLACE_ME",
+        "merged_attendees": []
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X06-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "end": "REPLACE_ME",
+        "event_id": "REPLACE_ME",
+        "new_room_attendees": [],
+        "room_name": "REPLACE_ME",
+        "start": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X07-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {},
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X08-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "group_id": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X09-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "doc_url": "REPLACE_ME",
+        "message_text": "REPLACE_ME",
+        "person_id": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X10-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "doc_url": "REPLACE_ME",
+        "last_ten_block_ids": [],
+        "person_id": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X11-01": {
+      "reviewed": false,
+      "sid": "REPLACE_ME",
+      "tokens": {
+        "calendar_id": "REPLACE_ME",
+        "event_id": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    },
+    "FS-X12-01": {
+      "reviewed": false,
+      "sid": null,
+      "tokens": {
+        "doc_url": "REPLACE_ME"
+      },
+      "setup_evidence_path": "REPLACE_ME",
+      "fault_setup_path": null
+    }
+  }
+}

@@ -1,0 +1,1773 @@
+{
+  "version": "2.0",
+  "authored_at": "2026-09-15",
+  "source_version": "V1.0 2026-09-14",
+  "cases": [
+    {
+      "id": "FS-D01-01",
+      "source_id": "D01",
+      "name": "按名称定位测试文档并读取",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "唯一命中「飞书测试文档-auto」，记录URL和owner；若重名未解决则停止，不伪造产品组或owner。",
+      "turns": [
+        {
+          "text": "帮我在飞书里找一篇叫《飞书测试文档-auto》的文档，找到后把正文读给我。如果同名文档不止一篇，先让我确认是哪一篇，别自己猜着选。",
+          "required": [
+            {
+              "tool": "feishu_search_docs",
+              "args": {
+                "query": "飞书测试文档-auto",
+                "doc_types": [
+                  "docx"
+                ]
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_get_doc",
+              "args": {
+                "doc": "{{doc_url}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": "预检已确认唯一文档；测试仍须真实按名称搜索并读取同一文档。"
+        }
+      ],
+      "expected": "保持原D01的搜索定位能力；本次使用用户提供测试文档的唯一命中路径，不额外制造同名分支。offset分页，URL/文档ID/正文一致；如实际重名则停止并澄清，不能判正常路径通过。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P01",
+        "instructions": "唯一命中「飞书测试文档-auto」，记录URL和owner；若重名未解决则停止，不伪造产品组或owner。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-D02-01",
+      "source_id": "D02",
+      "name": "按链接总结决策风险待办",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "从用户测试文档生成独立阅读基线：保留原文，附测试决策“先灰度后全量”、风险“回归尚未完成”、待办“补回归结果（负责人未指定）”；记录完整正文和URL。",
+      "turns": [
+        {
+          "text": "帮我读一下这份飞书文档 {{doc_url}}，把里面的决策、风险和待办整理出来，并说明信息来源。",
+          "required": [
+            {
+              "tool": "feishu_get_doc",
+              "args": {
+                "doc": "{{doc_url}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "覆盖基准事实；未注明责任人与日期不编造；不按同名搜索替换链接。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P02",
+        "instructions": "从用户测试文档生成独立阅读基线：保留原文，附测试决策“先灰度后全量”、风险“回归尚未完成”、待办“补回归结果（负责人未指定）”；记录完整正文和URL。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-D03-01",
+      "source_id": "D03",
+      "name": "复用上轮来源创建文档",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "读取用户测试文档，冻结完整来源和URL；不要提前创建本Case要创建的输出文档。",
+      "turns": [
+        {
+          "text": "先帮我把这份飞书文档 {{source_doc_url}} 读一遍，先不要新建文档。",
+          "required": [
+            {
+              "tool": "feishu_get_doc",
+              "args": {
+                "doc": "{{source_doc_url}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        },
+        {
+          "text": "把刚才读到的内容整理成一份飞书方案文档，标题叫《{{marker}}发布方案》，放到我的默认目录里。",
+          "required": [
+            {
+              "tool": "feishu_create_doc",
+              "args": {
+                "title": "{{marker}}发布方案"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_get_doc",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "feishu_create_doc": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "来源版本不变；根目录明确；创建一次，按返回document_id回读标题、正文、URL；无新增危险确认卡。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P01",
+        "instructions": "读取用户测试文档，冻结完整来源和URL；不要提前创建本Case要创建的输出文档。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-D04-01",
+      "source_id": "D04",
+      "name": "末尾追加且保留原文",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "基于用户测试文档创建独立副本，完整回读保存正文/blocks，生成本Case唯一测试追加段。",
+      "turns": [
+        {
+          "text": "在这份飞书文档 {{doc_url}} 的末尾追加一段：{{append_text}}。原文其他部分不要动。",
+          "required": [
+            {
+              "tool": "feishu_get_doc",
+              "args": {
+                "doc": "{{doc_url}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_update_doc",
+              "args": {
+                "mode": "append",
+                "content": "{{append_text}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_get_doc",
+              "args": {},
+              "min": 2
+            }
+          ],
+          "allowed_writes": {
+            "feishu_update_doc": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "新增段落只出现一次；原文、顺序和链接不变；目标不换ID。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P02",
+        "instructions": "基于用户测试文档创建独立副本，完整回读保存正文/blocks，生成本Case唯一测试追加段。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-D05-01",
+      "source_id": "D05",
+      "name": "编辑目标日期并删除末两条及子块",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "独立副本保留原内容，追加测试“上线计划”、明确日期块、三条保留项、末两条备选及其子项；回读精确date_block_id和last_two_block_ids，不猜block顺序或ID。",
+      "turns": [
+        {
+          "text": "帮我把飞书文档 {{doc_url}} 里“上线计划”的日期改成 {{date}}，并删掉最后两条备选方案连同它们的子内容，其余内容保持原样。",
+          "required": [
+            {
+              "tool": "feishu_get_doc",
+              "args": {
+                "with_blocks": true
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_update_doc",
+              "args": {
+                "mode": "edit_block",
+                "block_id": "{{date_block_id}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_update_doc",
+              "args": {
+                "mode": "delete_blocks",
+                "block_ids": "{{last_two_block_ids}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_get_doc",
+              "args": {},
+              "min": 2
+            }
+          ],
+          "allowed_writes": {
+            "feishu_update_doc": 2
+          },
+          "check": ""
+        }
+      ],
+      "expected": "目标块精确修改；完整子块删除；非目标块逐项保留，禁止replace；不拿块数变化代替内容验证。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P02",
+        "instructions": "独立副本保留原内容，追加测试“上线计划”、明确日期块、三条保留项、末两条备选及其子项；回读精确date_block_id和last_two_block_ids，不猜block顺序或ID。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-D06-01",
+      "source_id": "D06",
+      "name": "只改标题身份与正文不变",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "独立副本，保存原标题、URL、完整正文和blocks/hash；测试轮只改标题。",
+      "turns": [
+        {
+          "text": "把这份飞书文档 {{doc_url}} 重命名成《{{marker}}发布方案V2》，正文一个字都不要改。",
+          "required": [
+            {
+              "tool": "feishu_get_doc",
+              "args": {
+                "doc": "{{doc_url}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_update_doc",
+              "args": {
+                "mode": "rename",
+                "title": "{{marker}}发布方案V2"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_get_doc",
+              "args": {},
+              "min": 2
+            }
+          ],
+          "allowed_writes": {
+            "feishu_update_doc": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "原document_id/URL/正文均不变；不得新建同名文档冒充改名。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P02",
+        "instructions": "独立副本，保存原标题、URL、完整正文和blocks/hash；测试轮只改标题。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-M01-01",
+      "source_id": "M01",
+      "name": "分别查询本人、秦宇龙和飞书测试群",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "测试时依然按名称查询本人、秦宇龙和飞书测试群，不能把预检结果冒充本轮查询；不要求人为制造同名用户。",
+      "turns": [
+        {
+          "text": "在飞书上查一下我自己的资料，再找一下“秦宇龙”和“飞书测试群”，找到后先让我确认对象对不对。",
+          "required": [
+            {
+              "tool": "feishu_get_user_profile",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_search_users",
+              "args": {
+                "query": "秦宇龙"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_list_conversations",
+              "args": {
+                "query": "飞书测试群"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "本人不传target_user_id；ou_/oc_不混用；同名展示可信候选，不发送。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P01",
+        "instructions": "测试时依然按名称查询本人、秦宇龙和飞书测试群，不能把预检结果冒充本轮查询；不要求人为制造同名用户。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-M02-01",
+      "source_id": "M02",
+      "name": "单聊最近20条与实际分页范围",
+      "kind": "core",
+      "priority": "P1",
+      "fixture": "读取与秦宇龙的真实测试聊天；最近20条，不足20条如实说明；有has_more时保留分页证据。不为凑条数向联系人刷21条消息。",
+      "turns": [
+        {
+          "text": "帮我看一下飞书里我和秦宇龙（{{person_id}}）的私聊，只读最近 20 条消息就行。",
+          "required": [
+            {
+              "tool": "feishu_list_messages",
+              "args": {
+                "open_id": "{{person_id}}",
+                "limit": 20
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "匹配最近20条，必要分页；不因卡片显示数量误称全量；说明后续仍有结果。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P03",
+        "instructions": "读取与秦宇龙的真实测试聊天；最近20条，不足20条如实说明；有has_more时保留分页证据。不为凑条数向联系人刷21条消息。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-M03-01",
+      "source_id": "M03",
+      "name": "群内按发送人关键词日期组合过滤",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "核实飞书测试群内秦宇龙在测试时间窗真实发送过含“排期”的消息；没有则标前置不足。不能用本人发言伪造成秦宇龙发言。",
+      "turns": [
+        {
+          "text": "在飞书「飞书测试群」（{{group_id}}）里，帮我找秦宇龙（{{person_id}}）在 {{window_start}} 到 {{window_end}} 之间发的和“排期”相关的消息。",
+          "required": [
+            {
+              "tool": "feishu_search_messages",
+              "args": {
+                "query": "排期",
+                "chat_id": "{{group_id}}",
+                "from_open_id": "{{person_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "过滤交集匹配golden消息ID；正确传时间范围和时区，不能扩大范围。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P03",
+        "instructions": "核实飞书测试群内秦宇龙在测试时间窗真实发送过含“排期”的消息；没有则标前置不足。不能用本人发言伪造成秦宇龙发言。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-M04-01",
+      "source_id": "M04",
+      "name": "沿原消息读取线程",
+      "kind": "core",
+      "priority": "P1",
+      "fixture": "在飞书测试群准备带本Run标记的排期父消息和话题回复（发送须确认），或复用经核对的测试线程；冻结父message_id/chat_id及回复正文。",
+      "turns": [
+        {
+          "text": "先帮我读一下飞书「飞书测试群」（{{group_id}}）里的消息，只查看，不要发任何消息。",
+          "required": [
+            {
+              "tool": "feishu_list_messages",
+              "args": {
+                "chat_id": "{{group_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        },
+        {
+          "text": "看看刚才那条排期消息（{{message_id}}）下面有哪些回复，内容是什么。",
+          "required": [
+            {
+              "tool": "feishu_get_thread_replies",
+              "args": {
+                "message_id": "{{message_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "始终绑定原message_id/chat_id；按真实回复内容总结；不从root_id猜测历史发送形式。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P03",
+        "instructions": "在飞书测试群准备带本Run标记的排期父消息和话题回复（发送须确认），或复用经核对的测试线程；冻结父message_id/chat_id及回复正文。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-M05-01",
+      "source_id": "M05",
+      "name": "讨论总结及可能待回复",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "飞书测试群准备带本Run标记的排期讨论：明确结论、一个待确认问题；冻结消息全文、发言人、时间及来源；判可能待回复，不伪造已读。",
+      "turns": [
+        {
+          "text": "帮我总结一下飞书「飞书测试群」（{{group_id}}）在 {{window_start}} 到 {{window_end}} 之间的排期讨论，列出结论和需要我回复的问题，先不要发消息。",
+          "required": [
+            {
+              "tool": "feishu_list_messages",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "按基准分类；已回答不当待答；待回复是范围内推断，不称未读；附真实来源。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P03",
+        "instructions": "飞书测试群准备带本Run标记的排期讨论：明确结论、一个待确认问题；冻结消息全文、发言人、时间及来源；判可能待回复，不伪造已读。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-M06-01",
+      "source_id": "M06",
+      "name": "发给本人并确认后回读",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "本人身份真实解析；生成唯一测试消息正文。不要在前置中提前发送该被测消息。",
+      "turns": [
+        {
+          "text": "在飞书里发一条消息给我自己：{{message_text}}",
+          "required": [
+            {
+              "tool": "feishu_get_user_profile",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": "只形成发送确认，发信次数0。"
+        },
+        {
+          "text": "确认发送。",
+          "required": [
+            {
+              "tool": "feishu_send_message",
+              "args": {
+                "text": "{{message_text}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_list_messages",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "feishu_send_message": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "只发给真实本人一次；回读message_id/chat_id/正文一致；投递不等于已读。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P01",
+        "instructions": "本人身份真实解析；生成唯一测试消息正文。不要在前置中提前发送该被测消息。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-M07-01",
+      "source_id": "M07",
+      "name": "原消息话题回复",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "准备飞书测试群排期父消息并冻结message_id/chat_id；不提前发送本例被测的话题回复。",
+      "turns": [
+        {
+          "text": "在飞书「飞书测试群」（{{group_id}}）里，对消息 {{message_id}} 用回复的方式发这条：{{message_text}}",
+          "required": [],
+          "allowed_writes": {},
+          "check": "仅展示最终确认，任何写工具调用数为0；卡片正文、目标和形式与请求一致。"
+        },
+        {
+          "text": "确认就回复在那条消息下面。",
+          "required": [
+            {
+              "tool": "feishu_send_message",
+              "args": {
+                "reply_to_message_id": "{{message_id}}",
+                "reply_in_thread": true,
+                "text": "{{message_text}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_get_thread_replies",
+              "args": {
+                "message_id": "{{message_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "feishu_send_message": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "确认展示真实原文摘要和话题形式；不能变成私聊原作者；真实发送ID存在于原线程。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P03",
+        "instructions": "准备飞书测试群排期父消息并冻结message_id/chat_id；不提前发送本例被测的话题回复。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-C01-01",
+      "source_id": "C01",
+      "name": "指定日历日期列表并补详情",
+      "kind": "core",
+      "priority": "P1",
+      "fixture": "在已有可写飞书日历创建独立“测试-列表核验”会议，含明确时间/地点/秦宇龙；按返回ID回读；测试窗口仅覆盖该日程。",
+      "turns": [
+        {
+          "text": "帮我看看飞书日历（{{calendar_id}}）从 {{window_start}} 到 {{window_end}} 都有哪些会议，把时间、地点和参会人都列出来。",
+          "required": [
+            {
+              "tool": "list_events",
+              "args": {
+                "provider": [
+                  "feishu"
+                ],
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "get_event",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "时区与窗口准确；列表缺字段时补读而非猜测；真实链接才展示。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P04",
+        "instructions": "在已有可写飞书日历创建独立“测试-列表核验”会议，含明确时间/地点/秦宇龙；按返回ID回读；测试窗口仅覆盖该日程。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-C02-01",
+      "source_id": "C02",
+      "name": "同名会议按日期锁定",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "创建两场同名“测试-发布评审”在不同日期的独立会议；date指明要打开的那一天；记录两个ID和日期，不将两场算新增Case。",
+      "turns": [
+        {
+          "text": "在飞书日历（{{calendar_id}}）里查 {{window_start}} 到 {{window_end}} 期间叫《{{marker}}发布评审》的会议，打开 {{date}} 那天的那一场。",
+          "required": [
+            {
+              "tool": "list_events",
+              "args": {
+                "provider": [
+                  "feishu"
+                ]
+              },
+              "min": 1
+            },
+            {
+              "tool": "get_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "query以运行时Schema为准；不支持时窗口读取本地过滤；后续保持原ID，不猜首条。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P04",
+        "instructions": "创建两场同名“测试-发布评审”在不同日期的独立会议；date指明要打开的那一天；记录两个ID和日期，不将两场算新增Case。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-C03-01",
+      "source_id": "C03",
+      "name": "只查忙闲推荐时段",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "解析本人和秦宇龙真实open_id，选择今天仍在未来的查询窗口；不建会，真实空闲不足时不能当正常推荐通过。",
+      "turns": [
+        {
+          "text": "帮我查一下我和秦宇龙（{{person_id}}）在 {{window_start}} 到 {{window_end}} 之间共同空闲的一小时，先不要建会议。",
+          "required": [
+            {
+              "tool": "feishu_get_user_profile",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_query_free_busy",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "推荐=所有成功查询人员忙碌并集的补集，时区正确；不能擅自建会。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P01",
+        "instructions": "解析本人和秦宇龙真实open_id，选择今天仍在未来的查询窗口；不建会，真实空闲不足时不能当正常推荐通过。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-C04-01",
+      "source_id": "C04",
+      "name": "本人和同事创建会议",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "解析本人、秦宇龙和已有可写日历，查今天未来空闲时段；前置不提前创建被测会议。",
+      "turns": [
+        {
+          "text": "帮我在飞书日历（{{calendar_id}}）约一场会：我和秦宇龙（{{person_id}}），时间 {{start}} 到 {{end}}，标题就叫《{{marker}}发布评审》。",
+          "required": [
+            {
+              "tool": "feishu_get_user_profile",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_query_free_busy",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "create_event",
+              "args": {
+                "provider": "feishu",
+                "summary": "{{marker}}发布评审",
+                "start": "{{start}}",
+                "end": "{{end}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "get_event",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "create_event": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "明确包含本人和同事；创建一次；真实ID回读；邀请发出、已接受及线上URL分别报告。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P01",
+        "instructions": "解析本人、秦宇龙和已有可写日历，查今天未来空闲时段；前置不提前创建被测会议。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-C05-01",
+      "source_id": "C05",
+      "name": "向原会邀请全群并完整合并名单",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "独立创建带本人/秦宇龙及已预约真实房间的测试原会；读取飞书测试群全部成员，确认全员均在获准邀约范围；冻结原完整attendees及人员/房间并集。",
+      "turns": [
+        {
+          "text": "把飞书日历（{{calendar_id}}）里 {{event_id}} 这场会议，加上“飞书测试群”全体成员，原来的参会人和会议室都保留。",
+          "required": [
+            {
+              "tool": "get_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_list_chat_members",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_query_free_busy",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "update_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "attendees": "{{merged_attendees}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "get_event",
+              "args": {},
+              "min": 2
+            }
+          ],
+          "allowed_writes": {
+            "update_event": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "读取所有成员页按open_id去重；attendees整体替换必须是原人+房间+新成员完整并集。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P04",
+        "instructions": "独立创建带本人/秦宇龙及已预约真实房间的测试原会；读取飞书测试群全部成员，确认全员均在获准邀约范围；冻结原完整attendees及人员/房间并集。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-C06-01",
+      "source_id": "C06",
+      "name": "按名称发现并真实预约会议室",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "发现现有真实会议室及可用时段；没有房间或预约权限则BLOCKED，本期工具不能创建实体会议室，location不能代替预约。",
+      "turns": [
+        {
+          "text": "帮我在飞书日历（{{calendar_id}}）约 {{start}} 到 {{end}} 的会，标题《{{marker}}房间评审》，参会人 {{person_id}}，并预约“{{room_name}}”会议室。",
+          "required": [
+            {
+              "tool": "feishu_list_room_availability",
+              "args": {
+                "keyword": "{{room_name}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_query_free_busy",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "create_event",
+              "args": {
+                "provider": "feishu"
+              },
+              "min": 1
+            },
+            {
+              "tool": "get_event",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "create_event": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "房间以真实omm_资源加入attendees，location不代表预约；回读房间响应与busy占用。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P01",
+        "instructions": "发现现有真实会议室及可用时段；没有房间或预约权限则BLOCKED，本期工具不能创建实体会议室，location不能代替预约。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-C07-01",
+      "source_id": "C07",
+      "name": "原会议改期保留人和房",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "创建独立带人员及真实房间的测试原会，保存完整基线；找今天原房间和原成员均空闲的新时段。",
+      "turns": [
+        {
+          "text": "把飞书日历（{{calendar_id}}）里 {{event_id}} 这场会议改到 {{start}} 到 {{end}}，参会人、标题、会议室都保持不变。",
+          "required": [
+            {
+              "tool": "get_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_query_free_busy",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "update_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "start": "{{start}}",
+                "end": "{{end}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "get_event",
+              "args": {},
+              "min": 2
+            }
+          ],
+          "allowed_writes": {
+            "update_event": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "最小delta，身份不变；回读新时间；核验新占用、旧时段释放，无自动补偿。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P04",
+        "instructions": "创建独立带人员及真实房间的测试原会，保存完整基线；找今天原房间和原成员均空闲的新时段。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-C08-01",
+      "source_id": "C08",
+      "name": "取消原会并核对房间释放",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "独立创建并回读已成功占用真实房间的测试原会；记录event_id/calendar_id/room_id及占用窗口，不能提前取消。",
+      "turns": [
+        {
+          "text": "取消飞书日历（{{calendar_id}}）里 {{event_id}} 这场会议，并确认会议室已经释放。",
+          "required": [
+            {
+              "tool": "get_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": "展示一次删除确认，删除调用0。"
+        },
+        {
+          "text": "确认取消这场会议。",
+          "required": [
+            {
+              "tool": "delete_events",
+              "args": {
+                "provider": "feishu",
+                "event_ids": [
+                  "{{event_id}}"
+                ],
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "get_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_query_free_busy",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "delete_events": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "逐项删除结果正确；原ID不存在/已删除且原room/time忙闲已释放；193003仅代表原对象已删除。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P04",
+        "instructions": "独立创建并回读已成功占用真实房间的测试原会；记录event_id/calendar_id/room_id及占用窗口，不能提前取消。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-X01-01",
+      "source_id": "X01",
+      "name": "搜索上下文后原消息回复",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "核实与秦宇龙的真实测试排期讨论及待回复父消息；freeze精确message_id，不能误用群消息或猜最近一条。",
+      "turns": [
+        {
+          "text": "在飞书里找一下我和秦宇龙（{{person_id}}）关于排期的讨论，读一下上下文，然后帮我在那条原消息下回复：{{message_text}}",
+          "required": [
+            {
+              "tool": "feishu_search_messages",
+              "args": {
+                "query": "排期",
+                "open_id": "{{person_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": "拟稿和最终确认；未确认不发送。"
+        },
+        {
+          "text": "确认就回复刚才那条消息。",
+          "required": [
+            {
+              "tool": "feishu_send_message",
+              "args": {
+                "reply_to_message_id": "{{message_id}}",
+                "text": "{{message_text}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_list_messages",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "feishu_send_message": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "用原message_id不是新私聊；确认内容来自该讨论；回读精确发送ID。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P03",
+        "instructions": "核实与秦宇龙的真实测试排期讨论及待回复父消息；freeze精确message_id，不能误用群消息或猜最近一条。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-X02-01",
+      "source_id": "X02",
+      "name": "指定聊天查待回复只拟稿",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "核实与秦宇龙的真实测试问答和未答问题；本例仅读取/拟稿，不能为了前置冒充秦宇龙向自己提问。",
+      "turns": [
+        {
+          "text": "看一下飞书里我和秦宇龙（{{person_id}}）在 {{window_start}} 到 {{window_end}} 的聊天记录，有哪些问题还在等我回复？先拟一版草稿给我看，不要真的发出去。",
+          "required": [
+            {
+              "tool": "feishu_get_user_profile",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_list_messages",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "范围内推断并附依据；不扫描全量私聊、不把未回复当未读；任何写工具调用0。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P03",
+        "instructions": "核实与秦宇龙的真实测试问答和未答问题；本例仅读取/拟稿，不能为了前置冒充秦宇龙向自己提问。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-X03-01",
+      "source_id": "X03",
+      "name": "从已读讨论创建会议",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "核实与秦宇龙的真实排期讨论；解析已有可写日历及今天未来共同空闲时段；不提前创建被测会议。",
+      "turns": [
+        {
+          "text": "先读一下我和秦宇龙（{{person_id}}）关于排期的讨论，先不要建会议。",
+          "required": [
+            {
+              "tool": "feishu_list_messages",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        },
+        {
+          "text": "就刚才的排期讨论，帮我和他在飞书日历（{{calendar_id}}）约 {{start}} 到 {{end}} 的会，标题《{{marker}}排期评审》。",
+          "required": [
+            {
+              "tool": "feishu_get_user_profile",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_query_free_busy",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "create_event",
+              "args": {
+                "provider": "feishu",
+                "start": "{{start}}",
+                "end": "{{end}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "get_event",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "create_event": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "复用原人原主题，不搜索同名替换；一次创建、回读本人参与和邀请状态。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P03",
+        "instructions": "核实与秦宇龙的真实排期讨论；解析已有可写日历及今天未来共同空闲时段；不提前创建被测会议。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-X04-01",
+      "source_id": "X04",
+      "name": "全群本人房间与线上会议组合",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "查本人、飞书测试群全员、可写日历、真实房间及共同空闲；全群成员须在授权范围；确认线上会议参数可用。不预创建被测会议。",
+      "turns": [
+        {
+          "text": "帮我在飞书日历（{{calendar_id}}）约“飞书测试群”全体成员加上我，{{start}} 到 {{end}} 在“{{room_name}}”开《{{marker}}发布评审》，并挂一个真实的线上会议号。",
+          "required": [
+            {
+              "tool": "feishu_list_conversations",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_list_chat_members",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_get_user_profile",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_list_room_availability",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_query_free_busy",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "create_event",
+              "args": {
+                "provider": "feishu",
+                "attendees": "{{new_attendees}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "get_event",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "create_event": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "成员分页完整、去重且不漏本人；逐项报告创建/邀请/房间响应与占用/真实线上URL，不伪造链接。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P01",
+        "instructions": "查本人、飞书测试群全员、可写日历、真实房间及共同空闲；全群成员须在授权范围；确认线上会议参数可用。不预创建被测会议。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-X05-01",
+      "source_id": "X05",
+      "name": "上轮原会议追加人和全群",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "独立创建带原人员/真实房间的测试原会；准备经授权的飞书测试群全员并集，测试第二轮再更新。",
+      "turns": [
+        {
+          "text": "帮我看一下飞书日历（{{calendar_id}}）里 {{event_id}} 这场会议的详情，只读就行。",
+          "required": [
+            {
+              "tool": "get_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        },
+        {
+          "text": "给刚才那场会议再加上秦宇龙和“飞书测试群”全部成员，原来的参会人和会议室保留。",
+          "required": [
+            {
+              "tool": "feishu_list_chat_members",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_query_free_busy",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "update_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "attendees": "{{merged_attendees}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "get_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "update_event": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "原会议ID持续一致；完整集合并集去重；不得清空房间或原人。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P04",
+        "instructions": "独立创建带原人员/真实房间的测试原会；准备经授权的飞书测试群全员并集，测试第二轮再更新。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-X06-01",
+      "source_id": "X06",
+      "name": "原会议改期同时换房",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "独立测试原会已经预约房间A；发现不同的真实房间B以及今天未来新时段；保存旧/新房间ID和完整保留人员。少于两个可用房间则BLOCKED。",
+      "turns": [
+        {
+          "text": "帮我看一下飞书日历（{{calendar_id}}）里 {{event_id}} 这场会议的详情，只读就行。",
+          "required": [
+            {
+              "tool": "get_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        },
+        {
+          "text": "把刚才那场会议改到 {{start}} 到 {{end}}，人员和主题不变，会议室换成“{{room_name}}”。",
+          "required": [
+            {
+              "tool": "feishu_list_room_availability",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_query_free_busy",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "update_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "start": "{{start}}",
+                "end": "{{end}}",
+                "attendees": "{{new_room_attendees}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "get_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "update_event": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "核验新房responseStatus与占用、旧房旧时段释放；新房declined不报成功，不自动回滚重约。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P04",
+        "instructions": "独立测试原会已经预约房间A；发现不同的真实房间B以及今天未来新时段；保存旧/新房间ID和完整保留人员。少于两个可用房间则BLOCKED。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-X07-01",
+      "source_id": "X07",
+      "name": "外部真实检索后发给本人",
+      "kind": "core",
+      "priority": "P1",
+      "fixture": "确认web_search在本账号真实可用，解析本人；不在前置固定餐厅答案，不冒充已检索。",
+      "turns": [
+        {
+          "text": "帮我查一下上海静安适合团队聚餐的餐厅，整理出地址和真实来源链接，然后用飞书发给我自己，正文开头标注“{{marker}}聚餐检索结果”。",
+          "required": [
+            {
+              "tool": "web_search",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_get_user_profile",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": "实际检索成功且最终内容一次确认；检索失败不编造也不发送。"
+        },
+        {
+          "text": "确认发送刚才整理的内容。",
+          "required": [
+            {
+              "tool": "feishu_send_message",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_list_messages",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "feishu_send_message": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "发送文本和检索来源一致；飞书接收人是本人；检索UI不硬套飞书卡，按精确message_id回读。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P01",
+        "instructions": "确认web_search在本账号真实可用，解析本人；不在前置固定餐厅答案，不冒充已检索。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-X08-01",
+      "source_id": "X08",
+      "name": "已读群讨论转文档",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "飞书测试群准备本Run测试排期讨论及真实消息来源；不要提前创建本例被测输出文档。",
+      "turns": [
+        {
+          "text": "帮我读一下飞书「飞书测试群」（{{group_id}}）里的排期讨论，先保留信息来源，先不要写文档。",
+          "required": [
+            {
+              "tool": "feishu_list_messages",
+              "args": {
+                "chat_id": "{{group_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        },
+        {
+          "text": "把刚才的讨论整理成一份飞书文档，标题《{{marker}}发布评审准备》，结论、待办和来源链接都放进去。",
+          "required": [
+            {
+              "tool": "feishu_create_doc",
+              "args": {
+                "title": "{{marker}}发布评审准备"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_get_doc",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "feishu_create_doc": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "不静默换源；内容匹配原消息版本；未明确人/日期不补编；回读失败不建副本。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P03",
+        "instructions": "飞书测试群准备本Run测试排期讨论及真实消息来源；不要提前创建本例被测输出文档。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-X09-01",
+      "source_id": "X09",
+      "name": "文档链接多目标整组确认",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "读取用户测试文档真实URL，核对本人和秦宇龙确实是不同身份；同一人不能假造两名收件人，此时两目标前置不足。",
+      "turns": [
+        {
+          "text": "把这份飞书文档 {{doc_url}} 的链接发给秦宇龙（{{person_id}}）和我自己，正文写“{{message_text}}”，并在后面附上文档链接。",
+          "required": [
+            {
+              "tool": "feishu_get_doc",
+              "args": {
+                "doc": "{{doc_url}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_get_user_profile",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": "外层tool_confirm_group/group_request一次，成员send_message_multi_target；不逐对象反复确认。"
+        },
+        {
+          "text": "确认向这两个对象发送。",
+          "required": [
+            {
+              "tool": "feishu_send_message",
+              "args": {},
+              "min": 2
+            },
+            {
+              "tool": "feishu_list_messages",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "feishu_send_message": 2
+          },
+          "check": ""
+        }
+      ],
+      "expected": "两个接收方集合精确匹配、同URL同正文；逐项message_id回读；只向两人各发一次。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P01",
+        "instructions": "读取用户测试文档真实URL，核对本人和秦宇龙确实是不同身份；同一人不能假造两名收件人，此时两目标前置不足。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-X10-01",
+      "source_id": "X10",
+      "name": "局部删文档回读后发送",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "独立副本保留原文及三条保留项，末尾追加十条明确测试备选及子块；完整回读并冻结十个顶层ID，不删除用户原文。",
+      "turns": [
+        {
+          "text": "帮我把飞书文档 {{doc_url}} 里最后 10 条备选方案连同子内容删掉，其余保留，再把最新版链接发给秦宇龙（{{person_id}}）。",
+          "required": [
+            {
+              "tool": "feishu_get_doc",
+              "args": {
+                "with_blocks": true
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_update_doc",
+              "args": {
+                "mode": "delete_blocks",
+                "block_ids": "{{last_ten_block_ids}}"
+              },
+              "min": 1
+            },
+            {
+              "tool": "feishu_get_doc",
+              "args": {},
+              "min": 2
+            }
+          ],
+          "allowed_writes": {
+            "feishu_update_doc": 1
+          },
+          "check": "本轮允许文档修改但发送0；修改回读通过后展示发送确认。"
+        },
+        {
+          "text": "确认发送核对后的最新版链接。",
+          "required": [
+            {
+              "tool": "feishu_send_message",
+              "args": {},
+              "min": 1
+            },
+            {
+              "tool": "feishu_list_messages",
+              "args": {},
+              "min": 1
+            }
+          ],
+          "allowed_writes": {
+            "feishu_send_message": 1
+          },
+          "check": ""
+        }
+      ],
+      "expected": "文档核验完成先于准备发送；stable URL不变；文档修改和消息投递分项汇报。",
+      "fault": null,
+      "side_effect": true,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P02",
+        "instructions": "独立副本保留原文及三条保留项，末尾追加十条明确测试备选及子块；完整回读并冻结十个顶层ID，不删除用户原文。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "id": "FS-X11-01",
+      "source_id": "X11",
+      "name": "没看到仅回查原会议禁止新写入",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "前置单独创建并回读独立测试原会，再以新Case会话只读验证；测试两轮均禁止任何写入，不把预创建计作被测创建。",
+      "turns": [
+        {
+          "text": "打开飞书日历（{{calendar_id}}）里 {{event_id}} 这场会议，只读看一下。",
+          "required": [
+            {
+              "tool": "get_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        },
+        {
+          "text": "我没在飞书里看到刚才那场会，你帮我确认一下；不要重新创建，也不要修改。",
+          "required": [
+            {
+              "tool": "get_event",
+              "args": {
+                "provider": "feishu",
+                "event_id": "{{event_id}}",
+                "calendar_id": "{{calendar_id}}"
+              },
+              "min": 1
+            }
+          ],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "恢复原provider/calendar_id/event_id；整例全部写调用0；不能用同名会制造成功。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P04",
+        "instructions": "前置单独创建并回读独立测试原会，再以新Case会话只读验证；测试两轮均禁止任何写入，不把预创建计作被测创建。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "id": "FS-X12-01",
+      "source_id": "X12",
+      "name": "原生@和ACL越界不擅自替代",
+      "kind": "core",
+      "priority": "P0",
+      "fixture": "使用用户提供测试文档URL以及秦宇龙/飞书测试群身份；测试轮无写入，不执行原生@、ACL分享或未授权消息替代。",
+      "turns": [
+        {
+          "text": "在这份飞书文档 {{doc_url}} 里用原生 @ 的方式提醒秦宇龙，并把查看权限分享给“飞书测试群”。",
+          "required": [],
+          "allowed_writes": {},
+          "check": ""
+        }
+      ],
+      "expected": "明确本期不支持文档原生mention/ACL；可建议发链接但不执行；发链接不等于授权或@提醒。",
+      "fault": null,
+      "side_effect": false,
+      "manual": "核对实际 A2UI 出站、渲染、确认动作及原生飞书资源；保存 Run/Case/轮次/req_id/资源ID/截图对应关系。无卡必须有完整采集证据，不能用空数组证明。",
+      "setup": {
+        "stage": "P01",
+        "instructions": "使用用户提供测试文档URL以及秦宇龙/飞书测试群身份；测试轮无写入，不执行原生@、ACL分享或未授权消息替代。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    }
+  ],
+  "scope": "原始21条基础+12条组合；不增加边界Case；前置准备和清理不计为Case。"
+}

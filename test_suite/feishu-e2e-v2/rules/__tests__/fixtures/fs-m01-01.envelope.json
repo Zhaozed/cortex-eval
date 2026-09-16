@@ -1,0 +1,333 @@
+{
+ "ok": true,
+ "task_name": "EVAL_E2E",
+ "execution_mode": "isolated",
+ "parsed_output": {
+  "schema_version": 1,
+  "reply_type": "QUESTION",
+  "reply_text": "查到了，你确认下对不对：你自己：测试用户甲（open_id:ou_TESTUSER0007）测试同事乙：open_id 是 ou_TESTUSER0004飞书测试群：chat_id 是 oc_TESTCHAT0009这几个对象对吗？",
+  "present_mode": "none",
+  "request_identity": {
+   "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000004",
+   "included_req_ids": [
+    "aaaaaaaaaaaaaaaaaaaaaaaa00000004"
+   ],
+   "task_id": "task_TESTTASK0010"
+  },
+  "route": {
+   "decision": "NEW",
+   "facts": {
+    "domain": "other",
+    "llm_intent": "NEW",
+    "tools": [
+     "feishu_get_user_profile",
+     "feishu_search_users",
+     "feishu_list_conversations"
+    ],
+    "reason": "用户请求查询个人资料、指定用户及群聊，涉及多个飞书工具，已授权相关能力，需要先执行搜索以便用户确认。"
+   }
+  },
+  "tools": [
+   {
+    "name": null
+   },
+   {
+    "name": null
+   },
+   {
+    "name": null
+   }
+  ],
+  "tool_executions": [
+   {
+    "tool_request_id": "tool_TESTTOOL0011",
+    "status": "SUCCEEDED",
+    "call_step_id": "step_TESTSTEP0012",
+    "calls": [
+     {
+      "name": "feishu_get_user_profile",
+      "param": {},
+      "tool_kind": "ONLINE",
+      "online_tool_category": "feishu"
+     }
+    ],
+    "terminals": [
+     {
+      "type": "TOOL_RESULT",
+      "tool_result": {
+       "status": "SUCCESS",
+       "result": {
+        "user": {
+         "avatar_url": "https://s1-imfile.feishucdn.com/static-resource/v1/v3_00135_ef11458a-1fbc-4277-91e6-cbc9ef98224g~?image_size=72x72&cut_type=&quality=&format=image&sticker_format=.webp",
+         "en_name": "测试用户甲",
+         "name": "测试用户甲",
+         "open_id": "ou_TESTUSER0007",
+         "union_id": "on_TESTRES0013"
+        }
+       }
+      }
+     }
+    ]
+   },
+   {
+    "tool_request_id": "tool_TESTTOOL0014",
+    "status": "SUCCEEDED",
+    "call_step_id": "step_TESTSTEP0015",
+    "calls": [
+     {
+      "name": "feishu_search_users",
+      "param": {
+       "query": "测试同事乙"
+      },
+      "tool_kind": "ONLINE",
+      "online_tool_category": "feishu"
+     }
+    ],
+    "terminals": [
+     {
+      "type": "TOOL_RESULT",
+      "tool_result": {
+       "status": "SUCCESS",
+       "result": {
+        "users": [
+         {
+          "avatar_url": "https://s3-imfile.feishucdn.com/static-resource/v1/v3_0013t_1132c5de-98ec-45ab-a9c1-1f59b79aacbg~?image_size=240x240&cut_type=&quality=&format=png&sticker_format=.webp",
+          "department_ids": [
+           "6834d9g9c62gf8g2"
+          ],
+          "name": "测试同事乙",
+          "open_id": "ou_TESTUSER0004"
+         }
+        ]
+       }
+      }
+     }
+    ]
+   },
+   {
+    "tool_request_id": "tool_TESTTOOL0016",
+    "status": "SUCCEEDED",
+    "call_step_id": "step_TESTSTEP0017",
+    "calls": [
+     {
+      "name": "feishu_list_conversations",
+      "param": {
+       "query": "飞书测试群"
+      },
+      "tool_kind": "ONLINE",
+      "online_tool_category": "feishu"
+     }
+    ],
+    "terminals": [
+     {
+      "type": "TOOL_RESULT",
+      "tool_result": {
+       "status": "SUCCESS",
+       "result": {
+        "chats": [
+         {
+          "avatar": "https://s3-imfile.feishucdn.com/static-resource/v1/v3_0015i_e021e7e6-f201-4837-a675-85c33262ebfg~?image_size=100x100&cut_type=&quality=&format=jpeg&sticker_format=.webp",
+          "chat_id": "oc_TESTCHAT0009",
+          "name": "飞书测试群",
+          "owner_id": "ou_TESTUSER0004"
+         }
+        ]
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "tool_execution_count": 3,
+  "a2ui_surface_ids": [
+   "infoChip",
+   "cortex:task_TESTTASK0010:asst_TESTASST0018"
+  ],
+  "a2ui_source_tools": [
+   "feishu_list_conversations",
+   "feishu_search_users"
+  ],
+  "a2ui_surfaces": [
+   {
+    "surface_id": "infoChip",
+    "catalog_id": "https://loona.dm/catalog/v1",
+    "component_ids": [
+     "root"
+    ],
+    "source_tool_names": [
+     "feishu_list_conversations"
+    ],
+    "frame_count": 3,
+    "data_model": {
+     "computed": {
+      "arguments": "{\"query\": \"飞书测试群\"}",
+      "argumentsLabel": "参数",
+      "icon": "loading_spin_ccw",
+      "title": "正在feishu_list_conversations",
+      "toolName": "feishu_list_conversations"
+     },
+     "static": null
+    }
+   },
+   {
+    "surface_id": "cortex:task_TESTTASK0010:asst_TESTASST0018",
+    "catalog_id": "https://loona.dm/catalog/v1",
+    "component_ids": [
+     "root",
+     "layout",
+     "header",
+     "headerIcon",
+     "headerTitle",
+     "divider",
+     "rows",
+     "row",
+     "rowLayout",
+     "rowAccent",
+     "rowIcon",
+     "rowCopy",
+     "rowPrimary",
+     "rowSecondary",
+     "rowMeta",
+     "countBadge"
+    ],
+    "source_tool_names": [
+     "feishu_search_users"
+    ],
+    "frame_count": 3,
+    "data_model": {
+     "computed": {
+      "items": [
+       {
+        "meta": "",
+        "secondary": "",
+        "title": "测试同事乙"
+       }
+      ],
+      "listHeaderIcon": "shapes_bubbling_up",
+      "title": "feishu_search_users"
+     },
+     "static": null
+    }
+   }
+  ],
+  "a2ui_validation": {
+   "error_codes": [],
+   "error_count": 0,
+   "has_errors": false,
+   "has_validator_errors": false,
+   "info_count": 0,
+   "issue_codes": [],
+   "payload_count": 4,
+   "surface_count": 2,
+   "surfaces": [
+    {
+     "catalog_id": "https://loona.dm/catalog/v1",
+     "component_ids": [
+      "root"
+     ],
+     "error_codes": [],
+     "error_count": 0,
+     "frame_count": 3,
+     "has_errors": false,
+     "info_count": 0,
+     "issue_codes": [],
+     "issues": [],
+     "issues_truncated": false,
+     "source_tool_names": [
+      "feishu_list_conversations"
+     ],
+     "surface_id": "infoChip",
+     "validator_error": null,
+     "warn_count": 0
+    },
+    {
+     "catalog_id": "https://loona.dm/catalog/v1",
+     "component_ids": [
+      "root",
+      "layout",
+      "header",
+      "headerIcon"
+     ],
+     "error_codes": [],
+     "error_count": 0,
+     "frame_count": 3,
+     "has_errors": false,
+     "info_count": 0,
+     "issue_codes": [],
+     "issues": [],
+     "issues_truncated": false,
+     "source_tool_names": [
+      "feishu_search_users"
+     ],
+     "surface_id": "cortex:task_TESTTASK0010:asst_TESTASST0018",
+     "validator_error": null,
+     "warn_count": 0
+    }
+   ],
+   "warn_count": 0
+  },
+  "outbound_capture": {
+   "status": "COLLECTED",
+   "request_ended": true,
+   "payload_count": 4,
+   "record_count": 10,
+   "failed_sids": [],
+   "observed_sids": [
+    "eval-aaaaaaaaaaaaaaaaaaaaaaaa00000005",
+    "eval-aaaaaaaaaaaaaaaaaaaaaaaa00000006"
+   ],
+   "error_type": null
+  },
+  "coverage": {
+   "evaluation_ready": true,
+   "truncated": false,
+   "retry_recommended": false
+  },
+  "final_output": {
+   "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000004",
+   "text": "查到了，你确认下对不对：你自己：测试用户甲（open_id:ou_TESTUSER0007）测试同事乙：open_id 是 ou_TESTUSER0004飞书测试群：chat_id 是 oc_TESTCHAT0009这几个对象对吗？",
+   "kind": "QUESTION",
+   "role": "assistant",
+   "asst_msg_id": "asst_TESTASST0018"
+  },
+  "delivered_messages": [
+   {
+    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000004",
+    "text": "查到了，你确认下对不对：你自己：测试用户甲（open_id:ou_TESTUSER0007）测试同事乙：open_id 是 ou_TESTUSER0004飞书测试群：chat_id 是 oc_TESTCHAT0009这几个对象对吗？",
+    "kind": "QUESTION",
+    "role": "assistant",
+    "asst_msg_id": "asst_TESTASST0018"
+   }
+  ],
+  "errors": [
+   {
+    "audit_persisted_at": "2026-09-15T09:24:56.679728+00:00",
+    "call_id": 379,
+    "error_code": "INVALID_REQUEST",
+    "error_message_available": true,
+    "error_message_redacted": true,
+    "raw_failure_output": {
+     "body": {
+      "error": {
+       "code": 400,
+       "message": "Request contains an invalid argument.",
+       "status": "INVALID_ARGUMENT"
+      }
+     },
+     "status_code": 400
+    },
+    "raw_failure_output_available": true,
+    "raw_failure_output_redacted": false,
+    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000004",
+    "source": "llm_audit"
+   }
+  ],
+  "unsupported_reason": null,
+  "conversation_execution": {
+   "complete": true,
+   "completed_turns": 1,
+   "expected_turns": 1,
+   "observed_turns": 1
+  }
+ }
+}

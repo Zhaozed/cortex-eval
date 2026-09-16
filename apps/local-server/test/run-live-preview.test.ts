@@ -11,9 +11,12 @@ it("serves only read-only renderer resources on an isolated origin", async () =>
   const root = await mkdtemp(join(tmpdir(), "live-assets-"));
   const service = new RunLivePreviewService(root);
   try {
+    await mkdir(join(root, "a2ui"), { recursive: true });
     await mkdir(join(root, "a2ui_runtime/icons"), { recursive: true });
     await mkdir(join(root, "a2ui_runtime/rives"));
     for (const file of [
+      "a2ui/a2ui_viewer_message_groups.js",
+      "a2ui/a2ui_viewer_runtime_host.js",
       "a2ui_viewer.js",
       "a2ui_viewer.css",
       "a2ui_catalog.css",

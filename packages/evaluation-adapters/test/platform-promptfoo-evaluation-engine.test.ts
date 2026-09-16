@@ -467,7 +467,7 @@ describe("平台 Promptfoo Evaluation Engine", () => {
         restResultSetHash,
         evaluatorConfigHash: base.evaluator.configHash,
         promptfooVersion: "0.121.18",
-        configContractVersion: "cortex.promptfoo-config.v1",
+        configContractVersion: "cortex.promptfoo-config.v2",
         capabilityMatrixHash: "d".repeat(64),
         evaluatorCallBudget: 0
       })

@@ -69,6 +69,8 @@ function stubResources(
         locales: [{ code: "zh-Hans" }]
       };
       const files: Record<string, [string, string]> = {
+        "a2ui/a2ui_viewer_message_groups.js": ["", "text/javascript"],
+        "a2ui/a2ui_viewer_runtime_host.js": ["", "text/javascript"],
         "a2ui_viewer.js": [
           options.changeEntry && (counts.get(path) ?? 0) > 2 ? "changed" : url.hostname,
           options.htmlJs ? "text/html" : "text/javascript"
@@ -176,9 +178,12 @@ it("uses local resources for local endpoints and never fetches remote resources"
   vi.stubGlobal("fetch", mock);
   const service = new RunLivePreviewService(root);
   try {
+    await mkdir(join(root, "a2ui"), { recursive: true });
     await mkdir(join(root, "a2ui_runtime/icons"), { recursive: true });
     await mkdir(join(root, "a2ui_runtime/rives"));
     for (const file of [
+      "a2ui/a2ui_viewer_message_groups.js",
+      "a2ui/a2ui_viewer_runtime_host.js",
       "a2ui_viewer.js",
       "a2ui_viewer.css",
       "a2ui_catalog.css",

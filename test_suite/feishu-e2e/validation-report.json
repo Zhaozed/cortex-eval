@@ -1,0 +1,47 @@
+{
+  "version": "2.0",
+  "checked_at": "2026-09-15T03:30:39.637567+00:00",
+  "cases": 33,
+  "source_cases": 33,
+  "additional_branch_cases": 0,
+  "multi_turn_cases": 14,
+  "platform_static_validation": "PASS: 33 cases",
+  "synthetic_tests": {
+    "passed": 1126,
+    "scope": "离线合成验证，不调用Agent/Judge"
+  },
+  "platform_import": {
+    "suite_id": "01a0a319-d701-73bb-ba2c-7e4f45833c7f",
+    "case_count": 33,
+    "revision": 1,
+    "preview": {
+      "added": 33,
+      "modified": 0,
+      "removed": 0
+    },
+    "readback_verified": true
+  },
+  "endpoint": {
+    "id": "01a0a312-3729-775a-bab0-540700ebe873",
+    "url": "http://127.0.0.1:8080/eval/e2e",
+    "timeout_ms": 600000,
+    "concurrency": 1,
+    "readback_verified": true
+  },
+  "draft_ingress_guard": {
+    "verified": true,
+    "response": "EVAL_E2E_CLIENT_CONTEXT_REQUIRED",
+    "before_router": true
+  },
+  "authorization_probe": {
+    "req_id": "493a39b6abc34308b9ce1865d8d1e2a0",
+    "status": "BLOCKED_FEISHU_AUTHORIZATION",
+    "actual_feishu_tool_calls": 0
+  },
+  "source_sha256": "7b7ffb11d95addfc71a9fce32270a3495ac2a9289b967d91ef617c2484a099a4",
+  "cases_sha256": "2c41009b8f352218fa887fa7a6e54a58764098bcd331b8103ebe978e71d097c4",
+  "real_cases_executed": 0,
+  "business_writes": 0,
+  "business_pass_count": null,
+  "notes": "本报告替代旧66条离线报告；不沿用旧2013项数字，不表示飞书验收通过。"
+}

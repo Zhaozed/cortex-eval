@@ -1,0 +1,406 @@
+{
+  "version": "2.0",
+  "state": "BLOCKED_FEISHU_AUTHORIZATION",
+  "date_policy": "执行日2026-09-15 Asia/Shanghai；会议时段在实际准备时选择仍在未来且人/房空闲的时段，禁止把静态过去时间当今天。今天不足则阻断，不静默移到明天。C02消歧对照场次允许次日，查询窗口明确含两天。",
+  "stages": [
+    {
+      "id": "P00",
+      "action": "使用指定UID只读验证本服务飞书授权，未通过不写入",
+      "status": "BLOCKED",
+      "evidence_req_id": "493a39b6abc34308b9ce1865d8d1e2a0"
+    },
+    {
+      "id": "P01",
+      "action": "查本人、秦宇龙、飞书测试群及成员、飞书测试文档-auto、已有可写日历、真实会议室；同名不猜；保存原文全文和blocks；核对邀约授权边界。"
+    },
+    {
+      "id": "P02",
+      "action": "根据各Case创建独立测试文档副本与必要内容，按返回ID回读并冻结基线；不污染原文档。"
+    },
+    {
+      "id": "P03",
+      "action": "在授权对象内准备/核对消息和线程，最终发送确认后按message_id回读；需要秦宇龙本人发言的前置只能采用真实发言，不冒充。"
+    },
+    {
+      "id": "P04",
+      "action": "在已有可写日历建立Case独立测试原会，标题必须含测试；真实预约需要先查忙闲与返回房间状态。"
+    },
+    {
+      "id": "freeze",
+      "action": "从原始工具calls/terminals提取实际资源ID、日期/URL/blocks及完整attendees并集；生成bindings.local.json和逐例fixture证据，运行builder生成ready；不能凭模型叙述填ID或勾预检。"
+    },
+    {
+      "id": "evaluate",
+      "action": "校验ready后完整替换本飞书测试集；绑定专用Endpoint，concurrency=1，无盲重试。被阻断Case不发请求，分母仍为33。"
+    },
+    {
+      "id": "cleanup",
+      "action": "保存Run→Case→req_id→资源ID清单；经确认仅取消测试日程，核验房间释放；文档和消息不伪造自动删除能力。"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "FS-D01-01",
+      "setup": {
+        "stage": "P01",
+        "instructions": "唯一命中「飞书测试文档-auto」，记录URL和owner；若重名未解决则停止，不伪造产品组或owner。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-D02-01",
+      "setup": {
+        "stage": "P02",
+        "instructions": "从用户测试文档生成独立阅读基线：保留原文，附测试决策“先灰度后全量”、风险“回归尚未完成”、待办“补回归结果（负责人未指定）”；记录完整正文和URL。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-D03-01",
+      "setup": {
+        "stage": "P01",
+        "instructions": "读取用户测试文档，冻结完整来源和URL；不要提前创建本Case要创建的输出文档。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-D04-01",
+      "setup": {
+        "stage": "P02",
+        "instructions": "基于用户测试文档创建独立副本，完整回读保存正文/blocks，生成本Case唯一测试追加段。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-D05-01",
+      "setup": {
+        "stage": "P02",
+        "instructions": "独立副本保留原内容，追加测试“上线计划”、明确日期块、三条保留项、末两条备选及其子项；回读精确date_block_id和last_two_block_ids，不猜block顺序或ID。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-D06-01",
+      "setup": {
+        "stage": "P02",
+        "instructions": "独立副本，保存原标题、URL、完整正文和blocks/hash；测试轮只改标题。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-M01-01",
+      "setup": {
+        "stage": "P01",
+        "instructions": "测试时依然按名称查询本人、秦宇龙和飞书测试群，不能把预检结果冒充本轮查询；不要求人为制造同名用户。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-M02-01",
+      "setup": {
+        "stage": "P03",
+        "instructions": "读取与秦宇龙的真实测试聊天；最近20条，不足20条如实说明；有has_more时保留分页证据。不为凑条数向联系人刷21条消息。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-M03-01",
+      "setup": {
+        "stage": "P03",
+        "instructions": "核实飞书测试群内秦宇龙在测试时间窗真实发送过含“排期”的消息；没有则标前置不足。不能用本人发言伪造成秦宇龙发言。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-M04-01",
+      "setup": {
+        "stage": "P03",
+        "instructions": "在飞书测试群准备带本Run标记的排期父消息和话题回复（发送须确认），或复用经核对的测试线程；冻结父message_id/chat_id及回复正文。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-M05-01",
+      "setup": {
+        "stage": "P03",
+        "instructions": "飞书测试群准备带本Run标记的排期讨论：明确结论、一个待确认问题；冻结消息全文、发言人、时间及来源；判可能待回复，不伪造已读。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-M06-01",
+      "setup": {
+        "stage": "P01",
+        "instructions": "本人身份真实解析；生成唯一测试消息正文。不要在前置中提前发送该被测消息。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-M07-01",
+      "setup": {
+        "stage": "P03",
+        "instructions": "准备飞书测试群排期父消息并冻结message_id/chat_id；不提前发送本例被测的话题回复。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-C01-01",
+      "setup": {
+        "stage": "P04",
+        "instructions": "在已有可写飞书日历创建独立“测试-列表核验”会议，含明确时间/地点/秦宇龙；按返回ID回读；测试窗口仅覆盖该日程。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-C02-01",
+      "setup": {
+        "stage": "P04",
+        "instructions": "创建两场同名“测试-发布评审”在不同日期的独立会议；date指明要打开的那一天；记录两个ID和日期，不将两场算新增Case。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-C03-01",
+      "setup": {
+        "stage": "P01",
+        "instructions": "解析本人和秦宇龙真实open_id，选择今天仍在未来的查询窗口；不建会，真实空闲不足时不能当正常推荐通过。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-C04-01",
+      "setup": {
+        "stage": "P01",
+        "instructions": "解析本人、秦宇龙和已有可写日历，查今天未来空闲时段；前置不提前创建被测会议。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-C05-01",
+      "setup": {
+        "stage": "P04",
+        "instructions": "独立创建带本人/秦宇龙及已预约真实房间的测试原会；读取飞书测试群全部成员，确认全员均在获准邀约范围；冻结原完整attendees及人员/房间并集。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-C06-01",
+      "setup": {
+        "stage": "P01",
+        "instructions": "发现现有真实会议室及可用时段；没有房间或预约权限则BLOCKED，本期工具不能创建实体会议室，location不能代替预约。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-C07-01",
+      "setup": {
+        "stage": "P04",
+        "instructions": "创建独立带人员及真实房间的测试原会，保存完整基线；找今天原房间和原成员均空闲的新时段。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-C08-01",
+      "setup": {
+        "stage": "P04",
+        "instructions": "独立创建并回读已成功占用真实房间的测试原会；记录event_id/calendar_id/room_id及占用窗口，不能提前取消。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-X01-01",
+      "setup": {
+        "stage": "P03",
+        "instructions": "核实与秦宇龙的真实测试排期讨论及待回复父消息；freeze精确message_id，不能误用群消息或猜最近一条。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-X02-01",
+      "setup": {
+        "stage": "P03",
+        "instructions": "核实与秦宇龙的真实测试问答和未答问题；本例仅读取/拟稿，不能为了前置冒充秦宇龙向自己提问。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-X03-01",
+      "setup": {
+        "stage": "P03",
+        "instructions": "核实与秦宇龙的真实排期讨论；解析已有可写日历及今天未来共同空闲时段；不提前创建被测会议。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-X04-01",
+      "setup": {
+        "stage": "P01",
+        "instructions": "查本人、飞书测试群全员、可写日历、真实房间及共同空闲；全群成员须在授权范围；确认线上会议参数可用。不预创建被测会议。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-X05-01",
+      "setup": {
+        "stage": "P04",
+        "instructions": "独立创建带原人员/真实房间的测试原会；准备经授权的飞书测试群全员并集，测试第二轮再更新。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-X06-01",
+      "setup": {
+        "stage": "P04",
+        "instructions": "独立测试原会已经预约房间A；发现不同的真实房间B以及今天未来新时段；保存旧/新房间ID和完整保留人员。少于两个可用房间则BLOCKED。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-X07-01",
+      "setup": {
+        "stage": "P01",
+        "instructions": "确认web_search在本账号真实可用，解析本人；不在前置固定餐厅答案，不冒充已检索。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-X08-01",
+      "setup": {
+        "stage": "P03",
+        "instructions": "飞书测试群准备本Run测试排期讨论及真实消息来源；不要提前创建本例被测输出文档。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-X09-01",
+      "setup": {
+        "stage": "P01",
+        "instructions": "读取用户测试文档真实URL，核对本人和秦宇龙确实是不同身份；同一人不能假造两名收件人，此时两目标前置不足。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-X10-01",
+      "setup": {
+        "stage": "P02",
+        "instructions": "独立副本保留原文及三条保留项，末尾追加十条明确测试备选及子块；完整回读并冻结十个顶层ID，不删除用户原文。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "只清理本Run资源清单中的精确ID。测试日程经确认取消后按原ID/原房间窗口核验；不支持的文档/消息删除留给原生飞书人工清理，不增加本期工具。"
+    },
+    {
+      "case_id": "FS-X11-01",
+      "setup": {
+        "stage": "P04",
+        "instructions": "前置单独创建并回读独立测试原会，再以新Case会话只读验证；测试两轮均禁止任何写入，不把预创建计作被测创建。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    },
+    {
+      "case_id": "FS-X12-01",
+      "setup": {
+        "stage": "P01",
+        "instructions": "使用用户提供测试文档URL以及秦宇龙/飞书测试群身份；测试轮无写入，不执行原生@、ACL分享或未授权消息替代。",
+        "outside_case": true,
+        "status": "WAITING_AUTHORIZATION",
+        "on_failure": "停止该Case，不调用评测Endpoint执行依赖写入；记录BLOCKED，不替换为其他场景。"
+      },
+      "cleanup": "本Case测试轮只读或拒绝，无写入；其独立前置若创建日程则在运行结束后按精确ID清理。"
+    }
+  ]
+}

@@ -1,0 +1,1094 @@
+1. 版本管理
+版本
+日期
+变更摘要
+依据
+V1.0
+2026-09-14
+按统一 Case 格式整理 21 条基础 + 12 条组合；补齐 Prompt、Agent/UI 链路、Mermaid、A2UI List 与 Tool List。
+9/12 用户研究资料；QYL/lark_tools@06b329d9c
+0910-文档-飞书接入初版功能范围
+2. 阅读说明
+面向产品、UI、研发与测试：按“触发条件 → 用户的话 → Agent 决策与工具调用 → 可见 UI → 验收关注点”评审。本篇描述期望行为，并逐 Case 标注当前证据与未验证边界，不等于验收通过报告。
+标记
+含义
+【A2UI】
+该节点按标注的 template_id 真实出卡；不是所有节点都出卡。
+【Agent】
+内部判断、拼参、核对或数据处理，不出卡。
+【文本】
+普通文本说明、澄清、预览或总结，不出卡。
+【无新卡】
+复用前一步已展示的卡，不再出一张重复卡。
+【扩展】/【建议新增】
+当前没有已确认的现成卡或功能；不能写成已实现。
+图中第二行标 template_id；processor_id 见文末 A2UI List。蓝色为 Loading，橙色为需要用户动作，绿色为结果/default，红色为调用失败，灰色为内部处理或普通文本。颜色不等于出卡标记：橙色可能是文本澄清，也可能是发送确认；default 是渲染分支名，不是“普通卡”的名称。
+图是精简的可见顺序，图与其上方文字共同定义链路。前置读取若实际发起工具调用，同样遵守 tool_start → 真实结果/失败；已经在上下文中的来源使用【无新卡】。多次读取/分页不要求对每个内部步骤生成独立新卡。结果节点只在有效数据满足模板要求时展示；空结果与缺正文用真实说明，不伪造成功卡。
+统一状态口径：Loading=tool_status/started/default；默认失败=tool_status/failed/default（delete_events 例外使用 event_list_detail）；读写终态通常为 tool_status/success_final/default；后续步骤未结束用 success_with_follow_up；主动呈现为 present_result/ready/default。发送/删除确认=tool_confirm/request/request。图上未展开的细分映射以 A2UI List 为准。
+3. 通用需求
+- 工具聚合后，独立测试 Prompt 明确“飞书”来源；多轮可复用已经确认的飞书来源和资源 ID，不误切 Slack、Google 或 Outlook。
+- 以当前用户连接和授权执行；未连接、权限不足、资源不可见与空结果分开说明。恢复授权后核对原对象，不盲目重复写入。
+- 对象唯一则直接继续；同名、多人、多日历或指代不唯一时展示可信候选或普通文本澄清。保留 provider、原始 ID 和可信 URL。
+- 时间按用户时区解析；有完整日期、起止和人员时不重复询问；缺少执行必要信息或遇到冲突才澄清。
+- feishu_send_message 与 delete_events 使用一次最终危险确认；修改目标/正文后更新待确认内容。当前分支没有文档写入或日程创建/更新的同类危险确认卡，关键预览使用普通文本。
+- 写后用真实返回 ID 回读；区分接口成功、资源存在、正文正确、邀请接受、房间占用和收件人已读。回读是本篇验收要求，不宣称存在强制自动保障。
+- 分页、限额、截断与部分失败可见。成功部分保留，失败部分说明；超时/未知先只读核对，避免重复发信、新建、追加或删除。
+- “好了吗”“没看到”“确认一下”本身不授权新写入；不能操作同名对象制造表面成功。
+4. 能力边界
+模块
+本期范围
+关键限制
+文档 D01–D06
+搜索、读取/总结、创建、追加、局部编辑/插入/删除块、改名
+不包含原生 mention、ACL 权限分享；局部编辑不改写无关全文。
+消息 M01–M07
+查人/本人/群、会话读取、搜索、线程读取、总结、文本发送与回复
+指定范围待回复可推断；不提供全量私聊/未读收件箱；不包含富消息附件和群管理。
+日程 C01–C08
+列表/详情/搜索、忙闲、创建、邀请、真实房间预约、修改、取消释放
+线上会议是日程属性；仅真实 URL 才可交付。重复/全天/自定义提醒/日历管理不在首期。
+依据与时效：需求输入为《0912-研究-飞书需求Case与实现差距.md》；本次核对 origin/QYL/lark_tools@06b329d9c5a11fdb054b5629faa5044874f036e7。路由与卡片以该分支 config/a2ui_rendering.yaml、config/cortex.yaml、config/ui_template_data_process/feishu_documents.json、Planner 规则及对应测试为证据；20 个工具字段以资料第 10 节的 2026-09-12 实时 ToolHub 目录记录为依据。
+静态 online_tool_list.json 快照未列完整飞书接口，不据此否定分支已具备的动态工具路由。本文没有重新调用生产 ToolHub 或重放业务写入。资料中的样本、fixture 与测试数量均为历史证据，不是本次线上或端到端验收结果。
+已知待验收边界：9/12 群名称发现曾返回 232025（Bot 能力），房间名称发现曾返回 99991679（用户权限）；本次未重测是否恢复。已知房间 ID 的预约样本不等于名称发现可用；193003 仅在核对原日程时作为已删除证据，不能泛化为账号授权失败。
+5. 基础 Case · 文档
+5.1 D01 搜索并选择飞书文档（读取 / 同名消歧）
+1. 背景与目标
+- 场景：用户记得文档关键词，需要定位正确方案。
+- 目标：选中真实文档并保留其身份供后续读取。
+2. 触发条件
+已连接飞书；有关键词或所有者线索，尚无唯一文档链接。
+3. 用户的话
+“帮我在飞书找一下《发布方案》，我要产品组那份。”
+4. Agent 期望链路
+1. 调用 feishu_search_docs(query, doc_types=docx)，按 offset 获取所需结果；不传 page_token。
+2. 比较标题、类型、可信 URL 与所有者；需要且接口可用时用 feishu_get_user_profile(target_user_id) 核对所有者。
+3. 唯一命中直接读取；多个候选交用户选择；成功空结果说明未找到，权限失败说明真实原因。
+5. UI 期望响应链路
+搜索结果 list_simple → 多候选沿旧卡选择，唯一命中直接继续 → 读取选中文档正文 markdown_title_body
+1. 【Agent】按标题/所有者定位
+2. 【A2UI】读取中；tool_start · started/default
+3. 【A2UI】读取结果；list_simple · default
+4. 【无新卡】多候选沿原卡选择；唯一命中直接继续
+5. 【A2UI】读取选中文档中；tool_start · started/default
+6. 【A2UI】选中文档正文；markdown_title_body · default
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败停止依赖写入，未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 同名未选定前不修改文档；缺失 owner 姓名不以内部 ID 充当人名；分页未结束不声称搜遍全部。
+- 证据与待验证边界：资料记录搜索可用；指定用户资料反查效果仍需真实验证。
+5.2 D02 按链接阅读、总结与问答（读取 / 内容理解）
+1. 背景与目标
+- 场景：用户提供飞书 Docx 或 Wiki 链接，需要理解正文。
+- 目标：依据实际读取内容回答并保留来源。
+2. 触发条件
+有用户提供或已选中的真实 doc 链接；当前用户有阅读权限。
+3. 用户的话
+“帮我读一下这份飞书文档，概括决策、风险和待办。（附文档链接）”
+4. Agent 期望链路
+1. 沿提供的 doc 调用 feishu_get_doc；Wiki 按接口解析结果继续，不重新按同名搜索。
+2. 核对正文是否完整，提取决策、风险、待办；原文未写的推断要标明。
+3. 返回标题、真实链接和基于正文的结论；读取不全时说明仅覆盖已读部分。
+5. UI 期望响应链路
+真实文档正文和来源；总结使用普通文本
+1. 【Agent】沿用户提供的链接读取
+2. 【A2UI】读取中；tool_start · started/default
+3. 【A2UI】读取结果；markdown_title_body · default
+4. 【文本】基于已读正文总结并附来源
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 空正文不以标题生成总结；无权限与空文档区分；Wiki、长文单独验收。
+- 证据与待验证边界：普通 Docx 有受控样本；Wiki、长文全量未验证。
+5.3 D03 从已有资料创建飞书文档（写入 / 来源复用）
+1. 背景与目标
+- 场景：用户已取得资料，希望整理成可交付文档。
+- 目标：使用确定的来源版本创建文档并核对正文。
+2. 触发条件
+来源内容可恢复；有标题或授权 Agent 拟题；存放位置可执行。
+3. 用户的话
+“把刚才查到的资料整理成飞书方案文档，标题你来定，放我的默认目录。”
+4. Agent 期望链路
+1. 恢复刚才真实读取的来源；无法恢复时说明并请求重新获取，不静默重搜。
+2. 按支持的 Markdown 子集整理；默认个人根目录须说明，指定目录只有可信 folder_token 时才使用。
+3. 调用 feishu_create_doc；用返回的 document_id 调用 feishu_get_doc 核对标题与正文，再交付 URL。
+5. UI 期望响应链路
+写入状态后读取新文档，展示核对过的正文和链接
+1. 【无新卡】复用已读资料
+2. 【文本】必要时核对标题与正文
+3. 【A2UI】执行中；tool_start · started/default
+4. 【Agent】按真实 document_id 回读核对；缺正文不伪造成功卡
+5. 【A2UI】真实结果；markdown_title_body · default
+6. 【文本】核对标题、正文与稳定链接
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 创建结果只有 ID/URL 时不伪造正文卡；写后读失败分别报告“已创建、核对失败”，不重复创建。
+- 证据与待验证边界：创建有样本；跨任务来源复用与稳定自动回读需实测。
+5.4 D04 向飞书文档末尾追加内容（写入 / 保留原文）
+1. 背景与目标
+- 场景：用户需要补充现有方案。
+- 目标：仅在末尾增加指定正文并验证旧内容仍在。
+2. 触发条件
+目标 doc 唯一，新增内容明确。
+3. 用户的话
+“在这份飞书文档末尾加一段：本周五完成灰度验证。（附链接）”
+4. Agent 期望链路
+1. feishu_get_doc 读取目标和当前末尾，确认追加位置。
+2. 调用 feishu_update_doc(mode=append, content=最终正文)。
+3. 再次 get_doc，对比新增段落及原文；超时先读取核对，避免重复追加。
+5. UI 期望响应链路
+目标正文 → 写入中 → 回读正文与追加摘要
+1. 【A2UI】原文档正文；markdown_title_body · default
+2. 【A2UI】执行中；tool_start · started/default
+3. 【Agent】按真实 document_id 回读核对；缺正文不伪造成功卡
+4. 【A2UI】真实结果；markdown_title_body · default
+5. 【文本】核对标题、正文与稳定链接
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 追加一次且原文保留；仅凭操作计数不宣称所有内容完整。
+- 证据与待验证边界：有受控追加/回读样本；一般自然语言流程仍需验收。
+5.5 D05 局部编辑、插入和删除指定内容（写入 / 精确块定位）
+1. 背景与目标
+- 场景：用户只想调整文档的一部分。
+- 目标：修改目标块并保留无关内容。
+2. 触发条件
+目标文档与修改意图明确；可读取 blocks 并定位唯一块或块组。
+3. 用户的话
+“把这份飞书文档“上线计划”里的日期改为周五；再删掉最后两条备选方案，其他内容保留。”
+4. Agent 期望链路
+1. feishu_get_doc(with_blocks=true)；按文字、标题层级、邻近块定位，歧义先澄清。
+2. 分别使用 edit_block、insert 或 delete_blocks；删除条目包含其子块完整范围；不使用全文 replace 代替局部编辑。
+3. get_doc 回读核对目标变化与无关块保留；回执不确定先读，不能重复删除。
+5. UI 期望响应链路
+读取原文 → 必要时文本澄清 → 写入中 → 回读和变更摘要
+1. 【A2UI】原文档与块内容；markdown_title_body · default
+2. 【文本】有歧义先确认修改范围
+3. 【A2UI】执行中；tool_start · started/default
+4. 【Agent】按真实 document_id 回读核对；缺正文不伪造成功卡
+5. 【A2UI】真实结果；markdown_title_body · default
+6. 【文本】核对标题、正文与稳定链接
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 校验每个目标 block_id、完整子块及相邻内容；块数变化不能代替逐项验证；内联样式不足时不承诺完全保真。
+- 证据与待验证边界：编辑/插入/删块有历史样本；终态恢复、样式与完整保留需验证。
+5.6 D06 只修改飞书文档标题（写入 / 身份不变）
+1. 背景与目标
+- 场景：方案版本变化，用户需要改文档名。
+- 目标：改标题而保持原正文与文档链接。
+2. 触发条件
+目标 doc 唯一，新标题明确。
+3. 用户的话
+“把这份飞书文档改名为《发布方案 V2》，正文不要动。”
+4. Agent 期望链路
+1. 读取并锁定原 document_id 与标题。
+2. 调用 feishu_update_doc(mode=rename, title=发布方案 V2)。
+3. get_doc 验证新标题，核对 document_id、URL 和正文仍为原文档。
+5. UI 期望响应链路
+写入中 → 回读文档 → 改名结果
+1. 【Agent】锁定原文档与新标题
+2. 【A2UI】执行中；tool_start · started/default
+3. 【Agent】按真实 document_id 回读核对；缺正文不伪造成功卡
+4. 【A2UI】真实结果；markdown_title_body · default
+5. 【文本】核对标题、正文与稳定链接
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 不能通过新建同名文档冒充改名；rename 返回无正文时由回读补足。
+- 证据与待验证边界：资料记录已有受控样本。
+6. 基础 Case · 消息
+6.1 M01 查找飞书人员、本人和群（读取 / 对象选择）
+1. 背景与目标
+- 场景：用户给出姓名或群名，需要确定消息或日程对象。
+- 目标：得到正确类型的真实标识。
+2. 触发条件
+飞书来源明确；有姓名、拼音、群名或“我自己”的指代。
+3. 用户的话
+“在飞书找一下同事小林和“产品讨论”群，先让我确认对象。”
+4. Agent 期望链路
+1. 本人调用 feishu_get_user_profile，不传 target_user_id；他人使用 feishu_search_users；群使用 feishu_list_conversations。
+2. 在各自资源类型内比较名称和补充信息；同名展示候选，不能取首条猜选。
+3. 记录人员 open_id、群 chat_id；群发现失败保留人员成功结果并说明群失败，不改查同名人。
+5. UI 期望响应链路
+人员/群候选；本人资料为 markdown_title_body
+1. 【Agent】区分本人/人员/群
+2. 【A2UI】读取中；tool_start · started/default
+3. 【A2UI】读取结果；list_simple · default
+4. 【文本】分开说明人员与群结果；本人资料另用 markdown_title_body
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- ou_ 与 oc_ 不混用；232025 是历史 Bot 能力错误，不代表人员查询失败或没有该群。
+- 证据与待验证边界：人员有样本；群名称发现历史受 232025 阻塞，当前状态未重测。
+6.2 M02 查看指定单聊或群消息（读取 / 分页）
+1. 背景与目标
+- 场景：用户需要回顾特定聊天内容。
+- 目标：读取明确会话并展示真实正文、发送人和时间范围。
+2. 触发条件
+已得到唯一 open_id 或 chat_id；时间或读取范围明确，必要时澄清。
+3. 用户的话
+“看看飞书里我和小林最近的聊天，先看最近 20 条。”
+4. Agent 期望链路
+1. 锁定会话类型；单聊用 open_id，群聊用 chat_id 调用 feishu_list_messages。
+2. 处理 has_more 与 next_page_token，遵守用户指定条数或时间范围；不把卡片可见行数当全量。
+3. 展示正文与可信发送人、用户时区时间；超出已读范围时明确后续仍有结果。
+5. UI 期望响应链路
+飞书消息列表和分页提示
+1. 【Agent】锁定唯一会话
+2. 【A2UI】读取中；tool_start · started/default
+3. 【A2UI】读取结果；slack_list_messages · default
+4. 【文本】范围、分页和必要结论
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 复用 Slack 模板不代表切换来源；空结果、失败、部分页分开表述。
+- 证据与待验证边界：可读有样本；分页预算和复杂会话范围需验证。
+6.3 M03 按关键词、会话与发送人搜索消息（读取 / 过滤组合）
+1. 背景与目标
+- 场景：用户要找特定人对某议题说过的话。
+- 目标：准确区分聊天对象与发送人条件。
+2. 触发条件
+关键词明确；可解析人员、群和时间范围。
+3. 用户的话
+“在飞书“产品讨论”群里找小林上周说过的“排期”。”
+4. Agent 期望链路
+1. 查群得到 chat_id，查人得到 open_id；按用户时区确定 start_time/end_time。
+2. 调用 feishu_search_messages(query=排期, chat_id=目标群, from_open_id=小林)。
+3. 若用户说“我和小林聊的排期”，改用单聊 open_id 过滤，不把小林当唯一发送人；返回匹配消息与覆盖范围。
+5. UI 期望响应链路
+匹配消息和过滤范围说明
+1. 【Agent】区分会话与发送人过滤
+2. 【A2UI】读取中；tool_start · started/default
+3. 【A2UI】读取结果；slack_list_messages · default
+4. 【文本】范围、分页和必要结论
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- chat_id/open_id/from_open_id 各司其职；后续页未读不声称全量无结果。
+- 证据与待验证边界：原子搜索有样本；复杂过滤仍需真实走查。
+6.4 M04 查看一条飞书消息的回复（读取 / 原消息上下文）
+1. 背景与目标
+- 场景：用户要继续查看某条消息下的讨论。
+- 目标：保留原消息与回复链关系。
+2. 触发条件
+有真实 message_id 及会话来源；多个“刚才那条”先选定。
+3. 用户的话
+“看看飞书刚才那条排期消息下面有哪些回复。”
+4. Agent 期望链路
+1. 从已读结果锁定原 message_id 与 chat_id；必要时读取上下文。
+2. 调用 feishu_get_thread_replies(message_id)，按返回分页获取所需回复。
+3. 展示真实回复；仅有 root_id/parent_id 不推断用户曾选择普通引用还是话题回复。
+5. UI 期望响应链路
+原消息上下文与回复列表
+1. 【无新卡】保留原消息上下文
+2. 【A2UI】读取中；tool_start · started/default
+3. 【A2UI】读取结果；slack_list_messages · default
+4. 【文本】范围、分页和必要结论
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 空对象不生成内容成功卡；原消息失效时不能换读另一条近似消息。
+- 证据与待验证边界：受控线程有样本；历史全类型线程未验证。
+6.5 M05 总结讨论并提取待办（读取 / 语义判断）
+1. 背景与目标
+- 场景：用户希望从讨论中了解结论和待处理事项。
+- 目标：基于已读内容提取结论、责任人和待答问题。
+2. 触发条件
+明确会话/消息范围，正文可实际读取。
+3. 用户的话
+“总结飞书这个群今天的排期讨论，列出结论和还需要我回复的问题。”
+4. Agent 期望链路
+1. 用 list_messages/search_messages 读取指定范围，必要时 get_thread_replies 补全讨论。
+2. 区分决策、承诺、疑问与普通寒暄；责任人或截止时间未写明时标为未明确。
+3. 返回来源消息和普通文本总结；“可能待回复”只是基于已读窗口的判断，不等于未读状态。
+5. UI 期望响应链路
+来源消息卡 → 普通文本总结
+1. 【Agent】读取指定讨论与必要回复
+2. 【A2UI】读取中；tool_start · started/default
+3. 【A2UI】读取结果；slack_list_messages · default
+4. 【文本】结论、待办及可能待答问题
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 不编造责任人或期限；不自动创建 Task；缺全量私聊入口时不宣称扫遍全部消息。
+- 证据与待验证边界：总结可编排；全量待回复闭环不在已验证能力内。
+6.6 M06 向指定人、本人或群发送文本（写入 / 一次确认）
+1. 背景与目标
+- 场景：用户需要向飞书目标同步明确内容。
+- 目标：最终正文和接收方一次确认后发送并回读。
+2. 触发条件
+目标唯一、正文完整；真实接收身份可确定。
+3. 用户的话
+“用飞书给小林发：新版本周五发布，请今天完成验证。”
+4. Agent 期望链路
+1. 人员/群按对应工具定位；本人先 get_user_profile；拼成最终 receive_id、receive_id_type 和 text。
+2. 把最终发送意图交现有危险工具组，只出现一次最终确认；取消不发，修改正文/目标重建待确认组。
+3. 确认后 feishu_send_message；按返回 message_id 和真实 chat_id 读取匹配，不用“最新一条”猜测；超时未知先核对。
+5. UI 期望响应链路
+发送确认 → 发送中 → 结果 → 消息回读
+1. 【Agent】锁定全部目标与最终正文
+2. 【A2UI】发送确认；send_message_multi_target · request
+3. 【A2UI】执行中；tool_start · started/default
+4. 【A2UI】真实结果；send_message_multi_target · default
+5. 【A2UI】消息回读 slack_list_messages · default；【文本】核对 message_id 与实际状态
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 确认前发送次数为 0；重复“确定”不重发已完成消息；投递成功不代表已读。
+- 证据与待验证边界：发送有真实样本；整组确认具 fixture 证据，实际交互需验收。
+6.7 M07 普通引用回复或话题内回复（写入 / 回复形式）
+1. 背景与目标
+- 场景：用户要回应指定消息，并保留讨论关系。
+- 目标：回复到正确原消息和正确会话。
+2. 触发条件
+原 message_id、会话和回复形式可确定。
+3. 用户的话
+“在飞书刚才那条排期消息的话题里回复：收到，我今天补齐验证结果。”
+4. Agent 期望链路
+1. 读取原消息，核对 message_id、chat_id 及摘要；群消息作者不是整条回复的接收目标。
+2. 话题内回复设 reply_in_thread=true；普通引用为 false/省略；仅“告诉小林”且无原消息指向时走新私聊。
+3. 确认卡展示最终正文、形式和可信原文摘要；一次确认后 send_message(reply_to_message_id)，再读对应会话/线程。
+5. UI 期望响应链路
+原消息 → 同模板回复确认 → Loading → 结果 → 线程回读
+1. 【A2UI】原消息上下文；slack_list_messages · default
+2. 【A2UI】发送确认；send_message_multi_target · request
+3. 【A2UI】执行中；tool_start · started/default
+4. 【A2UI】真实结果；send_message_multi_target · default
+5. 【A2UI】消息回读 slack_list_messages · default；【文本】核对 message_id 与实际状态
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 形式或原消息改变需重新确认；缺少可信摘要不编造回复上下文；正文不自动替代原文。
+- 证据与待验证边界：两种回复接口有样本；新确认上下文具有 fixture 证据。
+7. 基础 Case · 日程
+7.1 C01 查看飞书日程及详情（读取 / 日期范围）
+1. 背景与目标
+- 场景：用户需要了解当天或本周的安排。
+- 目标：展示真实安排并补齐所需详情。
+2. 触发条件
+飞书来源、用户时区及日期范围明确。
+3. 用户的话
+“看看我明天飞书日历有哪些会议，告诉我时间、地点和参会人。”
+4. Agent 期望链路
+1. 调用 list_events(provider=[feishu], start, end)；指定共享日历先 list_calendars 核对访问权限。
+2. 逐项保留 provider、calendar_id、event_id；所需字段缺失时调用 get_event 补读。
+3. 多日概览沿 carousel_list_events，单条具体详情沿 event_detail；视频链接仅使用真实返回值，以普通文本提供。
+5. UI 期望响应链路
+日程列表；概览增强 carousel_list_events，单条详情 event_detail
+1. 【Agent】确定日期、时区和日历
+2. 【A2UI】读取中；tool_start · started/default
+3. 【A2UI】读取结果；event_list_detail · default
+4. 【A2UI】按需详情 event_detail；概览 carousel_list_events
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 列表缺参会人不等于无人参加；不能把组织者当已接受邀请的参会人；不补造线上链接。
+- 证据与待验证边界：基本读链有样本；共享日历和完整详情需实测。
+7.2 C02 搜索并锁定飞书会议（读取 / 同名消歧）
+1. 背景与目标
+- 场景：用户记得会议主题，但没有日程 ID。
+- 目标：找到唯一目标，后续操作保持同一身份。
+2. 触发条件
+主题和可执行时间范围已确定。
+3. 用户的话
+“帮我找飞书本周的发布评审会，打开周五那场。”
+4. Agent 期望链路
+1. list_events(provider=[feishu], query=发布评审, start, end) 获取候选。
+2. 按时间、日历和人员消歧；不能仅凭标题选择首条。
+3. 选定后 get_event(provider=feishu,event_id,calendar_id)；目标已删除时说明并停止，不自动替换为其他会议。
+5. UI 期望响应链路
+候选日程列表 → 选中详情 event_detail
+1. 【Agent】按主题和日期搜索
+2. 【A2UI】读取中；tool_start · started/default
+3. 【A2UI】读取结果；event_list_detail · default
+4. 【A2UI】选中后读取详情；event_detail · default
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 原目标 get_event 返回 193003 时不能改另一个 event；query 支持以动态 Schema 和真实返回为准。
+- 证据与待验证边界：资料有关键词查询样本；动态 Schema 描述与实现需上游对齐。
+7.3 C03 协调人员可用时段（读取 / 忙闲推荐）
+1. 背景与目标
+- 场景：用户想在一定时间内找到大家都方便的会议时段。
+- 目标：读取完整目标的忙闲并推荐可用选项。
+2. 触发条件
+人员/群、候选时间窗、会议时长明确。
+3. 用户的话
+“帮我看飞书里我和小林明天下午哪半小时都有空。”
+4. Agent 期望链路
+1. 本人 get_user_profile、他人 search_users；群目标则读取完整成员分页并去重。
+2. 调用 feishu_query_free_busy(time_min,time_max,open_ids)；按资料的每批最多 20 个目标分批并合并冲突。
+3. 仅成功且查询窗口明确时将空 busy 视为未返回冲突；推荐候选时段，等待用户选定再进入创建 Case。
+5. UI 期望响应链路
+忙闲事实卡 → 普通文本候选时段；此时不创建会议
+1. 【Agent】解析本人及完整目标名单
+2. 【A2UI】读取中；tool_start · started/default
+3. 【A2UI】读取结果；list_simple · default
+4. 【文本】推荐时段；未获创建指令不写入
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 一批成功不代表全部人有空；读取失败不等于空闲；不擅自改变指定时间。
+- 证据与待验证边界：部分忙闲样本可用；多人员协调完整流程未验证。
+7.4 C04 创建飞书会议日程（写入 / 人员与时间）
+1. 背景与目标
+- 场景：用户要创建带主题、人员和时间的会议。
+- 目标：正确创建日程并交付实际邀请、本人参与和线上链接状态。
+2. 触发条件
+日期、起止、时区、主题、目标日历和参与意图明确。
+3. 用户的话
+“在飞书约我和小林明天下午 3 点到 4 点开发布评审会。”
+4. Agent 期望链路
+1. 确定 calendar_id 或明确默认日历；解析小林和本人身份，“我和”须显式包含本人，纯代约不擅自加本人。
+2. 查人员忙闲；有冲突说明并由用户选择；给齐信息不重问。资料要求预览关键内容，分支没有 create_event 危险确认卡，需澄清或复核时用普通文本。
+3. 授权和前置条件满足后 create_event(provider=feishu)，按返回原 event_id get_event 核对；分别报告创建、邀请响应、本人参与和实际 onlineMeetingUrl。
+5. UI 期望响应链路
+必要文本澄清/预览 → 创建中 → 日程结果 → 原日程回读
+1. 【A2UI】人员忙闲结果；list_simple · default
+2. 【文本】仅缺参或冲突时澄清
+3. 【A2UI】执行中；tool_start · started/default
+4. 【A2UI】中间写入状态 tool_success；随后按原 event_id 回读
+5. 【A2UI】真实结果；event_detail · default
+6. 【文本】原日程回读与变更核对
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 线上会议是日程属性，不另造“创建线上会议”接口；无 URL 不声称已生成；组织者不代表 attendee accepted。
+- 证据与待验证边界：基本创建有样本；完整人员/忙闲/本人参与仍需真实验收。
+7.5 C05 邀请人员或群成员参加日程（写入 / 名单保留）
+1. 背景与目标
+- 场景：用户要把同事或群成员加入会议。
+- 目标：新增目标成员并保留原人员和房间。
+2. 触发条件
+新建或现有会议身份明确；人员或群可完整解析。
+3. 用户的话
+“把小林和飞书“产品讨论”群的所有成员加入刚才那场会。”
+4. Agent 期望链路
+1. 人员 search_users；群 list_conversations 后 list_chat_members 读完所有页，以 open_id 去重。
+2. 已有会议先 get_event；合并原名单、房间和新增人员，按必要时间窗检查忙闲。
+3. update_event 的 attendees 是整体替换，提交合并名单；get_event 回读，区分组级邀请和逐人 accepted 状态。
+5. UI 期望响应链路
+候选/成员 list_simple → 更新中 → 详情与名单核对
+1. 【A2UI】原详情/新增成员；event_detail / list_simple · default
+2. 【Agent】合并名单并保留房间
+3. 【A2UI】执行中；tool_start · started/default
+4. 【A2UI】中间写入状态 tool_success；随后按原 event_id 回读
+5. 【A2UI】真实结果；event_detail · default
+6. 【文本】原日程回读与变更核对
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 群成员分页未完整时不承诺邀请全群；room 资源不当人员；原成员和房间不得丢失。
+- 证据与待验证边界：个人追加有样本；群名发现历史阻塞，全群闭环需验证。
+7.6 C06 查找并预约飞书会议室（写入 / 资源预约）
+1. 背景与目标
+- 场景：用户明确要求会议占用指定会议室。
+- 目标：预订真实房间资源并验证接受和占用。
+2. 触发条件
+会议时间、人数、房间线索明确；会议室查询权限可用。
+3. 用户的话
+“帮我在飞书预约明天下午 3 点到 4 点的“皮卡丘”会议室，供 6 人开会。”
+4. Agent 期望链路
+1. feishu_list_room_availability 按时间与 keyword 查房间；检查真实 room_id、capacity、enabled、free、truncated；同名先选择。
+2. free 只是预检查；将房间作为 attendees 资源传入 create_event/update_event。9 月 12 日接口样本以 attendees[].email 承载 omm_，不是只填 location，也不能发明 attendees.room_id 字段。
+3. get_event 核对房间 responseStatus；accepted 才报预约成功，declined 失败、needsAction 待处理；再查 room_ids 忙闲。
+5. UI 期望响应链路
+房间候选 list_simple → 写入 → 详情和房间状态；权限失败停止写入
+1. 【A2UI】可用房间候选；list_simple · default
+2. 【文本】同名选择；无权限停止
+3. 【A2UI】执行中；tool_start · started/default
+4. 【A2UI】中间写入状态 tool_success；随后按原 event_id 回读
+5. 【A2UI】真实结果；event_detail · default
+6. 【文本】核对房间响应和实际占用
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 99991679 权限错误不改查同名联系人或群；未授权降级时不先建无房间会议。
+- 证据与待验证边界：已知房间 ID 有受控预约样本；按名称发现历史缺权限，当前未重测。
+7.7 C07 修改日程时间、标题、地点或资源（写入 / 原对象）
+1. 背景与目标
+- 场景：用户需要调整已存在的飞书会议。
+- 目标：在原日程上执行明确变更并保护未改字段。
+2. 触发条件
+原 provider/calendar_id/event_id 唯一，用户明确提出修改。
+3. 用户的话
+“把飞书刚才那场发布评审改到后天下午 3 点到 4 点，其他人员和会议室保留。”
+4. Agent 期望链路
+1. get_event 读取原对象；若已删除则停止，不搜索一个相似对象继续修改。
+2. 构建最小 delta；时间或房间改变时重查人员/房间忙闲并处理冲突；attendees 改变时保留整份名单。
+3. update_event 后 get_event；改期核对新占用和旧时间释放，换房核对新房间响应及旧房间释放。
+5. UI 期望响应链路
+原详情 → 必要文本复核 → 更新中 → 变更详情和回读
+1. 【A2UI】原日程详情；event_detail · default
+2. 【文本】必要时复核变更与冲突
+3. 【A2UI】执行中；tool_start · started/default
+4. 【A2UI】中间写入状态 tool_success；随后按原 event_id 回读
+5. 【A2UI】真实结果；event_detail · default
+6. 【文本】核对原对象变化及新旧房间占用
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- “没看到/确认一下”不构成修改授权；不能只改 location 冒充换房成功；补偿不自动执行。
+- 证据与待验证边界：已知房间改期有样本；一般改期换房及对象连续性需回归。
+7.8 C08 取消会议并核对房间释放（删除 / 一次确认）
+1. 背景与目标
+- 场景：用户不再需要某场会议。
+- 目标：删除正确日程，并确认关联资源释放。
+2. 触发条件
+原会议唯一，用户明确请求取消。
+3. 用户的话
+“取消飞书刚才那场发布评审，确认会议室也释放了。”
+4. Agent 期望链路
+1. get_event 锁定取消目标与原房间；交 delete_events 现有危险确认，展示待删日程。
+2. 用户取消则不执行；确认后 delete_events(provider=feishu,event_ids=[原ID],calendar_id)。
+3. 按每个 event_id 检查结果；只读验证删除状态及原 room_ids 忙闲；193003 作为原对象已删除证据，不扩大为账号失效。
+5. UI 期望响应链路
+日程删除确认 → Loading → 删除结果 → 普通文本释放核对；delete_events 调用失败也使用 event_list_detail（failed/default），不是 tool_fail
+1. 【A2UI】原日程详情；event_detail · default
+2. 【A2UI】删除确认；event_list_detail · request
+3. 【A2UI】执行中；tool_start · started/default
+4. 【A2UI】真实结果；event_list_detail · default
+5. 【文本】逐项删除与房间释放核对
+异常分支：【A2UI】delete_events 失败为 event_list_detail，action/state/branch=tool_status/failed/default；前置 get_event 或后续忙闲查询失败仍走默认 tool_fail。取消不触发删除，不显示失败卡。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 部分删除失败逐项披露；已删除对象不重复删除近似日程；房间释放未读回时不宣称已释放。
+- 证据与待验证边界：受控取消/释放已有样本；一般 UI 后续核对需验证。
+8. 组合链路 Case
+8.1 X01 查到讨论后在原消息回复（跨工具 / 读后写）
+1. 背景与目标
+- 场景：用户要回应一段尚未解决的讨论。
+- 目标：基于实际上下文拟稿，投递到原消息。
+2. 触发条件
+飞书联系人或会话与讨论主题明确；用户已提出回复意图。
+3. 用户的话
+“在飞书找小林和我最近聊的排期问题，看看上下文后帮我回复，告诉他我今天补齐验证结果。”
+4. Agent 期望链路
+1. 复用或解析真实人员 ID；search_messages/list_messages 定位讨论，必要时 get_thread_replies。
+2. 基于该讨论生成最终回复，锁定原 message_id/chat_id；不从无关话题套用回复。
+3. 进入一次发送确认；确认后 send_message 并按原会话/线程回读，取消不发。
+5. UI 期望响应链路
+来源消息卡 → 回复确认 → 发送与原线程回读
+1. 【A2UI】已定位讨论及回复；slack_list_messages · default
+2. 【Agent】拟稿并锁定原消息
+3. 【A2UI】发送确认；send_message_multi_target · request
+4. 【A2UI】执行中；tool_start · started/default
+5. 【A2UI】真实结果；send_message_multi_target · default
+6. 【A2UI】消息回读 slack_list_messages · default；【文本】核对 message_id 与实际状态
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 找不到原消息先说明；有消息不等于已读完整线程。
+- 证据与待验证边界：原子工具有样本，组合端到端仍需验收。
+8.2 X02 在指定聊天范围查待回复并拟稿（组合读取 / 不自动发送）
+1. 背景与目标
+- 场景：用户希望知道哪些问题可能需要自己回应。
+- 目标：限定范围识别待答问题并给出草稿。
+2. 触发条件
+明确人/群和时间窗；当前用户身份可查。
+3. 用户的话
+“看看飞书里我和小林这三天的聊天，有哪些问题还等我回复？先帮我拟回复，不要发。”
+4. Agent 期望链路
+1. get_user_profile 确定本人；读取指定会话及相关回复，披露分页和读取范围。
+2. 区分对本人提问、已解决问题与寒暄；无法确定是否待答时标为可能待回复并附来源。
+3. 只输出草稿，不调用 send_message；之后用户明确要求发送才进入 M06/M07 的一次确认。
+5. UI 期望响应链路
+消息来源卡 → 普通文本候选、判断依据和草稿
+1. 【Agent】限定本人、会话与读取窗口
+2. 【A2UI】读取中；tool_start · started/default
+3. 【A2UI】来源消息；slack_list_messages · default
+4. 【文本】可能待回复及草稿；本轮不发信
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 不得宣称扫描全部私聊、未读或全局待回复；本轮发信调用数为 0。
+- 证据与待验证边界：指定范围可编排，全量私聊待回复不在首期能力。
+8.3 X03 从飞书讨论发起会议（消息 → 日程）
+1. 背景与目标
+- 场景：聊天中发现需要一起讨论的问题。
+- 目标：复用讨论对象和主题，补齐时间后创建会议。
+2. 触发条件
+已有真实讨论上下文；用户明确提出建会。
+3. 用户的话
+“就飞书刚才和小林聊的排期，帮我和他约明天下午 3 点到 4 点开个会。”
+4. Agent 期望链路
+1. 保留已验证小林 ID、讨论主题和消息来源；“我和他”先核对本人身份。
+2. 解析时间与时区，查目标人员忙闲；只澄清缺失项或冲突，不重找同名人员。
+3. create_event(provider=feishu) 后 get_event 回读；分别报告日程、人员和真实线上链接。
+5. UI 期望响应链路
+消息来源 → 忙闲结果 → 必要文本澄清 → 日程结果
+1. 【无新卡】复用已读消息和人员
+2. 【A2UI】人员忙闲；list_simple · default
+3. 【A2UI】执行中；tool_start · started/default
+4. 【A2UI】中间写入状态 tool_success；随后按原 event_id 回读
+5. 【A2UI】真实结果；event_detail · default
+6. 【文本】原日程回读与变更核对
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 不得改变来源人员；只创建一次；无线上链接不宣称已生成。
+- 证据与待验证边界：存在历史组合样本，通用链路待验收。
+8.4 X04 邀请全群并预约会议室与线上会议（多依赖组合 / 分项结果）
+1. 背景与目标
+- 场景：团队希望一次约齐群成员、房间和线上入口。
+- 目标：全部前置依赖满足后建会，分别核对邀请和房间。
+2. 触发条件
+群、日期时段、房间与会议目的明确；相应查询权限可用。
+3. 用户的话
+“在飞书约“产品讨论”群所有人和我，周五下午 3 点到 4 点在“皮卡丘”开发布评审，也给我线上会议链接。”
+4. Agent 期望链路
+1. list_conversations 定位群，list_chat_members 读取全部页并去重；查本人是否在名单。
+2. 查询人员忙闲和房间可用性，核对 enabled/capacity/free/truncated；群或房间发现失败则停止依赖写入。
+3. 用普通文本预览时间、最终名单和房间；create_event 带真实人员/房间资源；get_event 和房间 busy 分别核对。
+4. 逐项报告日程创建、邀请响应、本人参与、房间 accepted/declined/needsAction 与实际线上链接；不把整链写成单一成功。
+5. UI 期望响应链路
+人员/房间候选 → 关键内容文本预览 → 日程卡 → 分项核验文本
+1. 【A2UI】完整成员与房间候选；list_simple · default
+2. 【文本】依赖满足后预览；失败停止
+3. 【A2UI】执行中；tool_start · started/default
+4. 【A2UI】中间写入状态 tool_success；随后按原 event_id 回读
+5. 【A2UI】真实结果；event_detail · default
+6. 【文本】日程/邀请/房间/线上链接分项结果
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 不能默默降级为无房间会议；group attendee 不证明全员接受；线上入口仍以实际返回为准。
+- 证据与待验证边界：历史群名称、房间名称发现受阻，完整端到端未证明。
+8.5 X05 向原会议追加人员或整群（多轮修改 / 名单合并）
+1. 背景与目标
+- 场景：原会议创建后，需要增加参会对象。
+- 目标：沿原 event identity 追加目标，保留原资源。
+2. 触发条件
+当前上下文有原日程真实 ID；用户明确新增对象。
+3. 用户的话
+“给飞书刚才那场发布评审再加上小林和“产品讨论”群所有人，原来的人和会议室保留。”
+4. Agent 期望链路
+1. get_event 原日程；搜索新增人员/群并读取完整群成员，去重。
+2. 合并原人员、房间与新增名单；检查新成员忙闲，不把整体替换接口当追加。
+3. update_event 提交完整合并 attendees，get_event 核对增量与保留项。
+5. UI 期望响应链路
+原详情 → 新增目标候选 → 更新结果 → 名单核对
+1. 【A2UI】原日程和新增成员；event_detail / list_simple · default
+2. 【Agent】合并全量名单与房间
+3. 【A2UI】执行中；tool_start · started/default
+4. 【A2UI】中间写入状态 tool_success；随后按原 event_id 回读
+5. 【A2UI】真实结果；event_detail · default
+6. 【文本】原日程回读与变更核对
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 原对象删除则停止；未完成成员分页不得声称全群；不清空房间。
+- 证据与待验证边界：个人追加有样本；群路径历史阻塞。
+8.6 X06 改期同时换房（多轮修改 / 资源迁移）
+1. 背景与目标
+- 场景：原会议需要更换日期和会议室。
+- 目标：保留原人和主题，验证新预约及旧资源释放。
+2. 触发条件
+原日程唯一；新日期、时段与房间明确。
+3. 用户的话
+“把飞书刚才那场会改到明天下午 4 点到 5 点，人员不变，会议室换成“皮卡丘”。”
+4. Agent 期望链路
+1. get_event 保存原时间、人员、房间；查询新时段人员与房间忙闲并消歧。
+2. 普通文本说明变更与冲突；前置条件满足后仅更新必要 delta，attendees 变更时保留完整名单。
+3. get_event 检查新时间和房间 responseStatus；查询新旧 room_ids 的对应时间占用。
+4. 部分失败准确交付当前状态，不自动恢复、重约或清空房间；补偿依据新授权。
+5. UI 期望响应链路
+原详情 → 新房候选 → 更新 → 新旧资源核验
+1. 【A2UI】原详情和新房候选；event_detail / list_simple · default
+2. 【文本】预览变更；冲突先处理
+3. 【A2UI】执行中；tool_start · started/default
+4. 【A2UI】中间写入状态 tool_success；随后按原 event_id 回读
+5. 【A2UI】真实结果；event_detail · default
+6. 【文本】新房间响应与旧资源释放
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 修改成功但新房 declined 不等于预约成功；旧资源释放无法核对须明确。
+- 证据与待验证边界：已知房间改期有样本，按名称换房未闭环。
+8.7 X07 查资料后通过飞书发送（信息检索 → 消息）
+1. 背景与目标
+- 场景：用户想把刚找到的资料发给指定收件人。
+- 目标：取得可信来源，最终内容一次确认后发送。
+2. 触发条件
+资料检索工具当前已授权；飞书目标可明确解析。
+3. 用户的话
+“帮我查一下上海静安适合团队聚餐的餐厅，整理地址和来源链接，再用飞书发给我自己。”
+4. Agent 期望链路
+1. 使用当前授权的信息检索工具得到真实资料；失败不编造摘要。
+2. get_user_profile 解析本人；整理含可信来源链接的最终文本，锁定全部目标。
+3. 仅一次发送确认；确认后 send_message，再按真实返回消息回读。
+5. UI 期望响应链路
+资料展示 → 一次发送确认 → 发送结果与回读
+1. 【无新卡】沿资料工具已展示的来源
+2. 【Agent】生成最终正文与本人目标
+3. 【A2UI】发送确认；send_message_multi_target · request
+4. 【A2UI】执行中；tool_start · started/default
+5. 【A2UI】真实结果；send_message_multi_target · default
+6. 【A2UI】消息回读 slack_list_messages · default；【文本】核对 message_id 与实际状态
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 资料工具 UI 按所属功能定义，不能假定为飞书卡；检索授权失败不等于飞书授权失效。
+- 证据与待验证边界：餐厅路径历史部分可用，其他信息源需单独验收。
+8.8 X08 把飞书消息或已读资料整理为文档（读取 → 文档创建）
+1. 背景与目标
+- 场景：用户想把已有讨论沉淀成方案。
+- 目标：复用同一来源版本生成可回读的飞书文档。
+2. 触发条件
+来源可在当前任务恢复，用户明确要求创建。
+3. 用户的话
+“把飞书刚才这段排期讨论整理成《发布评审准备》，保留结论、待办和来源链接，创建成飞书文档。”
+4. Agent 期望链路
+1. 锁定已读消息/资料范围、身份与版本；不可恢复时说明并请求重新获取，不静默换源。
+2. 整理标题与正文；未明确责任人和时间保留未明确，不替用户编造承诺。
+3. create_doc 后用返回 document_id get_doc，核对标题、正文和来源，再交付链接。
+5. UI 期望响应链路
+来源消息/文档 → 创建中 → 新文档正文与链接
+1. 【无新卡】复用同一版本的已读来源
+2. 【Agent】整理文档标题与正文
+3. 【A2UI】执行中；tool_start · started/default
+4. 【Agent】按真实 document_id 回读核对；缺正文不伪造成功卡
+5. 【A2UI】真实结果；markdown_title_body · default
+6. 【文本】核对标题、正文与稳定链接
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 标题相同不代表同一来源；回读失败报已创建但未核对，不再创建副本。
+- 证据与待验证边界：有历史组合样本，来源稳定与回读需回归。
+8.9 X09 把文档链接一次发给多个对象（多目标发送 / 整组确认）
+1. 背景与目标
+- 场景：用户需要把同一份文档给同事和自己。
+- 目标：全部目标收齐后一次整组确认，逐项报告结果。
+2. 触发条件
+有可信文档链接；所有目标能定位；正文已确定。
+3. 用户的话
+“把刚才那份飞书文档链接发给小林和我自己，正文写：请看最新版发布方案。”
+4. Agent 期望链路
+1. 复用可信创建结果或 get_doc 核对同一文档；查小林与本人，去重但不漏目标。
+2. 形成同轮多个 feishu_send_message 意图，以现有 tool_confirm_group/group_request 一次整组确认；每项复用 send_message_multi_target。
+3. 确认后分项执行和回读；部分失败仅在授权范围处理失败项，不重发成功项。
+5. UI 期望响应链路
+同模板多目标轮播 → 整组一次确认 → 分项发送结果
+1. 【无新卡】复用可信文档链接
+2. 【Agent】收齐并去重全部接收方
+3. 【A2UI】整组确认：tool_confirm_group/group_request；成员 send_message_multi_target · request
+4. 【A2UI】执行中；tool_start · started/default
+5. 【A2UI】真实结果；send_message_multi_target · default
+6. 【文本】按接收方逐项回读；不重发成功项
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 取消整组时所有发送为 0；链接不赋予访问权；不拆成两轮重复确认。
+- 证据与待验证边界：逐人发送有样本；整组路由/fixture 有证据，真实交互仍需验收。
+8.10 X10 局部改文档后发送最新版（文档修改 → 消息）
+1. 背景与目标
+- 场景：用户希望先删除不需要的内容，再同步最新版。
+- 目标：回读确认修改成功后，发送同一文档最新链接。
+2. 触发条件
+文档身份和删除范围明确；收件人可解析。
+3. 用户的话
+“删掉这份飞书文档最后 10 条备选方案，其他保留，再把最新版链接发给小林。”
+4. Agent 期望链路
+1. get_doc(with_blocks=true) 确定完整目标条目/子块；不足 10 条或范围歧义先澄清。
+2. update_doc(delete_blocks) 后 get_doc 对比目标删除和无关内容保留；修改不明先核对。
+3. 复用原稳定 URL 生成最终发送正文；一次发送确认后 send_message 并回读。
+5. UI 期望响应链路
+文档读取 → 删除及正文回读 → 发送确认 → 发送结果
+1. 【A2UI】局部删除后的正文回读；markdown_title_body · default
+2. 【Agent】修改核验通过后准备发送
+3. 【A2UI】发送确认；send_message_multi_target · request
+4. 【A2UI】执行中；tool_start · started/default
+5. 【A2UI】真实结果；send_message_multi_target · default
+6. 【文本】分别报告文档修改和发送结果
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败即停止依赖写入；未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 发送取消/失败不会自动撤销已完成编辑；不能新建文档冒充更新。
+- 证据与待验证边界：原子能力可用，组合未完整验收。
+8.11 X11 多轮指代与“没看到”核对（只读核验 / 防重复写入）
+1. 背景与目标
+- 场景：用户追问原操作是否生效或表示未找到。
+- 目标：沿原对象只读核对，不重复写入或换目标。
+2. 触发条件
+上下文保存原文档、消息或日程身份；本轮没有新写入授权。
+3. 用户的话
+“我没看到飞书刚才那场会，你确认一下；不要重新创建或修改。”
+4. Agent 期望链路
+1. 恢复原 provider/calendar_id/event_id、document_id 或 message_id/chat_id；有多个可能对象先让用户选择。
+2. 只调用对应 get_event/get_doc/list_messages/get_thread_replies 核对原 ID；原对象已删除或不可见如实说明。
+3. 展示当前真实结果；不能搜一个同名对象修改，不能以重发、重建恢复表面成功。
+5. UI 期望响应链路
+原对象上下文 → 只读核对 → 按对象类型展示原文档、原消息或原日程，不混用模板
+1. 【无新卡】保留原对象身份
+2. 【Agent】仅沿原 ID 只读核对
+3. 【A2UI】读取中；tool_start · started/default
+4. 【A2UI】文档：markdown_title_body；消息：slack_list_messages；日程：event_detail。只展示本次核验对象对应的卡，均为 default。
+5. 【文本】原对象真实状态；所有写 Tool 为 0
+异常分支：【A2UI】tool_fail 仅在真实调用失败时出现；【文本】说明失败原因、已完成项和未执行项。前置依赖失败停止依赖写入，未知结果先回查。
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 所有创建、修改、删除和发送 Tool 调用数均为 0；193003 不泛化为账号失效。
+- 证据与待验证边界：资料曾记录严重对象漂移问题，本次未重放验证。
+8.12 X12 原生 @ 与文档权限分享边界（范围澄清 / 替代需授权）
+1. 背景与目标
+- 场景：用户的“分享”可能要求授予访问权或原生提醒。
+- 目标：先解释能力差异，只有接受替代后才进入发送。
+2. 触发条件
+请求包含文档原生 @ 或 ACL 授权；本期无对应接口。
+3. 用户的话
+“在这份飞书文档里 @ 小林，并把文档访问权限分享给“产品讨论”群。”
+4. Agent 期望链路
+1. 区分原生 mention、普通文字、ACL 权限和发送 URL；说明本期不支持所请求的原生 @ / ACL。
+2. 可提出“把链接用飞书消息发给对方”的替代，但说明不授予权限、不产生文档内 @ 提醒。
+3. 本轮不写文档、不发消息；用户明确同意替代后定位目标，并进入 M06/X09 的一次发送确认。
+5. UI 期望响应链路
+普通文本边界说明 → 等待用户选择；授权替代后才出现发送确认卡
+1. 【Agent】区分原生提醒/访问权限/发链接
+2. 【文本】本期不支持原生 @ / ACL；不写文档、不发送
+3. 【文本】等待用户明确接受发链接替代
+4. 【A2UI】仅授权替代后进入 M06/X09；send_message_multi_target · request
+暂时无法在飞书文档外展示此内容
+6. 验收关注点
+- 普通 @ 字符串不冒充通知；发送链接不冒充权限授予；新增能力须标建议新增。
+- 证据与待验证边界：原生 mention 和 ACL 为非本期；替代链按消息 Case 验收。
+9. 非本期能力
+- 原生文档 @ 提醒、ACL 权限授予、知识库/云盘组织管理；发送 URL 不等于授予访问权。
+- 全量私聊会话发现、全局未读/待回复收件箱；总结中提取待办不自动创建 Task。
+- 富消息、图片/附件、群创建/成员管理、原生消息表态等未列入本期的操作。
+- 重复日程、全天日程、自定义提醒、日历管理；Schema 暴露字段不等于产品首期已开放。
+- 群名/房间名当前权限与能力恢复、全员邀请接受、通用多轮不重复写入等属于本期待验收边界，不在本节当作已支持或直接移出范围。
+10. 附录 · A2UI List
+以下均为目标分支已有名称。没有新增专用飞书卡；“飞书消息卡/文档卡/日程卡”只是阅读简称，实际 ID 以此表为准。
+用途
+template_id
+processor_id
+action / state / branch
+涉及 Case
+说明
+Loading
+tool_start
+tool_start
+tool_status / started / default
+所有实际工具调用
+仅工具真实开始时；图中的连续调用可合并表达，不是后台每一步都新建卡。
+默认失败
+tool_fail
+tool_fail
+tool_status / failed / default
+默认调用异常；不含 delete_events 覆盖映射
+说明原因和部分完成项；取消不是调用失败。
+资源候选/忙闲
+list_simple
+feishu_resources
+tool_status / success_final（或 success_with_follow_up）/ default；present_result / ready / default
+D01,M01,C03,C05,C06；相关组合
+文档候选、人员、群、群成员、日历、房间和忙闲；同名选择沿用结果卡。
+本人/指定用户资料
+markdown_title_body
+feishu_documents
+tool_status / success_final（或 success_with_follow_up）/ default；present_result / ready / default
+M01；本人/所有者解析相关 Case
+不是新建 profile 专用模板；信息只来自实际结果。
+文档正文/写后回读
+markdown_title_body
+feishu_documents
+tool_status / success_final（或 success_with_follow_up）/ default；present_result / ready / default
+D02–D06,X08–X11
+正文为必要数据；创建/更新返回无正文时不伪造展示，回读补足。
+消息列表/搜索/线程
+slack_list_messages
+feishu_messages
+tool_status / success_final（或 success_with_follow_up）/ default；present_result / ready / default
+M02–M05,M07；消息相关组合
+已有 Slack 命名模板复用；provider 仍是飞书。
+发送/回复确认
+send_message_multi_target
+feishu_send_message
+tool_confirm / request / request
+M06,M07,X01,X07,X09,X10；X12替代
+橙色代表需用户动作；此处是发送确认，不是澄清卡。
+发送结果
+send_message_multi_target
+feishu_send_message
+tool_status / success_final（或 success_with_follow_up）/ default；present_result / ready / default
+同发送 Case
+成功只证明接口返回；仍按原 ID 回读，不代表已读。
+多目标整组确认
+send_message_multi_target（每项轮播）
+feishu_send_message
+外层 tool_confirm_group / group_request；成员 tool_confirm / request / request
+X09
+不是新 template_id；一次整组确认，逐目标结果。
+原始日程列表/候选
+event_list_detail
+event_list_detail
+tool_status / success_final / default
+C01,C02；日程定位相关组合
+list_events 原始结果；列表缺少字段按需 get_event。
+日程概览增强
+carousel_list_events
+carousel_list_events
+present_result / ready / default
+C01
+仅呈现增强路径使用；不与原始列表混为同一模板。
+日程详情/创建/修改
+event_detail
+event_detail
+tool_status / success_final / default
+C01,C02,C04–C07,X03–X06,X11
+create/update 终态为详情；仍有后续步骤时按下一行中间状态处理。
+日程写入中间成功
+tool_success
+tool_success
+tool_status / success_with_follow_up / default
+C04–C08,X03–X06
+写入后尚有回读步骤时的状态提示，不是最终验收结论。
+日程删除确认与结果
+event_list_detail
+event_list_detail
+确认：tool_confirm / request / request；成功：tool_status / success_final / default；失败：tool_status / failed / default
+C08
+先确认后删除；失败也使用 event_list_detail，不是 tool_fail；后续核验中间状态可用 tool_success。
+日历/账号澄清
+list_simple
+list_simple
+present_result / ready / default；source=clarify_calendar
+日程账号不唯一时
+已有澄清路径；不是所有橙色节点，也不是 feishu_resources 处理器。
+普通语义澄清/预览/总结
+不出卡
+不适用
+【文本】或【Agent】
+全部相关 Case
+不新增虚构确认卡；若今后需要专用卡，必须标【建议新增】，另行评审。
+11. 附录 · Tool List
+20 个 Cortex/ToolHub 工具：15 个 feishu_* + 5 个统一日程工具。所有示例为人工合成、脱敏的结构示例，不代表真实调用或当前验收成功；认证 user_id 由系统注入，示例省略。URL、人员、群、房间和日程 ID 都必须在真实执行时来自用户输入或可信工具结果。字段资料不足的返回值保留结构说明，不编造完整 JSON。
+补充结构证据：参考资料同目录的 run/feishu-webui-20260911/calendars.json、event-delete.json、group-search.json；本次仅只读查看返回字段并脱敏，没有重放调用。样本日期为 9/11，不代表今日授权或服务状态。
+本篇仅整理需求 Case 并发布，不改运行代码或接口契约。spec 影响：无；未改变仓库稳定实现事实，无需更新 owner 或 SYSTEM 文档。
+名称
+用途
+涉及 Case
+入参示例
+出参示例
+边界
+feishu_get_user_profile
+本人/指定用户资料
+D01,M01,M06,C03,C04,X02,X03,X04,X07,X09
+{}
+{"user":{"open_id":"ou_example","name":"示例用户"}}
+查他人另传 target_user_id；本人不传；资料反查效果待验证。
+feishu_search_users
+查人员
+M01,M03,M06,M07,C03,C04,C05,X01,X04,X05,X07,X09,X10
+{"query":"小林","limit":10}
+{"users":[{"open_id":"ou_example","name":"小林"}]}
+query 必填；可选 page_token。同名须消歧。
+feishu_list_conversations
+查群
+M01,M02,M03,M06,C03,C05,X01,X04,X05,X12
+{"query":"产品讨论","limit":10}
+{"outer_error_code":90,"error":"internal error: error: code = 502 reason = FEISHU_API_ERROR message = Bot ability is not activated. (code=232025) metadata = map[] cause = <nil>","result":null}
+出参列为 9/11 本地失败探针的记录外层，不是成功业务 payload；成功目录声明 chats + 可选分页，尚无成功群名样本。
+feishu_list_chat_members
+读群成员
+C03,C05,X04,X05
+{"chat_id":"oc_example","limit":50}
+{"members":[{"member_id":"ou_example","name":"小林"}],"has_more":true,"next_page_token":"page_example"}
+按 has_more/next_page_token 读完；不能用单页长度判断完整。
+feishu_list_messages
+读指定会话
+M02,M05,M06,M07,X01,X02,X03,X07,X08,X09,X10,X11
+{"open_id":"ou_example","limit":20}
+{"messages":[{"message_id":"om_example","chat_id":"oc_example","sender_id":"ou_example","text":"请确认排期","create_time":"2026-09-14T09:00:00+08:00"}],"has_more":false}
+单聊 open_id；群 chat_id；两者按会话类型选择。发送回读须匹配真实 message_id。
+feishu_search_messages
+组合过滤搜索
+M03,M05,X01,X03,X08
+{"query":"排期","chat_id":"oc_example","from_open_id":"ou_example","limit":20}
+{"messages":[{"message_id":"om_example","chat_id":"oc_example","sender_id":"ou_example","text":"排期需评审"}],"has_more":false}
+可选 start_time/end_time/page_token；单聊对象 open_id 与发送人 from_open_id 不同。
+feishu_get_thread_replies
+读回复
+M04,M05,M07,X01,X02,X08,X11
+{"message_id":"om_example","limit":20}
+{"messages":[{"message_id":"om_reply_example","root_id":"om_example","text":"待补验证"}]}
+分页可选；空对象或不可读不能伪造线程成功。
+feishu_send_message
+发送/引用/话题回复
+M06,M07,X01,X07,X09,X10,X12
+{"text":"请看最新版发布方案。","receive_id":"ou_example","receive_id_type":"open_id"}
+{"message_id":"om_example","chat_id":"oc_example","create_time":"2026-09-14T09:00:00+08:00"}
+回复改用 reply_to_message_id；reply_in_thread=true 为话题回复。X12 仅接受替代后调用；一次危险确认。
+feishu_search_docs
+搜索文档
+D01
+{"query":"发布方案","doc_types":["docx"],"limit":10,"offset":0}
+{"docs":[{"token":"doc_example","type":"docx","title":"发布方案","owner_id":"ou_example","url":"https://example.feishu.cn/docx/doc_example"}],"total":1,"has_more":false}
+offset 分页，不能传 page_token。
+feishu_get_doc
+读文档/回读
+D01,D02,D03,D04,D05,D06,X08,X09,X10,X11,X12
+{"doc":"https://example.feishu.cn/docx/doc_example","with_blocks":true}
+{"document_id":"doc_example","title":"发布方案","content":"上线计划","url":"https://example.feishu.cn/docx/doc_example","blocks":[{"block_id":"block_example","type":"text","text":"上线计划"}]}
+with_blocks 用于精确编辑；X12 仅需要核对已有来源时读，不授权写入。
+feishu_create_doc
+创建文档
+D03,X08
+{"title":"发布评审准备","content":"本周五完成验证。"}
+{"document_id":"doc_example","url":"https://example.feishu.cn/docx/doc_example"}
+folder_token 可选；返回 ID/URL 后回读，不自动视为正文已核对。
+feishu_update_doc
+追加/局部修改/改名
+D04,D05,D06,X10
+{"doc":"doc_example","mode":"delete_blocks","block_ids":["block_example"]}
+{"document_id":"doc_example"}
+示例仅公共返回子集；mode 支持 append/replace/insert/edit_block/delete_blocks/rename，参数依次用 content、block_id、after_block_id、block_ids 或 title；操作计数以真实响应为准。
+feishu_list_calendars
+查可访问日历
+C01,C02,C04,C05,C06,C07,C08,X03,X04,X05,X06
+{}
+{"calendars":[{"calendar_id":"calendar_example","summary":"示例日历","type":"primary","role":"owner","is_primary":true}]}
+字段来自 9/11 本地 calendars.json 真实返回结构，值已合成脱敏；page_token 可选，读/写权限分别校验。
+feishu_query_free_busy
+人员/房间忙闲
+C03,C04,C05,C06,C07,C08,X03,X04,X05,X06
+{"time_min":"2026-09-18T15:00:00+08:00","time_max":"2026-09-18T16:00:00+08:00","open_ids":["ou_example"]}
+{"users":[{"open_id":"ou_example","busy":[{"start":"2026-09-18T15:00:00+08:00","end":"2026-09-18T15:30:00+08:00"}]}]}
+房间传 room_ids；必须有查询目标；资料每批最多 20 个对象，失败不视为空闲。
+feishu_list_room_availability
+按名称发现房间
+C06,C07,X04,X06
+{"time_min":"2026-09-18T15:00:00+08:00","time_max":"2026-09-18T16:00:00+08:00","keyword":"皮卡丘","only_free":true}
+单房间结构示意：{"room_id":"omm_example","name":"皮卡丘","capacity":6,"location":"示例楼层","enabled":true,"busy":[],"free":true}；不是完整顶层回执
+目录描述最多 200，可有 truncated/note；历史错误 99991679，无名称查询成功样本。
+list_events
+飞书日程列表/搜索
+C01,C02,X11
+{"provider":["feishu"],"start":"2026-09-18T00:00:00+08:00","end":"2026-09-19T00:00:00+08:00","max_results":50}
+{"results":[{"provider":"feishu","events":[{"id":"event_example","summary":"发布评审"}]}]}
+可选 query/calendar_id；query 描述与历史真实支持不一致，动态 Schema 需复核；X11 仅原身份不足的只读定位，不替代原ID核对。
+get_event
+日程详情/回读
+C01,C02,C04,C05,C06,C07,C08,X03,X04,X05,X06,X11
+{"provider":"feishu","event_id":"event_example","calendar_id":"calendar_example"}
+{"event":{"id":"event_example","summary":"发布评审","start":"2026-09-18T15:00:00+08:00","end":"2026-09-18T16:00:00+08:00"}}
+event 可能是 JSON 字符串；attendees/organizer/location/onlineMeetingUrl 只展示真实值。
+create_event
+创建飞书日程
+C04,C05,C06,X03,X04
+{"provider":"feishu","summary":"发布评审","start":"2026-09-18T15:00:00+08:00","end":"2026-09-18T16:00:00+08:00","attendees":[{"email":"ou_example"},{"email":"omm_example"}]}
+{"event":{"id":"event_example","summary":"发布评审"}}
+calendar_id 可选；飞书 attendees[].email 承载 ou_/oc_/omm_；不是 location 预约；线上链接须回读。
+update_event
+修改原日程
+C05,C06,C07,X05,X06
+{"provider":"feishu","event_id":"event_example","summary":"发布评审 V2"}
+{"event":{"id":"event_example","summary":"发布评审 V2"}}
+只传 delta；attendees 是整体替换，改人/房间时提交完整合并名单。
+delete_events
+批量取消日程
+C08
+{"provider":"feishu","event_ids":["event_example"],"calendar_id":"calendar_example"}
+{"results":[{"event_id":"event_example","success":true}]}
+字段来自 9/11 本地 event-delete.json 飞书真实结果结构，ID 已脱敏；一次危险确认，分项失败单独报告，追加只读释放核验。

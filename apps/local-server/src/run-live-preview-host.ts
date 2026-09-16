@@ -7,6 +7,8 @@ export const livePreviewHost = `<!doctype html><html lang="zh-Hans"><head><meta 
 .a2ui-panel{padding:0}.a2ui-stage{height:100%}#error{padding:16px;font:14px sans-serif}</style>
 </head><body><section class="a2ui-panel" id="panel"><div class="a2ui-stage" id="surface"></div></section>
 <div id="error" hidden>卡片渲染失败，请重新加载。</div>
+<script src="/static/a2ui/a2ui_viewer_message_groups.js"></script>
+<script src="/static/a2ui/a2ui_viewer_runtime_host.js"></script>
 <script src="/static/a2ui_viewer.js"></script><script>
 (() => {
   const parentOrigin = new URLSearchParams(location.search).get('parent');

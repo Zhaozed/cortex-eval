@@ -1,0 +1,808 @@
+{
+ "ok": true,
+ "task_name": "EVAL_E2E",
+ "execution_mode": "client",
+ "parsed_output": {
+  "turns": [
+   {
+    "turn_index": 0,
+    "user_input": "在飞书里发一条消息给我自己：测试[EVAL:feishu-20260915-r1:FS-M06-01] 排期测试：灰度后全量，请确认回归结果。",
+    "parsed_output": {
+     "schema_version": 1,
+     "reply_type": "QUESTION",
+     "reply_text": "您确定要发送这条内容为“测试[EVAL:feishu-20260915-r1:FS-M06-01] 排期测试：灰度后全量，请确认回归结果。”的飞书消息吗？",
+     "present_mode": "none",
+     "request_identity": {
+      "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000b",
+      "included_req_ids": [
+       "aaaaaaaaaaaaaaaaaaaaaaaa0000000b"
+      ],
+      "task_id": "task_TESTTASK0041"
+     },
+     "route": {
+      "decision": "NEW",
+      "facts": {
+       "domain": "other",
+       "llm_intent": "NEW",
+       "tools": [
+        "feishu_send_message"
+       ],
+       "reason": "用户要求在飞书发送消息给自己，需调用已授权的 feishu_send_message 工具"
+      }
+     },
+     "tools": [
+      {
+       "name": null
+      }
+     ],
+     "tool_executions": [
+      {
+       "tool_request_id": "tool_TESTTOOL0042",
+       "status": "SUCCEEDED",
+       "call_step_id": "step_TESTSTEP0043",
+       "calls": [
+        {
+         "name": "feishu_get_user_profile",
+         "param": {},
+         "tool_kind": "ONLINE",
+         "online_tool_category": "feishu"
+        }
+       ],
+       "terminals": [
+        {
+         "type": "TOOL_RESULT",
+         "tool_result": {
+          "status": "SUCCESS",
+          "result": {
+           "user": {
+            "avatar_url": "https://s1-imfile.feishucdn.com/static-resource/v1/v3_00135_ef11458a-1fbc-4277-91e6-cbc9ef98224g~?image_size=72x72&cut_type=&quality=&format=image&sticker_format=.webp",
+            "en_name": "测试用户甲",
+            "name": "测试用户甲",
+            "open_id": "ou_TESTUSER0007",
+            "union_id": "on_TESTRES0013"
+           }
+          }
+         }
+        }
+       ]
+      }
+     ],
+     "tool_execution_count": 1,
+     "a2ui_surface_ids": [
+      "infoChip",
+      "cortex:task_TESTTASK0041:asst_TESTASST0044"
+     ],
+     "a2ui_source_tools": [
+      "feishu_get_user_profile",
+      "feishu_send_message"
+     ],
+     "a2ui_surfaces": [
+      {
+       "surface_id": "infoChip",
+       "catalog_id": "https://loona.dm/catalog/v1",
+       "component_ids": [
+        "root"
+       ],
+       "source_tool_names": [
+        "feishu_get_user_profile"
+       ],
+       "frame_count": 3,
+       "data_model": {
+        "computed": {
+         "arguments": "{}",
+         "argumentsLabel": "参数",
+         "icon": "loading_spin_ccw",
+         "title": "正在feishu_get_user_profile",
+         "toolName": "feishu_get_user_profile"
+        },
+        "static": null
+       }
+      },
+      {
+       "surface_id": "cortex:task_TESTTASK0041:asst_TESTASST0044",
+       "catalog_id": "https://loona.dm/catalog/v1",
+       "component_ids": [
+        "root",
+        "headerIcon",
+        "title",
+        "header",
+        "divider",
+        "messageText",
+        "targetRow",
+        "targetBadge0",
+        "rootLayout"
+       ],
+       "source_tool_names": [
+        "feishu_send_message"
+       ],
+       "frame_count": 3,
+       "data_model": {
+        "computed": {
+         "message": "测试[EVAL:feishu-20260915-r1:FS-M06-01] 排期测试：灰度后全量，请确认回归结果。",
+         "replyContexts": [],
+         "targetBadges": [
+          {
+           "label": "测试用户甲",
+           "leftIcon": "person",
+           "variant": "outline"
+          }
+         ]
+        },
+        "static": null
+       }
+      }
+     ],
+     "a2ui_validation": {
+      "error_codes": [],
+      "error_count": 0,
+      "has_errors": false,
+      "has_validator_errors": false,
+      "info_count": 0,
+      "issue_codes": [],
+      "payload_count": 2,
+      "surface_count": 2,
+      "surfaces": [
+       {
+        "catalog_id": "https://loona.dm/catalog/v1",
+        "component_ids": [
+         "root"
+        ],
+        "error_codes": [],
+        "error_count": 0,
+        "frame_count": 3,
+        "has_errors": false,
+        "info_count": 0,
+        "issue_codes": [],
+        "issues": [],
+        "issues_truncated": false,
+        "source_tool_names": [
+         "feishu_get_user_profile"
+        ],
+        "surface_id": "infoChip",
+        "validator_error": null,
+        "warn_count": 0
+       },
+       {
+        "catalog_id": "https://loona.dm/catalog/v1",
+        "component_ids": [
+         "root",
+         "headerIcon",
+         "title",
+         "header"
+        ],
+        "error_codes": [],
+        "error_count": 0,
+        "frame_count": 3,
+        "has_errors": false,
+        "info_count": 0,
+        "issue_codes": [],
+        "issues": [],
+        "issues_truncated": false,
+        "source_tool_names": [
+         "feishu_send_message"
+        ],
+        "surface_id": "cortex:task_TESTTASK0041:asst_TESTASST0044",
+        "validator_error": null,
+        "warn_count": 0
+       }
+      ],
+      "warn_count": 0
+     },
+     "outbound_capture": {
+      "status": "COLLECTED",
+      "request_ended": true,
+      "payload_count": 2,
+      "record_count": 6,
+      "failed_sids": [],
+      "observed_sids": [
+       "feishu-20260915-r1-m06",
+       "eval-aaaaaaaaaaaaaaaaaaaaaaaa0000000a"
+      ],
+      "error_type": null
+     },
+     "coverage": {
+      "evaluation_ready": true,
+      "truncated": false,
+      "retry_recommended": false
+     },
+     "final_output": {
+      "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000b",
+      "text": "您确定要发送这条内容为“测试[EVAL:feishu-20260915-r1:FS-M06-01] 排期测试：灰度后全量，请确认回归结果。”的飞书消息吗？",
+      "kind": "QUESTION",
+      "role": "assistant",
+      "asst_msg_id": "asst_TESTASST0044"
+     },
+     "delivered_messages": [
+      {
+       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000b",
+       "text": "您确定要发送这条内容为“测试[EVAL:feishu-20260915-r1:FS-M06-01] 排期测试：灰度后全量，请确认回归结果。”的飞书消息吗？",
+       "kind": "QUESTION",
+       "role": "assistant",
+       "asst_msg_id": "asst_TESTASST0044"
+      }
+     ],
+     "errors": [
+      {
+       "audit_persisted_at": "2026-09-15T09:26:45.732527+00:00",
+       "call_id": 405,
+       "error_code": "RESPONSE_TIMEOUT",
+       "error_message_available": true,
+       "error_message_redacted": true,
+       "raw_failure_output_available": false,
+       "raw_failure_output_redacted": false,
+       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000b",
+       "source": "llm_audit"
+      },
+      {
+       "audit_persisted_at": "2026-09-15T09:26:57.966383+00:00",
+       "call_id": 408,
+       "error_code": "INVALID_REQUEST",
+       "error_message_available": true,
+       "error_message_redacted": true,
+       "raw_failure_output": {
+        "body": {
+         "error": {
+          "code": 400,
+          "message": "Request contains an invalid argument.",
+          "status": "INVALID_ARGUMENT"
+         }
+        },
+        "status_code": 400
+       },
+       "raw_failure_output_available": true,
+       "raw_failure_output_redacted": false,
+       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000b",
+       "source": "llm_audit"
+      }
+     ],
+     "unsupported_reason": null
+    }
+   },
+   {
+    "turn_index": 1,
+    "user_input": "确认发送。",
+    "parsed_output": {
+     "schema_version": 1,
+     "reply_type": "NOTICE",
+     "reply_text": "消息已发送。",
+     "present_mode": "none",
+     "request_identity": {
+      "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000c",
+      "included_req_ids": [
+       "aaaaaaaaaaaaaaaaaaaaaaaa0000000c"
+      ],
+      "task_id": "task_TESTTASK0041"
+     },
+     "route": {
+      "decision": "EXISTING",
+      "facts": {
+       "domain": "other",
+       "llm_intent": "EXISTING",
+       "tools": [
+        "feishu_send_message"
+       ],
+       "reason": "用户确认发送飞书消息，继续执行任务"
+      }
+     },
+     "tools": [
+      {
+       "name": null
+      },
+      {
+       "name": null
+      },
+      {
+       "name": null
+      },
+      {
+       "name": null
+      },
+      {
+       "name": null
+      },
+      {
+       "name": null
+      },
+      {
+       "name": null
+      },
+      {
+       "name": null
+      }
+     ],
+     "tool_executions": [
+      {
+       "tool_request_id": "tool_TESTTOOL0045",
+       "status": "SUCCEEDED",
+       "call_step_id": "step_TESTSTEP0046",
+       "calls": [
+        {
+         "name": "feishu_send_message",
+         "param": {
+          "receive_id": "ou_TESTUSER0007",
+          "receive_id_type": "open_id",
+          "text": "测试[EVAL:feishu-20260915-r1:FS-M06-01] 排期测试：灰度后全量，请确认回归结果。"
+         },
+         "tool_kind": "ONLINE",
+         "online_tool_category": "feishu"
+        }
+       ],
+       "terminals": [
+        {
+         "type": "TOOL_RESULT",
+         "tool_result": {
+          "status": "SUCCESS",
+          "result": {
+           "chat_id": "oc_TESTCHAT0047",
+           "create_time": "2026-09-15T09:27:17.975Z",
+           "message_id": "om_TESTMSG0048"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "tool_request_id": "tool_TESTTOOL0049",
+       "status": "SUCCEEDED",
+       "call_step_id": "step_TESTSTEP0050",
+       "calls": [
+        {
+         "name": "feishu_list_messages",
+         "param": {
+          "limit": 1,
+          "open_id": "ou_TESTUSER0007"
+         },
+         "tool_kind": "ONLINE",
+         "online_tool_category": "feishu"
+        }
+       ],
+       "terminals": [
+        {
+         "type": "TOOL_RESULT",
+         "tool_result": {
+          "status": "SUCCESS",
+          "result": {
+           "has_more": true,
+           "messages": [
+            {
+             "chat_id": "oc_TESTCHAT0022",
+             "create_time": "2026-09-15T09:26:31.009Z",
+             "message_id": "om_TESTMSG0051",
+             "msg_type": "text",
+             "sender_id": "ou_TESTUSER0004",
+             "text": "OK"
+            }
+           ],
+           "next_page_token": "TESTTOKEN000000000000002_P5UevnD2_TESTTOKEN000000000000003_8ZCVW-5AV50gVe"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "tool_request_id": "tool_TESTTOOL0052",
+       "status": "SUCCEEDED",
+       "call_step_id": "step_TESTSTEP0053",
+       "calls": [
+        {
+         "name": "feishu_list_messages",
+         "param": {
+          "limit": 1,
+          "open_id": "ou_TESTUSER0007",
+          "page_token": "TESTTOKEN000000000000002_P5UevnD2_TESTTOKEN000000000000003_8ZCVW-5AV50gVe"
+         },
+         "tool_kind": "ONLINE",
+         "online_tool_category": "feishu"
+        }
+       ],
+       "terminals": [
+        {
+         "type": "TOOL_RESULT",
+         "tool_result": {
+          "status": "SUCCESS",
+          "result": {
+           "has_more": true,
+           "next_page_token": "TESTTOKEN000000000000004-TESTTOKEN000000000000005"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "tool_request_id": "tool_TESTTOOL0054",
+       "status": "SUCCEEDED",
+       "call_step_id": "step_TESTSTEP0055",
+       "calls": [
+        {
+         "name": "feishu_list_messages",
+         "param": {
+          "limit": 5,
+          "open_id": "ou_TESTUSER0007",
+          "page_token": "TESTTOKEN000000000000004-TESTTOKEN000000000000005"
+         },
+         "tool_kind": "ONLINE",
+         "online_tool_category": "feishu"
+        }
+       ],
+       "terminals": [
+        {
+         "type": "TOOL_RESULT",
+         "tool_result": {
+          "status": "SUCCESS",
+          "result": {
+           "has_more": true,
+           "next_page_token": "TESTTOKEN000000000000006_TESTTOKEN000000000000007_TESTTOKEN000000000000008"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "tool_request_id": "tool_TESTTOOL0056",
+       "status": "SUCCEEDED",
+       "call_step_id": "step_TESTSTEP0057",
+       "calls": [
+        {
+         "name": "feishu_list_messages",
+         "param": {
+          "limit": 10,
+          "open_id": "ou_TESTUSER0007",
+          "page_token": "TESTTOKEN000000000000006_TESTTOKEN000000000000007_TESTTOKEN000000000000008"
+         },
+         "tool_kind": "ONLINE",
+         "online_tool_category": "feishu"
+        }
+       ],
+       "terminals": [
+        {
+         "type": "TOOL_RESULT",
+         "tool_result": {
+          "status": "SUCCESS",
+          "result": {
+           "has_more": true,
+           "next_page_token": "TESTTOKEN000000000000009_TESTTOKEN000000000000010-P-B3EvsoQnLdtmebIOl-oUT4Bb_TESTTOKEN000000000000011_mfPjPoojy"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "tool_request_id": "tool_TESTTOOL0058",
+       "status": "SUCCEEDED",
+       "call_step_id": "step_TESTSTEP0059",
+       "calls": [
+        {
+         "name": "feishu_list_messages",
+         "param": {
+          "limit": 20,
+          "open_id": "ou_TESTUSER0007",
+          "page_token": "TESTTOKEN000000000000009_TESTTOKEN000000000000010-P-B3EvsoQnLdtmebIOl-oUT4Bb_TESTTOKEN000000000000011_mfPjPoojy"
+         },
+         "tool_kind": "ONLINE",
+         "online_tool_category": "feishu"
+        }
+       ],
+       "terminals": [
+        {
+         "type": "TOOL_RESULT",
+         "tool_result": {
+          "status": "SUCCESS",
+          "result": {
+           "has_more": true,
+           "next_page_token": "TESTTOKEN000000000000012-gMlFBnb6b-TESTTOKEN000000000000013_TESTTOKEN000000000000014-8vb2SPx"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "tool_request_id": "tool_TESTTOOL0060",
+       "status": "SUCCEEDED",
+       "call_step_id": "step_TESTSTEP0061",
+       "calls": [
+        {
+         "name": "feishu_list_messages",
+         "param": {
+          "limit": 50,
+          "open_id": "ou_TESTUSER0007",
+          "page_token": "TESTTOKEN000000000000012-gMlFBnb6b-TESTTOKEN000000000000013_TESTTOKEN000000000000014-8vb2SPx"
+         },
+         "tool_kind": "ONLINE",
+         "online_tool_category": "feishu"
+        }
+       ],
+       "terminals": [
+        {
+         "type": "TOOL_RESULT",
+         "tool_result": {
+          "status": "SUCCESS",
+          "result": {
+           "has_more": true,
+           "next_page_token": "TESTTOKEN000000000000015_4x915TgJO3_TESTTOKEN000000000000016_Xlb5hgHG2kfyd-zfYhvxTpGjMTCRrmwm"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "tool_request_id": "tool_TESTTOOL0062",
+       "status": "SUCCEEDED",
+       "call_step_id": "step_TESTSTEP0063",
+       "calls": [
+        {
+         "name": "feishu_list_messages",
+         "param": {
+          "limit": 50,
+          "open_id": "ou_TESTUSER0007",
+          "page_token": "TESTTOKEN000000000000015_4x915TgJO3_TESTTOKEN000000000000016_Xlb5hgHG2kfyd-zfYhvxTpGjMTCRrmwm"
+         },
+         "tool_kind": "ONLINE",
+         "online_tool_category": "feishu"
+        }
+       ],
+       "terminals": [
+        {
+         "type": "TOOL_RESULT",
+         "tool_result": {
+          "status": "SUCCESS",
+          "result": {
+           "has_more": true,
+           "next_page_token": "TESTTOKEN000000000000017-TESTTOKEN000000000000018_TESTTOKEN000000000000019"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "tool_request_id": "tool_TESTTOOL0064",
+       "status": "SUCCEEDED",
+       "call_step_id": "step_TESTSTEP0065",
+       "calls": [
+        {
+         "name": "feishu_list_messages",
+         "param": {
+          "limit": 50,
+          "open_id": "ou_TESTUSER0007",
+          "page_token": "TESTTOKEN000000000000017-TESTTOKEN000000000000018_TESTTOKEN000000000000019"
+         },
+         "tool_kind": "ONLINE",
+         "online_tool_category": "feishu"
+        }
+       ],
+       "terminals": [
+        {
+         "type": "TOOL_RESULT",
+         "tool_result": {
+          "status": "SUCCESS",
+          "result": {
+           "has_more": true,
+           "next_page_token": "TESTTOKEN000000000000020-1yinwC-cgENhrF2y8dRsEqG3SLJ-z0zQCZYQz1ympViW_bS6jkQ9jpUi0HMEMhaZ7"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "tool_request_id": "tool_TESTTOOL0066",
+       "status": "SUCCEEDED",
+       "call_step_id": "step_TESTSTEP0067",
+       "calls": [
+        {
+         "name": "feishu_list_messages",
+         "param": {
+          "limit": 50,
+          "open_id": "ou_TESTUSER0007",
+          "page_token": "TESTTOKEN000000000000020-1yinwC-cgENhrF2y8dRsEqG3SLJ-z0zQCZYQz1ympViW_bS6jkQ9jpUi0HMEMhaZ7"
+         },
+         "tool_kind": "ONLINE",
+         "online_tool_category": "feishu"
+        }
+       ],
+       "terminals": [
+        {
+         "type": "TOOL_RESULT",
+         "tool_result": {
+          "status": "SUCCESS",
+          "result": {
+           "has_more": true,
+           "next_page_token": "TESTTOKEN000000000000021"
+          }
+         }
+        }
+       ]
+      }
+     ],
+     "tool_execution_count": 10,
+     "a2ui_surface_ids": [
+      "infoChip"
+     ],
+     "a2ui_source_tools": [
+      "feishu_list_messages"
+     ],
+     "a2ui_surfaces": [
+      {
+       "surface_id": "infoChip",
+       "catalog_id": "https://loona.dm/catalog/v1",
+       "component_ids": [
+        "root"
+       ],
+       "source_tool_names": [
+        "feishu_list_messages"
+       ],
+       "frame_count": 3,
+       "data_model": {
+        "computed": {
+         "arguments": "{\"limit\": 50, \"open_id\": \"ou_TESTUSER0007\", \"page_token\": \"TESTTOKEN000000000000020-1yinwC-cgENhrF2y8dRsEqG3SLJ-z0zQCZYQz1",
+         "argumentsLabel": "参数",
+         "icon": "loading_spin_ccw",
+         "title": "正在feishu_list_messages",
+         "toolName": "feishu_list_messages"
+        },
+        "static": null
+       }
+      }
+     ],
+     "a2ui_validation": {
+      "error_codes": [],
+      "error_count": 0,
+      "has_errors": false,
+      "has_validator_errors": false,
+      "info_count": 0,
+      "issue_codes": [],
+      "payload_count": 10,
+      "surface_count": 1,
+      "surfaces": [
+       {
+        "catalog_id": "https://loona.dm/catalog/v1",
+        "component_ids": [
+         "root"
+        ],
+        "error_codes": [],
+        "error_count": 0,
+        "frame_count": 3,
+        "has_errors": false,
+        "info_count": 0,
+        "issue_codes": [],
+        "issues": [],
+        "issues_truncated": false,
+        "source_tool_names": [
+         "feishu_list_messages"
+        ],
+        "surface_id": "infoChip",
+        "validator_error": null,
+        "warn_count": 0
+       }
+      ],
+      "warn_count": 0
+     },
+     "outbound_capture": {
+      "status": "COLLECTED",
+      "request_ended": true,
+      "payload_count": 10,
+      "record_count": 11,
+      "failed_sids": [],
+      "observed_sids": [
+       "feishu-20260915-r1-m06",
+       "eval-aaaaaaaaaaaaaaaaaaaaaaaa0000000a"
+      ],
+      "error_type": null
+     },
+     "coverage": {
+      "evaluation_ready": true,
+      "truncated": false,
+      "retry_recommended": false
+     },
+     "final_output": {
+      "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000c",
+      "text": "消息已发送。",
+      "kind": "NOTICE",
+      "role": "assistant",
+      "asst_msg_id": "asst_TESTASST0068"
+     },
+     "delivered_messages": [
+      {
+       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000c",
+       "text": "消息已发送。",
+       "kind": "NOTICE",
+       "role": "assistant",
+       "asst_msg_id": "asst_TESTASST0068"
+      }
+     ],
+     "errors": [
+      {
+       "audit_persisted_at": "2026-09-15T09:27:20.136063+00:00",
+       "call_id": 413,
+       "error_code": "INVALID_REQUEST",
+       "error_message_available": true,
+       "error_message_redacted": true,
+       "raw_failure_output": {
+        "body": {
+         "error": {
+          "code": 400,
+          "message": "Request contains an invalid argument.",
+          "status": "INVALID_ARGUMENT"
+         }
+        },
+        "status_code": 400
+       },
+       "raw_failure_output_available": true,
+       "raw_failure_output_redacted": false,
+       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000c",
+       "source": "llm_audit"
+      },
+      {
+       "audit_persisted_at": "2026-09-15T09:27:27.369740+00:00",
+       "call_id": 415,
+       "error_code": "INVALID_REQUEST",
+       "error_message_available": true,
+       "error_message_redacted": true,
+       "raw_failure_output": {
+        "body": {
+         "error": {
+          "code": 400,
+          "message": "Request contains an invalid argument.",
+          "status": "INVALID_ARGUMENT"
+         }
+        },
+        "status_code": 400
+       },
+       "raw_failure_output_available": true,
+       "raw_failure_output_redacted": false,
+       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000c",
+       "source": "llm_audit"
+      },
+      {
+       "audit_persisted_at": "2026-09-15T09:27:34.515314+00:00",
+       "call_id": 417,
+       "error_code": "INVALID_REQUEST",
+       "error_message_available": true,
+       "error_message_redacted": true,
+       "raw_failure_output": {
+        "body": {
+         "error": {
+          "code": 400,
+          "message": "Request contains an invalid argument.",
+          "status": "INVALID_ARGUMENT"
+         }
+        },
+        "status_code": 400
+       },
+       "raw_failure_output_available": true,
+       "raw_failure_output_redacted": false,
+       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000c",
+       "source": "llm_audit"
+      },
+      {
+       "audit_persisted_at": "2026-09-15T09:27:41.647875+00:00",
+       "call_id": 419,
+       "error_code": "INVALID_REQUEST",
+       "error_message_available": true,
+       "error_message_redacted": true,
+       "raw_failure_output": {
+        "body": {
+         "error": {
+          "code": 400,
+          "message": "Request contains an invalid argument.",
+          "status": "INVALID_ARGUMENT"
+         }
+        },
+        "status_code": 400
+       },
+       "raw_failure_output_available": true,
+       "raw_failure_output_redacted": false,
+       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000c",
+       "source": "llm_audit"
+      }
+     ],
+     "unsupported_reason": null
+    }
+   }
+  ],
+  "conversation_execution": {
+   "complete": true,
+   "completed_turns": 2,
+   "expected_turns": 2,
+   "observed_turns": 2
+  }
+ }
+}

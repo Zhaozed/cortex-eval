@@ -1,0 +1,4 @@
+# 真实绑定值（含真实人名/群名/文档标题/暗号/sid），不入库
+bindings.v2.json
+.local/
+reports/

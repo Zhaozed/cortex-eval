@@ -133,7 +133,9 @@ it("does not silently drop assertions missing a grading result", async () => {
     }
   });
   expect(screen.getByText("缺少分项结果")).toBeVisible();
-  expect(screen.getByText("未执行的检查")).toBeVisible();
+  // 结论条的「失败项 top1」会重复一次项名，所以只校验它作为检查项行渲染出来了。
+  const checks = screen.getByRole("region", { name: "验收检查" });
+  expect(within(checks).getByText("未执行的检查", { selector: ".run-check-name" })).toBeVisible();
   await screen.findByText(/本次执行未记录 A2UI 卡片/);
 });
 it("opens a live iframe in the result pane without screenshots or another tab", async () => {

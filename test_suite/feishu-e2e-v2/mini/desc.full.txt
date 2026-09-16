@@ -1,0 +1,3 @@
+面向 AI 助手（智能语音沟通 + A2UI 视觉交互）的飞书端到端评测集 v2。55 条口语化 case，37 个评测子项分 6 层：D1 意图路由 / D2 工具编排 / D3 结果真实性 / D4 语音可播报 / D5 视觉交互 A2UI / D6 安全边界。硬性项一票否决（weight 20），质量项计分但不否决（weight 1），阈值按每条 case 动态计算（见 scoring.threshold_formula）。规则源：test_suite/feishu-e2e-v2/SPEC.md
+
+⚠ 当前为【未绑定预览】：bindings.v2.json 还没填，prompt 里含 BIND_REQUIRED_xxx 占位、多轮 case 没有 sid，现在点运行一定全红，别跑。填完 bindings 后用 `bash scripts/run-all.sh` 重跑导入，会整集替换本套件（55 条）。

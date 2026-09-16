@@ -5,6 +5,7 @@ import { useMemo, type ReactElement } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
+import { Badge } from "../../components/ui/badge.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "../../components/ui/form.tsx";
 import { Input } from "../../components/ui/input.tsx";
@@ -16,6 +17,7 @@ import {
   TableHeader,
   TableRow
 } from "../../components/ui/table.tsx";
+import { caseDomain, countMetricsByTier } from "../../lib/assertion-metric.ts";
 import {
   buildCaseListSearch,
   parseCaseListSearch,
@@ -105,7 +107,48 @@ export function TestSuiteCaseListPanel({
   const columns = useMemo<ColumnDef<CaseSummary>[]>(
     () => [
       { accessorKey: "caseKey", header: message("caseList.caseId") },
+      {
+        // Domain is read off the Case ID prefix; legacy IDs simply show a dash.
+        id: "domain",
+        header: "域",
+        cell: ({ row }): ReactElement => {
+          const domain = caseDomain(row.original.caseKey);
+          return domain === null ? (
+            <span className="case-domain-unknown" title="Case ID 不带 FS2-* 前缀，无法归域">
+              —
+            </span>
+          ) : (
+            <Badge variant="outline" className="case-domain-badge" title={domain.code}>
+              {domain.label}
+            </Badge>
+          );
+        }
+      },
       { accessorKey: "description", header: message("caseEditor.description") },
+      {
+        // Tier counts come from the metric-name prefix, so old suites fall back to 未分类.
+        id: "assertionTiers",
+        header: "断言（硬性/质量）",
+        cell: ({ row }): ReactElement => {
+          const counts = countMetricsByTier(row.original.metrics);
+          if (counts.total === 0) return <span className="case-domain-unknown">无断言</span>;
+          return (
+            <div className="tag-list" title="按 Case 内去重后的 metric 名统计">
+              <Badge className="case-tier-badge" data-tier="HARD">
+                硬性 {counts.hard}
+              </Badge>
+              <Badge className="case-tier-badge" data-tier="SOFT">
+                质量 {counts.soft}
+              </Badge>
+              {counts.unmarked > 0 && (
+                <Badge className="case-tier-badge" data-tier="UNMARKED">
+                  未分类 {counts.unmarked}
+                </Badge>
+              )}
+            </div>
+          );
+        }
+      },
       { accessorKey: "businessModule", header: message("caseList.businessModule") },
       { accessorKey: "scenarioTag", header: message("caseList.scenarioTag") },
       {

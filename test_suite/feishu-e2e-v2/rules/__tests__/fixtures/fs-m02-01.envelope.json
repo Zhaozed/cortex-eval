@@ -1,0 +1,384 @@
+{
+ "ok": true,
+ "task_name": "EVAL_E2E",
+ "execution_mode": "isolated",
+ "parsed_output": {
+  "schema_version": 1,
+  "reply_type": "NOTICE",
+  "reply_text": "翻完了你和测试同事乙的私聊，最近主要是他在跟进 E2E 文档链路的验收和发布方案，发了两个飞书文档链接。你提到刚授权上，他让你先仔细看评测规则文档，测试集准备好后自己跑一遍再发结果。后来你们讨论了排期评审的时间，你建议周五上午，他问还要测多久，你说大概 1 小时。早上他又提了 web UI 测带链接的情况，你问用户话里咋还能有链接，他说分开测的，还让你改一下。最后你说先拿着带连接的走一轮自动化试试看。后面还有更多消息，需要继续看吗？",
+  "present_mode": "none",
+  "request_identity": {
+   "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000007",
+   "included_req_ids": [
+    "aaaaaaaaaaaaaaaaaaaaaaaa00000007"
+   ],
+   "task_id": "task_TESTTASK0019"
+  },
+  "route": {
+   "decision": "NEW",
+   "facts": {
+    "domain": "other",
+    "llm_intent": "NEW",
+    "tools": [
+     "feishu_list_conversations",
+     "feishu_list_messages"
+    ],
+    "reason": "用户需要查看特定用户的飞书私聊消息，需要先通过会话列表定位到 chat_id，再获取消息记录。"
+   }
+  },
+  "tools": [
+   {
+    "name": null
+   }
+  ],
+  "tool_executions": [
+   {
+    "tool_request_id": "tool_TESTTOOL0020",
+    "status": "SUCCEEDED",
+    "call_step_id": "step_TESTSTEP0021",
+    "calls": [
+     {
+      "name": "feishu_list_messages",
+      "param": {
+       "limit": 20,
+       "open_id": "ou_TESTUSER0004"
+      },
+      "tool_kind": "ONLINE",
+      "online_tool_category": "feishu"
+     }
+    ],
+    "terminals": [
+     {
+      "type": "TOOL_RESULT",
+      "tool_result": {
+       "status": "SUCCESS",
+       "result": {
+        "has_more": true,
+        "messages": [
+         {
+          "chat_id": "oc_TESTCHAT0022",
+          "create_time": "2026-09-15T09:25:04.237Z",
+          "message_id": "om_TESTMSG0023",
+          "msg_type": "text",
+          "sender_id": "ou_TESTUSER0007",
+          "text": "我先拿着带连接的走一轮自动化试试看"
+         },
+         {
+          "chat_id": "oc_TESTCHAT0022",
+          "create_time": "2026-09-15T09:24:40.017Z",
+          "message_id": "om_TESTMSG0024",
+          "msg_type": "text",
+          "sender_id": "ou_TESTUSER0004",
+          "text": "剪切板"
+         },
+         {
+          "chat_id": "oc_TESTCHAT0022",
+          "create_time": "2026-09-15T09:24:35.565Z",
+          "message_id": "om_TESTMSG0025",
+          "msg_type": "text",
+          "sender_id": "ou_TESTUSER0004",
+          "text": "还有可能和电脑端协同"
+         },
+         {
+          "chat_id": "oc_TESTCHAT0022",
+          "create_time": "2026-09-15T09:23:56.161Z",
+          "message_id": "om_TESTMSG0026",
+          "msg_type": "text",
+          "sender_id": "ou_TESTUSER0004",
+          "text": "你改一下吧"
+         }
+        ],
+        "next_page_token": "TESTTOKEN000000000000001-xeTQ"
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "tool_execution_count": 1,
+  "a2ui_surface_ids": [
+   "infoChip",
+   "cortex:task_TESTTASK0019:asst_TESTASST0027"
+  ],
+  "a2ui_source_tools": [
+   "feishu_list_messages"
+  ],
+  "a2ui_surfaces": [
+   {
+    "surface_id": "infoChip",
+    "catalog_id": "https://loona.dm/catalog/v1",
+    "component_ids": [
+     "root"
+    ],
+    "source_tool_names": [
+     "feishu_list_messages"
+    ],
+    "frame_count": 3,
+    "data_model": {
+     "computed": {
+      "arguments": "{\"limit\": 20, \"open_id\": \"ou_TESTUSER0004\"}",
+      "argumentsLabel": "参数",
+      "icon": "loading_spin_ccw",
+      "title": "正在feishu_list_messages",
+      "toolName": "feishu_list_messages"
+     },
+     "static": null
+    }
+   },
+   {
+    "surface_id": "cortex:task_TESTTASK0019:asst_TESTASST0027",
+    "catalog_id": "https://loona.dm/catalog/v1",
+    "component_ids": [
+     "root",
+     "col",
+     "header",
+     "headerIcon",
+     "label",
+     "divider",
+     "title",
+     "results",
+     "messageItem",
+     "messageContent",
+     "messageMeta",
+     "messageText",
+     "tags",
+     "tagItem",
+     "paginationNotice"
+    ],
+    "source_tool_names": [
+     "feishu_list_messages"
+    ],
+    "frame_count": 3,
+    "data_model": {
+     "computed": {
+      "label": "feishu_list_messages",
+      "paginationNotice": "还有后续结果",
+      "results": [
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:25:04.237Z",
+        "sender": "发送人姓名未返回",
+        "text": "我先拿着带连接的走一轮自动化试试看",
+        "timestamp": "2026-09-15T09:25:04.237Z"
+       },
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:24:40.017Z",
+        "sender": "发送人姓名未返回",
+        "text": "剪切板",
+        "timestamp": "2026-09-15T09:24:40.017Z"
+       },
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:24:35.565Z",
+        "sender": "发送人姓名未返回",
+        "text": "还有可能和电脑端协同",
+        "timestamp": "2026-09-15T09:24:35.565Z"
+       },
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:23:56.161Z",
+        "sender": "发送人姓名未返回",
+        "text": "你改一下吧",
+        "timestamp": "2026-09-15T09:23:56.161Z"
+       },
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:21:46.213Z",
+        "sender": "发送人姓名未返回",
+        "text": "好吧",
+        "timestamp": "2026-09-15T09:21:46.213Z"
+       },
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:21:40.904Z",
+        "sender": "发送人姓名未返回",
+        "text": "和不带链接让他自己找的",
+        "timestamp": "2026-09-15T09:21:40.904Z"
+       },
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:21:34.068Z",
+        "sender": "发送人姓名未返回",
+        "text": "web ui测了带链接的",
+        "timestamp": "2026-09-15T09:21:34.068Z"
+       },
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:21:24.833Z",
+        "sender": "发送人姓名未返回",
+        "text": "哦哦我是分开测的",
+        "timestamp": "2026-09-15T09:21:24.833Z"
+       },
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:21:09.870Z",
+        "sender": "发送人姓名未返回",
+        "text": "用户的话里边咋还能有链接啊",
+        "timestamp": "2026-09-15T09:21:09.870Z"
+       },
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:20:51.376Z",
+        "sender": "发送人姓名未返回",
+        "text": "咋了",
+        "timestamp": "2026-09-15T09:20:51.376Z"
+       },
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:13:36.721Z",
+        "sender": "发送人姓名未返回",
+        "text": "龙哥这个case文档你是不是没看",
+        "timestamp": "2026-09-15T09:13:36.721Z"
+       },
+       {
+        "detail": "",
+        "meta": "2026-09-15T09:13:28.032Z",
+        "sender": "发送人姓名未返回",
+        "text": "",
+        "timestamp": "2026-09-15T09:13:28.032Z"
+       }
+      ],
+      "title": "feishu_list_messages"
+     },
+     "static": null
+    }
+   }
+  ],
+  "a2ui_validation": {
+   "error_codes": [
+    "list_path_not_array"
+   ],
+   "error_count": 1,
+   "has_errors": true,
+   "has_validator_errors": false,
+   "info_count": 0,
+   "issue_codes": [
+    "list_path_not_array"
+   ],
+   "payload_count": 2,
+   "surface_count": 2,
+   "surfaces": [
+    {
+     "catalog_id": "https://loona.dm/catalog/v1",
+     "component_ids": [
+      "root"
+     ],
+     "error_codes": [],
+     "error_count": 0,
+     "frame_count": 3,
+     "has_errors": false,
+     "info_count": 0,
+     "issue_codes": [],
+     "issues": [],
+     "issues_truncated": false,
+     "source_tool_names": [
+      "feishu_list_messages"
+     ],
+     "surface_id": "infoChip",
+     "validator_error": null,
+     "warn_count": 0
+    },
+    {
+     "catalog_id": "https://loona.dm/catalog/v1",
+     "component_ids": [
+      "root",
+      "col",
+      "header",
+      "headerIcon"
+     ],
+     "error_codes": [
+      "list_path_not_array"
+     ],
+     "error_count": 1,
+     "frame_count": 3,
+     "has_errors": true,
+     "info_count": 0,
+     "issue_codes": [
+      "list_path_not_array"
+     ],
+     "issues": [
+      {
+       "code": "list_path_not_array",
+       "level": "error",
+       "location": "component:tags.children.path",
+       "message": "List 的 children.path=\"/computed/tags\" 不是数组",
+       "suggestion": "updateDataModel.value 需要包含该数组路径。当前数据字段：_chip, action_TESTRES0028, computed, render。"
+      }
+     ],
+     "issues_truncated": false,
+     "source_tool_names": [
+      "feishu_list_messages"
+     ],
+     "surface_id": "cortex:task_TESTTASK0019:asst_TESTASST0027",
+     "validator_error": null,
+     "warn_count": 0
+    }
+   ],
+   "warn_count": 0
+  },
+  "outbound_capture": {
+   "status": "COLLECTED",
+   "request_ended": true,
+   "payload_count": 2,
+   "record_count": 14,
+   "failed_sids": [],
+   "observed_sids": [
+    "eval-aaaaaaaaaaaaaaaaaaaaaaaa00000008",
+    "eval-aaaaaaaaaaaaaaaaaaaaaaaa00000005"
+   ],
+   "error_type": null
+  },
+  "coverage": {
+   "evaluation_ready": true,
+   "truncated": false,
+   "retry_recommended": false
+  },
+  "final_output": {
+   "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000007",
+   "text": "翻完了你和测试同事乙的私聊，最近主要是他在跟进 E2E 文档链路的验收和发布方案，发了两个飞书文档链接。你提到刚授权上，他让你先仔细看评测规则文档，测试集准备好后自己跑一遍再发结果。后来你们讨论了排期评审的时间，你建议周五上午，他问还要测多久，你说大概 1 小时。早上他又提了 web UI 测带链接的情况，你问用户话里咋还能有链接，他说分开测的，还让你改一下。最后你说先拿着带连接的走一轮自动化试试看。后面还有更多消息，需要继续看吗？",
+   "kind": "NOTICE",
+   "role": "assistant",
+   "asst_msg_id": "asst_TESTASST0027"
+  },
+  "delivered_messages": [
+   {
+    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000007",
+    "text": "翻完了你和测试同事乙的私聊，最近主要是他在跟进 E2E 文档链路的验收和发布方案，发了两个飞书文档链接。你提到刚授权上，他让你先仔细看评测规则文档，测试集准备好后自己跑一遍再发结果。后来你们讨论了排期评审的时间，你建议周五上午，他问还要测多久，你说大概 1 小时。早上他又提了 web UI 测带链接的情况，你问用户话里咋还能有链接，他说分开测的，还让你改一下。最后你说先拿着带连接的走一轮自动化试试看。后面还有更多消息，需要继续看吗？",
+    "kind": "NOTICE",
+    "role": "assistant",
+    "asst_msg_id": "asst_TESTASST0027"
+   }
+  ],
+  "errors": [
+   {
+    "audit_persisted_at": "2026-09-15T09:25:16.501262+00:00",
+    "call_id": 383,
+    "error_code": "INVALID_REQUEST",
+    "error_message_available": true,
+    "error_message_redacted": true,
+    "raw_failure_output": {
+     "body": {
+      "error": {
+       "code": 400,
+       "message": "Request contains an invalid argument.",
+       "status": "INVALID_ARGUMENT"
+      }
+     },
+     "status_code": 400
+    },
+    "raw_failure_output_available": true,
+    "raw_failure_output_redacted": false,
+    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000007",
+    "source": "llm_audit"
+   }
+  ],
+  "unsupported_reason": null,
+  "conversation_execution": {
+   "complete": true,
+   "completed_turns": 1,
+   "expected_turns": 1,
+   "observed_turns": 1
+  }
+ }
+}

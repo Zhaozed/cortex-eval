@@ -1,5 +1,5 @@
 {
-  "url": "http://localhost:8082/run_llm_task/{{vars.task}}",
+  "url": "http://localhost:8080/eval/e2e",
   "method": "POST",
   "headers": {
     "Content-Type": "application/json"

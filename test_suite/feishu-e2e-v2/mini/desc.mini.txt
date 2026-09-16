@@ -1,0 +1,1 @@
+飞书 E2E v2 的冒烟子集：16 条，覆盖 7 个分域全量 / 37 个评测子项全量 / 5 种 A2UI 卡片（只缺 TEXT 卡）。用途是「先验证链路能不能跑通」，正式评测请用全集套件「飞书 E2E v2｜语音·视觉·安全」（55 条）。⚠ 当前为【未绑定预览】：bindings.v2.json 还没填，prompt 里含 BIND_REQUIRED_xxx 占位、多轮 case 没有 sid，现在点运行一定全红，别跑。填完 bindings 后用 `bash scripts/run-mini.sh --run` 重跑，会整集替换本套件（16 条）。

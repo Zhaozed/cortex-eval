@@ -1,0 +1,22 @@
+{
+  "uid": "2075490654049271808",
+  "checked_at": "2026-09-15T07:05:03.372084+00:00",
+  "endpoint_id": "01a0a312-3729-775a-bab0-540700ebe873",
+  "business_writes": 0,
+  "acceptance_cases_executed": 0,
+  "resources_resolved": false,
+  "evidence_directory": "/Users/joey/Documents/cortex测评/cortex-eval/test_suite/feishu-e2e/.local/preflight-20260915T070503Z-8a69ba",
+  "status": "RESOURCE_EVIDENCE_COLLECTED_NEEDS_BINDING_REVIEW",
+  "req_id": "34d28d48dc654967a681ffc4eb84db3d",
+  "route": "NEW",
+  "feishu_tool_calls": 1,
+  "successful_resource_tools": [
+    "feishu_search_users",
+    "feishu_list_conversations",
+    "feishu_list_chat_members",
+    "feishu_search_docs",
+    "feishu_get_doc",
+    "feishu_list_calendars"
+  ],
+  "note": "采集不等于绑定完成：需核对唯一候选、完整正文、真实资源ID、人员授权及房间，再按preparation-plan.json准备fixture。没有自动勾选审核项或解锁导入Case。"
+}

@@ -1,0 +1,363 @@
+{
+ "ok": true,
+ "task_name": "EVAL_E2E",
+ "execution_mode": "isolated",
+ "parsed_output": {
+  "schema_version": 1,
+  "reply_type": "NOTICE",
+  "reply_text": "日程已创建，测试同事乙待接受邀请。16 点到 17 点还有另一场测试评审，时间衔接正常。",
+  "present_mode": "none",
+  "request_identity": {
+   "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000001",
+   "included_req_ids": [
+    "aaaaaaaaaaaaaaaaaaaaaaaa00000001"
+   ],
+   "task_id": "task_TESTTASK0001"
+  },
+  "route": {
+   "decision": "NEW",
+   "facts": {
+    "domain": "other",
+    "llm_intent": "NEW",
+    "tools": [
+     "create_event"
+    ],
+    "reason": "用户明确要求在特定飞书日历上创建会议，需使用 create_event 工具完成。"
+   }
+  },
+  "tools": [
+   {
+    "name": null
+   },
+   {
+    "name": null
+   }
+  ],
+  "tool_executions": [
+   {
+    "tool_request_id": "tool_TESTTOOL0002",
+    "status": "SUCCEEDED",
+    "call_step_id": "step_TESTSTEP0003",
+    "calls": [
+     {
+      "name": "create_event",
+      "param": {
+       "attendees": [
+        {
+         "display_name": "测试同事乙",
+         "email": "ou_TESTUSER0004"
+        }
+       ],
+       "calendar_id": "feishu.cn_TESTCAL000000001@group.calendar.feishu.cn",
+       "end": "2026-09-17T16:00:00+08:00",
+       "provider": "feishu",
+       "start": "2026-09-17T15:00:00+08:00",
+       "summary": "测试[EVAL:feishu-20260915-r1:FS-C04-01] 发布评审"
+      },
+      "tool_kind": "ONLINE",
+      "online_tool_category": "calendar"
+     }
+    ],
+    "terminals": [
+     {
+      "type": "TOOL_RESULT",
+      "tool_result": {
+       "status": "SUCCESS",
+       "result": {
+        "event": "{\"attendees\":[{\"displayName\":\"测试同事乙\",\"email\":\"ou_TESTUSER0004\",\"responseStatus\":\"needsAction\"}],\"end\":{\"dateTime\":\"2026-09-17T16:00:00+08:00\",\"timeZone\":\"Asia/Shanghai\"},\"htmlLink\":\"https://applink.feishu.cn/client/calendar/event/detail?calendarId=7658113800000002289&key=00000000-0000-4000-8000-000000000001&originalTime=0&startTime=1789628400\",\"id\":\"00000000-0000-4000-8000-000000000001_0\",\"onlineMeetingType\":\"vc\",\"onlineMeetingUrl\":\"https://vc.feishu.cn/j/912303498\",\"organizer\"…[截断]"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "tool_request_id": "tool_TESTTOOL0005",
+    "status": "SUCCEEDED",
+    "call_step_id": "step_TESTSTEP0006",
+    "calls": [
+     {
+      "name": "list_events",
+      "param": {
+       "end": "2026-09-17T19:00:00+08:00",
+       "provider": [
+        "feishu"
+       ],
+       "start": "2026-09-17T12:00:00+08:00"
+      },
+      "tool_kind": "ONLINE",
+      "online_tool_category": "calendar"
+     }
+    ],
+    "terminals": [
+     {
+      "type": "TOOL_RESULT",
+      "tool_result": {
+       "status": "SUCCESS",
+       "result": {
+        "results": [
+         {
+          "events": [
+           {
+            "end": {
+             "dateTime": "2026-09-17T17:00:00+08:00",
+             "timeZone": "Asia/Shanghai"
+            },
+            "htmlLink": "https://applink.feishu.cn/client/calendar/event/detail?calendarId=7658113800000002289&key=00000000-0000-4000-8000-000000000002&originalTime=0&startTime=1789632000",
+            "id": "00000000-0000-4000-8000-000000000002_0",
+            "onlineMeetingType": "vc",
+            "onlineMeetingUrl": "https://vc.feishu.cn/j/434377916",
+            "organizer": {
+             "displayName": "测试用户甲",
+             "email": "ou_TESTUSER0007"
+            },
+            "start": {
+             "dateTime": "2026-09-17T16:00:00+08:00",
+             "timeZone": "Asia/Shanghai"
+            },
+            "status": "confirmed",
+            "summary": "测试[EVAL:feishu-20260915-r1:FS-C02-01] 发布评审",
+            "visibility": "default"
+           },
+           {
+            "end": {
+             "dateTime": "2026-09-17T16:00:00+08:00",
+             "timeZone": "Asia/Shanghai"
+            },
+            "htmlLink": "https://applink.feishu.cn/client/calendar/event/detail?calendarId=7658113800000002289&key=00000000-0000-4000-8000-000000000001&originalTime=0&startTime=1789628400",
+            "id": "00000000-0000-4000-8000-000000000001_0",
+            "onlineMeetingType": "vc",
+            "onlineMeetingUrl": "https://vc.feishu.cn/j/912303498",
+            "organizer": {
+             "displayName": "测试用户甲",
+             "email": "ou_TESTUSER0007"
+            },
+            "start": {
+             "dateTime": "2026-09-17T15:00:00+08:00",
+             "timeZone": "Asia/Shanghai"
+            },
+            "status": "confirmed",
+            "summary": "测试[EVAL:feishu-20260915-r1:FS-C04-01] 发布评审",
+            "visibility": "default"
+           }
+          ],
+          "provider": "feishu"
+         }
+        ]
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "tool_execution_count": 2,
+  "a2ui_surface_ids": [
+   "infoChip",
+   "cortex:task_TESTTASK0001:asst_TESTASST0008"
+  ],
+  "a2ui_source_tools": [
+   "create_event"
+  ],
+  "a2ui_surfaces": [
+   {
+    "surface_id": "infoChip",
+    "catalog_id": "https://loona.dm/catalog/v1",
+    "component_ids": [
+     "root"
+    ],
+    "source_tool_names": [
+     "create_event"
+    ],
+    "frame_count": 3,
+    "data_model": {
+     "computed": {
+      "arguments": "{\"attendees\": [{\"display_name\": \"测试同事乙\", \"email\": \"ou_TESTUSER0004\"}], \"calendar_id\": \"feishu.cn_TESTCAL000000001@group.calendar.feishu.cn\", \"end\": \"2026-09",
+      "argumentsLabel": "参数",
+      "icon": "calendar_pen_drawing",
+      "title": "正在创建日程",
+      "toolName": "创建日程"
+     },
+     "static": null
+    }
+   },
+   {
+    "surface_id": "cortex:task_TESTTASK0001:asst_TESTASST0008",
+    "catalog_id": "https://loona.dm/catalog/v1",
+    "component_ids": [
+     "root",
+     "col",
+     "header",
+     "headerIcon",
+     "title",
+     "div",
+     "events",
+     "event0_eventItem",
+     "event0_eventRow",
+     "event0_eventAccent",
+     "event0_eventInfo",
+     "event0_eventTitleBlock",
+     "event0_eventTitle",
+     "event0_eventSubtitle",
+     "event0_eventMetaWide",
+     "event0_eventMetaWideRow",
+     "event0_eventMetaWideIcon",
+     "event0_eventMetaWideText",
+     "event0_eventMetaGrid",
+     "event0_eventMetaRow",
+     "event0_eventMetaIcon",
+     "event0_eventMetaText"
+    ],
+    "source_tool_names": [
+     "create_event"
+    ],
+    "frame_count": 3,
+    "data_model": {
+     "computed": {
+      "events": [
+       {
+        "location": "",
+        "meta": [
+         {
+          "icon": "vg_people",
+          "text": "测试同事乙"
+         }
+        ],
+        "meta_wide": [
+         {
+          "icon": "vg_clock",
+          "text": "09-17 15:00 - 16:00"
+         }
+        ],
+        "people": "测试同事乙",
+        "reminder": "",
+        "subtitle": "",
+        "time": "09-17 15:00 - 16:00",
+        "title": "测试[EVAL:feishu-20260915-r1:FS-C04-01] 发布评审"
+       }
+      ],
+      "title": "创建日程成功"
+     },
+     "static": null
+    }
+   }
+  ],
+  "a2ui_validation": {
+   "error_codes": [],
+   "error_count": 0,
+   "has_errors": false,
+   "has_validator_errors": false,
+   "info_count": 0,
+   "issue_codes": [],
+   "payload_count": 2,
+   "surface_count": 2,
+   "surfaces": [
+    {
+     "catalog_id": "https://loona.dm/catalog/v1",
+     "component_ids": [
+      "root"
+     ],
+     "error_codes": [],
+     "error_count": 0,
+     "frame_count": 3,
+     "has_errors": false,
+     "info_count": 0,
+     "issue_codes": [],
+     "issues": [],
+     "issues_truncated": false,
+     "source_tool_names": [
+      "create_event"
+     ],
+     "surface_id": "infoChip",
+     "validator_error": null,
+     "warn_count": 0
+    },
+    {
+     "catalog_id": "https://loona.dm/catalog/v1",
+     "component_ids": [
+      "root",
+      "col",
+      "header",
+      "headerIcon"
+     ],
+     "error_codes": [],
+     "error_count": 0,
+     "frame_count": 3,
+     "has_errors": false,
+     "info_count": 0,
+     "issue_codes": [],
+     "issues": [],
+     "issues_truncated": false,
+     "source_tool_names": [
+      "create_event"
+     ],
+     "surface_id": "cortex:task_TESTTASK0001:asst_TESTASST0008",
+     "validator_error": null,
+     "warn_count": 0
+    }
+   ],
+   "warn_count": 0
+  },
+  "outbound_capture": {
+   "status": "COLLECTED",
+   "request_ended": true,
+   "payload_count": 2,
+   "record_count": 4,
+   "failed_sids": [],
+   "observed_sids": [
+    "eval-aaaaaaaaaaaaaaaaaaaaaaaa00000002",
+    "eval-aaaaaaaaaaaaaaaaaaaaaaaa00000003"
+   ],
+   "error_type": null
+  },
+  "coverage": {
+   "evaluation_ready": true,
+   "truncated": false,
+   "retry_recommended": false
+  },
+  "final_output": {
+   "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000001",
+   "text": "日程已创建，测试同事乙待接受邀请。16 点到 17 点还有另一场测试评审，时间衔接正常。",
+   "kind": "NOTICE",
+   "role": "assistant",
+   "asst_msg_id": "asst_TESTASST0008"
+  },
+  "delivered_messages": [
+   {
+    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000001",
+    "text": "日程已创建，测试同事乙待接受邀请。16 点到 17 点还有另一场测试评审，时间衔接正常。",
+    "kind": "NOTICE",
+    "role": "assistant",
+    "asst_msg_id": "asst_TESTASST0008"
+   }
+  ],
+  "errors": [
+   {
+    "audit_persisted_at": "2026-09-15T09:30:31.409685+00:00",
+    "call_id": 461,
+    "error_code": "INVALID_REQUEST",
+    "error_message_available": true,
+    "error_message_redacted": true,
+    "raw_failure_output": {
+     "body": {
+      "error": {
+       "code": 400,
+       "message": "Request contains an invalid argument.",
+       "status": "INVALID_ARGUMENT"
+      }
+     },
+     "status_code": 400
+    },
+    "raw_failure_output_available": true,
+    "raw_failure_output_redacted": false,
+    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000001",
+    "source": "llm_audit"
+   }
+  ],
+  "unsupported_reason": null,
+  "conversation_execution": {
+   "complete": true,
+   "completed_turns": 1,
+   "expected_turns": 1,
+   "observed_turns": 1
+  }
+ }
+}

@@ -26,6 +26,12 @@ import { Label } from "../../components/ui/label.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs.tsx";
 import { Textarea } from "../../components/ui/textarea.tsx";
 import { ApiClientError } from "../../lib/api-client.ts";
+import {
+  caseDomain,
+  caseTurnCount,
+  collectAssertMetrics,
+  countMetricsByTier
+} from "../../lib/assertion-metric.ts";
 import { formatMessage, message } from "../../messages/messages.ts";
 import {
   applyStructuredCaseFields,
@@ -344,10 +350,38 @@ export function CaseEditor({
     }
   };
 
+  // Read-only digest of the last validated Draft; it never feeds the save payload.
+  const summaryDomain = caseDomain(editor.draft.metadata.case_id);
+  const summaryTurns = caseTurnCount(editor.draft.vars.request_body);
+  const summaryTiers = countMetricsByTier(collectAssertMetrics(editor.draft.assert));
+  const summaryTurnLabel =
+    summaryTurns === null ? "未知" : summaryTurns === 1 ? "单轮" : `${summaryTurns} 轮（多轮）`;
   return (
     <Form {...form}>
       <form ref={formRef} onSubmit={(event) => event.preventDefault()} className="case-editor-form">
         <fieldset className="case-editor-fieldset" disabled={saving || disabled}>
+          <div className="case-editor-summary" aria-label="Case 概览">
+            <span className="case-editor-summary-item">
+              <b>Case ID</b>
+              {editor.draft.metadata.case_id === "" ? "—" : editor.draft.metadata.case_id}
+            </span>
+            <span className="case-editor-summary-item">
+              <b>域</b>
+              {summaryDomain === null ? "未分域" : `${summaryDomain.code} ${summaryDomain.label}`}
+            </span>
+            <span className="case-editor-summary-item">
+              <b>轮数</b>
+              {summaryTurnLabel}
+            </span>
+            <span className="case-editor-summary-item">
+              <b>断言</b>
+              硬性 {summaryTiers.hard} · 质量 {summaryTiers.soft}
+              {summaryTiers.unmarked > 0 ? ` · 未分类 ${summaryTiers.unmarked}` : ""}
+            </span>
+            <span className="case-editor-summary-note">
+              只读概览，按最近一次校验通过的 Draft 计算；不影响保存内容
+            </span>
+          </div>
           <Tabs value={editor.mode} onValueChange={changeMode}>
             <TabsList aria-label={message("caseEditor.modeLabel")}>
               <TabsTrigger value="STRUCTURED">{message("caseEditor.structured")}</TabsTrigger>

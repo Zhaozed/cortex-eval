@@ -1,0 +1,21 @@
+{
+  "name": "飞书 E2E｜本地8080｜串行",
+  "definition": {
+    "contractVersion": "cortex.endpoint-config.v1",
+    "urlTemplate": "http://127.0.0.1:8080/eval/e2e",
+    "method": "POST",
+    "headers": {
+      "accept": {
+        "kind": "LITERAL",
+        "value": "application/json"
+      },
+      "content-type": {
+        "kind": "LITERAL",
+        "value": "application/json"
+      }
+    },
+    "bodySelector": "/request_body",
+    "timeoutMs": 600000,
+    "defaultConcurrency": 1
+  }
+}

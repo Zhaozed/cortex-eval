@@ -1,0 +1,24 @@
+{
+  "not_bound": true,
+  "captured_at": "REPLACE_ME_ISO8601",
+  "account": "2075490654049271808",
+  "resources": [
+    {
+      "provider": "feishu",
+      "resource_type": "docx/message/event/room",
+      "id": "REPLACE_ME",
+      "url": "REPLACE_ME",
+      "snapshot": "放置真实读取的完整脱敏正文/blocks/消息/attendees/房间/忙闲结果，不填想象值",
+      "raw_evidence_ref": "REPLACE_ME"
+    }
+  ],
+  "expected_facts": {
+    "scope": "明确数据范围/排序/条数/时区",
+    "golden_ids": [],
+    "must_preserve": [],
+    "must_change": [],
+    "negative_controls": [],
+    "snapshot_version": "REPLACE_ME"
+  },
+  "notes": "模板不是证据；真实基线必须删除not_bound:true并以真实读取结果填充，不能仅改标志"
+}

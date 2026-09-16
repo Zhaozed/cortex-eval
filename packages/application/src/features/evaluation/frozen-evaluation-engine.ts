@@ -142,7 +142,7 @@ export function createFrozenEvaluationContextHash(input: FrozenEvaluationContext
     restResultSetHash: input.restResultSetHash,
     evaluatorConfigHash: input.evaluatorConfigHash,
     promptfooVersion: input.promptfooVersion,
-    configContractVersion: "cortex.promptfoo-config.v1",
+    configContractVersion: "cortex.promptfoo-config.v2",
     capabilityMatrixHash: input.capabilityMatrixHash,
     evaluatorCallBudget: input.evaluatorCallBudget
   });

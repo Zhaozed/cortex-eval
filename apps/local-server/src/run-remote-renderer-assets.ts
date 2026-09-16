@@ -160,6 +160,10 @@ export async function remoteRendererSnapshot(
     const catalogAsset = await load("a2ui_runtime/resource-catalog.json");
     const catalog = catalogSchema.parse(JSON.parse(catalogAsset.bytes.toString("utf8")) as unknown);
     const queue = [
+      // a2ui_viewer.js is a browser facade over these globals. They are fixed
+      // production assets, so they must be frozen together with the viewer.
+      "a2ui/a2ui_viewer_message_groups.js",
+      "a2ui/a2ui_viewer_runtime_host.js",
       "a2ui_viewer.js",
       "a2ui_viewer.css",
       "a2ui_catalog.css",

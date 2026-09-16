@@ -1,0 +1,311 @@
+{
+  "version": "2.0",
+  "generated_at": "2026-09-15",
+  "state": "BLOCKED_AUTH_AND_FIXTURES_INGRESS_LOCKED",
+  "source_sha256": "7b7ffb11d95addfc71a9fce32270a3495ac2a9289b967d91ef617c2484a099a4",
+  "cases": 33,
+  "sha256": "2e529f4aa7e634739dbd0941661189816504c5fd402d3ca5d5550f1e79f1c893",
+  "business_executed": false,
+  "endpoint_id": "01a0a312-3729-775a-bab0-540700ebe873",
+  "draft_ingress_lock": "client模式不发送sid；E2E入口返回EVAL_E2E_CLIENT_CONTEXT_REQUIRED，Router前拒绝",
+  "notes": "ready仅表示已通过绑定检查，不代表权限/故障/业务/UI验收通过；preflight由运行负责人声明而非自动探测",
+  "entries": [
+    {
+      "case_id": "FS-D01-01",
+      "source": "D01",
+      "side_effect": false,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "b76b04ee9bc9be5228fdd388255205488ba42b53a8e202540f2b6c33c741cfb1"
+    },
+    {
+      "case_id": "FS-D02-01",
+      "source": "D02",
+      "side_effect": false,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "0f03676f090a23477238e9b49e466e8916545aad42e0b303b8c566c617597596"
+    },
+    {
+      "case_id": "FS-D03-01",
+      "source": "D03",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "9c5d6a57ad87f4c46658c44af2eb36c80683a39364f0cb15423d98fdd942c330"
+    },
+    {
+      "case_id": "FS-D04-01",
+      "source": "D04",
+      "side_effect": true,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "ee322aaa2e2714fbadee37d57ef92b76d0d009e0445e219d423f84b8f1392233"
+    },
+    {
+      "case_id": "FS-D05-01",
+      "source": "D05",
+      "side_effect": true,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "dfd07be7f101ebcf00323b06c6f75ad8ed8b3bd324950fb8aeb3c0607f3c4506"
+    },
+    {
+      "case_id": "FS-D06-01",
+      "source": "D06",
+      "side_effect": true,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "15e30e4c19027f2b7436daa659eafc0261806dba1a37de4581ffa49d94e02318"
+    },
+    {
+      "case_id": "FS-M01-01",
+      "source": "M01",
+      "side_effect": false,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "b58710583e016fe057dfc0f92e50a451a22f0abbf703c15c299378b1aca4e2a4"
+    },
+    {
+      "case_id": "FS-M02-01",
+      "source": "M02",
+      "side_effect": false,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "be81d10d17118985a369cca9536ed851ac9f634a436941552eec620ee9258f6d"
+    },
+    {
+      "case_id": "FS-M03-01",
+      "source": "M03",
+      "side_effect": false,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "7b8b3db541cf6c3c0cd1e92b3bb71189cf2a82ecf33009691b0cdc3ed2af9705"
+    },
+    {
+      "case_id": "FS-M04-01",
+      "source": "M04",
+      "side_effect": false,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "83c418b408e8ccd4055c87ee4f8ce1e6bdcf56c3ee00e29295c61b7cb6f39a7d"
+    },
+    {
+      "case_id": "FS-M05-01",
+      "source": "M05",
+      "side_effect": false,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "7692b6296508d6377baac64857581469d962edb82b313d6a526909d00a12f3dc"
+    },
+    {
+      "case_id": "FS-M06-01",
+      "source": "M06",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "692a605de3eba6cce523e451ceaf2dda610cc392be3b14046d92755cf9694afc"
+    },
+    {
+      "case_id": "FS-M07-01",
+      "source": "M07",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "a7f29d609826cafb091c64bef152053e076528bbfaa51108785ab19bc5bd26f2"
+    },
+    {
+      "case_id": "FS-C01-01",
+      "source": "C01",
+      "side_effect": false,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "f646632edde12fff7deb5a4e21cbe589d55b849a7e9586e0fd8f55f3507a231f"
+    },
+    {
+      "case_id": "FS-C02-01",
+      "source": "C02",
+      "side_effect": false,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "52fc3243310784f0f1a6a624c8b335c5065104f7a2ce861d778bfebf3847bef5"
+    },
+    {
+      "case_id": "FS-C03-01",
+      "source": "C03",
+      "side_effect": false,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "a23564d26522fc8e336bc7bfada9171abe2fb2b18a51b9f7a946078dcd82b77b"
+    },
+    {
+      "case_id": "FS-C04-01",
+      "source": "C04",
+      "side_effect": true,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "aa77b976072f4fc4e37466be36363ceef8b238ea7ee49f3d716b53c9775a2a23"
+    },
+    {
+      "case_id": "FS-C05-01",
+      "source": "C05",
+      "side_effect": true,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "c9ceaaa21578f1e68381aca860008bc32a2a297c7dc460c3ae5a359182b370a9"
+    },
+    {
+      "case_id": "FS-C06-01",
+      "source": "C06",
+      "side_effect": true,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "f7ac095d8b52fa80f2214f4648b78f969bd25593eccf283541abbb270cde6c27"
+    },
+    {
+      "case_id": "FS-C07-01",
+      "source": "C07",
+      "side_effect": true,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "434c4cf50767680658e638878f75b1c91f86b03c4df92ec5289bad1b0b119700"
+    },
+    {
+      "case_id": "FS-C08-01",
+      "source": "C08",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "d183da0e23ad6356b254d6d6dfd4d94914bf416a7e1cf7130da7769b79fada35"
+    },
+    {
+      "case_id": "FS-X01-01",
+      "source": "X01",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "890826367c25fecf4d7554e2afef8ebc4db7ff8a104589195bf54344da3b5fac"
+    },
+    {
+      "case_id": "FS-X02-01",
+      "source": "X02",
+      "side_effect": false,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "e2ea5f3331a651a9107ec3b103b25f50f384e141fc7b3828169f0c26b8684b03"
+    },
+    {
+      "case_id": "FS-X03-01",
+      "source": "X03",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "83f8b304001fffc41fcfbead40108137161e09b0a2ca68c80d3ea2979588bc84"
+    },
+    {
+      "case_id": "FS-X04-01",
+      "source": "X04",
+      "side_effect": true,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "75aaeb797d84fc31fce433128b25b5c62ea778aa8317606a3d212d21c0a8e682"
+    },
+    {
+      "case_id": "FS-X05-01",
+      "source": "X05",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "7040dbd746649a99763c98bb51b2471a1c42846feb143b2849928bc9bece3716"
+    },
+    {
+      "case_id": "FS-X06-01",
+      "source": "X06",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "e4163a650884e00d229af10f56a15e782be552919dfb068ae9ed971287843c18"
+    },
+    {
+      "case_id": "FS-X07-01",
+      "source": "X07",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "4d09d279c7b60b91a4adb9ded2321b6dc19f01cda65406cff83ceeb8a68eef02"
+    },
+    {
+      "case_id": "FS-X08-01",
+      "source": "X08",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "9684994123885fbaaad210ff85f0bcd9f8aba988c3cbc253cecb6b67954cfb56"
+    },
+    {
+      "case_id": "FS-X09-01",
+      "source": "X09",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "ed4c08ae23fa68856fffee4fec306b8a5d37243ce15b5a3a30c0616a7c6c3eff"
+    },
+    {
+      "case_id": "FS-X10-01",
+      "source": "X10",
+      "side_effect": true,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "32be908aa06833f92b1b7a098e11bc298fa5a248d6a4fbb5530a60c009682bbe"
+    },
+    {
+      "case_id": "FS-X11-01",
+      "source": "X11",
+      "side_effect": false,
+      "multi_turn": true,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "e6877505f0db5ea449c991c2ff104d2f8de7a79dcb01cbbb1370e7f2cfcd85fa"
+    },
+    {
+      "case_id": "FS-X12-01",
+      "source": "X12",
+      "side_effect": false,
+      "multi_turn": false,
+      "fixture_sha256": null,
+      "fault_setup_sha256": null,
+      "definition_sha256": "99485d5ad62c3409732cb00ce209a62b28bb42ae2b6ad18778b4f260b4c0a7a5"
+    }
+  ]
+}

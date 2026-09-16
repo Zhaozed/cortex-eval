@@ -16,6 +16,23 @@
   --danger: #b82e2e;
   --danger-dark: #781d1d;
   --danger-soft: #f8dddd;
+  /* v2 断言语义色：硬性红 / 质量蓝 / 通过绿 / 提醒琥珀，供结论条、徽章、维度条复用。 */
+  --pass: #2f7d4f;
+  --pass-dark: #17623a;
+  --hard: #9a2525;
+  --hard-soft: #fff0f0;
+  --hard-line: #edc2c2;
+  --soft: #1d4e89;
+  --soft-soft: #eef4fb;
+  --soft-tint: #f2f7fc;
+  --soft-line: #c5d8ee;
+  --warn: #a86a16;
+  --warn-dark: #7d4f10;
+  --warn-soft: #fdf5e6;
+  --warn-line: #e6cd9a;
+  --danger-tint: #fff7f6;
+  --warn-tint: #fffbf2;
+  --ink-faint: #93a1ac;
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-synthesis: none;
@@ -2609,6 +2626,369 @@ a {
 .run-check-engine {
   border-top: 1px solid #edf0f3;
   padding: 4px 14px;
+}
+
+/* --- v2 Assertion readability: tier badges, dimension groups, veto summary --- */
+/* Case 详情页顶部结论条：结论 + 硬性/质量计数 + 失败项 top1。 */
+.run-verdict-bar {
+  margin: 0 14px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--paper-deep);
+}
+.run-verdict-bar[data-verdict="PASS"] {
+  border-left-color: var(--pass);
+}
+.run-verdict-bar[data-verdict="FAIL"] {
+  border-left-color: var(--danger);
+  background: var(--danger-tint);
+}
+.run-verdict-bar[data-verdict="EVALUATION_ERROR"] {
+  border-left-color: var(--warn);
+  background: var(--warn-tint);
+}
+.run-verdict-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.run-verdict-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.run-verdict-bar[data-verdict="PASS"] .run-verdict-label {
+  color: var(--pass-dark);
+}
+.run-verdict-bar[data-verdict="FAIL"] .run-verdict-label {
+  color: var(--danger-dark);
+}
+.run-verdict-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.run-verdict-count[data-tier="HARD"] {
+  color: var(--hard);
+  font-weight: 600;
+}
+.run-verdict-count[data-tier="SOFT"] {
+  color: var(--soft);
+  font-weight: 600;
+}
+.run-verdict-count[data-tier="SOFT"][data-missed="true"] {
+  color: var(--warn-dark);
+}
+.run-verdict-softwarn {
+  padding: 2px 8px;
+  border: 1px solid var(--warn-line);
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn-dark);
+  font-size: 11px;
+  font-weight: 600;
+}
+.run-verdict-top1 {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--line-strong);
+}
+.run-verdict-top1-head {
+  display: inline-block;
+  margin-right: 7px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: #e8edf2;
+  color: var(--muted);
+  font-size: 11px;
+}
+.run-verdict-top1-name {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+}
+.run-verdict-top1-name > span {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.run-verdict-top1 .run-check-reason {
+  margin: 5px 0 0;
+}
+/* 列表里的黄色角标：PASS 也带质量缺陷。 */
+.run-soft-miss {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border: 1px solid var(--warn-line);
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn-dark);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.run-check-veto {
+  margin: 0 14px 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--hard-line);
+  border-left: 3px solid var(--danger);
+  border-radius: 8px;
+  background: var(--hard-soft);
+}
+.run-check-veto-head {
+  margin: 0 0 6px;
+  color: var(--danger-dark);
+  font-size: 12px;
+  font-weight: 600;
+}
+.run-check-veto ol {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 7px;
+}
+.run-check-veto-name {
+  color: var(--danger-dark);
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.run-check-veto-empty {
+  margin: 0 14px 10px;
+  padding: 8px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.run-check-toggle {
+  margin: 0 14px 8px;
+  padding: 4px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink-soft);
+  font-size: 11px;
+  cursor: pointer;
+}
+.run-check-toggle:hover {
+  background: var(--paper-deep);
+}
+.run-check-group {
+  border-top: 1px solid #edf0f3;
+}
+.run-check-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 14px 3px;
+  background: #fbfcfd;
+}
+.run-check-group-head h4 {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+}
+.run-check-group-head > span {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.run-check-group-head > span[data-state="PASS"] {
+  color: var(--pass-dark);
+}
+.run-check-group-head > span[data-state="FAIL"] {
+  color: var(--danger-dark);
+  font-weight: 600;
+}
+.run-check-group-head > span[data-state="WARN"] {
+  color: var(--warn-dark);
+  font-weight: 600;
+}
+.run-check-group-empty {
+  margin: 0;
+  padding: 4px 14px 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.run-check-item > summary .run-check-title {
+  display: inline;
+}
+.run-check-tier[data-tier="HARD"] {
+  border-color: var(--hard-line);
+  background: var(--hard-soft);
+  color: var(--hard);
+}
+.run-check-tier[data-tier="SOFT"] {
+  border-color: var(--soft-line);
+  background: var(--soft-soft);
+  color: var(--soft);
+}
+.run-check-tier[data-tier="UNMARKED"] {
+  border-color: var(--line-strong);
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+}
+.run-check-name {
+  color: #233f50;
+  font-weight: 600;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* `｜` 后面是判据原文：必须整段显示，可换行，绝不省略号截断。 */
+.run-check-detail {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+.run-check-detail::before {
+  content: "｜";
+  margin: 0 4px;
+  color: #a9b6c0;
+}
+.run-check-reason {
+  margin: 2px 0 6px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: #33475b;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.run-check-reason[data-state="FAIL"] {
+  color: var(--danger-dark);
+}
+.run-check-reason[data-state="PASS"] {
+  color: var(--pass-dark);
+}
+
+/* --- Dimension pass rates on the Run dashboard (per Assertion, not per Case) --- */
+.run-dimension-rates {
+  margin: 0 18px 18px;
+  padding-bottom: 4px;
+}
+.run-dimension-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.run-dimension-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.run-dimension-head > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.run-dimension-empty {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.run-dimension-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.run-dimension-row {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 10px 12px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+.run-dimension-card-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+.run-dimension-label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.run-dimension-bar {
+  width: 100%;
+  height: 7px;
+  background: var(--paper-deep);
+}
+.run-dimension-value {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.25;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.run-dimension-row[data-level="none"] .run-dimension-label,
+.run-dimension-row[data-level="none"] .run-dimension-value {
+  color: var(--ink-faint);
+}
+.run-dimension-row[data-level="none"] [data-slot="progress-indicator"] {
+  background: var(--line-strong);
+}
+.run-dimension-row[data-level="low"] [data-slot="progress-indicator"] {
+  background: var(--danger);
+}
+.run-dimension-row[data-level="low"] .run-dimension-value {
+  color: var(--danger-dark);
+  font-weight: 700;
+}
+.run-dimension-row[data-level="mid"] [data-slot="progress-indicator"] {
+  background: var(--warn);
+}
+.run-dimension-row[data-level="mid"] .run-dimension-value {
+  color: var(--warn-dark);
+}
+.run-dimension-row[data-level="high"] [data-slot="progress-indicator"] {
+  background: var(--pass);
+}
+.run-dimension-row[data-level="high"] .run-dimension-value {
+  color: var(--pass-dark);
+}
+@media (max-width: 960px) {
+  .run-dimension-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .run-dimension-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .run-dimension-list {
+    grid-template-columns: 1fr;
+  }
 }
 .run-output-messages {
   display: grid;
@@ -5367,7 +5747,7 @@ a {
 /* Keep long Case identifiers and evaluator names from squeezing the description. */
 .management-page .suite-case-table {
   table-layout: fixed;
-  min-width: 1080px;
+  min-width: 1320px;
 }
 .suite-case-table [data-column="caseKey"] {
   width: 130px;
@@ -5439,6 +5819,81 @@ a {
   width: 26px;
   height: 28px;
   padding: 4px;
+}
+
+/* --- v2 Case list: domain and hard/soft assertion counts --- */
+.suite-case-table [data-column="domain"] {
+  width: 104px;
+}
+.suite-case-table [data-column="assertionTiers"] {
+  width: 138px;
+}
+.case-domain-badge {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.5;
+  font-size: 10px;
+  border-color: var(--soft-line);
+  background: var(--soft-tint);
+  color: var(--soft);
+}
+.case-domain-unknown {
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+.case-tier-badge {
+  font-size: 10px;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.5;
+}
+.case-tier-badge[data-tier="HARD"] {
+  border-color: var(--hard-line);
+  background: var(--hard-soft);
+  color: var(--hard);
+}
+.case-tier-badge[data-tier="SOFT"] {
+  border-color: var(--soft-line);
+  background: var(--soft-soft);
+  color: var(--soft);
+}
+.case-tier-badge[data-tier="UNMARKED"] {
+  border-color: var(--line-strong);
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+}
+/* --- Case editor read-only digest strip --- */
+.case-editor-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--paper-deep);
+}
+.case-editor-summary-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.case-editor-summary-item > b {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.case-editor-summary-note {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 11px;
 }
 @media (max-width: 760px) {
   .configuration-home .configuration-grid {

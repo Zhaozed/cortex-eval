@@ -1,3 +1,4 @@
+import { materializeGradingEvidenceTransform } from "./promptfoo-grading-evidence.ts";
 import {
   isAssertionExecutionFailure,
   assertionExecutionErrorReason
@@ -274,6 +275,15 @@ function definitionForExpectedPrompt(
     rawDefinition.value === materializeJavascriptSource(expected.type, expected.value)
   ) {
     rawDefinition = { ...rawDefinition, value: expected.value };
+  }
+  // Undo only the exact built-in projection, never an arbitrary imported transform.
+  if (
+    expected.transform === undefined &&
+    typeof rawDefinition.transform === "string" &&
+    rawDefinition.transform === materializeGradingEvidenceTransform(expected)
+  ) {
+    rawDefinition = { ...rawDefinition };
+    delete rawDefinition.transform;
   }
   const promptReference = expected.rubricPrompt;
   if (promptReference === undefined) return rawDefinition;

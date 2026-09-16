@@ -84,3 +84,16 @@ REST 错误闭合为 `TIMEOUT`、`NETWORK`、`HTTP_STATUS`、`RESPONSE_PARSE`、
 [promptfoo-evaluation-process.ts](../../packages/evaluation-adapters/src/promptfoo-evaluation-process.ts) 禁用上游文件 debug/error logger，仍保留平台有界诊断；超限触发独立的诊断限额错误及进程组回收。这里只提取闭合错误签名，不持久化 stdout/stderr 原文。
 
 测试入口为 [Evaluator Client 测试](../../packages/evaluation-adapters/test/frozen-evaluator-model-client.test.ts)、[Provider 错误测试](../../packages/evaluation-adapters/test/evaluator-model-errors.test.ts)、[Bridge 测试](../../packages/evaluation-adapters/test/evaluator-bridge-v2.test.ts) 和 [Promptfoo 进程测试](../../packages/evaluation-adapters/test/promptfoo-evaluation-process.test.ts)。
+
+## 2026-09-15：模型裁判精简证据
+
+受控配置语义升级为 `cortex.promptfoo-config.v2`，参与 Evaluation Context Hash；平台和离线执行共用该生成链路。REST 原件、Provider Output、Case 快照和确定性断言输入不裁剪，历史结果不改写。
+
+- 对没有显式 `transform` 的 `llm-rubric` / `not-llm-rubric`，物化 Assertion 级 `cortex.grading-evidence.v1` 变换（包括嵌套 Assertion Set）。不使用全局输出变换。
+- 只识别包含布尔 `ok` 和对象 `parsed_output` 的 Cortex 输出；从该证据节点及 `turns[].parsed_output` 删除 `llm_calls`。这样移除模型内部提示词、消息历史、工具定义与模型调用遥测，也消除顶层与末轮模型调用记录重复。
+- 不做任意深度的同名字段删除，不修改 `tool_executions` 内的业务结果；不截断或摘要工具终态、资源 ID、时间、错误、逐轮回复、A2UI、请求或其他业务字段。非 Cortex 输出原样通过。
+- 显式 `transform` 原样保留并优先。专门评估模型内部轨迹的 Rubric 可设置 `transform: output` 保留完整输入；已有自定义投影不被二次裁剪。
+- Importer 只将精确匹配内置变换的 Raw Assertion 恢复到冻结身份；任意不同变换仍被身份校验拒绝。旧版无变换的历史 Raw 继续可导入。
+- `RETRY_FAILED` 仍遵循原有结果复用语义；已有结果不会因为代码升级自动重评。新发生的模型裁判调用使用新投影。
+
+代码入口：[证据投影](../../packages/application/src/features/evaluation/promptfoo-grading-evidence.ts)、[配置物化](../../packages/evaluation-adapters/src/promptfoo-config-materializer.ts)、[严格导入](../../packages/application/src/features/evaluation/promptfoo-result-importer.ts)。测试入口：[投影单测](../../packages/application/test/promptfoo-grading-evidence.test.ts)、[真实 Promptfoo + 本地模拟裁判集成测试](../../packages/evaluation-adapters/test/promptfoo-grading-evidence.test.ts)。

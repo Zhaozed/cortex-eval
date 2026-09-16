@@ -1,0 +1,44 @@
+{
+  "version": "2.0",
+  "uid": "2075490654049271808",
+  "timezone": "Asia/Shanghai",
+  "planned_execution_date": "2026-09-15",
+  "endpoint_id": "01a0a312-3729-775a-bab0-540700ebe873",
+  "endpoint_url": "http://127.0.0.1:8080/eval/e2e",
+  "concurrency": 1,
+  "source_document_name": "飞书测试文档-auto",
+  "known_tokens": {
+    "person_name": "秦宇龙",
+    "group_name": "飞书测试群",
+    "doc_query": "飞书测试文档-auto",
+    "retrieval_tool": "web_search"
+  },
+  "authorization": {
+    "messages_to": [
+      "秦宇龙",
+      "飞书测试群",
+      "本人（原Case）"
+    ],
+    "calendar_attendees": [
+      "本人",
+      "秦宇龙"
+    ],
+    "documents": "用户提供的测试文档可读取；修改默认在基于该文档创建的Case独立副本中进行，保留原文档。",
+    "calendar_titles_must_include": "测试",
+    "calendar_operations": [
+      "create",
+      "read",
+      "update",
+      "cancel"
+    ],
+    "group_invitation_gate": "飞书测试群成员超出本人和秦宇龙时，全群邀约Case先等待扩展授权，不能默默漏邀或通知其他成员。"
+  },
+  "state": "BLOCKED_FEISHU_AUTHORIZATION",
+  "blocker_evidence": {
+    "captured_at": "2026-09-15T03:17:16.242540+00:00",
+    "req_id": "493a39b6abc34308b9ce1865d8d1e2a0",
+    "route": "CHAT",
+    "tool_executions": 0,
+    "detail": "真实router system_prompt的未授权工具目录包含15个feishu工具；尚未定位文档/联系人/群/日历/房间。"
+  }
+}

@@ -7,6 +7,12 @@ import type { RunRendererSource } from "./run-renderer-source.ts";
 export type RendererAsset = Awaited<ReturnType<typeof localCaptureAsset>>;
 export type RendererAssets = Map<string, RendererAsset>;
 export const rendererEntries = [
+  // The viewer entry is a small facade over these two browser globals. Keep the
+  // dependency order identical to the production WebUI script tags; otherwise
+  // the isolated preview creates the iframe host with missing modules and
+  // reports a misleading generic RUNTIME error.
+  "a2ui/a2ui_viewer_message_groups.js",
+  "a2ui/a2ui_viewer_runtime_host.js",
   "a2ui_viewer.js",
   "a2ui_viewer.css",
   "a2ui_catalog.css",
