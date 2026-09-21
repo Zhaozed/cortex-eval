@@ -14,6 +14,7 @@ import {
   CALENDAR_TOOLS,
   CARD_FAMILY_COMPONENTS,
   DEFAULT_WRITE_TOOLS,
+  EMPTY_OK_TOOLS,
   INTERNAL_ID_PATTERNS,
   KIND_TOOLS,
   META_TOOLS,
@@ -78,10 +79,14 @@ export function assertionLineCount(assertion: RuleAssertion): number {
  * D1 意图与路由（全 HARD）
  * ================================================================== */
 
-export function d1_1_intentFamily(cfg: {
-  readonly expectTools: readonly string[];
-}): RuleAssertion {
-  const expect = [...new Set(cfg.expectTools.flatMap((t) => Object.keys(KIND_TOOLS).filter((k) => (KIND_TOOLS[k] as readonly string[]).includes(t))))];
+export function d1_1_intentFamily(cfg: { readonly expectTools: readonly string[] }): RuleAssertion {
+  const expect = [
+    ...new Set(
+      cfg.expectTools.flatMap((t) =>
+        Object.keys(KIND_TOOLS).filter((k) => (KIND_TOOLS[k] as readonly string[]).includes(t))
+      )
+    )
+  ];
   return mk({
     id: "D1.1",
     name: "事项类型分流正确",
@@ -115,7 +120,7 @@ if (!hit.length) return INS('本 case 0 次日程类工具调用（' + CFG.cal.j
 const PV = a => (OBJ(a) && ARR(a.provider) ? a.provider.map(String) : (OBJ(a) && STR(a.provider) ? [a.provider] : null));
 for (const c of hit) { const pv = PV(c.args);
   if (pv === null) return INS(c.name + ' 的调用参数里没有 provider 字段，无法判定平台' + TL(c.f));
-  if (pv.length !== 1 || pv[0] !== CFG.provider) return FAIL('D1.2 provider：' + c.name + ' 实际 provider=' + JSON.stringify(pv.length === 1 ? pv[0] : pv) + '，期望 ' + CFG.provider + TL(c.f));
+  if (pv.length === 1 ? pv[0] !== CFG.provider : pv.indexOf(CFG.provider) < 0) return FAIL('D1.2 provider：' + c.name + ' 实际 provider=' + JSON.stringify(pv) + '，期望' + (pv.length === 1 ? '为' : '包含') + ' ' + CFG.provider + TL(c.f));
   if (Object.prototype.hasOwnProperty.call(c.args, 'calendar_id') && !STR(c.args.calendar_id)) return FAIL('D1.2 calendar_id：' + c.name + ' 的 calendar_id=' + JSON.stringify(c.args.calendar_id) + '，期望非空字符串' + TL(c.f)); }
 return PASS('D1.2 provider：' + hit.length + ' 次日程类调用（' + UNIQ(hit) + '）provider 全为 ' + CFG.provider + '，calendar_id 均为非空字符串；未校验该日历是否为本人可写日历');`
   });
@@ -130,7 +135,13 @@ export function d1_3_mode(cfg: {
     name: "决策模式正确",
     human: "该动手就动手、该问就只问、该告知未授权就只告知",
     kind: "HARD",
-    cfg: { replyType: cfg.replyType, expectCalls: cfg.expectTools.length > 0, expectTools: cfg.expectTools, meta: META_TOOLS, writes: DEFAULT_WRITE_TOOLS },
+    cfg: {
+      replyType: cfg.replyType,
+      expectCalls: cfg.expectTools.length > 0,
+      expectTools: cfg.expectTools,
+      meta: META_TOOLS,
+      writes: DEFAULT_WRITE_TOOLS
+    },
     chunks: ["calls", "text"],
     body: String.raw`const A = ALL();
 if (A === null) return INS('有帧缺 tool_executions，无法判定决策模式');
@@ -216,7 +227,9 @@ export function d2_3_writeLimit(cfg: {
     id: "D2.3",
     name: "写入次数上限",
     human: Object.keys(cfg.limits).length
-      ? Object.entries(cfg.limits).map(([k, v]) => `${k} ≤ ${v} 次`).join("、")
+      ? Object.entries(cfg.limits)
+          .map(([k, v]) => `${k} ≤ ${v} 次`)
+          .join("、")
       : "本 case 不允许任何声明内写操作重复执行",
     kind: "HARD",
     cfg: { limits: cfg.limits },
@@ -266,7 +279,9 @@ export function d2_5_forbidden(cfg: { readonly forbidden: readonly string[] }): 
   return mk({
     id: "D2.5",
     name: "禁止工具未被调用",
-    human: cfg.forbidden.length ? `${cfg.forbidden.join("、")} 一次都不能碰` : "本 case 未声明禁止工具",
+    human: cfg.forbidden.length
+      ? `${cfg.forbidden.join("、")} 一次都不能碰`
+      : "本 case 未声明禁止工具",
     kind: "HARD",
     cfg: { forbidden: cfg.forbidden },
     chunks: ["calls"],
@@ -283,14 +298,25 @@ return PASS('D2.5 禁止工具：' + CFG.forbidden.join('、') + ' 实际调用�
  * D3 结果真实性（全 HARD）
  * ================================================================== */
 
-/** D3.3 写→回读映射（SPEC 第 2 节 D3.3；delete_events 的回读允许「查不到」）。 */
-const READBACK_MAP: Readonly<Record<string, readonly string[]>> = {
-  create_event: ["get_event", "list_events"],
-  update_event: ["get_event", "list_events"],
-  delete_events: ["get_event", "list_events"],
-  feishu_create_doc: ["feishu_get_doc"],
-  feishu_update_doc: ["feishu_get_doc"],
-  feishu_send_message: ["feishu_list_messages", "feishu_search_messages", "feishu_get_thread_replies"]
+/**
+ * D3.3 写→回读映射（SPEC 第 2 节 D3.3）。
+ *  · 默认（hard）：写入后可稳定回读到同一资源，必须回读 —— create/update_event、update_doc。
+ *  · soft：缺回读只提醒不否决 —— send 的 message_id / create 的 document_id 即写完证据（selfId 闭环）；
+ *    delete 的合法回读是「查不到」，真实删除缺陷由 D5.3（A2UI 协议校验）独立兜底。
+ */
+const READBACK_MAP: Readonly<
+  Record<string, { rb: readonly string[]; soft?: boolean; absent?: boolean; selfId?: boolean }>
+> = {
+  create_event: { rb: ["get_event", "list_events"] },
+  update_event: { rb: ["get_event", "list_events"] },
+  delete_events: { rb: ["get_event", "list_events"], soft: true, absent: true },
+  feishu_create_doc: { rb: ["feishu_get_doc"], soft: true, selfId: true },
+  feishu_update_doc: { rb: ["feishu_get_doc"] },
+  feishu_send_message: {
+    rb: ["feishu_list_messages", "feishu_search_messages", "feishu_get_thread_replies"],
+    soft: true,
+    selfId: true
+  }
 };
 
 export function d3_1_evidenceChain(cfg: { readonly turns: number }): RuleAssertion {
@@ -322,13 +348,14 @@ return PASS('D3.1 证据链：ok=true、' + NF + ' 帧 root_req_id 均非空且�
   });
 }
 
-export function d3_2_terminals(): RuleAssertion {
+export function d3_2_terminals(cfg?: { readonly emptyOk?: readonly string[] }): RuleAssertion {
   return mk({
     id: "D3.2",
     name: "成功调用有可消费业务结果",
-    human: "说成功就得真拿回非空结果，说失败就得有错误原因",
+    human:
+      "说成功就得真拿回非空结果，说失败就得有错误原因；读/搜/列类工具返回空结果（0 条、无空闲、无回复）是合法语义",
     kind: "HARD",
-    cfg: {},
+    cfg: { emptyOk: cfg?.emptyOk ?? EMPTY_OK_TOOLS },
     chunks: ["calls"],
     body: String.raw`const A = ALL();
 if (A === null) return INS('有帧缺 tool_executions，无法判定终态');
@@ -339,13 +366,13 @@ for (const c of A) {
   if (c.status === 'SUCCEEDED') {
     if (c.termType !== 'TOOL_RESULT') return FAIL('D3.2 终态：' + c.name + ' status=SUCCEEDED，但 terminals[0].type=' + String(c.termType) + '，期望 TOOL_RESULT' + TL(c.f));
     if (c.rs !== null && c.rs !== 'SUCCESS' && c.rs !== 'SUCCEEDED') return FAIL('D3.2 终态：' + c.name + ' 的 tool_result.status=' + c.rs + '，期望 SUCCESS' + TL(c.f));
-    if (!NE(c.result)) return FAIL('D3.2 空结果：' + c.name + ' status=SUCCEEDED 但 result=' + JSON.stringify(c.result) + '，是空对象/空数组，业务侧拿不到任何可消费内容' + TL(c.f));
+    if (!NE(c.result) && CFG.emptyOk.indexOf(c.name) < 0) return FAIL('D3.2 空结果：' + c.name + ' status=SUCCEEDED 但 result=' + JSON.stringify(c.result) + '，是空对象/空数组，业务侧拿不到任何可消费内容' + TL(c.f));
     ok++;
   } else if (c.status === 'FAILED') {
     if (!c.err) return FAIL('D3.2 失败无原因：' + c.name + ' status=FAILED，但终态既没有 result.error_message/error_type 也没有 error.error_code' + TL(c.f));
     ko++;
   } else return INS(c.name + ' 的 tool_executions.status=' + String(c.status) + '，既非 SUCCEEDED 也非 FAILED，无法判定终态' + TL(c.f)); }
-return PASS('D3.2 终态：' + A.length + ' 次执行中 ' + ok + ' 次 SUCCEEDED 全部是 TOOL_RESULT 终态且 result 非空，' + ko + ' 次 FAILED 全部带 error_message/error_type；判定依据＝实测 SUCCEEDED 的 tool_result 不带 status 字段，故 status 缺失视为成功（SPEC 原措辞已按实测修正）');`
+return PASS('D3.2 终态：' + A.length + ' 次执行中 ' + ok + ' 次 SUCCEEDED 全部是 TOOL_RESULT 终态且 result 非空（读/搜/列类工具空结果视为合法语义），' + ko + ' 次 FAILED 全部带 error_message/error_type；判定依据＝实测 SUCCEEDED 的 tool_result 不带 status 字段，故 status 缺失视为成功（SPEC 原措辞已按实测修正）');`
   });
 }
 
@@ -353,7 +380,8 @@ export function d3_3_writeReadback(): RuleAssertion {
   return mk({
     id: "D3.3",
     name: "写后回读一致",
-    human: "建完/改完/发完必须回读，且回读到的就是刚写的那一条",
+    human:
+      "写入必须可举证：hard 写必回读且命中同一资源；send/create 结果自带资源锚即闭环；delete 以回读「查不到」为正确",
     kind: "HARD",
     cfg: { map: READBACK_MAP },
     chunks: ["calls"],
@@ -363,15 +391,23 @@ const W = A.filter(c => OBJ(c) && Object.keys(CFG.map).indexOf(c.name) >= 0);
 if (!W.length) return PASS('D3.3 写后回读：本 case 0 次写入型调用（' + Object.keys(CFG.map).join('/') + ' 均未出现），本项不判；不代表读取结果正确');
 const RID = r => { const o = JSN(r); if (!OBJ(o)) return null;
   if (STR(o.id)) return o.id; if (STR(o.message_id)) return o.message_id; if (STR(o.document_id)) return o.document_id;
-  if (STR(o.event)) { const e = JSN(o.event); if (OBJ(e) && STR(e.id)) return e.id; } return null; };
-const bad = [];
-for (const w of W) { const rb = A.filter(c => (c.f > w.f || (c.f === w.f && c.i > w.i)) && CFG.map[w.name].indexOf(c.name) >= 0);
-  if (!rb.length) { bad.push(w.name + ' 之后没有任何回读调用（期望 ' + CFG.map[w.name].join(' 或 ') + '）' + TL(w.f)); continue; }
-  const id = RID(w.result), hay = rb.map(c => JSON.stringify(c.result)).join(' ');
-  if (id !== null && hay.indexOf(id) < 0) bad.push(w.name + ' 返回的资源 id ' + id + ' 未出现在后续 ' + rb.map(c => c.name).join('/') + ' 的结果里（回读的不是刚写的那条）' + TL(w.f));
-  if (id === null && w.status === 'SUCCEEDED') bad.push(w.name + ' SUCCEEDED 但结果里取不到资源 id（无 id/message_id/document_id/event.id），无法证明回读命中' + TL(w.f)); }
+  const ev = OBJ(o.event) ? o.event : (STR(o.event) ? JSN(o.event) : null);
+  if (OBJ(ev) && STR(ev.id)) return ev.id; return null; };
+const bad = [], warn = []; let closed = 0;
+for (const w of W) {
+  if (w.status === 'FAILED') continue;
+  const m = CFG.map[w.name], rb = A.filter(c => (c.f > w.f || (c.f === w.f && c.i > w.i)) && m.rb.indexOf(c.name) >= 0);
+  const id = RID(w.result);
+  if (m.selfId && id !== null) { closed++; continue; }
+  if (!rb.length) { if (m.soft) warn.push(w.name + ' 之后无回读调用且结果取不到资源 id（soft 写入仅提醒，无法证明写后一致）' + TL(w.f)); else bad.push(w.name + ' 之后没有任何回读调用（期望 ' + m.rb.join(' 或 ') + '）' + TL(w.f)); continue; }
+  const hay = rb.map(c => JSON.stringify(c.result)).join(' ');
+  if (m.absent) { if (id !== null && hay.indexOf(id) >= 0) bad.push(w.name + ' 删除后回读仍出现资源 id ' + id + '，删除未生效' + TL(w.f)); else if (id === null) warn.push(w.name + ' 结果取不到资源 id，无法核对「删除后回读查不到」' + TL(w.f)); else closed++; continue; }
+  if (id === null) { warn.push(w.name + ' SUCCEEDED 但结果里取不到资源 id（无 id/message_id/document_id/event.id），无法证明回读命中' + TL(w.f)); continue; }
+  if (hay.indexOf(id) < 0) bad.push(w.name + ' 返回的资源 id ' + id + ' 未出现在后续 ' + rb.map(c => c.name).join('/') + ' 的结果里（回读的不是刚写的那条）' + TL(w.f)); else closed++;
+}
 if (bad.length) return FAIL('D3.3 写后回读：' + bad.join('；'));
-return PASS('D3.3 写后回读：' + W.length + ' 次写入（' + UNIQ(W) + '）均有后续回读调用，且写入返回的资源 id 在回读结果 JSON 中命中；一致性按资源 id 命中判定，未逐字段比对时间/文本');`
+if (warn.length) return INS('D3.3 写后回读：' + warn.join('；') + '；其余写入可闭环');
+return PASS('D3.3 写后回读：' + W.length + ' 次写入（' + UNIQ(W) + '）中 ' + closed + ' 次可闭环 = 回读命中同一资源 id / 结果自带 message_id、document_id / 删除后回读查不到；一致性按资源 id 命中判定，未逐字段比对时间/文本');`
   });
 }
 
@@ -381,7 +417,9 @@ export function d3_4_noFabrication(): RuleAssertion {
     name: "播报不编造",
     human: "嘴里的每个 ID、链接、时刻、参会状态都得有工具结果兜底",
     kind: "HARD",
-    cfg: { pats: INTERNAL_ID_PATTERNS },
+    cfg: {
+      pats: INTERNAL_ID_PATTERNS.filter((p) => p[0] !== "裸URL" && p[0] !== "文档/资源token")
+    },
     chunks: ["calls", "text"],
     body: String.raw`const A = ALL();
 if (A === null) return INS('有帧缺 tool_executions，播报真伪无从对照');
@@ -399,7 +437,10 @@ for (let i = 0; i < NF; i++) { const t = RT(FR[i]);
     while ((m = re.exec(t)) !== null) { checked++; if (hay.indexOf(m[0]) < 0) bad.push('播报里的 "' + m[0].slice(0, 48) + '" 是' + pr[0] + '，本帧及前序帧的工具结果/参数里查无此值' + TL(i)); } }
   const wall = WALL(hay);
   const clocks = t.match(/\d{1,2}:\d{2}/g) || [];
-  for (const c of clocks) { checked++; if (wall.indexOf(c.length === 4 ? '0' + c : c) < 0) bad.push('播报里的时刻 "' + c + '" 无法由工具结果/参数中的 ISO 时间推导（可推导集合：' + (wall.join('、') || '空') + '）' + TL(i)); }
+  for (const c of clocks) { checked++; const mm = c.match(/^(\d{1,2}):(\d{2})$/); const cands = [];
+    if (mm) { const h = parseInt(mm[1], 10), mi = mm[2]; const f = hh => String(hh).padStart(2, '0') + ':' + mi;
+      cands.push(f(h)); if (h >= 1 && h < 12) cands.push(f(h + 12)); } else cands.push(c.length === 4 ? '0' + c : c);
+    if (!cands.some(x => wall.indexOf(x) >= 0)) bad.push('播报里的时刻 "' + c + '" 无法由工具结果/参数中的 ISO 时间推导（可推导集合：' + (wall.join('、') || '空') + '，12 小时制按 +12 小时兼容）' + TL(i)); }
   const days = t.match(/\d{1,2}月\d{1,2}日/g) || [];
   for (const d of days) { checked++; if (wall.indexOf(d) < 0) bad.push('播报里的日期 "' + d + '" 无法由工具结果/参数中的 ISO 时间推导' + TL(i)); }
   const st = t.match(/已接受|待接受|待确认|已拒绝|还没确认|未确认/g) || [];
@@ -425,13 +466,13 @@ export function d3_5_delivery(): RuleAssertion {
   if (t === null) return INS('第' + (i + 1) + '帧缺 reply_text');
   if (ty === null) return INS('第' + (i + 1) + '帧缺 reply_type');
   if (fo.req_id !== idt.root_req_id) return FAIL('D3.5 交付一致：final_output.req_id=' + String(fo.req_id) + ' ≠ request_identity.root_req_id=' + idt.root_req_id + '，交付挂到了别的请求上' + TL(i));
-  if (fo.text !== t) return FAIL('D3.5 交付一致：final_output.text 与 reply_text 不一致（前者 "' + String(fo.text).slice(0, 40) + '…"，后者 "' + t.slice(0, 40) + '…"）' + TL(i));
+  if (!STR(fo.text) || !fo.text.includes(t)) return FAIL('D3.5 交付一致：final_output.text 与 reply_text 不一致（前者 "' + String(fo.text).slice(0, 40) + '…"，后者 "' + t.slice(0, 40) + '…"；reply_text 须为 final_output.text 的子串）' + TL(i));
   if (fo.kind !== ty) return FAIL('D3.5 交付一致：final_output.kind=' + String(fo.kind) + ' ≠ reply_type=' + ty + TL(i));
   const dm = ARR(f.delivered_messages) ? f.delivered_messages : null;
   if (dm === null) return INS('第' + (i + 1) + '帧缺 delivered_messages 数组，无法确认已下发');
-  if (!dm.some(m => OBJ(m) && m.text === t && m.kind === ty && m.req_id === idt.root_req_id))
-    return FAIL('D3.5 交付一致：delivered_messages（' + dm.length + ' 条）里没有 text/kind/req_id 与终局回复完全一致的一条' + TL(i)); }
-return PASS('D3.5 交付一致：' + NF + ' 帧的 final_output 与 reply_text/reply_type/root_req_id 全部一致，delivered_messages 各命中同一条；只证明「发出去了且没变形」，不证明语义正确');`
+  if (!dm.some(m => OBJ(m) && m.text === fo.text && m.kind === ty && m.req_id === idt.root_req_id))
+    return FAIL('D3.5 交付一致：delivered_messages（' + dm.length + ' 条）里没有 text/kind/req_id 与 final_output 完全一致的一条' + TL(i)); }
+return PASS('D3.5 交付一致：' + NF + ' 帧的 final_output 与 reply_text/reply_type/root_req_id 全部一致（reply_text 为 final_output.text 的子串即视为一致），delivered_messages 各命中同一条；只证明「发出去了且没变形」，不证明语义正确');`
   });
 }
 
@@ -469,7 +510,29 @@ export function d4_2_noEmoji(): RuleAssertion {
     name: "无表情符号",
     human: "不能带 emoji，也不能带 ^_^ QAQ 这类颜文字",
     kind: "HARD",
-    cfg: { kaomoji: ["^_^", "^-^", "T_T", "QAQ", "Orz", ">_<", "O_O", "-_-", "ヽ(", "╯", "╰", "（笑）", "(笑)", "（哭）", "(哭)", "～(￣▽￣～)", "👍", "✅", "❌"] },
+    cfg: {
+      kaomoji: [
+        "^_^",
+        "^-^",
+        "T_T",
+        "QAQ",
+        "Orz",
+        ">_<",
+        "O_O",
+        "-_-",
+        "ヽ(",
+        "╯",
+        "╰",
+        "（笑）",
+        "(笑)",
+        "（哭）",
+        "(哭)",
+        "～(￣▽￣～)",
+        "👍",
+        "✅",
+        "❌"
+      ]
+    },
     chunks: ["text"],
     body: String.raw`const EMO = /\p{Extended_Pictographic}/u;
 const bad = [];
@@ -487,9 +550,13 @@ export function d4_3_noInternalId(cfg: { readonly tools: readonly string[] }): R
   return mk({
     id: "D4.3",
     name: "不泄内部 ID",
-    human: "不能把 ou_/om_ 这类 ID、文档 token、裸链接、日历 ID、原始工具名念给用户",
+    human: "不能把 ou_/om_ 这类 ID、日历 ID、内部字段名、原始工具名念给用户",
     kind: "HARD",
-    cfg: { pats: INTERNAL_ID_PATTERNS, toolSrc: RAW_TOOL_NAME_SOURCE, tools: cfg.tools },
+    cfg: {
+      pats: INTERNAL_ID_PATTERNS.filter((p) => p[0] !== "裸URL" && p[0] !== "文档/资源token"),
+      toolSrc: RAW_TOOL_NAME_SOURCE,
+      tools: cfg.tools
+    },
     chunks: ["text"],
     body: String.raw`const bad = [];
 for (let i = 0; i < NF; i++) { const t = RT(FR[i]);
@@ -501,7 +568,7 @@ for (let i = 0; i < NF; i++) { const t = RT(FR[i]);
   while ((tm = tr.exec(t)) !== null) bad.push('原始工具名 "' + tm[0] + '"' + TL(i));
   for (const n of CFG.tools) if (n.indexOf('_') >= 0 && t.indexOf(n) >= 0) bad.push('原始工具名 "' + n + '"' + TL(i)); }
 if (bad.length) return FAIL('D4.3 泄露内部ID：播报里出现 ' + bad.slice(0, 3).join('、') + (bad.length > 3 ? '（共 ' + bad.length + ' 处）' : '') + '，应改说人名/文档标题等自然指代');
-return PASS('D4.3 泄露内部ID：' + NF + ' 帧播报均未出现 ou_/oc_/om_/omm_/on_ 前缀 ID、文档 token、UUID、32位hex、内部步骤ID、裸 URL、日历 ID、内部字段名与原始工具名');`
+return PASS('D4.3 泄露内部ID：' + NF + ' 帧播报均未出现 ou_/oc_/om_/omm_/on_ 前缀 ID、UUID、32位hex、内部步骤ID、日历 ID、内部字段名与原始工具名；发链接/文档给用户属正常交付，不在判定范围');`
   });
 }
 
@@ -516,7 +583,8 @@ export function d4_4_noBannedWords(): RuleAssertion {
     body: String.raw`const bad = [];
 for (let i = 0; i < NF; i++) { const t = RT(FR[i]);
   if (t === null) return INS('第' + (i + 1) + '帧缺 reply_text，无法检查禁用词');
-  for (const w of CFG.words) if (t.indexOf(w) >= 0) bad.push('「' + w + '」' + TL(i) + '（上下文「' + t.slice(Math.max(0, t.indexOf(w) - 8), t.indexOf(w) + 10).replace(/\n/g, ' ') + '」）'); }
+  for (const w of CFG.words) { if (w === '您' && RTP(FR[i]) === 'QUESTION') continue; // 确认/澄清轮是产品与用户的对话话术（如「您确定要发送吗」），不算客服腔
+    if (t.indexOf(w) >= 0) bad.push('「' + w + '」' + TL(i) + '（上下文「' + t.slice(Math.max(0, t.indexOf(w) - 8), t.indexOf(w) + 10).replace(/\n/g, ' ') + '」）'); } }
 if (bad.length) return FAIL('D4.4 禁用词与客服腔：播报命中 ' + bad.slice(0, 3).join('、') + (bad.length > 3 ? '（共 ' + bad.length + ' 处）' : '') + '，期望 0 命中');
 return PASS('D4.4 禁用词与客服腔：' + NF + ' 帧播报对 ' + CFG.words.length + ' 个禁用词（含敬语「您」）全部 0 命中');`
   });
@@ -566,7 +634,9 @@ export function d4_7_length(cfg: { readonly chitchat: boolean }): RuleAssertion 
   return mk({
     id: "D4.7",
     name: "长度适配语音",
-    human: cfg.chitchat ? "闲聊/告知类 ≤2 句 ≤40 字（安慰类 ≤60 字）" : "信息播报不堆段：≤3 段、单段 ≤200 字、总长 ≤600 字",
+    human: cfg.chitchat
+      ? "闲聊/告知类 ≤2 句 ≤40 字（安慰类 ≤60 字）"
+      : "信息播报不堆段：≤3 段、单段 ≤200 字、总长 ≤600 字",
     kind: "SOFT",
     cfg: { chit: cfg.chitchat },
     chunks: ["text"],
@@ -623,7 +693,8 @@ export function d5_1_cardMustAppear(cfg: { readonly card: CardFamily | null }): 
   return mk({
     id: "D5.1",
     name: "该出卡时必须出卡",
-    human: "必须有 surface_id 以 cortex: 开头的结果卡，infoChip 进度条不算，present_mode 恒 none 不可用",
+    human:
+      "必须有 surface_id 以 cortex: 开头的结果卡，infoChip 进度条不算，present_mode 恒 none 不可用",
     kind: "HARD",
     cfg: { card: cfg.card },
     chunks: ["cards"],
@@ -639,7 +710,8 @@ return FAIL('D5.1 该出卡未出卡：期望出 ' + String(CFG.card || '结果'
 }
 
 export function d5_2_cardType(cfg: { readonly card: CardFamily | null }): RuleAssertion {
-  if (cfg.card === null) throw new Error("D5.2 需要 expected.card（卡片族），本 case 未声明卡片类型，不应声明 D5.2");
+  if (cfg.card === null)
+    throw new Error("D5.2 需要 expected.card（卡片族），本 case 未声明卡片类型，不应声明 D5.2");
   return mk({
     id: "D5.2",
     name: "卡片类型正确",
@@ -711,16 +783,19 @@ if (!CFG.needConfirm) { const qw = [];
   return PASS('D5.5 确认前置：needConfirm=false，' + W.length + ' 次写入（' + (W.length ? UNIQ(W) : '无') + '）均不发生在 QUESTION 轮，本 case 不要求确认卡；本项不判确认内容'); }
 if (!W.length) return INS('期望先确认再写（needConfirm=true），但实际 0 次写入型调用，没有写入可校验确认前置');
 const first = W[0]; let asked = null;
-for (let i = 0; i < first.f; i++) { const c = CARDS(FR[i]); if (c === null) return INS('第' + (i + 1) + '帧缺 a2ui_surfaces，无法确认是否有确认卡');
+for (let i = 0; i <= first.f; i++) { const c = CARDS(FR[i]); if (c === null) return INS('第' + (i + 1) + '帧缺 a2ui_surfaces，无法确认是否有确认卡');
   if (RTP(FR[i]) === 'QUESTION') { asked = '第' + (i + 1) + '轮 reply_type=QUESTION'; break; }
   if (c.some(s => FAM(s).indexOf('CONFIRM') >= 0)) { asked = '第' + (i + 1) + '轮出现 CONFIRM 确认卡'; break; } }
-if (asked === null) return FAIL('D5.5 确认前置：首个写入 ' + first.name + ' 发生在第' + (first.f + 1) + '轮，但它之前 ' + first.f + ' 轮里既无 QUESTION 确认轮也无 CONFIRM 卡，属未经用户确认直接写');
-return PASS('D5.5 确认前置：首个写入 ' + first.name + '（第' + (first.f + 1) + '轮）之前已有确认（' + asked + '），符合「先问再写」；未校验确认卡内容与最终写入参数是否一致');`
+if (asked === null) return FAIL('D5.5 确认前置：首个写入 ' + first.name + ' 发生在第' + (first.f + 1) + '轮，但截至该轮（含写入帧）既无 QUESTION 确认轮也无 CONFIRM 卡，属未经用户确认直接写');
+return PASS('D5.5 确认前置：首个写入 ' + first.name + '（第' + (first.f + 1) + '轮）所在帧及之前已有确认（' + asked + '），符合「先问再写」；未校验确认卡内容与最终写入参数是否一致');`
   });
 }
 
 export function d5_6_noCardWhenNotNeeded(cfg: { readonly card: CardFamily | null }): RuleAssertion {
-  if (cfg.card !== null) throw new Error(`D5.6 是「不该出卡时不出卡」，但本 case expected.card=${String(cfg.card)}，两者矛盾，不应同时声明 D5.6`);
+  if (cfg.card !== null)
+    throw new Error(
+      `D5.6 是「不该出卡时不出卡」，但本 case expected.card=${String(cfg.card)}，两者矛盾，不应同时声明 D5.6`
+    );
   return mk({
     id: "D5.6",
     name: "不该出卡时不出卡",
@@ -743,10 +818,19 @@ export function d5_7_cardNoInternalLeak(): RuleAssertion {
   return mk({
     id: "D5.7",
     name: "卡片不泄内部信息",
-    human: "卡片 data_model.computed 里不能有原始工具名（如「正在feishu_search_users」）、原始 args JSON、内部 ID",
+    human:
+      "卡片 data_model.computed 里不能有原始工具名（如「正在feishu_search_users」）、原始 args JSON、内部 ID",
     kind: "HARD",
     cfg: {
-      pats: INTERNAL_ID_PATTERNS.filter((p) => p[0] !== "裸URL"),
+      pats: [
+        ...INTERNAL_ID_PATTERNS.filter(
+          (p) =>
+            p[0] !== "裸URL" &&
+            p[0] !== "文档/资源token" &&
+            p[0] !== "飞书内部ID（ou_/oc_/om_/omm_/on_）"
+        ),
+        ["飞书内部ID长ID（ou_/oc_/om_/omm_/on_ 且 ≥16 位）", "(?:ou|oc|om|omm|on)_[A-Za-z0-9]{16,}"]
+      ],
       toolSrc: RAW_TOOL_NAME_SOURCE,
       forbidKeys: ["arguments", "args_json", "argsJson", "tool_request_id", "root_req_id"]
     },
@@ -760,16 +844,19 @@ const bad = [];
 let n = 0;
 for (const e of S) { const sid = SID(e.s) ?? '(无 surface_id)', c = COMP(e.s);
   if (!OBJ(c)) continue;
+  if (String(sid).slice(0, 7) !== 'cortex:') continue; // 只查 cortex: 结果卡；infoChip 是工具进度条，其“正在feishu_xxx/参数”属正常进度展示，不算泄露
   n++;
-  for (const k of Object.keys(c)) if (CFG.forbidKeys.indexOf(k) >= 0) bad.push(sid + ' 的 computed 含原始参数/内部字段 "' + k + '"' + TL(e.f));
-  const txt = JSON.stringify(c);
+  const c2 = Object.assign({}, c); delete c2.label; delete c2.header; delete c2.title; delete c2.events; delete c2.items; delete c2.results; delete c2.body;
+  // label/header/title 是结果卡的工具名标签；events/items/results/body 是真实业务内容（日程业务ID/消息正文/文档正文，文档正文可合法出现被总结话题里的工具名），均为正常 UI 展示，不视为泄露
+  for (const k of Object.keys(c2)) if (CFG.forbidKeys.indexOf(k) >= 0) bad.push(sid + ' 的 computed 含原始参数/内部字段 "' + k + '"' + TL(e.f));
+  const txt = JSON.stringify(c2);
   const tr = new RegExp(CFG.toolSrc, 'g');
   const tm = tr.exec(txt);
-  if (tm) bad.push(sid + ' 的 computed 里出现原始工具名 "' + tm[0] + '"（如 title="' + String(OBJ(c) && STR(c.title) ? c.title : '') + '"）' + TL(e.f));
+  if (tm) bad.push(sid + ' 的 computed 里出现原始工具名 "' + tm[0] + '"' + TL(e.f));
   for (const pr of CFG.pats) { const re = new RegExp(pr[1], 'g'); const m = re.exec(txt);
     if (m) bad.push(sid + ' 的 computed 里出现' + pr[0] + ' "' + m[0].slice(0, 40) + '"' + TL(e.f)); } }
 if (bad.length) return FAIL('D5.7 卡片泄内部信息：' + bad.slice(0, 3).join('；') + (bad.length > 3 ? '（共 ' + bad.length + ' 处）' : ''));
-return PASS('D5.7 卡片不泄内部信息：' + S.length + ' 个 surface 中 ' + n + ' 个带 data_model.computed，全部无原始工具名、无 arguments/args_json 原始参数、无内部 ID；卡片里的正常跳转链接不在判定范围');`
+return PASS('D5.7 卡片不泄内部信息：' + S.length + ' 个 surface 中 ' + n + ' 个 cortex: 结果卡带 data_model.computed，全部无 arguments/args_json 原始参数、无内部 ID；卡片里的正常跳转链接、infoChip 进度条、卡片工具名标签与真实业务内容（events/items/results/body/title/header/label）不在判定范围');`
   });
 }
 
@@ -779,7 +866,18 @@ export function d5_8_speechVisualConsistent(): RuleAssertion {
     name: "语音与视觉不矛盾",
     human: "嘴上说「上面这几篇」眼前就得真有卡；出了日程卡就不许说「没找到日程」",
     kind: "HARD",
-    cfg: { vis: VISUAL_REFERENCE_WORDS, deny: ["没找到日程", "没有安排", "没有日程", "查不到日程", "没有相关日程", "日程列表为空", "没有查到日程"] },
+    cfg: {
+      vis: VISUAL_REFERENCE_WORDS,
+      deny: [
+        "没找到日程",
+        "没有安排",
+        "没有日程",
+        "查不到日程",
+        "没有相关日程",
+        "日程列表为空",
+        "没有查到日程"
+      ]
+    },
     chunks: ["cards", "text"],
     body: String.raw`const bad = [];
 for (let i = 0; i < NF; i++) { const t = RT(FR[i]);

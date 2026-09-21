@@ -1,0 +1,30 @@
+id: D01-search-document
+title: D01 搜索并选择飞书文档（读取 / 同名消歧）
+sourcePath: >-
+  /Users/joey/Documents/cortex测评/cortex-eval/evaluation_sources/feishu/D01-search-document.md
+profile:
+  id: dev-validation
+  version: 1.0.0
+domain: feishu
+userInput: 帮我在飞书找一下《发布方案V2》的文档。
+capabilities:
+  - document.search
+  - document.read
+  - user.profile.lookup
+branches: []
+branchMatrix: ""
+detectedTools:
+  - search_docs
+  - feishu_get_user_profile
+  - list_simple
+  - markdown_title_body
+  - tool_start
+  - tool_fail
+detectedA2ui:
+  - list_simple
+  - markdown_title_body
+  - tool_start
+  - tool_fail
+constraints:
+  readOnly: true
+  requiresEvidence: true

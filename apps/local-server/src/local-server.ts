@@ -1,3 +1,5 @@
+import { registerDiagnosticReportRoutes } from "./diagnostic-report-routes.ts";
+import type { DiagnosticReportService } from "./diagnostic-report-service.ts";
 import type { RunLivePreview } from "@cortex-eval/contracts/src/run-review-contracts.ts";
 import { registerRunReviewRoutes } from "./run-review-routes.ts";
 import type { RunReviewStore } from "./run-review-store.ts";
@@ -173,6 +175,7 @@ export interface RequestIdGenerator {
 
 /** Local Server construction options. */
 export interface LocalServerOptions {
+  readonly diagnosticReports?: DiagnosticReportService;
   /** Optional immutable A2UI evidence and manual-review sidecar. */
   readonly a2uiReviewStore?: A2uiReviewStore;
   readonly runReviewStore?: RunReviewStore;
@@ -300,6 +303,7 @@ async function registerResourceRoutes(
   if (options.runReviewStore)
     registerRunReviewRoutes(server, options.runReviewStore, options.runLivePreview);
   if (options.a2uiReviewStore) registerA2uiReviewRoutes(server, options.a2uiReviewStore);
+  if (options.diagnosticReports) registerDiagnosticReportRoutes(server, options.diagnosticReports);
 
   registerHandlerRoute(
     server,

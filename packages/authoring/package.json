@@ -1,0 +1,11 @@
+{
+  "name": "@cortex-eval/authoring",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@cortex-eval/contracts": "workspace:*",
+    "js-yaml": "5.2.0",
+    "zod": "4.4.3"
+  }
+}

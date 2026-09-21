@@ -1,0 +1,40 @@
+status: BLOCKED
+sourcePath: >-
+  /Users/joey/Documents/cortex测评/cortex-eval/evaluation_sources/feishu/D01-search-document.md
+profile: dev-validation@1.0.0
+issues:
+  - code: SOURCE_SECTION_MISSING
+    message: 业务规范缺少必填章节：分支矩阵
+    blocking: true
+    path: 分支矩阵
+  - code: BRANCHES_MISSING
+    message: 分支矩阵中未识别到可覆盖的业务情况
+    blocking: true
+    path: 分支矩阵
+resolved:
+  capabilities:
+    - document.search@1.0.0
+    - document.read@1.0.0
+    - user.profile.lookup@1.0.0
+  capabilityBindings:
+    - capability: document.search
+      tool: feishu.search_docs
+      runtimeName: search_docs
+    - capability: document.read
+      tool: feishu.get_doc
+      runtimeName: feishu_get_doc
+    - capability: user.profile.lookup
+      tool: feishu.get_user_profile
+      runtimeName: feishu_get_user_profile
+  runtimeTools:
+    - search_docs
+    - feishu_get_doc
+    - feishu_get_user_profile
+  a2ui:
+    - search-result-list@1.0.0
+    - document-body@1.0.0
+    - tool-start@1.0.0
+    - tool-fail@1.0.0
+  fixtures: []
+  assertionTemplates:
+    - agent-executions@1.0.0

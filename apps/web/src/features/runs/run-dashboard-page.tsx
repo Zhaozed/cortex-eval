@@ -1,16 +1,17 @@
+import { RunDiagnosticControl } from "./run-diagnostic-control.tsx";
 import { ArrowLeft } from "lucide-react";
 import { returnFromRun } from "../../lib/return-navigation.ts";
 import { RunRerunDialog } from "./run-rerun-dialog.tsx";
 import { RunComparison } from "./run-comparison.tsx";
 import { runReviewApi } from "../../lib/run-review-api.ts";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactElement } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useRef, useState, type ReactElement } from "react";
 import { Alert, AlertTitle } from "../../components/ui/alert.tsx";
 import { Badge } from "../../components/ui/badge.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { Progress } from "../../components/ui/progress.tsx";
 import { ApiClientError } from "../../lib/api-client.ts";
-import type { RunApi } from "../../lib/run-api.ts";
+import type { RunApi, RunCaseDetail } from "../../lib/run-api.ts";
 import { ImportedRunDashboard } from "./run-imported-dashboard.tsx";
 import { RunAnalysisControl } from "./run-analysis-control.tsx";
 import { message } from "../../messages/messages.ts";
@@ -23,6 +24,7 @@ import {
   executionState,
   loadDashboardCases,
   safeEndpointLocation,
+  type DashboardCaseDetailCache,
   type ResultBucket
 } from "./run-dashboard-model.ts";
 import {
@@ -46,6 +48,8 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
   const [rerunOpen, setRerunOpen] = useState(false);
   const [bucket, setBucket] = useState<ResultBucket | "ALL">("ALL");
   const [copyState, setCopyState] = useState<"idle" | "done" | "error">("idle");
+  // Committed Case details are immutable, so polls only read the Cases that finished since.
+  const caseDetails = useRef<DashboardCaseDetailCache>(new Map<string, RunCaseDetail>()).current;
   const detail = useQuery({
     queryKey: ["runs", "detail", runId],
     queryFn: ({ signal }) => api.getRun(runId, signal),
@@ -86,7 +90,8 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
         },
         runId,
         hasReport,
-        signal
+        signal,
+        caseDetails
       );
       if (!run) throw new Error("RUN_NOT_LOADED");
       if (hasReport && rows.length !== run.suite.caseCount)
@@ -94,6 +99,9 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
       return { rows, counts: dashboardCounts(run.suite.caseCount, rows) };
     },
     enabled: run !== undefined,
+    // Progress commits change this key; keep the previous rows mounted so the Case table updates
+    // in place and an open Case drawer is never torn down by another Case finishing.
+    placeholderData: keepPreviousData,
     // A running pagination snapshot can lag counters; retry until the committed facts agree.
     refetchInterval: runNeedsPolling(run) ? 3000 : false
   });
@@ -152,6 +160,22 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
       if (result.navigate !== null) onNavigate(result.navigate);
     }
   });
+  // Stable identities: a one-second progress poll must not rebuild every row object, or the whole
+  // Case table (and the drawer inside it) re-renders even though nothing it shows has changed.
+  // Declared before every early return so the hook order never depends on Run load state.
+  const caseCount = run?.suite.caseCount ?? 0;
+  const rows = useMemo(
+    () =>
+      (cases.data?.rows ?? []).map((row) => {
+        const review = reviews.data?.find((item) => item.caseKey === row.caseKey);
+        return review ? { ...row, review } : row;
+      }),
+    [cases.data, reviews.data]
+  );
+  const counts = useMemo(
+    () => (cases.data ? dashboardCounts(caseCount, rows) : undefined),
+    [cases.data, caseCount, rows]
+  );
   if (detail.isPending) return <Progress aria-label={message("runs.detailLoading")} />;
   if (
     detail.isError &&
@@ -176,11 +200,6 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
     run.status === "READY" &&
     run.stage !== "DONE" &&
     (run.runMode !== "PIPELINE" || run.stage === "REST");
-  const rows = (cases.data?.rows ?? []).map((row) => {
-    const review = reviews.data?.find((item) => item.caseKey === row.caseKey);
-    return review ? { ...row, review } : row;
-  });
-  const counts = cases.data ? dashboardCounts(run.suite.caseCount, rows) : undefined;
   const syncing =
     !hasReport &&
     (rows.length !== run.rest.completed ||
@@ -275,6 +294,12 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
           >
             对比运行
           </Button>
+          <RunDiagnosticControl
+            key={runId}
+            runId={runId}
+            ready={hasReport}
+            defaultModelId={run.evaluator.sourceId}
+          />
           <details className="run-dashboard-more">
             <summary>{message("rd.more")}</summary>
             <div>
@@ -457,7 +482,7 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
           </Button>
         </Alert>
       )}
-      {cases.data && !cases.isError && (
+      {cases.data !== undefined && (
         <>
           {syncing && <p role="status">{message("rd.syncing")}</p>}
           <RunDashboardCases

@@ -1,411 +1,381 @@
 {
- "ok": true,
- "task_name": "EVAL_E2E",
- "execution_mode": "client",
- "parsed_output": {
-  "turns": [
-   {
-    "turn_index": 0,
-    "user_input": "取消飞书日历（feishu.cn_TESTCAL000000001@group.calendar.feishu.cn）里 00000000-0000-4000-8000-000000000003_0 这场会议，并确认会议室已经释放。",
-    "parsed_output": {
-     "schema_version": 1,
-     "reply_type": "QUESTION",
-     "reply_text": "请问确定要删除这些日程吗？",
-     "present_mode": "none",
-     "request_identity": {
-      "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000d",
-      "included_req_ids": [
-       "aaaaaaaaaaaaaaaaaaaaaaaa0000000d"
-      ],
-      "task_id": "task_TESTTASK0069"
-     },
-     "route": {
-      "decision": "NEW",
-      "facts": {
-       "domain": "other",
-       "llm_intent": "NEW",
-       "tools": [
-        "delete_events"
-       ],
-       "reason": "用户要求删除指定的飞书日历会议事件，属于新任务。"
-      }
-     },
-     "tools": [],
-     "tool_executions": [],
-     "tool_execution_count": 0,
-     "a2ui_surface_ids": [],
-     "a2ui_source_tools": [],
-     "a2ui_surfaces": [],
-     "a2ui_validation": {
-      "error_codes": [],
-      "error_count": 0,
-      "has_errors": false,
-      "has_validator_errors": false,
-      "info_count": 0,
-      "issue_codes": [],
-      "payload_count": 0,
-      "surface_count": 0,
-      "surfaces": [],
-      "warn_count": 0
-     },
-     "outbound_capture": {
-      "status": "COLLECTED",
-      "request_ended": true,
-      "payload_count": 0,
-      "record_count": 1,
-      "failed_sids": [],
-      "observed_sids": [
-       "feishu-20260915-r1-c08",
-       "eval-aaaaaaaaaaaaaaaaaaaaaaaa0000000e"
-      ],
-      "error_type": null
-     },
-     "coverage": {
-      "evaluation_ready": true,
-      "truncated": false,
-      "retry_recommended": false
-     },
-     "final_output": {
-      "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000d",
-      "text": "请问确定要删除这些日程吗？",
-      "kind": "QUESTION",
-      "role": "assistant",
-      "asst_msg_id": "asst_TESTASST0070"
-     },
-     "delivered_messages": [
+  "ok": true,
+  "task_name": "EVAL_E2E",
+  "execution_mode": "client",
+  "parsed_output": {
+    "turns": [
       {
-       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000d",
-       "text": "请问确定要删除这些日程吗？",
-       "kind": "QUESTION",
-       "role": "assistant",
-       "asst_msg_id": "asst_TESTASST0070"
-      }
-     ],
-     "errors": [
-      {
-       "audit_persisted_at": "2026-09-15T09:32:24.592252+00:00",
-       "call_id": 486,
-       "error_code": "RESPONSE_TIMEOUT",
-       "error_message_available": true,
-       "error_message_redacted": true,
-       "raw_failure_output_available": false,
-       "raw_failure_output_redacted": false,
-       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000d",
-       "source": "llm_audit"
-      }
-     ],
-     "unsupported_reason": null
-    }
-   },
-   {
-    "turn_index": 1,
-    "user_input": "确认取消这场会议。",
-    "parsed_output": {
-     "schema_version": 1,
-     "reply_type": "NOTICE",
-     "reply_text": "会议已取消。从该日历今天的日程来看，该事件已不在列表中，会议室应该已经释放。",
-     "present_mode": "none",
-     "request_identity": {
-      "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
-      "included_req_ids": [
-       "aaaaaaaaaaaaaaaaaaaaaaaa0000000f"
-      ],
-      "task_id": "task_TESTTASK0069"
-     },
-     "route": {
-      "decision": "EXISTING",
-      "facts": {
-       "domain": "other",
-       "llm_intent": "EXISTING",
-       "tools": [
-        "delete_events"
-       ],
-       "reason": "用户明确确认取消会议，继续执行之前的任务。"
-      }
-     },
-     "tools": [
-      {
-       "name": null
-      },
-      {
-       "name": null
-      },
-      {
-       "name": null
-      }
-     ],
-     "tool_executions": [
-      {
-       "tool_request_id": "tool_TESTTOOL0071",
-       "status": "SUCCEEDED",
-       "call_step_id": "step_TESTSTEP0072",
-       "calls": [
-        {
-         "name": "delete_events",
-         "param": {
-          "calendar_id": "feishu.cn_TESTCAL000000001@group.calendar.feishu.cn",
-          "event_ids": [
-           "00000000-0000-4000-8000-000000000003_0"
-          ],
-          "provider": "feishu"
-         },
-         "tool_kind": "ONLINE",
-         "online_tool_category": "calendar"
-        }
-       ],
-       "terminals": [
-        {
-         "type": "TOOL_RESULT",
-         "tool_result": {
-          "status": "SUCCESS",
-          "result": {
-           "results": [
-            {
-             "event_id": "00000000-0000-4000-8000-000000000003_0",
-             "success": true
+        "turn_index": 0,
+        "user_input": "取消飞书日历（feishu.cn_TESTCAL000000001@group.calendar.feishu.cn）里 00000000-0000-4000-8000-000000000003_0 这场会议，并确认会议室已经释放。",
+        "parsed_output": {
+          "schema_version": 1,
+          "reply_type": "QUESTION",
+          "reply_text": "请问确定要删除这些日程吗？",
+          "present_mode": "none",
+          "request_identity": {
+            "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000d",
+            "included_req_ids": ["aaaaaaaaaaaaaaaaaaaaaaaa0000000d"],
+            "task_id": "task_TESTTASK0069"
+          },
+          "route": {
+            "decision": "NEW",
+            "facts": {
+              "domain": "other",
+              "llm_intent": "NEW",
+              "tools": ["delete_events"],
+              "reason": "用户要求删除指定的飞书日历会议事件，属于新任务。"
             }
-           ]
-          }
-         }
-        }
-       ]
-      },
-      {
-       "tool_request_id": "tool_TESTTOOL0073",
-       "status": "FAILED",
-       "call_step_id": "step_TESTSTEP0074",
-       "calls": [
-        {
-         "name": "get_event",
-         "param": {
-          "calendar_id": "feishu.cn_TESTCAL000000001@group.calendar.feishu.cn",
-          "event_id": "00000000-0000-4000-8000-000000000003_0",
-          "provider": "feishu"
-         },
-         "tool_kind": "ONLINE",
-         "online_tool_category": "calendar"
-        }
-       ],
-       "terminals": [
-        {
-         "type": "TOOL_RESULT",
-         "tool_result": {
-          "status": "FAILED",
-          "result": {
-           "error_message": "permission denied: event is deleted (code=193003)",
-           "error_type": "UPSTREAM"
-          }
-         }
-        }
-       ]
-      },
-      {
-       "tool_request_id": "tool_TESTTOOL0075",
-       "status": "SUCCEEDED",
-       "call_step_id": "step_TESTSTEP0076",
-       "calls": [
-        {
-         "name": "list_events",
-         "param": {
-          "calendar_id": "feishu.cn_TESTCAL000000001@group.calendar.feishu.cn",
-          "end": "2026-09-15T23:59:59+08:00",
-          "provider": [
-           "feishu"
-          ],
-          "start": "2026-09-15T00:00:00+08:00"
-         },
-         "tool_kind": "ONLINE",
-         "online_tool_category": "calendar"
-        }
-       ],
-       "terminals": [
-        {
-         "type": "TOOL_RESULT",
-         "tool_result": {
-          "status": "SUCCESS",
-          "result": {
-           "results": [
+          },
+          "tools": [],
+          "tool_executions": [],
+          "tool_execution_count": 0,
+          "a2ui_surface_ids": [],
+          "a2ui_source_tools": [],
+          "a2ui_surfaces": [],
+          "a2ui_validation": {
+            "error_codes": [],
+            "error_count": 0,
+            "has_errors": false,
+            "has_validator_errors": false,
+            "info_count": 0,
+            "issue_codes": [],
+            "payload_count": 0,
+            "surface_count": 0,
+            "surfaces": [],
+            "warn_count": 0
+          },
+          "outbound_capture": {
+            "status": "COLLECTED",
+            "request_ended": true,
+            "payload_count": 0,
+            "record_count": 1,
+            "failed_sids": [],
+            "observed_sids": ["feishu-20260915-r1-c08", "eval-aaaaaaaaaaaaaaaaaaaaaaaa0000000e"],
+            "error_type": null
+          },
+          "coverage": {
+            "evaluation_ready": true,
+            "truncated": false,
+            "retry_recommended": false
+          },
+          "final_output": {
+            "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000d",
+            "text": "请问确定要删除这些日程吗？",
+            "kind": "QUESTION",
+            "role": "assistant",
+            "asst_msg_id": "asst_TESTASST0070"
+          },
+          "delivered_messages": [
             {
-             "events": [],
-             "provider": "feishu"
+              "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000d",
+              "text": "请问确定要删除这些日程吗？",
+              "kind": "QUESTION",
+              "role": "assistant",
+              "asst_msg_id": "asst_TESTASST0070"
             }
-           ]
-          }
-         }
+          ],
+          "errors": [
+            {
+              "audit_persisted_at": "2026-09-15T09:32:24.592252+00:00",
+              "call_id": 486,
+              "error_code": "RESPONSE_TIMEOUT",
+              "error_message_available": true,
+              "error_message_redacted": true,
+              "raw_failure_output_available": false,
+              "raw_failure_output_redacted": false,
+              "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000d",
+              "source": "llm_audit"
+            }
+          ],
+          "unsupported_reason": null
         }
-       ]
-      }
-     ],
-     "tool_execution_count": 3,
-     "a2ui_surface_ids": [
-      "infoChip"
-     ],
-     "a2ui_source_tools": [
-      "list_events"
-     ],
-     "a2ui_surfaces": [
-      {
-       "surface_id": "infoChip",
-       "catalog_id": "https://loona.dm/catalog/v1",
-       "component_ids": [
-        "root"
-       ],
-       "source_tool_names": [
-        "list_events"
-       ],
-       "frame_count": 3,
-       "data_model": {
-        "computed": {
-         "arguments": "{\"calendar_id\": \"feishu.cn_TESTCAL000000001@group.calendar.feishu.cn\", \"end\": \"2026-09-15T23:59:59+08:00\", \"provider\": [\"feishu\"], \"start\": \"2026-09-15T00:00:00+08:00\"}",
-         "argumentsLabel": "参数",
-         "icon": "calendar_looking",
-         "title": "正在获取日程",
-         "toolName": "获取日程"
-        },
-        "static": null
-       }
-      }
-     ],
-     "a2ui_validation": {
-      "error_codes": [],
-      "error_count": 0,
-      "has_errors": false,
-      "has_validator_errors": false,
-      "info_count": 0,
-      "issue_codes": [],
-      "payload_count": 3,
-      "surface_count": 1,
-      "surfaces": [
-       {
-        "catalog_id": "https://loona.dm/catalog/v1",
-        "component_ids": [
-         "root"
-        ],
-        "error_codes": [],
-        "error_count": 0,
-        "frame_count": 3,
-        "has_errors": false,
-        "info_count": 0,
-        "issue_codes": [],
-        "issues": [],
-        "issues_truncated": false,
-        "source_tool_names": [
-         "list_events"
-        ],
-        "surface_id": "infoChip",
-        "validator_error": null,
-        "warn_count": 0
-       }
-      ],
-      "warn_count": 0
-     },
-     "outbound_capture": {
-      "status": "COLLECTED",
-      "request_ended": true,
-      "payload_count": 3,
-      "record_count": 5,
-      "failed_sids": [],
-      "observed_sids": [
-       "feishu-20260915-r1-c08",
-       "eval-aaaaaaaaaaaaaaaaaaaaaaaa0000000e"
-      ],
-      "error_type": null
-     },
-     "coverage": {
-      "evaluation_ready": true,
-      "truncated": false,
-      "retry_recommended": false
-     },
-     "final_output": {
-      "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
-      "text": "会议已取消。从该日历今天的日程来看，该事件已不在列表中，会议室应该已经释放。",
-      "kind": "NOTICE",
-      "role": "assistant",
-      "asst_msg_id": "asst_TESTASST0077"
-     },
-     "delivered_messages": [
-      {
-       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
-       "text": "会议已取消。从该日历今天的日程来看，该事件已不在列表中，会议室应该已经释放。",
-       "kind": "NOTICE",
-       "role": "assistant",
-       "asst_msg_id": "asst_TESTASST0077"
-      }
-     ],
-     "errors": [
-      {
-       "audit_persisted_at": "2026-09-15T09:32:47.321200+00:00",
-       "call_id": 493,
-       "error_code": "INVALID_REQUEST",
-       "error_message_available": true,
-       "error_message_redacted": true,
-       "raw_failure_output": {
-        "body": {
-         "error": {
-          "code": 400,
-          "message": "Request contains an invalid argument.",
-          "status": "INVALID_ARGUMENT"
-         }
-        },
-        "status_code": 400
-       },
-       "raw_failure_output_available": true,
-       "raw_failure_output_redacted": false,
-       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
-       "source": "llm_audit"
       },
       {
-       "audit_persisted_at": "2026-09-15T09:32:59.596747+00:00",
-       "call_id": 495,
-       "error_code": "INVALID_REQUEST",
-       "error_message_available": true,
-       "error_message_redacted": true,
-       "raw_failure_output": {
-        "body": {
-         "error": {
-          "code": 400,
-          "message": "Request contains an invalid argument.",
-          "status": "INVALID_ARGUMENT"
-         }
-        },
-        "status_code": 400
-       },
-       "raw_failure_output_available": true,
-       "raw_failure_output_redacted": false,
-       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
-       "source": "llm_audit"
-      },
-      {
-       "audit_persisted_at": "2026-09-15T09:33:05.618308+00:00",
-       "call_id": 497,
-       "error_code": "INVALID_REQUEST",
-       "error_message_available": true,
-       "error_message_redacted": true,
-       "raw_failure_output": {
-        "body": {
-         "error": {
-          "code": 400,
-          "message": "Request contains an invalid argument.",
-          "status": "INVALID_ARGUMENT"
-         }
-        },
-        "status_code": 400
-       },
-       "raw_failure_output_available": true,
-       "raw_failure_output_redacted": false,
-       "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
-       "source": "llm_audit"
+        "turn_index": 1,
+        "user_input": "确认取消这场会议。",
+        "parsed_output": {
+          "schema_version": 1,
+          "reply_type": "NOTICE",
+          "reply_text": "会议已取消。从该日历今天的日程来看，该事件已不在列表中，会议室应该已经释放。",
+          "present_mode": "none",
+          "request_identity": {
+            "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
+            "included_req_ids": ["aaaaaaaaaaaaaaaaaaaaaaaa0000000f"],
+            "task_id": "task_TESTTASK0069"
+          },
+          "route": {
+            "decision": "EXISTING",
+            "facts": {
+              "domain": "other",
+              "llm_intent": "EXISTING",
+              "tools": ["delete_events"],
+              "reason": "用户明确确认取消会议，继续执行之前的任务。"
+            }
+          },
+          "tools": [
+            {
+              "name": null
+            },
+            {
+              "name": null
+            },
+            {
+              "name": null
+            }
+          ],
+          "tool_executions": [
+            {
+              "tool_request_id": "tool_TESTTOOL0071",
+              "status": "SUCCEEDED",
+              "call_step_id": "step_TESTSTEP0072",
+              "calls": [
+                {
+                  "name": "delete_events",
+                  "param": {
+                    "calendar_id": "feishu.cn_TESTCAL000000001@group.calendar.feishu.cn",
+                    "event_ids": ["00000000-0000-4000-8000-000000000003_0"],
+                    "provider": "feishu"
+                  },
+                  "tool_kind": "ONLINE",
+                  "online_tool_category": "calendar"
+                }
+              ],
+              "terminals": [
+                {
+                  "type": "TOOL_RESULT",
+                  "tool_result": {
+                    "status": "SUCCESS",
+                    "result": {
+                      "results": [
+                        {
+                          "event_id": "00000000-0000-4000-8000-000000000003_0",
+                          "success": true
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "tool_request_id": "tool_TESTTOOL0073",
+              "status": "FAILED",
+              "call_step_id": "step_TESTSTEP0074",
+              "calls": [
+                {
+                  "name": "get_event",
+                  "param": {
+                    "calendar_id": "feishu.cn_TESTCAL000000001@group.calendar.feishu.cn",
+                    "event_id": "00000000-0000-4000-8000-000000000003_0",
+                    "provider": "feishu"
+                  },
+                  "tool_kind": "ONLINE",
+                  "online_tool_category": "calendar"
+                }
+              ],
+              "terminals": [
+                {
+                  "type": "TOOL_RESULT",
+                  "tool_result": {
+                    "status": "FAILED",
+                    "result": {
+                      "error_message": "permission denied: event is deleted (code=193003)",
+                      "error_type": "UPSTREAM"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "tool_request_id": "tool_TESTTOOL0075",
+              "status": "SUCCEEDED",
+              "call_step_id": "step_TESTSTEP0076",
+              "calls": [
+                {
+                  "name": "list_events",
+                  "param": {
+                    "calendar_id": "feishu.cn_TESTCAL000000001@group.calendar.feishu.cn",
+                    "end": "2026-09-15T23:59:59+08:00",
+                    "provider": ["feishu"],
+                    "start": "2026-09-15T00:00:00+08:00"
+                  },
+                  "tool_kind": "ONLINE",
+                  "online_tool_category": "calendar"
+                }
+              ],
+              "terminals": [
+                {
+                  "type": "TOOL_RESULT",
+                  "tool_result": {
+                    "status": "SUCCESS",
+                    "result": {
+                      "results": [
+                        {
+                          "events": [],
+                          "provider": "feishu"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "tool_execution_count": 3,
+          "a2ui_surface_ids": ["infoChip"],
+          "a2ui_source_tools": ["list_events"],
+          "a2ui_surfaces": [
+            {
+              "surface_id": "infoChip",
+              "catalog_id": "https://loona.dm/catalog/v1",
+              "component_ids": ["root"],
+              "source_tool_names": ["list_events"],
+              "frame_count": 3,
+              "data_model": {
+                "computed": {
+                  "arguments": "{\"calendar_id\": \"feishu.cn_TESTCAL000000001@group.calendar.feishu.cn\", \"end\": \"2026-09-15T23:59:59+08:00\", \"provider\": [\"feishu\"], \"start\": \"2026-09-15T00:00:00+08:00\"}",
+                  "argumentsLabel": "参数",
+                  "icon": "calendar_looking",
+                  "title": "正在获取日程",
+                  "toolName": "获取日程"
+                },
+                "static": null
+              }
+            }
+          ],
+          "a2ui_validation": {
+            "error_codes": [],
+            "error_count": 0,
+            "has_errors": false,
+            "has_validator_errors": false,
+            "info_count": 0,
+            "issue_codes": [],
+            "payload_count": 3,
+            "surface_count": 1,
+            "surfaces": [
+              {
+                "catalog_id": "https://loona.dm/catalog/v1",
+                "component_ids": ["root"],
+                "error_codes": [],
+                "error_count": 0,
+                "frame_count": 3,
+                "has_errors": false,
+                "info_count": 0,
+                "issue_codes": [],
+                "issues": [],
+                "issues_truncated": false,
+                "source_tool_names": ["list_events"],
+                "surface_id": "infoChip",
+                "validator_error": null,
+                "warn_count": 0
+              }
+            ],
+            "warn_count": 0
+          },
+          "outbound_capture": {
+            "status": "COLLECTED",
+            "request_ended": true,
+            "payload_count": 3,
+            "record_count": 5,
+            "failed_sids": [],
+            "observed_sids": ["feishu-20260915-r1-c08", "eval-aaaaaaaaaaaaaaaaaaaaaaaa0000000e"],
+            "error_type": null
+          },
+          "coverage": {
+            "evaluation_ready": true,
+            "truncated": false,
+            "retry_recommended": false
+          },
+          "final_output": {
+            "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
+            "text": "会议已取消。从该日历今天的日程来看，该事件已不在列表中，会议室应该已经释放。",
+            "kind": "NOTICE",
+            "role": "assistant",
+            "asst_msg_id": "asst_TESTASST0077"
+          },
+          "delivered_messages": [
+            {
+              "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
+              "text": "会议已取消。从该日历今天的日程来看，该事件已不在列表中，会议室应该已经释放。",
+              "kind": "NOTICE",
+              "role": "assistant",
+              "asst_msg_id": "asst_TESTASST0077"
+            }
+          ],
+          "errors": [
+            {
+              "audit_persisted_at": "2026-09-15T09:32:47.321200+00:00",
+              "call_id": 493,
+              "error_code": "INVALID_REQUEST",
+              "error_message_available": true,
+              "error_message_redacted": true,
+              "raw_failure_output": {
+                "body": {
+                  "error": {
+                    "code": 400,
+                    "message": "Request contains an invalid argument.",
+                    "status": "INVALID_ARGUMENT"
+                  }
+                },
+                "status_code": 400
+              },
+              "raw_failure_output_available": true,
+              "raw_failure_output_redacted": false,
+              "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
+              "source": "llm_audit"
+            },
+            {
+              "audit_persisted_at": "2026-09-15T09:32:59.596747+00:00",
+              "call_id": 495,
+              "error_code": "INVALID_REQUEST",
+              "error_message_available": true,
+              "error_message_redacted": true,
+              "raw_failure_output": {
+                "body": {
+                  "error": {
+                    "code": 400,
+                    "message": "Request contains an invalid argument.",
+                    "status": "INVALID_ARGUMENT"
+                  }
+                },
+                "status_code": 400
+              },
+              "raw_failure_output_available": true,
+              "raw_failure_output_redacted": false,
+              "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
+              "source": "llm_audit"
+            },
+            {
+              "audit_persisted_at": "2026-09-15T09:33:05.618308+00:00",
+              "call_id": 497,
+              "error_code": "INVALID_REQUEST",
+              "error_message_available": true,
+              "error_message_redacted": true,
+              "raw_failure_output": {
+                "body": {
+                  "error": {
+                    "code": 400,
+                    "message": "Request contains an invalid argument.",
+                    "status": "INVALID_ARGUMENT"
+                  }
+                },
+                "status_code": 400
+              },
+              "raw_failure_output_available": true,
+              "raw_failure_output_redacted": false,
+              "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa0000000f",
+              "source": "llm_audit"
+            }
+          ],
+          "unsupported_reason": null
+        }
       }
-     ],
-     "unsupported_reason": null
+    ],
+    "conversation_execution": {
+      "complete": true,
+      "completed_turns": 2,
+      "expected_turns": 2,
+      "observed_turns": 2
     }
-   }
-  ],
-  "conversation_execution": {
-   "complete": true,
-   "completed_turns": 2,
-   "expected_turns": 2,
-   "observed_turns": 2
   }
- }
 }

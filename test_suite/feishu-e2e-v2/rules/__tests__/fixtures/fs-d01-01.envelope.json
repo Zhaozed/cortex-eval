@@ -1,313 +1,286 @@
 {
- "ok": true,
- "task_name": "EVAL_E2E",
- "execution_mode": "isolated",
- "parsed_output": {
-  "schema_version": 1,
-  "reply_type": "QUESTION",
-  "reply_text": "没搜到叫《飞书测试文档-auto》的文档。上面是这次搜到的7篇，你看看哪一篇是你想找的吗？或者换个更准的名字我再搜一次。",
-  "present_mode": "none",
-  "request_identity": {
-   "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000010",
-   "included_req_ids": [
-    "aaaaaaaaaaaaaaaaaaaaaaaa00000010"
-   ],
-   "task_id": "task_TESTTASK0078"
-  },
-  "route": {
-   "decision": "NEW",
-   "facts": {
-    "domain": "other",
-    "llm_intent": "NEW",
+  "ok": true,
+  "task_name": "EVAL_E2E",
+  "execution_mode": "isolated",
+  "parsed_output": {
+    "schema_version": 1,
+    "reply_type": "QUESTION",
+    "reply_text": "没搜到叫《飞书测试文档-auto》的文档。上面是这次搜到的7篇，你看看哪一篇是你想找的吗？或者换个更准的名字我再搜一次。",
+    "present_mode": "none",
+    "request_identity": {
+      "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000010",
+      "included_req_ids": ["aaaaaaaaaaaaaaaaaaaaaaaa00000010"],
+      "task_id": "task_TESTTASK0078"
+    },
+    "route": {
+      "decision": "NEW",
+      "facts": {
+        "domain": "other",
+        "llm_intent": "NEW",
+        "tools": ["feishu_search_docs", "feishu_get_doc"],
+        "reason": "用户需要查找并读取飞书文档，已授权工具可支持。"
+      }
+    },
     "tools": [
-     "feishu_search_docs",
-     "feishu_get_doc"
+      {
+        "name": null
+      }
     ],
-    "reason": "用户需要查找并读取飞书文档，已授权工具可支持。"
-   }
-  },
-  "tools": [
-   {
-    "name": null
-   }
-  ],
-  "tool_executions": [
-   {
-    "tool_request_id": "tool_TESTTOOL0079",
-    "status": "SUCCEEDED",
-    "call_step_id": "step_TESTSTEP0080",
-    "calls": [
-     {
-      "name": "feishu_search_docs",
-      "param": {
-       "query": "飞书测试文档-auto"
-      },
-      "tool_kind": "ONLINE",
-      "online_tool_category": "feishu"
-     }
-    ],
-    "terminals": [
-     {
-      "type": "TOOL_RESULT",
-      "tool_result": {
-       "status": "SUCCESS",
-       "result": {
-        "docs": [
-         {
-          "owner_id": "ou_TESTUSER0007",
-          "title": "测试-改名基线[EVAL:feishu-20260915-r1-D06]",
-          "token": "TESTTOKEN000000000000022",
-          "type": "docx",
-          "url": "https://www.feishu.cn/docx/TESTTOKEN000000000000022"
-         },
-         {
-          "owner_id": "ou_TESTUSER0007",
-          "title": "测试-决策风险待办基线[EVAL:feishu-20260915-r1-D02]",
-          "token": "TESTTOKEN000000000000023",
-          "type": "docx",
-          "url": "https://www.feishu.cn/docx/TESTTOKEN000000000000023"
-         },
-         {
-          "owner_id": "ou_TESTUSER0007",
-          "title": "测试-权限分享基线[EVAL:feishu-20260915-r1-X12]",
-          "token": "TESTTOKEN000000000000024",
-          "type": "docx",
-          "url": "https://www.feishu.cn/docx/TESTTOKEN000000000000024"
-         },
-         {
-          "owner_id": "ou_TESTUSER0007",
-          "title": "测试-追加基线[EVAL:feishu-20260915-r1-D04]",
-          "token": "TESTTOKEN000000000000025",
-          "type": "docx",
-          "url": "https://www.feishu.cn/docx/TESTTOKEN000000000000025"
-         }
+    "tool_executions": [
+      {
+        "tool_request_id": "tool_TESTTOOL0079",
+        "status": "SUCCEEDED",
+        "call_step_id": "step_TESTSTEP0080",
+        "calls": [
+          {
+            "name": "feishu_search_docs",
+            "param": {
+              "query": "飞书测试文档-auto"
+            },
+            "tool_kind": "ONLINE",
+            "online_tool_category": "feishu"
+          }
         ],
-        "total": 7
-       }
+        "terminals": [
+          {
+            "type": "TOOL_RESULT",
+            "tool_result": {
+              "status": "SUCCESS",
+              "result": {
+                "docs": [
+                  {
+                    "owner_id": "ou_TESTUSER0007",
+                    "title": "测试-改名基线[EVAL:feishu-20260915-r1-D06]",
+                    "token": "TESTTOKEN000000000000022",
+                    "type": "docx",
+                    "url": "https://www.feishu.cn/docx/TESTTOKEN000000000000022"
+                  },
+                  {
+                    "owner_id": "ou_TESTUSER0007",
+                    "title": "测试-决策风险待办基线[EVAL:feishu-20260915-r1-D02]",
+                    "token": "TESTTOKEN000000000000023",
+                    "type": "docx",
+                    "url": "https://www.feishu.cn/docx/TESTTOKEN000000000000023"
+                  },
+                  {
+                    "owner_id": "ou_TESTUSER0007",
+                    "title": "测试-权限分享基线[EVAL:feishu-20260915-r1-X12]",
+                    "token": "TESTTOKEN000000000000024",
+                    "type": "docx",
+                    "url": "https://www.feishu.cn/docx/TESTTOKEN000000000000024"
+                  },
+                  {
+                    "owner_id": "ou_TESTUSER0007",
+                    "title": "测试-追加基线[EVAL:feishu-20260915-r1-D04]",
+                    "token": "TESTTOKEN000000000000025",
+                    "type": "docx",
+                    "url": "https://www.feishu.cn/docx/TESTTOKEN000000000000025"
+                  }
+                ],
+                "total": 7
+              }
+            }
+          }
+        ]
       }
-     }
-    ]
-   }
-  ],
-  "tool_execution_count": 1,
-  "a2ui_surface_ids": [
-   "infoChip",
-   "cortex:task_TESTTASK0078:asst_TESTASST0081"
-  ],
-  "a2ui_source_tools": [
-   "feishu_search_docs"
-  ],
-  "a2ui_surfaces": [
-   {
-    "surface_id": "infoChip",
-    "catalog_id": "https://loona.dm/catalog/v1",
-    "component_ids": [
-     "root"
     ],
-    "source_tool_names": [
-     "feishu_search_docs"
+    "tool_execution_count": 1,
+    "a2ui_surface_ids": ["infoChip", "cortex:task_TESTTASK0078:asst_TESTASST0081"],
+    "a2ui_source_tools": ["feishu_search_docs"],
+    "a2ui_surfaces": [
+      {
+        "surface_id": "infoChip",
+        "catalog_id": "https://loona.dm/catalog/v1",
+        "component_ids": ["root"],
+        "source_tool_names": ["feishu_search_docs"],
+        "frame_count": 3,
+        "data_model": {
+          "computed": {
+            "arguments": "{\"query\": \"飞书测试文档-auto\"}",
+            "argumentsLabel": "参数",
+            "icon": "loading_spin_ccw",
+            "title": "正在feishu_search_docs",
+            "toolName": "feishu_search_docs"
+          },
+          "static": null
+        }
+      },
+      {
+        "surface_id": "cortex:task_TESTTASK0078:asst_TESTASST0081",
+        "catalog_id": "https://loona.dm/catalog/v1",
+        "component_ids": [
+          "root",
+          "layout",
+          "header",
+          "headerIcon",
+          "headerTitle",
+          "divider",
+          "rows",
+          "row",
+          "rowLayout",
+          "rowAccent",
+          "rowIcon",
+          "rowCopy",
+          "rowPrimary",
+          "rowSecondary",
+          "rowMeta",
+          "countBadge"
+        ],
+        "source_tool_names": ["feishu_search_docs"],
+        "frame_count": 3,
+        "data_model": {
+          "computed": {
+            "items": [
+              {
+                "meta": "",
+                "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000022",
+                "title": "测试-改名基线[EVAL:feishu-20260915-r1-D06]"
+              },
+              {
+                "meta": "",
+                "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000023",
+                "title": "测试-决策风险待办基线[EVAL:feishu-20260915-r1-D02]"
+              },
+              {
+                "meta": "",
+                "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000024",
+                "title": "测试-权限分享基线[EVAL:feishu-20260915-r1-X12]"
+              },
+              {
+                "meta": "",
+                "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000025",
+                "title": "测试-追加基线[EVAL:feishu-20260915-r1-D04]"
+              },
+              {
+                "meta": "",
+                "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000026",
+                "title": "测试-备选删除基线[EVAL:feishu-20260915-r1-X10]"
+              },
+              {
+                "meta": "",
+                "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000027",
+                "title": "测试-上线计划基线[EVAL:feishu-20260915-r1-D05]"
+              },
+              {
+                "meta": "",
+                "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000028",
+                "title": "软件产品周会 2026年7月7日：三份文档汇总"
+              }
+            ],
+            "listHeaderIcon": "shapes_bubbling_up",
+            "title": "feishu_search_docs"
+          },
+          "static": null
+        }
+      }
     ],
-    "frame_count": 3,
-    "data_model": {
-     "computed": {
-      "arguments": "{\"query\": \"飞书测试文档-auto\"}",
-      "argumentsLabel": "参数",
-      "icon": "loading_spin_ccw",
-      "title": "正在feishu_search_docs",
-      "toolName": "feishu_search_docs"
-     },
-     "static": null
-    }
-   },
-   {
-    "surface_id": "cortex:task_TESTTASK0078:asst_TESTASST0081",
-    "catalog_id": "https://loona.dm/catalog/v1",
-    "component_ids": [
-     "root",
-     "layout",
-     "header",
-     "headerIcon",
-     "headerTitle",
-     "divider",
-     "rows",
-     "row",
-     "rowLayout",
-     "rowAccent",
-     "rowIcon",
-     "rowCopy",
-     "rowPrimary",
-     "rowSecondary",
-     "rowMeta",
-     "countBadge"
-    ],
-    "source_tool_names": [
-     "feishu_search_docs"
-    ],
-    "frame_count": 3,
-    "data_model": {
-     "computed": {
-      "items": [
-       {
-        "meta": "",
-        "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000022",
-        "title": "测试-改名基线[EVAL:feishu-20260915-r1-D06]"
-       },
-       {
-        "meta": "",
-        "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000023",
-        "title": "测试-决策风险待办基线[EVAL:feishu-20260915-r1-D02]"
-       },
-       {
-        "meta": "",
-        "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000024",
-        "title": "测试-权限分享基线[EVAL:feishu-20260915-r1-X12]"
-       },
-       {
-        "meta": "",
-        "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000025",
-        "title": "测试-追加基线[EVAL:feishu-20260915-r1-D04]"
-       },
-       {
-        "meta": "",
-        "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000026",
-        "title": "测试-备选删除基线[EVAL:feishu-20260915-r1-X10]"
-       },
-       {
-        "meta": "",
-        "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000027",
-        "title": "测试-上线计划基线[EVAL:feishu-20260915-r1-D05]"
-       },
-       {
-        "meta": "",
-        "secondary": "https://www.feishu.cn/docx/TESTTOKEN000000000000028",
-        "title": "软件产品周会 2026年7月7日：三份文档汇总"
-       }
+    "a2ui_validation": {
+      "error_codes": [],
+      "error_count": 0,
+      "has_errors": false,
+      "has_validator_errors": false,
+      "info_count": 0,
+      "issue_codes": [],
+      "payload_count": 2,
+      "surface_count": 2,
+      "surfaces": [
+        {
+          "catalog_id": "https://loona.dm/catalog/v1",
+          "component_ids": ["root"],
+          "error_codes": [],
+          "error_count": 0,
+          "frame_count": 3,
+          "has_errors": false,
+          "info_count": 0,
+          "issue_codes": [],
+          "issues": [],
+          "issues_truncated": false,
+          "source_tool_names": ["feishu_search_docs"],
+          "surface_id": "infoChip",
+          "validator_error": null,
+          "warn_count": 0
+        },
+        {
+          "catalog_id": "https://loona.dm/catalog/v1",
+          "component_ids": ["root", "layout", "header", "headerIcon"],
+          "error_codes": [],
+          "error_count": 0,
+          "frame_count": 3,
+          "has_errors": false,
+          "info_count": 0,
+          "issue_codes": [],
+          "issues": [],
+          "issues_truncated": false,
+          "source_tool_names": ["feishu_search_docs"],
+          "surface_id": "cortex:task_TESTTASK0078:asst_TESTASST0081",
+          "validator_error": null,
+          "warn_count": 0
+        }
       ],
-      "listHeaderIcon": "shapes_bubbling_up",
-      "title": "feishu_search_docs"
-     },
-     "static": null
-    }
-   }
-  ],
-  "a2ui_validation": {
-   "error_codes": [],
-   "error_count": 0,
-   "has_errors": false,
-   "has_validator_errors": false,
-   "info_count": 0,
-   "issue_codes": [],
-   "payload_count": 2,
-   "surface_count": 2,
-   "surfaces": [
-    {
-     "catalog_id": "https://loona.dm/catalog/v1",
-     "component_ids": [
-      "root"
-     ],
-     "error_codes": [],
-     "error_count": 0,
-     "frame_count": 3,
-     "has_errors": false,
-     "info_count": 0,
-     "issue_codes": [],
-     "issues": [],
-     "issues_truncated": false,
-     "source_tool_names": [
-      "feishu_search_docs"
-     ],
-     "surface_id": "infoChip",
-     "validator_error": null,
-     "warn_count": 0
+      "warn_count": 0
     },
-    {
-     "catalog_id": "https://loona.dm/catalog/v1",
-     "component_ids": [
-      "root",
-      "layout",
-      "header",
-      "headerIcon"
-     ],
-     "error_codes": [],
-     "error_count": 0,
-     "frame_count": 3,
-     "has_errors": false,
-     "info_count": 0,
-     "issue_codes": [],
-     "issues": [],
-     "issues_truncated": false,
-     "source_tool_names": [
-      "feishu_search_docs"
-     ],
-     "surface_id": "cortex:task_TESTTASK0078:asst_TESTASST0081",
-     "validator_error": null,
-     "warn_count": 0
-    }
-   ],
-   "warn_count": 0
-  },
-  "outbound_capture": {
-   "status": "COLLECTED",
-   "request_ended": true,
-   "payload_count": 2,
-   "record_count": 5,
-   "failed_sids": [],
-   "observed_sids": [
-    "eval-aaaaaaaaaaaaaaaaaaaaaaaa00000011",
-    "eval-aaaaaaaaaaaaaaaaaaaaaaaa00000012"
-   ],
-   "error_type": null
-  },
-  "coverage": {
-   "evaluation_ready": true,
-   "truncated": false,
-   "retry_recommended": false
-  },
-  "final_output": {
-   "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000010",
-   "text": "没搜到叫《飞书测试文档-auto》的文档。上面是这次搜到的7篇，你看看哪一篇是你想找的吗？或者换个更准的名字我再搜一次。",
-   "kind": "QUESTION",
-   "role": "assistant",
-   "asst_msg_id": "asst_TESTASST0081"
-  },
-  "delivered_messages": [
-   {
-    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000010",
-    "text": "没搜到叫《飞书测试文档-auto》的文档。上面是这次搜到的7篇，你看看哪一篇是你想找的吗？或者换个更准的名字我再搜一次。",
-    "kind": "QUESTION",
-    "role": "assistant",
-    "asst_msg_id": "asst_TESTASST0081"
-   }
-  ],
-  "errors": [
-   {
-    "audit_persisted_at": "2026-09-15T09:22:59.912798+00:00",
-    "call_id": 352,
-    "error_code": "INVALID_REQUEST",
-    "error_message_available": true,
-    "error_message_redacted": true,
-    "raw_failure_output": {
-     "body": {
-      "error": {
-       "code": 400,
-       "message": "Request contains an invalid argument.",
-       "status": "INVALID_ARGUMENT"
+    "outbound_capture": {
+      "status": "COLLECTED",
+      "request_ended": true,
+      "payload_count": 2,
+      "record_count": 5,
+      "failed_sids": [],
+      "observed_sids": [
+        "eval-aaaaaaaaaaaaaaaaaaaaaaaa00000011",
+        "eval-aaaaaaaaaaaaaaaaaaaaaaaa00000012"
+      ],
+      "error_type": null
+    },
+    "coverage": {
+      "evaluation_ready": true,
+      "truncated": false,
+      "retry_recommended": false
+    },
+    "final_output": {
+      "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000010",
+      "text": "没搜到叫《飞书测试文档-auto》的文档。上面是这次搜到的7篇，你看看哪一篇是你想找的吗？或者换个更准的名字我再搜一次。",
+      "kind": "QUESTION",
+      "role": "assistant",
+      "asst_msg_id": "asst_TESTASST0081"
+    },
+    "delivered_messages": [
+      {
+        "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000010",
+        "text": "没搜到叫《飞书测试文档-auto》的文档。上面是这次搜到的7篇，你看看哪一篇是你想找的吗？或者换个更准的名字我再搜一次。",
+        "kind": "QUESTION",
+        "role": "assistant",
+        "asst_msg_id": "asst_TESTASST0081"
       }
-     },
-     "status_code": 400
-    },
-    "raw_failure_output_available": true,
-    "raw_failure_output_redacted": false,
-    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000010",
-    "source": "llm_audit"
-   }
-  ],
-  "unsupported_reason": null,
-  "conversation_execution": {
-   "complete": true,
-   "completed_turns": 1,
-   "expected_turns": 1,
-   "observed_turns": 1
+    ],
+    "errors": [
+      {
+        "audit_persisted_at": "2026-09-15T09:22:59.912798+00:00",
+        "call_id": 352,
+        "error_code": "INVALID_REQUEST",
+        "error_message_available": true,
+        "error_message_redacted": true,
+        "raw_failure_output": {
+          "body": {
+            "error": {
+              "code": 400,
+              "message": "Request contains an invalid argument.",
+              "status": "INVALID_ARGUMENT"
+            }
+          },
+          "status_code": 400
+        },
+        "raw_failure_output_available": true,
+        "raw_failure_output_redacted": false,
+        "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000010",
+        "source": "llm_audit"
+      }
+    ],
+    "unsupported_reason": null,
+    "conversation_execution": {
+      "complete": true,
+      "completed_turns": 1,
+      "expected_turns": 1,
+      "observed_turns": 1
+    }
   }
- }
 }

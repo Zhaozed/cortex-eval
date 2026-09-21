@@ -2,5 +2,8 @@
   "name": "@cortex-eval/tooling",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "js-yaml": "5.2.0"
+  }
 }

@@ -1,0 +1,26 @@
+- id: document.search
+  version: 1.0.0
+  domain: feishu
+  description: 搜索飞书文档并返回候选文档
+  tool_id: feishu.search_docs
+  evidence_paths:
+    - parsed_output.tool_executions
+    - parsed_output.tool_executions[].terminals[].tool_result.result
+  read_only: true
+- id: document.read
+  version: 1.0.0
+  domain: feishu
+  description: 读取选中的飞书文档正文
+  tool_id: feishu.get_doc
+  evidence_paths:
+    - parsed_output.tool_executions
+    - parsed_output.tool_executions[].terminals[].tool_result.result
+  read_only: true
+- id: user.profile.lookup
+  version: 1.0.0
+  domain: feishu
+  description: 根据用户 ID 补充所有者资料
+  tool_id: feishu.get_user_profile
+  evidence_paths:
+    - parsed_output.tool_executions
+  read_only: true

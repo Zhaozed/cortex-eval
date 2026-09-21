@@ -36,11 +36,17 @@ export const PROBE_ONLY_FIXTURES: readonly string[] = ["auth.endpoint_up"];
 /** 还没填的占位值形状，出现即视为「没填」 */
 export const PLACEHOLDER = /BIND_REQUIRED_|REPLACE_ME|^TODO|填写|占位|example\./i;
 
-export const getPath = (obj: any, path: string): any => path.split(".").reduce((a, k) => (a == null ? a : a[k]), obj);
+export const getPath = (obj: any, path: string): any =>
+  path.split(".").reduce((a, k) => (a == null ? a : a[k]), obj);
 
 export const nonEmpty = (v: any): boolean => {
   if (v === undefined || v === null) return false;
-  const s = typeof v === "string" ? v.trim() : Array.isArray(v) ? v.filter((x) => String(x).trim()).join("") : String(v);
+  const s =
+    typeof v === "string"
+      ? v.trim()
+      : Array.isArray(v)
+        ? v.filter((x) => String(x).trim()).join("")
+        : String(v);
   return s.length > 0 && !PLACEHOLDER.test(s);
 };
 
@@ -54,7 +60,7 @@ export const domainOf = (scenario: any): string => {
   const declared = typeof scenario?.domain === "string" ? scenario.domain.trim() : "";
   if (declared) return declared;
   const parts = String(scenario?.id ?? "").split("-");
-  return parts.length >= 2 ? parts.slice(0, 2).join("-") : parts[0] ?? "";
+  return parts.length >= 2 ? parts.slice(0, 2).join("-") : (parts[0] ?? "");
 };
 
 export type FixtureState = "READY" | "MISSING" | "UNKNOWN";
@@ -141,7 +147,8 @@ export function createReadiness(src: any, label: string): Readiness {
     return fixtureReady(key) ? "READY" : "MISSING";
   };
 
-  const tokenFixtureKey = (t: string): string | null => (t === "codeword" ? "codeword" : TOKEN_TO_FIXTURE[t] ?? null);
+  const tokenFixtureKey = (t: string): string | null =>
+    t === "codeword" ? "codeword" : (TOKEN_TO_FIXTURE[t] ?? null);
 
   const tokenValue = (t: string): unknown | null => {
     if (t === "codeword") {
@@ -158,8 +165,10 @@ export function createReadiness(src: any, label: string): Readiness {
 
   const tokensOf = (scenario: any): string[] => {
     const bag = new Set<string>();
-    for (const p of scenario?.prompt ?? []) for (const m of String(p).matchAll(TOKEN_RE)) bag.add(m[1]!);
-    for (const v of Object.values(scenario?.expected ?? {})) for (const m of JSON.stringify(v).matchAll(TOKEN_RE)) bag.add(m[1]!);
+    for (const p of scenario?.prompt ?? [])
+      for (const m of String(p).matchAll(TOKEN_RE)) bag.add(m[1]!);
+    for (const v of Object.values(scenario?.expected ?? {}))
+      for (const m of JSON.stringify(v).matchAll(TOKEN_RE)) bag.add(m[1]!);
     return [...bag].sort();
   };
 
@@ -202,7 +211,10 @@ export function createReadiness(src: any, label: string): Readiness {
     }
   };
 
-  const globalMissing = (override?: Map<string, FixtureState>, scope: CaseScope = { writes: true, sends: true }): string[] =>
+  const globalMissing = (
+    override?: Map<string, FixtureState>,
+    scope: CaseScope = { writes: true, sends: true }
+  ): string[] =>
     FIXTURES.filter((f) => f.global)
       .filter((f) => !PROBE_ONLY_FIXTURES.includes(f.key) || override?.has(f.key))
       .filter((f) => gateApplies(f.gate, scope))
@@ -220,10 +232,16 @@ export function createReadiness(src: any, label: string): Readiness {
     const scope: CaseScope = { writes: writes(scenario), sends: sends(scenario) };
     const toks = tokensOf(scenario);
     const missingTokens = toks.filter((t) => !isFilled(t));
-    const implicit = toks.map(tokenFixtureKey).filter((k): k is string => Boolean(k) && k !== "codeword");
-    const declared: string[] = Array.isArray(scenario?.blockedIf) ? scenario.blockedIf.map(String) : [];
+    const implicit = toks
+      .map(tokenFixtureKey)
+      .filter((k): k is string => Boolean(k) && k !== "codeword");
+    const declared: string[] = Array.isArray(scenario?.blockedIf)
+      ? scenario.blockedIf.map(String)
+      : [];
     const unknownFixtureKeys = declared.filter((k) => !findFixture(k));
-    const requiredFixtures = [...new Set([...declared, ...implicit])].filter((k) => !findFixture(k)?.global);
+    const requiredFixtures = [...new Set([...declared, ...implicit])].filter(
+      (k) => !findFixture(k)?.global
+    );
     const missingFixtures = requiredFixtures.filter((k) => fixtureState(k, override) !== "READY");
     const multi = Number(scenario?.turns ?? 1) > 1;
     const sid = src?.cases?.[id]?.sid;
@@ -237,7 +255,16 @@ export function createReadiness(src: any, label: string): Readiness {
       !missingSid &&
       missingGlobal.length === 0 &&
       !writesNotApproved;
-    return { requiredFixtures, missingFixtures, unknownFixtureKeys, missingTokens, missingSid, missingGlobal, writesNotApproved, ready };
+    return {
+      requiredFixtures,
+      missingFixtures,
+      unknownFixtureKeys,
+      missingTokens,
+      missingSid,
+      missingGlobal,
+      writesNotApproved,
+      ready
+    };
   };
 
   return {

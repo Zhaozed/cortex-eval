@@ -18,9 +18,7 @@
               "tool": "feishu_search_docs",
               "args": {
                 "query": "飞书测试文档-auto",
-                "doc_types": [
-                  "docx"
-                ]
+                "doc_types": ["docx"]
               },
               "min": 1
             },
@@ -632,9 +630,7 @@
             {
               "tool": "list_events",
               "args": {
-                "provider": [
-                  "feishu"
-                ],
+                "provider": ["feishu"],
                 "calendar_id": "{{calendar_id}}"
               },
               "min": 1
@@ -676,9 +672,7 @@
             {
               "tool": "list_events",
               "args": {
-                "provider": [
-                  "feishu"
-                ]
+                "provider": ["feishu"]
               },
               "min": 1
             },
@@ -1014,9 +1008,7 @@
               "tool": "delete_events",
               "args": {
                 "provider": "feishu",
-                "event_ids": [
-                  "{{event_id}}"
-                ],
+                "event_ids": ["{{event_id}}"],
                 "calendar_id": "{{calendar_id}}"
               },
               "min": 1

@@ -26,8 +26,19 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CaseAuthoringV1Schema } from "../../packages/contracts/src/case-authoring-contracts.ts";
 import { FIXTURES, FIXTURE_KEYS, TOKEN_TO_FIXTURE, findFixture } from "./fixtures.ts";
-import { createReadiness, domainOf, FLAG_PATHS, PROBE_ONLY_FIXTURES, getPath, nonEmpty, type Readiness } from "./readiness.ts";
-import { assertionAuthoringIssue, ASSERTION_ISSUES } from "../../packages/contracts/src/assertion-rules/authoring-validation.ts";
+import {
+  createReadiness,
+  domainOf,
+  FLAG_PATHS,
+  PROBE_ONLY_FIXTURES,
+  getPath,
+  nonEmpty,
+  type Readiness
+} from "./readiness.ts";
+import {
+  assertionAuthoringIssue,
+  ASSERTION_ISSUES
+} from "../../packages/contracts/src/assertion-rules/authoring-validation.ts";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -51,7 +62,10 @@ const runIndex = Number(runIndexRaw);
 const ready = Boolean(bindingsPath);
 const VALUE_OPTS = ["--bindings", "--out", "--run-index"];
 for (const [i, a] of argv.entries())
-  if (!["--allow-dirty", "--skip-blocked", ...VALUE_OPTS].includes(a) && !VALUE_OPTS.includes(argv[i - 1] ?? ""))
+  if (
+    !["--allow-dirty", "--skip-blocked", ...VALUE_OPTS].includes(a) &&
+    !VALUE_OPTS.includes(argv[i - 1] ?? "")
+  )
     throw new Error(
       `未知参数：${a}\n用法：tsx build-cases.ts [--bindings /abs/bindings.v2.json] [--out /abs/cases.jsonl] [--run-index 1] [--skip-blocked] [--allow-dirty]`
     );
@@ -62,7 +76,8 @@ if (!Number.isSafeInteger(runIndex) || runIndex < 1 || runIndex > 20)
 const suiteConfig = await readJson(resolve(dir, "suite-config.json"));
 const scenarioDoc = await readJson(resolve(dir, "scenarios.v2.json"));
 const scenarios: any[] = scenarioDoc.cases;
-if (!Array.isArray(scenarios) || !scenarios.length) throw new Error("scenarios.v2.json 顶层缺 cases 数组");
+if (!Array.isArray(scenarios) || !scenarios.length)
+  throw new Error("scenarios.v2.json 顶层缺 cases 数组");
 
 const bindings = ready ? await readJson(bindingsPath!) : null;
 const template = await readJson(resolve(dir, "bindings.v2.template.json")).catch(() => null);
@@ -71,18 +86,29 @@ const R: Readiness | null = ready ? createReadiness(bindings, "bindings.v2.json"
 const runLabel = ready ? String(bindings?.run_label ?? "") : "";
 const runsPerCase = Number(suiteConfig?.scoring?.runs_per_case ?? 3);
 if (ready && !/^[A-Za-z0-9_-]{3,40}$/.test(runLabel))
-  throw new Error(`bindings.v2.json 的 run_label 非法（${JSON.stringify(runLabel)}）：要 3-40 位字母数字下划线连字符，且每个 run_label 只能构建一次`);
+  throw new Error(
+    `bindings.v2.json 的 run_label 非法（${JSON.stringify(runLabel)}）：要 3-40 位字母数字下划线连字符，且每个 run_label 只能构建一次`
+  );
 
 /* ------------------------------------------------------- Rules (lazy) */
 let buildAssertions: (ctx: any) => any[];
 let DIMENSION_IDS: string[];
-let dimensionMeta: (id: string) => { layer: string; layerName: string; name: string; hard: boolean };
+let dimensionMeta: (id: string) => {
+  layer: string;
+  layerName: string;
+  name: string;
+  hard: boolean;
+};
 try {
   const rules: any = await import("./rules/index.ts");
   buildAssertions = rules.buildAssertions;
   DIMENSION_IDS = rules.DIMENSION_IDS;
   dimensionMeta = rules.dimensionMeta;
-  if (typeof buildAssertions !== "function" || !Array.isArray(DIMENSION_IDS) || typeof dimensionMeta !== "function")
+  if (
+    typeof buildAssertions !== "function" ||
+    !Array.isArray(DIMENSION_IDS) ||
+    typeof dimensionMeta !== "function"
+  )
     throw new Error("rules/index.ts 必须导出 buildAssertions / DIMENSION_IDS / dimensionMeta");
 } catch (error) {
   throw new Error(
@@ -101,7 +127,10 @@ const DIRTY_PROMPT: [string, RegExp][] = [
   ["R4 评测标记", /\[EVAL[:：]/i],
   ["R5 题面泄答案", /(如果同名|若有多个|先让我确认|不要猜|不要自己选|别自己猜)/],
   ["R6 评测腔", /(回读|逐字|原样|不要动原文|只读就行|核对一致)/],
-  ["工具名泄露", /\b(feishu_[a-z_]+|create_event|update_event|delete_events|get_event|web_search|declare_miss_tool_candidates)\b/],
+  [
+    "工具名泄露",
+    /\b(feishu_[a-z_]+|create_event|update_event|delete_events|get_event|web_search|declare_miss_tool_candidates)\b/
+  ],
   ["calendar_id", /@group\.calendar\.|calendar_id/i]
 ];
 function scanPrompt(text: string): string[] {
@@ -115,7 +144,9 @@ const unresolvedByCase = new Map<string, Set<string>>();
 function substitute(value: any, tokens: Record<string, unknown>, bag: Set<string>): any {
   if (Array.isArray(value)) return value.map((v) => substitute(v, tokens, bag));
   if (value && typeof value === "object")
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, substitute(v, tokens, bag)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, substitute(v, tokens, bag)])
+    );
   if (typeof value !== "string") return value;
   const whole = /^\{\{([a-z_0-9]+)\}\}$/.exec(value);
   if (whole && Object.hasOwn(tokens, whole[1]!)) return tokens[whole[1]!];
@@ -163,7 +194,9 @@ for (const original of scenarios) {
   /* 分域字段必须与 id 前缀一致，否则报告里的分域统计会串 */
   /* id 形如 FS2-D01-01 = <domain><序号>-<变体>；domain 必须是 id 前缀且后面紧跟数字 */
   if (!id.startsWith(domain) || !/^\d+-\d+$/.test(id.slice(domain.length)))
-    errors.push(`${id}：domain 字段 "${domain}" 与 case_id 前缀不一致（期望 id = ${domain}<NN>-<NN>）`);
+    errors.push(
+      `${id}：domain 字段 "${domain}" 与 case_id 前缀不一致（期望 id = ${domain}<NN>-<NN>）`
+    );
   domainCount.set(domain, (domainCount.get(domain) ?? 0) + 1);
 
   /* 结构检查 */
@@ -194,7 +227,10 @@ for (const original of scenarios) {
   /* prompt 卫生（R1–R7）——对替换前的模板扫描 */
   for (const [ti, p] of (original.prompt ?? []).entries()) {
     const hits = scanPrompt(String(p));
-    if (hits.length) errors.push(`${id} 第${ti + 1}轮 prompt 违反 ${[...new Set(hits)].join("、")}：${String(p).slice(0, 80)}…`);
+    if (hits.length)
+      errors.push(
+        `${id} 第${ti + 1}轮 prompt 违反 ${[...new Set(hits)].join("、")}：${String(p).slice(0, 80)}…`
+      );
   }
 
   /* ---------------- 前置就绪度（与 scripts/preflight.ts 同源：readiness.ts） ---------------- */
@@ -203,7 +239,9 @@ for (const original of scenarios) {
     const why = [
       blockers.missingFixtures.length ? `前置未就绪 ${blockers.missingFixtures.join("、")}` : "",
       blockers.missingTokens.length ? `取值缺失 {{${blockers.missingTokens.join("}}、{{")}}}` : "",
-      blockers.unknownFixtureKeys.length ? `blockedIf 引用了 fixtures.ts 里不存在的 key ${blockers.unknownFixtureKeys.join("、")}` : "",
+      blockers.unknownFixtureKeys.length
+        ? `blockedIf 引用了 fixtures.ts 里不存在的 key ${blockers.unknownFixtureKeys.join("、")}`
+        : "",
       blockers.missingGlobal.length ? `全局开关未打开 ${blockers.missingGlobal.join("、")}` : "",
       blockers.writesNotApproved ? "写入型 case 但 preflight.writes_approved=false" : ""
     ]
@@ -241,20 +279,29 @@ for (const original of scenarios) {
     /* bindings.cases 段已废弃：token 只从 fixtures 推导，sid 由本脚本按 run_index 生成，避免两处不一致 */
     const legacy = bindings?.cases?.[id];
     if (legacy && typeof legacy === "object") {
-      if (legacy.tokens) errors.push(`${id}：bindings.cases[${id}].tokens 已废弃（token 一律从 fixtures 推导），请删掉整个 cases 段`);
+      if (legacy.tokens)
+        errors.push(
+          `${id}：bindings.cases[${id}].tokens 已废弃（token 一律从 fixtures 推导），请删掉整个 cases 段`
+        );
       if (typeof legacy.sid === "string" && legacy.sid.trim())
-        errors.push(`${id}：bindings.cases[${id}].sid 不要手填（sid 由 --run-index 自动生成，手填会导致跨 run 串会话），请删掉整个 cases 段`);
+        errors.push(
+          `${id}：bindings.cases[${id}].sid 不要手填（sid 由 --run-index 自动生成，手填会导致跨 run 串会话），请删掉整个 cases 段`
+        );
     }
     for (const [k, v] of Object.entries(tokens)) {
       if (typeof v !== "string") continue;
-      if (/BIND_REQUIRED_|REPLACE_ME|TODO|填写|example\./i.test(v)) errors.push(`${id}：{{${k}}} 仍是占位值 ${JSON.stringify(v).slice(0, 60)}`);
-      if (/\b(ou|oc|om|omm|on)_[A-Za-z0-9]{6,}/.test(v)) errors.push(`${id}：{{${k}}} 不得注入内部 ID（R1）`);
+      if (/BIND_REQUIRED_|REPLACE_ME|TODO|填写|example\./i.test(v))
+        errors.push(`${id}：{{${k}}} 仍是占位值 ${JSON.stringify(v).slice(0, 60)}`);
+      if (/\b(ou|oc|om|omm|on)_[A-Za-z0-9]{6,}/.test(v))
+        errors.push(`${id}：{{${k}}} 不得注入内部 ID（R1）`);
       if (/https?:\/\//.test(v)) errors.push(`${id}：{{${k}}} 不得注入 URL（R1）`);
-      if (/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(v)) errors.push(`${id}：{{${k}}} 不得注入 ISO8601 时间（R2）`);
+      if (/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(v))
+        errors.push(`${id}：{{${k}}} 不得注入 ISO8601 时间（R2）`);
     }
     if (multi) {
       sid = `${runLabel}-${id}-r${runIndex}`;
-      if (!/^[A-Za-z0-9_.-]{3,120}$/.test(sid)) errors.push(`${id}：自动生成的 sid 非法（${sid}），检查 run_label`);
+      if (!/^[A-Za-z0-9_.-]{3,120}$/.test(sid))
+        errors.push(`${id}：自动生成的 sid 非法（${sid}），检查 run_label`);
       if (seenSids.has(sid)) errors.push(`${id}：sid 与其他 case 重复（${sid}）`);
       else seenSids.add(sid);
     }
@@ -282,13 +329,22 @@ for (const original of scenarios) {
     if (!/^【(硬性|质量)】D\d\.\d/.test(m)) errors.push(`${id}：metric 命名不符合规范 → ${m}`);
     if (m.startsWith("【硬性】")) {
       hard += 1;
-      if (a.weight !== suiteConfig.scoring.hard_weight) errors.push(`${id}：硬性断言 weight 必须=${suiteConfig.scoring.hard_weight}，实为 ${a.weight}`);
+      if (a.weight !== suiteConfig.scoring.hard_weight)
+        errors.push(
+          `${id}：硬性断言 weight 必须=${suiteConfig.scoring.hard_weight}，实为 ${a.weight}`
+        );
     } else {
       soft += 1;
-      if (a.weight !== suiteConfig.scoring.soft_weight) errors.push(`${id}：质量断言 weight 必须=${suiteConfig.scoring.soft_weight}，实为 ${a.weight}`);
+      if (a.weight !== suiteConfig.scoring.soft_weight)
+        errors.push(
+          `${id}：质量断言 weight 必须=${suiteConfig.scoring.soft_weight}，实为 ${a.weight}`
+        );
     }
     const issue = assertionAuthoringIssue(a);
-    if (issue) errors.push(`${id}：断言「${m}」未过平台校验 ${issue.code}（${ASSERTION_ISSUES[issue.code]}）`);
+    if (issue)
+      errors.push(
+        `${id}：断言「${m}」未过平台校验 ${issue.code}（${ASSERTION_ISSUES[issue.code]}）`
+      );
   }
   /* ------------- 计分模型自检（per-case 动态阈值，2026-09-15 定稿） -------------
    * 平台真实行为（packages/application/src/features/evaluation/promptfoo-result-importer.ts L474-490）：
@@ -306,42 +362,61 @@ for (const original of scenarios) {
   const maxHard = Number(suiteConfig.scoring.max_hard_per_case ?? 37);
   const maxSoft = Number(suiteConfig.scoring.max_soft_per_case ?? 19);
   const total = hard * HW + soft * SW;
-  const scoreIf = (hardPass: number, softPass: number) => (total === 0 ? 0 : (hardPass * HW + softPass * SW) / total);
+  const scoreIf = (hardPass: number, softPass: number) =>
+    total === 0 ? 0 : (hardPass * HW + softPass * SW) / total;
   const f4 = (n: number) => n.toFixed(4);
   const lo = scoreIf(hard - 1, soft);
   const hi = scoreIf(hard, 0);
   const threshold = Number(((lo + hi) / 2).toFixed(6));
   thresholds.push(threshold);
   if (hard < minHard)
-    errors.push(`${id}：硬性断言只有 ${hard} 条（下限 ${minHard}）。没有门槛项时总权重为 0，平台会直接判 0 分`);
+    errors.push(
+      `${id}：硬性断言只有 ${hard} 条（下限 ${minHard}）。没有门槛项时总权重为 0，平台会直接判 0 分`
+    );
   if (hard > maxHard)
-    errors.push(`${id}：硬性断言 ${hard} 条 > 上限 ${maxHard}（37 个子项的全集），检查 rules 是否对同一子项重复出题`);
+    errors.push(
+      `${id}：硬性断言 ${hard} 条 > 上限 ${maxHard}（37 个子项的全集），检查 rules 是否对同一子项重复出题`
+    );
   if (soft > maxSoft)
     errors.push(
       `${id}：质量断言 ${soft} 条 > 上限 ${maxSoft}。质量项权重之和必须 < 单条硬性权重（${HW}），` +
         `否则「质量全挂仍 PASS」和「挂 1 条硬性必 FAIL」无法同时成立（合并同类质量项）`
     );
-  if (!(threshold > 0 && threshold <= 1)) errors.push(`${id}：算出的阈值 ${threshold} 不在 (0,1] 区间`);
+  if (!(threshold > 0 && threshold <= 1))
+    errors.push(`${id}：算出的阈值 ${threshold} 不在 (0,1] 区间`);
   else if (hard >= minHard && soft <= maxSoft) {
     if (!(hi > lo))
-      errors.push(`${id}：硬性${hard}/质量${soft} 无法构造阈值（lo=${f4(lo)} ≥ hi=${f4(hi)}）：减少质量项条数或调大 hard_weight`);
+      errors.push(
+        `${id}：硬性${hard}/质量${soft} 无法构造阈值（lo=${f4(lo)} ≥ hi=${f4(hi)}）：减少质量项条数或调大 hard_weight`
+      );
     else {
       if (lo >= threshold)
-        errors.push(`${id}：阈值 ${threshold} 失效——挂 1 条硬性得分 ${f4(lo)} 仍 ≥ 阈值，一票否决不成立`);
+        errors.push(
+          `${id}：阈值 ${threshold} 失效——挂 1 条硬性得分 ${f4(lo)} 仍 ≥ 阈值，一票否决不成立`
+        );
       if (soft > 0 && hi < threshold)
-        errors.push(`${id}：阈值 ${threshold} 失效——质量项全挂得分 ${f4(hi)} < 阈值，质量项会误判死 case`);
+        errors.push(
+          `${id}：阈值 ${threshold} 失效——质量项全挂得分 ${f4(hi)} < 阈值，质量项会误判死 case`
+        );
     }
   }
 
   /* request_body */
   const body: any = {
-    uid: { __cortex_eval_int64: ready ? String(bindings.uid ?? suiteConfig.default_uid) : suiteConfig.default_uid },
+    uid: {
+      __cortex_eval_int64: ready
+        ? String(bindings.uid ?? suiteConfig.default_uid)
+        : suiteConfig.default_uid
+    },
     timezone: suiteConfig.timezone,
     lang: suiteConfig.lang,
     execution_mode: ready ? (multi ? "client" : "isolated") : "client",
     timeout_ms: Math.min(240000, Math.floor(540000 / Math.max(1, turns))),
     ...(multi
-      ? { ...(ready && sid ? { sid } : {}), conversation: (s.prompt ?? []).map((t: string) => ({ role: "user", text: t })) }
+      ? {
+          ...(ready && sid ? { sid } : {}),
+          conversation: (s.prompt ?? []).map((t: string) => ({ role: "user", text: t }))
+        }
       : { text: (s.prompt ?? [])[0] })
   };
 
@@ -388,17 +463,31 @@ for (const [d, want] of Object.entries(suiteConfig.domain_counts as Record<strin
 }
 const expectedTotal = Number(suiteConfig.expected_case_count ?? 55);
 if (definitions.length + blockedRows.length !== expectedTotal)
-  errors.push(`总条数期望 ${expectedTotal}，实际构建 ${definitions.length} + 跳过 ${blockedRows.length}`);
-if (definitions.length === 0) errors.push("一条都没构建出来（全部被前置卡住？）：先按 preflight-todo.md 补前置，或检查 bindings.v2.json");
+  errors.push(
+    `总条数期望 ${expectedTotal}，实际构建 ${definitions.length} + 跳过 ${blockedRows.length}`
+  );
+if (definitions.length === 0)
+  errors.push(
+    "一条都没构建出来（全部被前置卡住？）：先按 preflight-todo.md 补前置，或检查 bindings.v2.json"
+  );
 if (toolSeen.size < suiteConfig.target_tool_coverage)
-  warnings.push(`声明的工具覆盖 ${toolSeen.size}/${suiteConfig.target_tool_coverage}（低于目标不阻断，但需在报告里说明）`);
+  warnings.push(
+    `声明的工具覆盖 ${toolSeen.size}/${suiteConfig.target_tool_coverage}（低于目标不阻断，但需在报告里说明）`
+  );
 if (toolSeenBuilt.size < toolSeen.size)
-  warnings.push(`本次实际构建的工具覆盖只有 ${toolSeenBuilt.size}/${toolSeen.size}：差的 ${[...toolSeen].filter((t) => !toolSeenBuilt.has(t)).join("、")} 全在被跳过的 case 里`);
-for (const d of DIMENSION_IDS) if (!dimensionCount.has(d)) warnings.push(`子项 ${d} 没有任何 case 声明，等于没被评测`);
+  warnings.push(
+    `本次实际构建的工具覆盖只有 ${toolSeenBuilt.size}/${toolSeen.size}：差的 ${[...toolSeen].filter((t) => !toolSeenBuilt.has(t)).join("、")} 全在被跳过的 case 里`
+  );
+for (const d of DIMENSION_IDS)
+  if (!dimensionCount.has(d)) warnings.push(`子项 ${d} 没有任何 case 声明，等于没被评测`);
 if (blockedRows.length)
-  warnings.push(`--skip-blocked：跳过 ${blockedRows.length} 条前置未就绪的 case（详见 manifest.blocked），它们不算失败、不进通过率分母`);
+  warnings.push(
+    `--skip-blocked：跳过 ${blockedRows.length} 条前置未就绪的 case（详见 manifest.blocked），它们不算失败、不进通过率分母`
+  );
 if (endpointWarned)
-  warnings.push("preflight.endpoint_up 还不是 true：构建可以继续，但跑之前必须启动 8080 端点并把这个开关打开");
+  warnings.push(
+    "preflight.endpoint_up 还不是 true：构建可以继续，但跑之前必须启动 8080 端点并把这个开关打开"
+  );
 if (ready && !skipBlocked && blockedRows.length === 0 && R) {
   const gm = R.globalMissingAll();
   if (gm.length) warnings.push(`全局开关仍缺：${gm.join("、")}（构建期不阻断，跑之前要补齐）`);
@@ -413,8 +502,13 @@ if (errors.length && !allowDirty) {
 }
 
 /* ------------------------------------------------------------- Output */
-const outDir = outOverride ? dirname(outOverride) : ready ? resolve(dir, ".local", runLabel, `r${runIndex}`) : dir;
-const outPath = outOverride ?? resolve(outDir, ready ? "cases.v2.ready.jsonl" : "cases.v2.draft.jsonl");
+const outDir = outOverride
+  ? dirname(outOverride)
+  : ready
+    ? resolve(dir, ".local", runLabel, `r${runIndex}`)
+    : dir;
+const outPath =
+  outOverride ?? resolve(outDir, ready ? "cases.v2.ready.jsonl" : "cases.v2.draft.jsonl");
 await mkdir(outDir, { recursive: true });
 if (ready) {
   let exists = true;
@@ -464,7 +558,10 @@ const manifest = {
   sid_policy: ready ? `自动生成：<run_label>-<caseId>-r<run_index>（本次 r${runIndex}）` : null,
   fixtures_snapshot: ready
     ? Object.fromEntries(
-        FIXTURE_KEYS.map((k) => [k, { state: R!.fixtureState(k), flag_path: FLAG_PATHS[k] ?? null }])
+        FIXTURE_KEYS.map((k) => [
+          k,
+          { state: R!.fixtureState(k), flag_path: FLAG_PATHS[k] ?? null }
+        ])
       )
     : null,
   dimension_declaration_count: Object.fromEntries([...dimensionCount].sort()),
@@ -474,7 +571,8 @@ const manifest = {
     mode: suiteConfig.scoring.threshold_mode ?? "per_case_midpoint",
     hard_weight: Number(suiteConfig.scoring.hard_weight),
     soft_weight: Number(suiteConfig.scoring.soft_weight),
-    formula: "threshold = round((lo+hi)/2, 6)；lo=挂1条硬性的得分，hi=质量项全挂的得分；pass = score >= threshold",
+    formula:
+      "threshold = round((lo+hi)/2, 6)；lo=挂1条硬性的得分，hi=质量项全挂的得分；pass = score >= threshold",
     min: thresholds.length ? Number(Math.min(...thresholds).toFixed(6)) : null,
     max: thresholds.length ? Number(Math.max(...thresholds).toFixed(6)) : null
   },
@@ -482,7 +580,10 @@ const manifest = {
   errors: allowDirty ? errors : [],
   entries: receipts
 };
-await writeFile(resolve(outDir, ready ? "manifest.v2.ready.json" : "manifest.v2.draft.json"), JSON.stringify(manifest, null, 2) + "\n");
+await writeFile(
+  resolve(outDir, ready ? "manifest.v2.ready.json" : "manifest.v2.draft.json"),
+  JSON.stringify(manifest, null, 2) + "\n"
+);
 console.log(
   JSON.stringify(
     {

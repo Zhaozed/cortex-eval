@@ -4,13 +4,14 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
-      "coverage/**",
-      "**/dist/**",
+      ".cortex-eval/**",
+      "!test_suite/feishu-e2e-v2/rules/**",
       "apps/web/public/**",
+      "coverage/**",
       "eslint.config.js",
       "node_modules/**",
-      "test_suite/current/eval_result/**",
-      "test_suite/current/run_result/**"
+      "test_suite/**",
+      "**/dist/**"
     ]
   },
   eslint.configs.recommended,

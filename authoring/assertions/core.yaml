@@ -1,0 +1,15 @@
+- id: agent-executions
+  version: 1.0.0
+  type: agent-executions
+  description: 检查实际工具执行、终态和业务结果
+  blocking: true
+- id: agent-reply
+  version: 1.0.0
+  type: agent-reply
+  description: 检查最终回复和交付状态
+  blocking: true
+- id: field-exists
+  version: 1.0.0
+  type: field-exists
+  description: 检查输出字段存在
+  blocking: true

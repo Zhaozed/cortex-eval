@@ -242,6 +242,20 @@ describe("Case 双编辑器组件", () => {
     expect(onHandled).toHaveBeenCalledTimes(2);
   });
 
+  it("阈值保留 6 位小数时仍可从表单保存", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <CaseEditor initialDefinition={{ ...definition, threshold: 0.979042 }} onSave={onSave} />
+    );
+
+    expect(screen.getByRole("spinbutton", { name: "通过阈值" })).toHaveAttribute("step", "any");
+    await userEvent.click(screen.getByRole("button", { name: "保存 Case" }));
+
+    await waitFor(() =>
+      expect(onSave).toHaveBeenLastCalledWith({ ...definition, threshold: 0.979042 })
+    );
+  });
+
   it("结构化数字字段无效时显示本地契约错误", async () => {
     render(<CaseEditor initialDefinition={definition} onSave={vi.fn()} />);
     const threshold = screen.getByRole("spinbutton", { name: "通过阈值" });

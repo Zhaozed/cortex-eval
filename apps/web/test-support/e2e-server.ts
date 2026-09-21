@@ -1,6 +1,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { z } from "zod";
+import { diagnosisFixture } from "@cortex-eval/contracts/test-support/diagnostic-report-fixture.ts";
 import { fileURLToPath } from "node:url";
 
 import { createLocalServerRuntime } from "../../local-server/src/local-server-runtime.ts";
@@ -20,6 +22,24 @@ const runtime = await createLocalServerRuntime({
   staticRoot: fileURLToPath(new URL("../dist", import.meta.url)),
   endpointValidator: successfulEndpointValidator,
   llmValidator: successfulLlmValidator,
+  diagnosticModelClient: {
+    diagnose: ({ input }) => {
+      const evidence = z
+        .object({ evidence: z.array(z.object({ id: z.string(), source: z.string() })) })
+        .parse(JSON.parse(input)).evidence;
+      return Promise.resolve({
+        ...diagnosisFixture(),
+        evidenceIds: evidence
+          .filter((e) => e.source === "ASSERTIONS" || e.source === "OUTPUT")
+          .map((e) => e.id)
+      });
+    },
+    synthesize: () =>
+      Promise.resolve({
+        markdown:
+          "这轮反馈可以整理成 1 个根问题、1 个具体表现。共同原因是：结果卡片没有进入最终输出。\n\n**一、结果卡片缺失**\n\n涉及反馈：\n- C1：缺少结果卡片\n\n已确认：\n- 工具回执成功但输出卡片为空\n\n问题本质：\n> 结果卡片没有进入最终输出\n\n影响：\n- 用户看不到结果卡片\n\n修复目标：\n- 检查结果卡片组装与输出路径"
+      })
+  },
   analysisModelClient: {
     analyze: () =>
       Promise.resolve({

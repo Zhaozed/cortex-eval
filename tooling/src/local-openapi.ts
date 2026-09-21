@@ -1,3 +1,5 @@
+import { DiagnosticReportStore } from "../../apps/local-server/src/diagnostic-report-store.ts";
+import { DiagnosticReportService } from "../../apps/local-server/src/diagnostic-report-service.ts";
 import { RunReviewStore } from "../../apps/local-server/src/run-review-store.ts";
 import { A2uiReviewStore } from "../../apps/local-server/src/a2ui-review-store.ts";
 import {
@@ -81,6 +83,22 @@ function stableObject(value: unknown): unknown {
 /** Generate the exact stable OpenAPI JSON from current closed Route registration. */
 export async function generateLocalOpenApiJson(): Promise<string> {
   const server = buildLocalServer({
+    diagnosticReports: new DiagnosticReportService({
+      store: new DiagnosticReportStore("/unused-openapi-diagnostics"),
+      model: {
+        diagnose: (): never => {
+          throw new Error("OPENAPI_ONLY");
+        },
+        synthesize: (): never => {
+          throw new Error("OPENAPI_ONLY");
+        }
+      },
+      ready: (): Promise<boolean> => Promise.resolve(false),
+      configuration: (): Promise<null> => Promise.resolve(null),
+      snapshot: (): never => {
+        throw new Error("OPENAPI_ONLY");
+      }
+    }),
     runLivePreview: () => {
       throw new Error("OPENAPI_ONLY");
     },

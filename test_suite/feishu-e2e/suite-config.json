@@ -14,23 +14,11 @@
     "retrieval_tool": "web_search"
   },
   "authorization": {
-    "messages_to": [
-      "秦宇龙",
-      "飞书测试群",
-      "本人（原Case）"
-    ],
-    "calendar_attendees": [
-      "本人",
-      "秦宇龙"
-    ],
+    "messages_to": ["秦宇龙", "飞书测试群", "本人（原Case）"],
+    "calendar_attendees": ["本人", "秦宇龙"],
     "documents": "用户提供的测试文档可读取；修改默认在基于该文档创建的Case独立副本中进行，保留原文档。",
     "calendar_titles_must_include": "测试",
-    "calendar_operations": [
-      "create",
-      "read",
-      "update",
-      "cancel"
-    ],
+    "calendar_operations": ["create", "read", "update", "cancel"],
     "group_invitation_gate": "飞书测试群成员超出本人和秦宇龙时，全群邀约Case先等待扩展授权，不能默默漏邀或通知其他成员。"
   },
   "state": "BLOCKED_FEISHU_AUTHORIZATION",

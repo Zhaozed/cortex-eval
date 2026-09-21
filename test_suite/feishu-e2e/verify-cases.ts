@@ -27,10 +27,17 @@ check(new Set(original.map((x) => x.source_id)).size === 33);
 check(original.filter((x) => x.kind === "core").length === 33);
 for (const d of definitions) {
   check(d.vars.request_body.uid.__cortex_eval_int64 === "2075490654049271808");
-  check(d.vars.request_body.execution_mode === "client" && !("sid" in d.vars.request_body), "draft ingress lock before Router");
+  check(
+    d.vars.request_body.execution_mode === "client" && !("sid" in d.vars.request_body),
+    "draft ingress lock before Router"
+  );
   check(d.description.includes("前置锁定"));
 }
-check(new Set(JSON.parse(await readFile(resolve(dir, "batches.json"), "utf8")).suggested_execution_order).size === 33);
+check(
+  new Set(
+    JSON.parse(await readFile(resolve(dir, "batches.json"), "utf8")).suggested_execution_order
+  ).size === 33
+);
 check(original.filter((x) => x.turns.length > 1).length === 14);
 const tokens: any = {
   date: "2099-09-18",

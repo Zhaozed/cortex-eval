@@ -282,6 +282,18 @@ importers:
         specifier: 5.2.0
         version: 5.2.0
 
+  packages/authoring:
+    dependencies:
+      '@cortex-eval/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      js-yaml:
+        specifier: 5.2.0
+        version: 5.2.0
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   packages/canonical-export:
     dependencies:
       '@cortex-eval/contracts':
@@ -382,7 +394,11 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
-  tooling: {}
+  tooling:
+    dependencies:
+      js-yaml:
+        specifier: 5.2.0
+        version: 5.2.0
 
 packages:
 

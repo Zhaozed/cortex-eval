@@ -62,7 +62,8 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
     );
   }
   const body = await res.text();
-  if (!res.ok) throw new Error(`${init?.method ?? "GET"} ${path} → HTTP ${res.status}\n${body.slice(0, 800)}`);
+  if (!res.ok)
+    throw new Error(`${init?.method ?? "GET"} ${path} → HTTP ${res.status}\n${body.slice(0, 800)}`);
   return body ? (JSON.parse(body) as T) : (undefined as T);
 }
 
@@ -130,14 +131,22 @@ const runId: string = created.id;
 console.log(`已建 run：${runId}  「${runName}」  套件 ${suiteId}`);
 
 /* ---------------------------------------------------------- 3. 启动 */
-const TERMINAL = new Set(["COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED", "CANCELLED", "INTERRUPTED"]);
+const TERMINAL = new Set([
+  "COMPLETED",
+  "COMPLETED_WITH_ERRORS",
+  "FAILED",
+  "CANCELLED",
+  "INTERRUPTED"
+]);
 const detail0 = await api<any>(`/api/v1/runs/${runId}`);
 await api<any>(`/api/v1/runs/${runId}/start`, {
   method: "POST",
   headers: { "content-type": "application/json" },
   body: JSON.stringify({ expectedRevision: detail0.lockRevision ?? 0 })
 });
-console.log(`已启动。${wait ? `每 ${pollSec}s 轮询一次，最长等 ${timeoutMin} 分钟。` : "--no-wait：不等了，自己去看。"}`);
+console.log(
+  `已启动。${wait ? `每 ${pollSec}s 轮询一次，最长等 ${timeoutMin} 分钟。` : "--no-wait：不等了，自己去看。"}`
+);
 if (!wait) {
   console.log(`平台页面：${base}/runs/${runId}`);
   console.log(`RUN_ID=${runId}`);

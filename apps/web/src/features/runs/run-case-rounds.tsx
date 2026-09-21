@@ -1,10 +1,10 @@
 import type { ReactElement } from "react";
 import type { DashboardCase } from "./run-dashboard-model.ts";
 import { duration } from "./run-call-model.ts";
-import { hasTrace, records } from "./run-evidence-model.ts";
+import { hasTrace } from "./run-evidence-model.ts";
 import { executionIssue } from "./run-execution-issue.ts";
-import { conversationRounds, hasCardData } from "./run-output-model.ts";
-import { EvidenceJson } from "./run-trace-panel.tsx";
+import { conversationRounds, outputDegraded } from "./run-output-model.ts";
+import { CardEventNote, ReplyMessage } from "./run-case-output.tsx";
 
 /** Round-pivoted result view: each executed turn pairs its input with its replies. */
 export function RunCaseRounds({
@@ -17,9 +17,7 @@ export function RunCaseRounds({
   const rounds = conversationRounds(row),
     issue = executionIssue(row),
     traceAvailable = hasTrace(row),
-    hasUnconfirmed = rounds.some((round) =>
-      round.replies.some((reply) => reply.source !== "DELIVERED")
-    );
+    degraded = outputDegraded(row) && rounds.some((round) => round.replies.length > 0);
   return (
     <section className="run-rounds-panel run-result-panel" aria-label="对话轮次">
       <div className="run-panel-heading">
@@ -31,9 +29,9 @@ export function RunCaseRounds({
           {issue}
         </p>
       )}
-      {hasUnconfirmed && (
+      {degraded && (
         <p className="run-output-warning">
-          部分回复仅见于生成记录，未找到对应交付证据；不代表用户已收到。
+          该 Case 未采集到 WebUI 用户视角与交付记录，以下回复来自上游生成/出站记录，可能不完整。
         </p>
       )}
       <ol className="run-rounds">
@@ -84,25 +82,11 @@ export function RunCaseRounds({
                 ) : (
                   <div className="run-round-replies">
                     {round.replies.map((reply) => (
-                      <article
-                        className="run-output-message"
-                        key={reply.key}
-                        data-source={reply.source}
-                      >
-                        {reply.text && <p className="run-message-text">{reply.text}</p>}
-                        {hasCardData(reply.data) && (
-                          <p className="run-card-marker">含 A2UI 卡片数据 · 动态卡片见下方</p>
-                        )}
-                        {records(reply.data.links).length > 0 && (
-                          <details>
-                            <summary>关联附件 / 卡片记录</summary>
-                            <EvidenceJson value={reply.data.links} />
-                          </details>
-                        )}
-                      </article>
+                      <ReplyMessage heading={null} key={reply.key} reply={reply} />
                     ))}
                   </div>
                 )}
+                <CardEventNote cards={round.cards} />
               </div>
             </div>
           </li>

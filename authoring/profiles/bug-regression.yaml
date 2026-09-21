@@ -1,0 +1,19 @@
+id: bug-regression
+version: 1.0.0
+description: 历史缺陷回归；必须可复现、可阻断、可追溯
+case_id_template: "{{source_id}}-{{branch}}"
+required_sections:
+  - 背景与目标
+  - 触发条件
+  - 用户的话
+  - 分支矩阵
+  - Agent 期望链路
+  - UI 期望响应链路
+  - 验收关注点
+required_capabilities: []
+required_assertion_templates:
+  - agent-executions
+require_fixtures: true
+require_evidence: true
+default_threshold: 1
+a2ui_capture: false

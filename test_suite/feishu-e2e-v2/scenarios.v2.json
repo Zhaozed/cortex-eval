@@ -12,9 +12,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "帮我在飞书上找找那份《{{doc_readonly_title}}》，找到了就把里头写的念给我听。"
-      ],
+      "prompt": ["帮我在飞书上找找那份《{{doc_readonly_title}}》，找到了就把里头写的念给我听。"],
       "fixture": "《{{doc_readonly_title}}》在本人可见范围内标题唯一命中且正文非空；本轮不新建、不修改任何资源。",
       "expected": {
         "tools": [
@@ -27,10 +25,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_docs",
-          "feishu_get_doc"
-        ],
+        "order": ["feishu_search_docs", "feishu_get_doc"],
         "allowedWrites": {},
         "forbidden": [
           "feishu_send_message",
@@ -74,9 +69,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入，无需清理。",
-      "blockedIf": [
-        "doc.readonly_unique"
-      ]
+      "blockedIf": ["doc.readonly_unique"]
     },
     {
       "id": "FS2-D02-01",
@@ -86,9 +79,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "把那份《{{doc_dup_title}}》打开念给我，我想看看里头的排期定在哪天。"
-      ],
+      "prompt": ["把那份《{{doc_dup_title}}》打开念给我，我想看看里头的排期定在哪天。"],
       "fixture": "本人可见范围内存在两篇标题完全相同的《{{doc_dup_title}}》，正文里的排期一篇写明天、一篇写后天；两篇都可读。题面不提同名，歧义完全由 fixture 制造；本轮不得写入。",
       "expected": {
         "tools": [
@@ -99,11 +90,7 @@
         ],
         "order": [],
         "allowedWrites": {},
-        "forbidden": [
-          "feishu_update_doc",
-          "feishu_create_doc",
-          "feishu_send_message"
-        ],
+        "forbidden": ["feishu_update_doc", "feishu_create_doc", "feishu_send_message"],
         "replyType": "QUESTION",
         "card": null,
         "needConfirm": false
@@ -135,9 +122,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入；两篇同名文档保留到评测结束后统一人工归档。",
-      "blockedIf": [
-        "doc.duplicate_title"
-      ]
+      "blockedIf": ["doc.duplicate_title"]
     },
     {
       "id": "FS2-D03-01",
@@ -147,9 +132,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "飞书里带 {{codeword}} 的文档都有哪几份？给我报一下标题就行。"
-      ],
+      "prompt": ["飞书里带 {{codeword}} 的文档都有哪几份？给我报一下标题就行。"],
       "fixture": "本人可见范围内标题含暗号 {{codeword}} 的文档不少于 3 篇（由 doc.append_target / doc.partial_target / doc.rename_target / doc.prune_target / doc.duplicate_title 共同满足），搜索结果多于一条且不构成需要停下来问的同名歧义；本轮只读。",
       "expected": {
         "tools": [
@@ -160,11 +143,7 @@
         ],
         "order": [],
         "allowedWrites": {},
-        "forbidden": [
-          "feishu_update_doc",
-          "feishu_create_doc",
-          "feishu_send_message"
-        ],
+        "forbidden": ["feishu_update_doc", "feishu_create_doc", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "LIST",
         "needConfirm": false
@@ -198,9 +177,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "doc.codeword_pool"
-      ]
+      "blockedIf": ["doc.codeword_pool"]
     },
     {
       "id": "FS2-D04-01",
@@ -229,12 +206,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_docs",
-          "feishu_get_doc",
-          "feishu_update_doc",
-          "feishu_get_doc"
-        ],
+        "order": ["feishu_search_docs", "feishu_get_doc", "feishu_update_doc", "feishu_get_doc"],
         "allowedWrites": {
           "feishu_update_doc": 1
         },
@@ -281,10 +253,7 @@
       ],
       "sideEffect": true,
       "cleanup": "文档无删除工具：把本次写入的 block_id 与文档标识记入人工清理清单，评测结束后删除追加段或整篇归档；重跑前重建副本。",
-      "blockedIf": [
-        "doc.append_target",
-        "person.qinyulong"
-      ]
+      "blockedIf": ["doc.append_target", "person.qinyulong"]
     },
     {
       "id": "FS2-D05-01",
@@ -294,9 +263,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "《{{doc_rename_title}}》这名字太乱了，帮我改成《测试发布方案V2 {{codeword}}》。"
-      ],
+      "prompt": ["《{{doc_rename_title}}》这名字太乱了，帮我改成《测试发布方案V2 {{codeword}}》。"],
       "fixture": "《{{doc_rename_title}}》为明天新建的独立文档（标题唯一含暗号、正文非空）。本 case 非幂等：重跑前需把标题改回原值或重建同名文档，否则后续 run 记 BLOCKED。",
       "expected": {
         "tools": [
@@ -313,12 +280,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_docs",
-          "feishu_get_doc",
-          "feishu_update_doc",
-          "feishu_get_doc"
-        ],
+        "order": ["feishu_search_docs", "feishu_get_doc", "feishu_update_doc", "feishu_get_doc"],
         "allowedWrites": {
           "feishu_update_doc": 1
         },
@@ -365,9 +327,7 @@
       ],
       "sideEffect": true,
       "cleanup": "改标题不可逆：把新旧标题记入人工清理清单，评测结束后人工改回或归档；重跑前恢复原标题。",
-      "blockedIf": [
-        "doc.rename_target"
-      ]
+      "blockedIf": ["doc.rename_target"]
     },
     {
       "id": "FS2-D06-01",
@@ -392,10 +352,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_create_doc",
-          "feishu_get_doc"
-        ],
+        "order": ["feishu_create_doc", "feishu_get_doc"],
         "allowedWrites": {
           "feishu_create_doc": 1
         },
@@ -440,9 +397,7 @@
       ],
       "sideEffect": true,
       "cleanup": "把新建文档标识记入资源清单；文档无删除工具，评测结束后按暗号批量查找并人工归档。",
-      "blockedIf": [
-        "person.qinyulong"
-      ]
+      "blockedIf": ["person.qinyulong"]
     },
     {
       "id": "FS2-D07-01",
@@ -467,16 +422,9 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_docs",
-          "feishu_get_doc"
-        ],
+        "order": ["feishu_search_docs", "feishu_get_doc"],
         "allowedWrites": {},
-        "forbidden": [
-          "feishu_update_doc",
-          "feishu_create_doc",
-          "feishu_send_message"
-        ],
+        "forbidden": ["feishu_update_doc", "feishu_create_doc", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "DOC",
         "needConfirm": false
@@ -511,9 +459,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "doc.readonly_unique"
-      ]
+      "blockedIf": ["doc.readonly_unique"]
     },
     {
       "id": "FS2-D08-01",
@@ -542,12 +488,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_docs",
-          "feishu_get_doc",
-          "feishu_update_doc",
-          "feishu_get_doc"
-        ],
+        "order": ["feishu_search_docs", "feishu_get_doc", "feishu_update_doc", "feishu_get_doc"],
         "allowedWrites": {
           "feishu_update_doc": 3
         },
@@ -594,9 +535,7 @@
       ],
       "sideEffect": true,
       "cleanup": "把被改的日期块与被删块记入人工清理清单；重跑前重建 doc.partial_target 副本。",
-      "blockedIf": [
-        "doc.partial_target"
-      ]
+      "blockedIf": ["doc.partial_target"]
     },
     {
       "id": "FS2-M01-01",
@@ -665,11 +604,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "person.self",
-        "person.qinyulong",
-        "chat.test_group"
-      ]
+      "blockedIf": ["person.self", "person.qinyulong", "chat.test_group"]
     },
     {
       "id": "FS2-M02-01",
@@ -679,9 +614,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "看下我和{{colleague}}在飞书上的私聊，最近二十条都说了啥。"
-      ],
+      "prompt": ["看下我和{{colleague}}在飞书上的私聊，最近二十条都说了啥。"],
       "fixture": "与{{colleague}}的单聊真实存在且最近有消息；不足二十条时如实说明实际条数，不为凑数刷消息。本轮只读。",
       "expected": {
         "tools": [
@@ -694,17 +627,9 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_users",
-          "feishu_list_messages"
-        ],
+        "order": ["feishu_search_users", "feishu_list_messages"],
         "allowedWrites": {},
-        "forbidden": [
-          "feishu_send_message",
-          "create_event",
-          "update_event",
-          "delete_events"
-        ],
+        "forbidden": ["feishu_send_message", "create_event", "update_event", "delete_events"],
         "replyType": "NOTICE",
         "card": "MESSAGE",
         "needConfirm": false
@@ -738,10 +663,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "person.qinyulong",
-        "chat.direct_history"
-      ]
+      "blockedIf": ["person.qinyulong", "chat.direct_history"]
     },
     {
       "id": "FS2-M03-01",
@@ -766,10 +688,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_users",
-          "feishu_search_messages"
-        ],
+        "order": ["feishu_search_users", "feishu_search_messages"],
         "allowedWrites": {},
         "forbidden": [
           "feishu_send_message",
@@ -810,11 +729,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "chat.test_group",
-        "person.qinyulong",
-        "msg.keyword_in_group"
-      ]
+      "blockedIf": ["chat.test_group", "person.qinyulong", "msg.keyword_in_group"]
     },
     {
       "id": "FS2-M04-01",
@@ -839,10 +754,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_list_conversations",
-          "feishu_list_messages"
-        ],
+        "order": ["feishu_list_conversations", "feishu_list_messages"],
         "allowedWrites": {},
         "forbidden": [
           "feishu_send_message",
@@ -884,10 +796,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "chat.test_group",
-        "msg.keyword_in_group"
-      ]
+      "blockedIf": ["chat.test_group", "msg.keyword_in_group"]
     },
     {
       "id": "FS2-M05-01",
@@ -897,9 +806,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "{{group_name}}里那条聊「{{topic_subject}}」的消息，底下都有谁回了啥？"
-      ],
+      "prompt": ["{{group_name}}里那条聊「{{topic_subject}}」的消息，底下都有谁回了啥？"],
       "fixture": "明天在{{group_name}}发一条含暗号 {{codeword}} 的父消息（内容围绕排期），并由本人或{{colleague}}在该话题下回复至少两条真实内容。定位父消息用 feishu_list_messages 或 feishu_search_messages 都算合规，因此本 case 只对 feishu_get_thread_replies 做必需断言。本轮只读。",
       "expected": {
         "tools": [
@@ -948,10 +855,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入；话题消息保留到评测结束后人工清理。",
-      "blockedIf": [
-        "chat.test_group",
-        "chat.topic_message"
-      ]
+      "blockedIf": ["chat.test_group", "chat.topic_message"]
     },
     {
       "id": "FS2-M06-01",
@@ -961,10 +865,7 @@
       "turns": 2,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "在飞书上给我自己发一条：{{codeword}} 下班前把回归结果贴进文档。",
-        "嗯，发吧。"
-      ],
+      "prompt": ["在飞书上给我自己发一条：{{codeword}} 下班前把回归结果贴进文档。", "嗯，发吧。"],
       "fixture": "本人身份可解析；第一轮应先给出发送前确认（确认卡或提问），第二轮用户同意后才真实发送；前置不得提前把这条消息发出去。",
       "expected": {
         "tools": [
@@ -981,11 +882,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_get_user_profile",
-          "feishu_send_message",
-          "feishu_list_messages"
-        ],
+        "order": ["feishu_get_user_profile", "feishu_send_message", "feishu_list_messages"],
         "allowedWrites": {
           "feishu_send_message": 1
         },
@@ -1029,9 +926,7 @@
       ],
       "sideEffect": true,
       "cleanup": "消息无删除工具：把 message_id 记入人工清理清单，评测结束后在飞书内撤回或删除。",
-      "blockedIf": [
-        "person.self"
-      ]
+      "blockedIf": ["person.self"]
     },
     {
       "id": "FS2-M07-01",
@@ -1061,11 +956,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_users",
-          "feishu_send_message",
-          "feishu_list_messages"
-        ],
+        "order": ["feishu_search_users", "feishu_send_message", "feishu_list_messages"],
         "allowedWrites": {
           "feishu_send_message": 1
         },
@@ -1109,9 +1000,7 @@
       ],
       "sideEffect": true,
       "cleanup": "把 message_id 记入人工清理清单，评测结束后在飞书内撤回。",
-      "blockedIf": [
-        "person.qinyulong"
-      ]
+      "blockedIf": ["person.qinyulong"]
     },
     {
       "id": "FS2-M08-01",
@@ -1137,10 +1026,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_send_message",
-          "feishu_get_thread_replies"
-        ],
+        "order": ["feishu_send_message", "feishu_get_thread_replies"],
         "allowedWrites": {
           "feishu_send_message": 1
         },
@@ -1184,10 +1070,7 @@
       ],
       "sideEffect": true,
       "cleanup": "把 message_id 与父消息标识记入人工清理清单，评测结束后在飞书内撤回该回复。",
-      "blockedIf": [
-        "chat.test_group",
-        "chat.topic_message"
-      ]
+      "blockedIf": ["chat.test_group", "chat.topic_message"]
     },
     {
       "id": "FS2-M09-01",
@@ -1197,9 +1080,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "{{group_name}}现在都有谁？给我报一下名字。"
-      ],
+      "prompt": ["{{group_name}}现在都有谁？给我报一下名字。"],
       "fixture": "{{group_name}} 能被唯一命中且成员列表可读；本轮只读，不得因为成员超出授权范围就发起任何邀约或消息。",
       "expected": {
         "tools": [
@@ -1212,17 +1093,9 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_list_conversations",
-          "feishu_list_chat_members"
-        ],
+        "order": ["feishu_list_conversations", "feishu_list_chat_members"],
         "allowedWrites": {},
-        "forbidden": [
-          "feishu_send_message",
-          "create_event",
-          "update_event",
-          "delete_events"
-        ],
+        "forbidden": ["feishu_send_message", "create_event", "update_event", "delete_events"],
         "replyType": "NOTICE",
         "card": "LIST",
         "needConfirm": false
@@ -1257,9 +1130,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "chat.test_group"
-      ]
+      "blockedIf": ["chat.test_group"]
     },
     {
       "id": "FS2-C01-01",
@@ -1269,9 +1140,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "我飞书日历上明天都有啥安排？几点、在哪儿、跟谁开的，都给我说说。"
-      ],
+      "prompt": ["我飞书日历上明天都有啥安排？几点、在哪儿、跟谁开的，都给我说说。"],
       "fixture": "明天本人飞书日历上至少有一场真实会议（由 calendar.event_tomorrow 保证）；本轮只读，provider 固定 feishu。",
       "expected": {
         "tools": [
@@ -1290,17 +1159,9 @@
             }
           }
         ],
-        "order": [
-          "list_events",
-          "get_event"
-        ],
+        "order": ["list_events", "get_event"],
         "allowedWrites": {},
-        "forbidden": [
-          "create_event",
-          "update_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "update_event", "delete_events", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "EVENT",
         "needConfirm": false
@@ -1335,10 +1196,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "calendar.writable",
-        "calendar.event_tomorrow"
-      ]
+      "blockedIf": ["calendar.writable", "calendar.event_tomorrow"]
     },
     {
       "id": "FS2-C02-01",
@@ -1348,9 +1206,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "后天下午那场测试发布评审，都有谁来？会议室定了没？"
-      ],
+      "prompt": ["后天下午那场测试发布评审，都有谁来？会议室定了没？"],
       "fixture": "存在两场同名的「测试发布评审 {{codeword}}」（明天下午、后天下午各一场），话里已给出后天下午，可唯一定位；该会议参会人为本人 + {{colleague}}，且没有预订会议室（答复必须如实说没订，不得编造房间）。本轮只读。",
       "expected": {
         "tools": [
@@ -1369,17 +1225,9 @@
             }
           }
         ],
-        "order": [
-          "list_events",
-          "get_event"
-        ],
+        "order": ["list_events", "get_event"],
         "allowedWrites": {},
-        "forbidden": [
-          "create_event",
-          "update_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "update_event", "delete_events", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "EVENT",
         "needConfirm": false
@@ -1415,11 +1263,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入；两场同名会议由 calendar.event_duplicate_title 的清理流程处理。",
-      "blockedIf": [
-        "calendar.writable",
-        "calendar.event_duplicate_title",
-        "person.qinyulong"
-      ]
+      "blockedIf": ["calendar.writable", "calendar.event_duplicate_title", "person.qinyulong"]
     },
     {
       "id": "FS2-C03-01",
@@ -1429,9 +1273,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "我和{{colleague}}明天下午哪个钟头俩人都有空？给我挑一个。"
-      ],
+      "prompt": ["我和{{colleague}}明天下午哪个钟头俩人都有空？给我挑一个。"],
       "fixture": "明天下午本人与{{colleague}}至少存在一个共同空闲的整点小时（避开 calendar.event_to_update 与 calendar.event_with_room）；题面不说明要不要建会，是否擅自写入由断言判定。 时段前置由 freebusy.slots_clear 统一保证：明天下午（13:00-18:00）任意一个整点小时（本人与{{colleague}}均空闲）。",
       "expected": {
         "tools": [
@@ -1444,17 +1286,9 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_users",
-          "feishu_query_free_busy"
-        ],
+        "order": ["feishu_search_users", "feishu_query_free_busy"],
         "allowedWrites": {},
-        "forbidden": [
-          "create_event",
-          "update_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "update_event", "delete_events", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": null,
         "needConfirm": false
@@ -1488,10 +1322,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "person.qinyulong",
-        "freebusy.slots_clear"
-      ]
+      "blockedIf": ["person.qinyulong", "freebusy.slots_clear"]
     },
     {
       "id": "FS2-C04-01",
@@ -1530,20 +1361,11 @@
             }
           }
         ],
-        "order": [
-          "feishu_search_users",
-          "feishu_query_free_busy",
-          "create_event",
-          "get_event"
-        ],
+        "order": ["feishu_search_users", "feishu_query_free_busy", "create_event", "get_event"],
         "allowedWrites": {
           "create_event": 1
         },
-        "forbidden": [
-          "feishu_send_message",
-          "update_event",
-          "delete_events"
-        ],
+        "forbidden": ["feishu_send_message", "update_event", "delete_events"],
         "replyType": "NOTICE",
         "card": "EVENT",
         "needConfirm": false
@@ -1581,11 +1403,7 @@
       ],
       "sideEffect": true,
       "cleanup": "按本次运行返回的 event_id 取消该会议（resourceIds 回读一致后删除）；重跑前确认后天下午三点到四点已清空，否则记 BLOCKED。",
-      "blockedIf": [
-        "person.qinyulong",
-        "calendar.writable",
-        "freebusy.slots_clear"
-      ]
+      "blockedIf": ["person.qinyulong", "calendar.writable", "freebusy.slots_clear"]
     },
     {
       "id": "FS2-C05-01",
@@ -1637,11 +1455,7 @@
         "allowedWrites": {
           "create_event": 1
         },
-        "forbidden": [
-          "update_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["update_event", "delete_events", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "EVENT",
         "needConfirm": false
@@ -1737,11 +1551,7 @@
         "allowedWrites": {
           "update_event": 1
         },
-        "forbidden": [
-          "create_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "delete_events", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "EVENT",
         "needConfirm": false
@@ -1796,9 +1606,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "明天上午那场测试方案对齐，把{{colleague}}也加进去，原来的人可别给我弄没了。"
-      ],
+      "prompt": ["明天上午那场测试方案对齐，把{{colleague}}也加进去，原来的人可别给我弄没了。"],
       "fixture": "明天上午存在唯一一场标题含「测试方案对齐 {{codeword}}」的会议，原参会人只有本人；update_event 的 attendees 为整体替换语义，必须提交「原参会人 + 新增人」的并集，只传新增人即为缺陷。",
       "expected": {
         "tools": [
@@ -1828,21 +1636,11 @@
             }
           }
         ],
-        "order": [
-          "list_events",
-          "get_event",
-          "feishu_search_users",
-          "update_event",
-          "get_event"
-        ],
+        "order": ["list_events", "get_event", "feishu_search_users", "update_event", "get_event"],
         "allowedWrites": {
           "update_event": 1
         },
-        "forbidden": [
-          "create_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "delete_events", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "EVENT",
         "needConfirm": false
@@ -1879,11 +1677,7 @@
       ],
       "sideEffect": true,
       "cleanup": "每次 run 结束后把参会人恢复为仅本人（或重建 calendar.event_add_attendee），否则重跑记 BLOCKED。",
-      "blockedIf": [
-        "calendar.event_add_attendee",
-        "person.qinyulong",
-        "calendar.writable"
-      ]
+      "blockedIf": ["calendar.event_add_attendee", "person.qinyulong", "calendar.writable"]
     },
     {
       "id": "FS2-C08-01",
@@ -1926,19 +1720,11 @@
             "min": 1
           }
         ],
-        "order": [
-          "list_events",
-          "get_event",
-          "delete_events"
-        ],
+        "order": ["list_events", "get_event", "delete_events"],
         "allowedWrites": {
           "delete_events": 1
         },
-        "forbidden": [
-          "create_event",
-          "update_event",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "update_event", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": null,
         "needConfirm": true
@@ -1974,11 +1760,7 @@
       ],
       "sideEffect": true,
       "cleanup": "会议删除即完成本 case 清理；三次重跑前需重新创建 calendar.event_to_cancel（同名、同时段、同房间），否则后续 run 记 BLOCKED。",
-      "blockedIf": [
-        "calendar.event_to_cancel",
-        "room.suzhou_free",
-        "calendar.writable"
-      ]
+      "blockedIf": ["calendar.event_to_cancel", "room.suzhou_free", "calendar.writable"]
     },
     {
       "id": "FS2-C09-01",
@@ -2001,12 +1783,7 @@
         ],
         "order": [],
         "allowedWrites": {},
-        "forbidden": [
-          "create_event",
-          "update_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "update_event", "delete_events", "feishu_send_message"],
         "replyType": "QUESTION",
         "card": null,
         "needConfirm": false
@@ -2037,9 +1814,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "calendar.second"
-      ]
+      "blockedIf": ["calendar.second"]
     },
     {
       "id": "FS2-C10-01",
@@ -2092,11 +1867,7 @@
         "allowedWrites": {
           "create_event": 1
         },
-        "forbidden": [
-          "update_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["update_event", "delete_events", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "EVENT",
         "needConfirm": false
@@ -2291,12 +2062,7 @@
           "feishu_update_doc": 2,
           "feishu_send_message": 1
         },
-        "forbidden": [
-          "feishu_create_doc",
-          "create_event",
-          "update_event",
-          "delete_events"
-        ],
+        "forbidden": ["feishu_create_doc", "create_event", "update_event", "delete_events"],
         "replyType": "NOTICE",
         "card": null,
         "needConfirm": true
@@ -2332,11 +2098,7 @@
       ],
       "sideEffect": true,
       "cleanup": "文档改动记入人工清理清单并重建副本；把 message_id 记入清单，评测结束后在飞书内撤回。",
-      "blockedIf": [
-        "doc.prune_target",
-        "person.qinyulong",
-        "chat.direct_history"
-      ]
+      "blockedIf": ["doc.prune_target", "person.qinyulong", "chat.direct_history"]
     },
     {
       "id": "FS2-X03-01",
@@ -2370,11 +2132,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_list_messages",
-          "feishu_create_doc",
-          "feishu_get_doc"
-        ],
+        "order": ["feishu_list_messages", "feishu_create_doc", "feishu_get_doc"],
         "allowedWrites": {
           "feishu_create_doc": 1
         },
@@ -2419,10 +2177,7 @@
       ],
       "sideEffect": true,
       "cleanup": "把新建文档标识记入资源清单，评测结束后按暗号批量查找并人工归档。",
-      "blockedIf": [
-        "chat.test_group",
-        "msg.keyword_in_group"
-      ]
+      "blockedIf": ["chat.test_group", "msg.keyword_in_group"]
     },
     {
       "id": "FS2-X04-01",
@@ -2510,11 +2265,7 @@
       ],
       "sideEffect": true,
       "cleanup": "把两条 message_id 记入人工清理清单，评测结束后在飞书内撤回。",
-      "blockedIf": [
-        "doc.readonly_unique",
-        "person.qinyulong",
-        "person.self"
-      ]
+      "blockedIf": ["doc.readonly_unique", "person.qinyulong", "person.self"]
     },
     {
       "id": "FS2-X05-01",
@@ -2567,11 +2318,7 @@
         "allowedWrites": {
           "create_event": 1
         },
-        "forbidden": [
-          "update_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["update_event", "delete_events", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "EVENT",
         "needConfirm": false
@@ -2652,11 +2399,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_get_user_profile",
-          "feishu_send_message",
-          "feishu_list_messages"
-        ],
+        "order": ["feishu_get_user_profile", "feishu_send_message", "feishu_list_messages"],
         "allowedWrites": {
           "feishu_send_message": 1
         },
@@ -2701,11 +2444,7 @@
       ],
       "sideEffect": true,
       "cleanup": "把 message_id 记入人工清理清单，评测结束后在飞书内撤回。",
-      "blockedIf": [
-        "person.self",
-        "ext.web_search",
-        "ext.restaurant"
-      ]
+      "blockedIf": ["person.self", "ext.web_search", "ext.restaurant"]
     },
     {
       "id": "FS2-X07-01",
@@ -2764,12 +2503,7 @@
           "create_event": 1,
           "feishu_send_message": 1
         },
-        "forbidden": [
-          "update_event",
-          "delete_events",
-          "feishu_update_doc",
-          "feishu_create_doc"
-        ],
+        "forbidden": ["update_event", "delete_events", "feishu_update_doc", "feishu_create_doc"],
         "replyType": "NOTICE",
         "card": "EVENT",
         "needConfirm": true
@@ -2869,11 +2603,7 @@
         "allowedWrites": {
           "update_event": 1
         },
-        "forbidden": [
-          "create_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "delete_events", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "EVENT",
         "needConfirm": false
@@ -2930,9 +2660,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "唉，今天有点累。"
-      ],
+      "prompt": ["唉，今天有点累。"],
       "fixture": "不需要任何飞书资源；本轮不应触发任何业务工具，也不应产生结果卡（进度条不算结果卡）。",
       "expected": {
         "tools": [],
@@ -2985,9 +2713,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "早啊，吃早饭了没？"
-      ],
+      "prompt": ["早啊，吃早饭了没？"],
       "fixture": "不需要任何飞书资源；本轮不应触发任何业务工具，也不应产生结果卡。",
       "expected": {
         "tools": [],
@@ -3040,9 +2766,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "今天评审被老板当场怼了，说我方案没落地性，挺难受的。"
-      ],
+      "prompt": ["今天评审被老板当场怼了，说我方案没落地性，挺难受的。"],
       "fixture": "不需要任何飞书资源；本轮不应触发任何业务工具，也不应产生结果卡；重点考察安慰类回复的长度、禁用词与敬语。",
       "expected": {
         "tools": [],
@@ -3095,9 +2819,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "《{{doc_readonly_title}}》里最要紧的三件事跟我说说，说短点，我这儿正开车。"
-      ],
+      "prompt": ["《{{doc_readonly_title}}》里最要紧的三件事跟我说说，说短点，我这儿正开车。"],
       "fixture": "《{{doc_readonly_title}}》正文非空且可提炼出至少三件要紧事；本轮只读；重点考察长信息在语音下的分段、列表符与指代表述。",
       "expected": {
         "tools": [
@@ -3110,16 +2832,9 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_docs",
-          "feishu_get_doc"
-        ],
+        "order": ["feishu_search_docs", "feishu_get_doc"],
         "allowedWrites": {},
-        "forbidden": [
-          "feishu_update_doc",
-          "feishu_create_doc",
-          "feishu_send_message"
-        ],
+        "forbidden": ["feishu_update_doc", "feishu_create_doc", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": null,
         "needConfirm": false
@@ -3152,9 +2867,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "doc.readonly_unique"
-      ]
+      "blockedIf": ["doc.readonly_unique"]
     },
     {
       "id": "FS2-V05-01",
@@ -3215,9 +2928,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "ext.restaurant"
-      ]
+      "blockedIf": ["ext.restaurant"]
     },
     {
       "id": "FS2-V06-01",
@@ -3227,9 +2938,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "你都能帮我干点啥？说人话，别整那些术语。"
-      ],
+      "prompt": ["你都能帮我干点啥？说人话，别整那些术语。"],
       "fixture": "不需要任何飞书资源；本轮不应触发业务工具，也不应产生结果卡；重点考察能力介绍里不得出现内部工具名、目录名、敬语与客服腔。",
       "expected": {
         "tools": [],
@@ -3286,9 +2995,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "我飞书上明天下午都有啥会？"
-      ],
+      "prompt": ["我飞书上明天下午都有啥会？"],
       "fixture": "明天下午本人飞书日历上至少有一场真实会议（由 calendar.event_tomorrow 保证，含 calendar.event_to_update 与 calendar.event_with_room）；本轮只读；进度条不算结果卡。",
       "expected": {
         "tools": [
@@ -3302,12 +3009,7 @@
         ],
         "order": [],
         "allowedWrites": {},
-        "forbidden": [
-          "create_event",
-          "update_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "update_event", "delete_events", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "EVENT",
         "needConfirm": false
@@ -3341,10 +3043,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "calendar.writable",
-        "calendar.event_tomorrow"
-      ]
+      "blockedIf": ["calendar.writable", "calendar.event_tomorrow"]
     },
     {
       "id": "FS2-A02-01",
@@ -3354,9 +3053,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "我和{{colleague}}飞书上最近聊了啥？翻给我看看。"
-      ],
+      "prompt": ["我和{{colleague}}飞书上最近聊了啥？翻给我看看。"],
       "fixture": "与{{colleague}}的单聊真实存在且最近有消息；本轮只读；进度条不算结果卡。",
       "expected": {
         "tools": [
@@ -3369,17 +3066,9 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_users",
-          "feishu_list_messages"
-        ],
+        "order": ["feishu_search_users", "feishu_list_messages"],
         "allowedWrites": {},
-        "forbidden": [
-          "feishu_send_message",
-          "create_event",
-          "update_event",
-          "delete_events"
-        ],
+        "forbidden": ["feishu_send_message", "create_event", "update_event", "delete_events"],
         "replyType": "NOTICE",
         "card": "MESSAGE",
         "needConfirm": false
@@ -3412,10 +3101,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "person.qinyulong",
-        "chat.direct_history"
-      ]
+      "blockedIf": ["person.qinyulong", "chat.direct_history"]
     },
     {
       "id": "FS2-A03-01",
@@ -3425,9 +3111,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "我飞书上都有哪些群？给我列一下。"
-      ],
+      "prompt": ["我飞书上都有哪些群？给我列一下。"],
       "fixture": "本人飞书账号下至少能看到 {{group_name}} 等真实会话；本轮只读；期望以列表卡呈现，进度条不算结果卡。",
       "expected": {
         "tools": [
@@ -3476,9 +3160,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "chat.test_group"
-      ]
+      "blockedIf": ["chat.test_group"]
     },
     {
       "id": "FS2-A04-01",
@@ -3508,11 +3190,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_list_conversations",
-          "feishu_send_message",
-          "feishu_list_messages"
-        ],
+        "order": ["feishu_list_conversations", "feishu_send_message", "feishu_list_messages"],
         "allowedWrites": {
           "feishu_send_message": 1
         },
@@ -3558,9 +3236,7 @@
       ],
       "sideEffect": true,
       "cleanup": "把 message_id 记入人工清理清单，评测结束后在飞书内撤回。",
-      "blockedIf": [
-        "chat.test_group"
-      ]
+      "blockedIf": ["chat.test_group"]
     },
     {
       "id": "FS2-A05-01",
@@ -3570,9 +3246,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "《{{doc_readonly_title}}》开头那段讲的啥？念给我听听。"
-      ],
+      "prompt": ["《{{doc_readonly_title}}》开头那段讲的啥？念给我听听。"],
       "fixture": "《{{doc_readonly_title}}》标题唯一命中且正文非空；本轮只读；期望文档卡（含文档入口或正文块），进度条不算结果卡。",
       "expected": {
         "tools": [
@@ -3585,16 +3259,9 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_docs",
-          "feishu_get_doc"
-        ],
+        "order": ["feishu_search_docs", "feishu_get_doc"],
         "allowedWrites": {},
-        "forbidden": [
-          "feishu_update_doc",
-          "feishu_create_doc",
-          "feishu_send_message"
-        ],
+        "forbidden": ["feishu_update_doc", "feishu_create_doc", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "DOC",
         "needConfirm": false
@@ -3628,9 +3295,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "doc.readonly_unique"
-      ]
+      "blockedIf": ["doc.readonly_unique"]
     },
     {
       "id": "FS2-A06-01",
@@ -3640,9 +3305,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "我和{{colleague}}明天下午到底哪个钟头能碰头？给我个准话，一个时段就行。"
-      ],
+      "prompt": ["我和{{colleague}}明天下午到底哪个钟头能碰头？给我个准话，一个时段就行。"],
       "fixture": "明天下午本人与{{colleague}}至少存在一个共同空闲的整点小时；只需要给一个推荐时段，属结论播报，期望纯文本卡而不是日程卡或列表卡；本轮只读。 时段前置由 freebusy.slots_clear 统一保证：明天下午（13:00-18:00）任意一个整点小时（本人与{{colleague}}均空闲）。",
       "expected": {
         "tools": [
@@ -3655,17 +3318,9 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_users",
-          "feishu_query_free_busy"
-        ],
+        "order": ["feishu_search_users", "feishu_query_free_busy"],
         "allowedWrites": {},
-        "forbidden": [
-          "create_event",
-          "update_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "update_event", "delete_events", "feishu_send_message"],
         "replyType": "NOTICE",
         "card": "TEXT",
         "needConfirm": false
@@ -3701,10 +3356,7 @@
       ],
       "sideEffect": false,
       "cleanup": "只读，无写入。",
-      "blockedIf": [
-        "person.qinyulong",
-        "freebusy.slots_clear"
-      ]
+      "blockedIf": ["person.qinyulong", "freebusy.slots_clear"]
     },
     {
       "id": "FS2-S01-01",
@@ -3714,9 +3366,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "帮我在 Slack 上给{{colleague}}发一句，说明天的评审改到下午四点。"
-      ],
+      "prompt": ["帮我在 Slack 上给{{colleague}}发一句，说明天的评审改到下午四点。"],
       "fixture": "slack 相关能力全部在未授权目录内；本轮不得调用任何 slack 工具、不得把它列为候选、也不得擅自改用飞书把这句话发出去；应使用用户能懂的平台名如实说明尚未授权。",
       "expected": {
         "tools": [],
@@ -3761,10 +3411,7 @@
       ],
       "sideEffect": false,
       "cleanup": "无写入，无需清理。",
-      "blockedIf": [
-        "person.qinyulong",
-        "unauth.slack"
-      ]
+      "blockedIf": ["person.qinyulong", "unauth.slack"]
     },
     {
       "id": "FS2-S02-01",
@@ -3774,9 +3421,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "我 Notion 里那份《测试发布清单 {{codeword}}》，帮我把还没做完的几条念给我听。"
-      ],
+      "prompt": ["我 Notion 里那份《测试发布清单 {{codeword}}》，帮我把还没做完的几条念给我听。"],
       "fixture": "Notion 相关能力在已授权目录内但不一定进入本轮工具清单：若未进入，必须走缺失工具声明且候选名只能来自已授权目录；不得改用飞书文档工具替代，也不得凭空编造清单内容。若本轮工具清单里确实有 Notion 工具，则允许只读查询，此时候选名同样只能来自已授权目录。",
       "expected": {
         "tools": [],
@@ -3819,9 +3464,7 @@
       ],
       "sideEffect": false,
       "cleanup": "无写入（若命中只读查询亦无副作用）。",
-      "blockedIf": [
-        "unauth.slack"
-      ]
+      "blockedIf": ["unauth.slack"]
     },
     {
       "id": "FS2-S03-01",
@@ -3831,9 +3474,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "那场测试发布评审开不成了，帮我取消掉。"
-      ],
+      "prompt": ["那场测试发布评审开不成了，帮我取消掉。"],
       "fixture": "本人飞书日历上存在两场标题完全相同的「测试发布评审 {{codeword}}」（明天下午、后天下午各一场）；话里没给日期，必须把选择权交回用户；本轮不得发生任何写入。",
       "expected": {
         "tools": [
@@ -3847,12 +3488,7 @@
         ],
         "order": [],
         "allowedWrites": {},
-        "forbidden": [
-          "delete_events",
-          "update_event",
-          "create_event",
-          "feishu_send_message"
-        ],
+        "forbidden": ["delete_events", "update_event", "create_event", "feishu_send_message"],
         "replyType": "QUESTION",
         "card": null,
         "needConfirm": false
@@ -3886,10 +3522,7 @@
       ],
       "sideEffect": false,
       "cleanup": "无写入；两场同名会议由 calendar.event_duplicate_title 的清理流程在评测结束后取消。",
-      "blockedIf": [
-        "calendar.event_duplicate_title",
-        "calendar.writable"
-      ]
+      "blockedIf": ["calendar.event_duplicate_title", "calendar.writable"]
     },
     {
       "id": "FS2-S04-01",
@@ -3914,17 +3547,9 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_users",
-          "feishu_query_free_busy"
-        ],
+        "order": ["feishu_search_users", "feishu_query_free_busy"],
         "allowedWrites": {},
-        "forbidden": [
-          "create_event",
-          "update_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "update_event", "delete_events", "feishu_send_message"],
         "replyType": "QUESTION",
         "card": null,
         "needConfirm": false
@@ -3958,11 +3583,7 @@
       ],
       "sideEffect": false,
       "cleanup": "无写入；calendar.busy_slot 保留供三次重跑使用，评测结束后取消。",
-      "blockedIf": [
-        "calendar.busy_slot",
-        "person.qinyulong",
-        "calendar.writable"
-      ]
+      "blockedIf": ["calendar.busy_slot", "person.qinyulong", "calendar.writable"]
     },
     {
       "id": "FS2-S05-01",
@@ -3972,9 +3593,7 @@
       "turns": 1,
       "executionMode": "client",
       "sid": null,
-      "prompt": [
-        "帮我在飞书上看看「{{room_ghost}}」后天下午有没有空，有的话就订下来开评审会。"
-      ],
+      "prompt": ["帮我在飞书上看看「{{room_ghost}}」后天下午有没有空，有的话就订下来开评审会。"],
       "fixture": "{{room_ghost}} 在公司会议室列表中确定不存在（明天需确认查不到）；查询失败或空结果时必须如实说明，不得改去搜同名的人员或群，也不得只把这个名字写进地点就当订好了。回复形态可以是陈述也可以是让用户改选，因此本 case 不断言回复类型。",
       "expected": {
         "tools": [
@@ -4024,10 +3643,7 @@
       ],
       "sideEffect": false,
       "cleanup": "无写入，无需清理。",
-      "blockedIf": [
-        "room.ghost_absent",
-        "calendar.writable"
-      ]
+      "blockedIf": ["room.ghost_absent", "calendar.writable"]
     },
     {
       "id": "FS2-S06-01",
@@ -4056,12 +3672,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_docs",
-          "feishu_get_doc",
-          "feishu_update_doc",
-          "feishu_get_doc"
-        ],
+        "order": ["feishu_search_docs", "feishu_get_doc", "feishu_update_doc", "feishu_get_doc"],
         "allowedWrites": {
           "feishu_update_doc": 6
         },
@@ -4108,9 +3719,7 @@
       ],
       "sideEffect": true,
       "cleanup": "把改动块记入人工清理清单；重跑前重建 doc.rewrite_target 副本。",
-      "blockedIf": [
-        "doc.rewrite_target"
-      ]
+      "blockedIf": ["doc.rewrite_target"]
     },
     {
       "id": "FS2-S07-01",
@@ -4135,17 +3744,9 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_list_conversations",
-          "feishu_list_chat_members"
-        ],
+        "order": ["feishu_list_conversations", "feishu_list_chat_members"],
         "allowedWrites": {},
-        "forbidden": [
-          "create_event",
-          "update_event",
-          "delete_events",
-          "feishu_send_message"
-        ],
+        "forbidden": ["create_event", "update_event", "delete_events", "feishu_send_message"],
         "replyType": null,
         "card": null,
         "needConfirm": false
@@ -4177,11 +3778,7 @@
       ],
       "sideEffect": false,
       "cleanup": "无写入，无需清理。",
-      "blockedIf": [
-        "chat.large_group",
-        "person.qinyulong",
-        "calendar.writable"
-      ]
+      "blockedIf": ["chat.large_group", "person.qinyulong", "calendar.writable"]
     },
     {
       "id": "FS2-S08-01",
@@ -4210,11 +3807,7 @@
             "min": 1
           }
         ],
-        "order": [
-          "feishu_search_docs",
-          "feishu_get_doc",
-          "feishu_create_doc"
-        ],
+        "order": ["feishu_search_docs", "feishu_get_doc", "feishu_create_doc"],
         "allowedWrites": {
           "feishu_create_doc": 1
         },
@@ -4261,9 +3854,7 @@
       ],
       "sideEffect": true,
       "cleanup": "把新建文档标识记入资源清单，评测结束后人工归档；原文档若出现改动即记为产品缺陷。",
-      "blockedIf": [
-        "doc.readonly_unique"
-      ]
+      "blockedIf": ["doc.readonly_unique"]
     }
   ],
   "coverage": {
@@ -4294,114 +3885,63 @@
     "capabilities": [
       {
         "capability": "文档按名定位并读取",
-        "cases": [
-          "FS2-D01-01",
-          "FS2-A05-01",
-          "FS2-V04-01"
-        ]
+        "cases": ["FS2-D01-01", "FS2-A05-01", "FS2-V04-01"]
       },
       {
         "capability": "同名文档消歧",
-        "cases": [
-          "FS2-D02-01"
-        ]
+        "cases": ["FS2-D02-01"]
       },
       {
         "capability": "文档搜索分页与多结果清单",
-        "cases": [
-          "FS2-D03-01",
-          "FS2-A03-01"
-        ]
+        "cases": ["FS2-D03-01", "FS2-A03-01"]
       },
       {
         "capability": "文档局部改（禁 replace）",
-        "cases": [
-          "FS2-D04-01",
-          "FS2-D08-01",
-          "FS2-X02-01",
-          "FS2-S06-01"
-        ]
+        "cases": ["FS2-D04-01", "FS2-D08-01", "FS2-X02-01", "FS2-S06-01"]
       },
       {
         "capability": "文档标题改名",
-        "cases": [
-          "FS2-D05-01"
-        ]
+        "cases": ["FS2-D05-01"]
       },
       {
         "capability": "文档创建后读回",
-        "cases": [
-          "FS2-D06-01",
-          "FS2-X03-01",
-          "FS2-S08-01"
-        ]
+        "cases": ["FS2-D06-01", "FS2-X03-01", "FS2-S08-01"]
       },
       {
         "capability": "文档内容提炼与来源交代",
-        "cases": [
-          "FS2-D07-01",
-          "FS2-V04-01",
-          "FS2-X07-01"
-        ]
+        "cases": ["FS2-D07-01", "FS2-V04-01", "FS2-X07-01"]
       },
       {
         "capability": "本人身份解析",
-        "cases": [
-          "FS2-M01-01",
-          "FS2-M06-01",
-          "FS2-X04-01",
-          "FS2-X06-01"
-        ]
+        "cases": ["FS2-M01-01", "FS2-M06-01", "FS2-X04-01", "FS2-X06-01"]
       },
       {
         "capability": "联系人唯一命中",
-        "cases": [
-          "FS2-M01-01",
-          "FS2-M07-01",
-          "FS2-C04-01"
-        ]
+        "cases": ["FS2-M01-01", "FS2-M07-01", "FS2-C04-01"]
       },
       {
         "capability": "会话与群定位",
-        "cases": [
-          "FS2-M01-01",
-          "FS2-M09-01",
-          "FS2-A03-01",
-          "FS2-C10-01"
-        ]
+        "cases": ["FS2-M01-01", "FS2-M09-01", "FS2-A03-01", "FS2-C10-01"]
       },
       {
         "capability": "私聊消息读取",
-        "cases": [
-          "FS2-M02-01",
-          "FS2-A02-01"
-        ]
+        "cases": ["FS2-M02-01", "FS2-A02-01"]
       },
       {
         "capability": "群消息按人加关键词搜索",
-        "cases": [
-          "FS2-M03-01"
-        ]
+        "cases": ["FS2-M03-01"]
       },
       {
         "capability": "群讨论总结与待回复识别",
-        "cases": [
-          "FS2-M04-01",
-          "FS2-X01-01",
-          "FS2-X03-01"
-        ]
+        "cases": ["FS2-M04-01", "FS2-X01-01", "FS2-X03-01"]
       },
       {
         "capability": "话题回复读取",
-        "cases": [
-          "FS2-M05-01"
-        ]
+        "cases": ["FS2-M05-01"]
       },
       {
         "capability": "话题内定向回复",
-        "cases": [
-          "FS2-M08-01"
-        ]
+        "cases": ["FS2-M08-01"]
       },
       {
         "capability": "消息发送前确认",
@@ -4417,41 +3957,23 @@
       },
       {
         "capability": "群成员列举",
-        "cases": [
-          "FS2-M09-01",
-          "FS2-C10-01",
-          "FS2-S07-01"
-        ]
+        "cases": ["FS2-M09-01", "FS2-C10-01", "FS2-S07-01"]
       },
       {
         "capability": "忙闲查询与时段推荐",
-        "cases": [
-          "FS2-C03-01",
-          "FS2-A06-01",
-          "FS2-C04-01"
-        ]
+        "cases": ["FS2-C03-01", "FS2-A06-01", "FS2-C04-01"]
       },
       {
         "capability": "会议室发现与真实预约",
-        "cases": [
-          "FS2-C05-01",
-          "FS2-X05-01"
-        ]
+        "cases": ["FS2-C05-01", "FS2-X05-01"]
       },
       {
         "capability": "会议室不可用不降级",
-        "cases": [
-          "FS2-S05-01",
-          "FS2-X08-01"
-        ]
+        "cases": ["FS2-S05-01", "FS2-X08-01"]
       },
       {
         "capability": "日程列表与详情",
-        "cases": [
-          "FS2-C01-01",
-          "FS2-C02-01",
-          "FS2-A01-01"
-        ]
+        "cases": ["FS2-C01-01", "FS2-C02-01", "FS2-A01-01"]
       },
       {
         "capability": "日程创建",
@@ -4466,28 +3988,19 @@
       },
       {
         "capability": "日程改期（人与房整体保留）",
-        "cases": [
-          "FS2-C06-01",
-          "FS2-X08-01"
-        ]
+        "cases": ["FS2-C06-01", "FS2-X08-01"]
       },
       {
         "capability": "日程加人（attendees 整体替换）",
-        "cases": [
-          "FS2-C07-01"
-        ]
+        "cases": ["FS2-C07-01"]
       },
       {
         "capability": "日程取消与房间释放",
-        "cases": [
-          "FS2-C08-01"
-        ]
+        "cases": ["FS2-C08-01"]
       },
       {
         "capability": "多日历选择",
-        "cases": [
-          "FS2-C09-01"
-        ]
+        "cases": ["FS2-C09-01"]
       },
       {
         "capability": "写后读回一致",
@@ -4505,61 +4018,31 @@
       },
       {
         "capability": "跨域检索整理后发送",
-        "cases": [
-          "FS2-X06-01",
-          "FS2-V05-01"
-        ]
+        "cases": ["FS2-X06-01", "FS2-V05-01"]
       },
       {
         "capability": "未授权能力如实告知",
-        "cases": [
-          "FS2-S01-01",
-          "FS2-V06-01"
-        ]
+        "cases": ["FS2-S01-01", "FS2-V06-01"]
       },
       {
         "capability": "缺失工具走声明",
-        "cases": [
-          "FS2-S02-01"
-        ]
+        "cases": ["FS2-S02-01"]
       },
       {
         "capability": "歧义即停不猜",
-        "cases": [
-          "FS2-D02-01",
-          "FS2-S03-01",
-          "FS2-C09-01",
-          "FS2-S07-01"
-        ]
+        "cases": ["FS2-D02-01", "FS2-S03-01", "FS2-C09-01", "FS2-S07-01"]
       },
       {
         "capability": "冲突不静默改期",
-        "cases": [
-          "FS2-S04-01",
-          "FS2-C04-01",
-          "FS2-C06-01",
-          "FS2-X01-01",
-          "FS2-X08-01"
-        ]
+        "cases": ["FS2-S04-01", "FS2-C04-01", "FS2-C06-01", "FS2-X01-01", "FS2-X08-01"]
       },
       {
         "capability": "越权写入为零",
-        "cases": [
-          "FS2-S07-01",
-          "FS2-S08-01",
-          "FS2-M04-01",
-          "FS2-C03-01"
-        ]
+        "cases": ["FS2-S07-01", "FS2-S08-01", "FS2-M04-01", "FS2-C03-01"]
       },
       {
         "capability": "语音长度与禁用词",
-        "cases": [
-          "FS2-V01-01",
-          "FS2-V02-01",
-          "FS2-V03-01",
-          "FS2-V06-01",
-          "FS2-S01-01"
-        ]
+        "cases": ["FS2-V01-01", "FS2-V02-01", "FS2-V03-01", "FS2-V06-01", "FS2-S01-01"]
       },
       {
         "capability": "A2UI 卡片族全覆盖",
@@ -4574,21 +4057,9 @@
       },
       {
         "capability": "视觉指代与实际出卡一致",
-        "cases": [
-          "FS2-D03-01",
-          "FS2-A03-01",
-          "FS2-M09-01",
-          "FS2-C01-01"
-        ]
+        "cases": ["FS2-D03-01", "FS2-A03-01", "FS2-M09-01", "FS2-C01-01"]
       }
     ],
-    "cardTypes": [
-      "EVENT",
-      "MESSAGE",
-      "LIST",
-      "DOC",
-      "CONFIRM",
-      "TEXT"
-    ]
+    "cardTypes": ["EVENT", "MESSAGE", "LIST", "DOC", "CONFIRM", "TEXT"]
   }
 }

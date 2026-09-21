@@ -1,0 +1,20 @@
+- id: feishu.d01.unique
+  version: 1.0.0
+  branch: unique-match
+  status: external
+  description: 需要真实账号中只有一个可信候选文档
+- id: feishu.d01.duplicate
+  version: 1.0.0
+  branch: duplicate-match
+  status: external
+  description: 需要真实账号中存在多个同名候选文档
+- id: feishu.d01.empty
+  version: 1.0.0
+  branch: empty-result
+  status: external
+  description: 需要真实搜索返回空结果
+- id: feishu.d01.permission
+  version: 1.0.0
+  branch: permission-failure
+  status: external
+  description: 需要真实权限失败或受控错误 Fixture

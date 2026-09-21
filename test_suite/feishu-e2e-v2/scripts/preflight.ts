@@ -17,8 +17,22 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { FIXTURES, FIXTURE_KEYS, TOKEN_TO_FIXTURE, findFixture, type Fixture } from "../fixtures.ts";
-import { createReadiness, domainOf, FLAG_PATHS, PROBE_ONLY_FIXTURES, getPath, nonEmpty, type FixtureState } from "../readiness.ts";
+import {
+  FIXTURES,
+  FIXTURE_KEYS,
+  TOKEN_TO_FIXTURE,
+  findFixture,
+  type Fixture
+} from "../fixtures.ts";
+import {
+  createReadiness,
+  domainOf,
+  FLAG_PATHS,
+  PROBE_ONLY_FIXTURES,
+  getPath,
+  nonEmpty,
+  type FixtureState
+} from "../readiness.ts";
 
 const execFileAsync = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -151,15 +165,23 @@ const keyDiff = {
   extra_in_template: templateKeys.filter((k) => !DATA_FIXTURE_KEYS.includes(k)),
   /* 开关型前置写进了 fixtures 段 → 用户会不知道该填哪一处 */
   flag_keys_inside_fixtures: FLAG_KEYS.filter((k) => templateKeys.includes(k)),
-  missing_preflight_flags: FLAG_KEYS.filter((k) => typeof get(template, FLAG_PATHS[k]!) !== "boolean"),
+  missing_preflight_flags: FLAG_KEYS.filter(
+    (k) => typeof get(template, FLAG_PATHS[k]!) !== "boolean"
+  ),
   missing_in_bindings: bindings ? DATA_FIXTURE_KEYS.filter((k) => !boundKeys.includes(k)) : [],
   extra_in_bindings: boundKeys.filter((k) => !DATA_FIXTURE_KEYS.includes(k)),
-  missing_preflight_flags_in_bindings: bindings ? FLAG_KEYS.filter((k) => typeof get(bindings, FLAG_PATHS[k]!) !== "boolean") : [],
-  token_name_mismatch: FIXTURES.filter((f) => f.token && templateFixtures[f.key] && templateFixtures[f.key].token !== f.token).map((f) => f.key),
+  missing_preflight_flags_in_bindings: bindings
+    ? FLAG_KEYS.filter((k) => typeof get(bindings, FLAG_PATHS[k]!) !== "boolean")
+    : [],
+  token_name_mismatch: FIXTURES.filter(
+    (f) => f.token && templateFixtures[f.key] && templateFixtures[f.key].token !== f.token
+  ).map((f) => f.key),
   needed_by_mismatch: FIXTURE_KEYS.filter((k) => {
     const entry = templateFixtures[k];
     if (!entry || !Array.isArray(entry.needed_by)) return false;
-    const declared = sortedJoin(entry.needed_by.filter((x: string) => !FIXTURES.find((f) => f.global && f.key === x)));
+    const declared = sortedJoin(
+      entry.needed_by.filter((x: string) => !FIXTURES.find((f) => f.global && f.key === x))
+    );
     const actual = sortedJoin(fixtureUse.get(k) ?? []);
     return declared !== actual;
   })
@@ -170,7 +192,9 @@ report.bindings = {
   source: srcLabel,
   path: bindingsPath,
   run_label: src?.run_label ?? null,
-  run_label_ok: /^[A-Za-z0-9_-]{3,40}$/.test(String(src?.run_label ?? "")) && !/REPLACE_ME/i.test(String(src?.run_label ?? "")),
+  run_label_ok:
+    /^[A-Za-z0-9_-]{3,40}$/.test(String(src?.run_label ?? "")) &&
+    !/REPLACE_ME/i.test(String(src?.run_label ?? "")),
   uid: src?.uid ?? null,
   uid_ok: /^[1-9]\d{0,18}$/.test(String(src?.uid ?? "")),
   fixtures_declared_in_code: FIXTURES.length,
@@ -199,7 +223,10 @@ if (doProbe) {
       body: "{}",
       signal: controller.signal
     });
-    report.endpoint = { up: true, detail: `HTTP ${res.status}（端点存活；空 body 被拒是预期行为）` };
+    report.endpoint = {
+      up: true,
+      detail: `HTTP ${res.status}（端点存活；空 body 被拒是预期行为）`
+    };
   } catch (error) {
     const msg = (error as Error).message ?? String(error);
     report.endpoint = {
@@ -216,7 +243,10 @@ if (doProbe) {
 /* ------------------------------------------- lark-cli 只读探测 */
 async function runLark(argsv: string[]): Promise<{ ok: boolean; detail: string }> {
   try {
-    const { stdout } = await execFileAsync("lark-cli", argsv, { timeout: 25000, maxBuffer: 8 * 1024 * 1024 });
+    const { stdout } = await execFileAsync("lark-cli", argsv, {
+      timeout: 25000,
+      maxBuffer: 8 * 1024 * 1024
+    });
     const text = stdout.trim();
     let parsed: any = null;
     try {
@@ -225,7 +255,10 @@ async function runLark(argsv: string[]): Promise<{ ok: boolean; detail: string }
       /* 非 JSON 输出 */
     }
     if (parsed && parsed.ok === false)
-      return { ok: false, detail: `${parsed?.error?.subtype ?? "error"}：${parsed?.error?.message ?? text.slice(0, 160)}` };
+      return {
+        ok: false,
+        detail: `${parsed?.error?.subtype ?? "error"}：${parsed?.error?.message ?? text.slice(0, 160)}`
+      };
     if (parsed && parsed.ok === true) return { ok: true, detail: text.slice(0, 160) };
     return { ok: true, detail: text.slice(0, 160) || "命令返回空输出" };
   } catch (error: any) {
@@ -240,8 +273,10 @@ for (const f of FIXTURES) {
   const neededBy = f.global
     ? f.gate === "prep"
       ? []
-      : scenarios.filter((s: any) => R.gateApplies(f.gate, { writes: R.writes(s), sends: R.sends(s) })).map((s: any) => s.id)
-    : fixtureUse.get(f.key) ?? [];
+      : scenarios
+          .filter((s: any) => R.gateApplies(f.gate, { writes: R.writes(s), sends: R.sends(s) }))
+          .map((s: any) => s.id)
+    : (fixtureUse.get(f.key) ?? []);
   const base: FixtureStatus = {
     key: f.key,
     name: f.name,
@@ -257,11 +292,30 @@ for (const f of FIXTURES) {
   /* 端点：开关 + --probe 双证据。probe 说连不上时，开关开了也算 MISSING */
   if (f.key === "auth.endpoint_up") {
     const flagOn = get(src, "preflight.endpoint_up") === true;
-    if (report.endpoint.up === true) statuses.push({ ...base, state: "READY", evidence: `--probe 真连通过：${report.endpoint.detail}` });
+    if (report.endpoint.up === true)
+      statuses.push({
+        ...base,
+        state: "READY",
+        evidence: `--probe 真连通过：${report.endpoint.detail}`
+      });
     else if (report.endpoint.up === false)
-      statuses.push({ ...base, state: "MISSING", evidence: `--probe 真连失败：${report.endpoint.detail}（开关是 ${flagOn} 也没用，先把服务起起来）` });
-    else if (flagOn) statuses.push({ ...base, state: "READY", evidence: "preflight.endpoint_up === true（未 --probe 复核；开跑前建议加 --probe 真连一次）" });
-    else statuses.push({ ...base, state: "MISSING", evidence: "preflight.endpoint_up 还是 false：先启动 8080 端点，再把开关改成 true" });
+      statuses.push({
+        ...base,
+        state: "MISSING",
+        evidence: `--probe 真连失败：${report.endpoint.detail}（开关是 ${flagOn} 也没用，先把服务起起来）`
+      });
+    else if (flagOn)
+      statuses.push({
+        ...base,
+        state: "READY",
+        evidence: "preflight.endpoint_up === true（未 --probe 复核；开跑前建议加 --probe 真连一次）"
+      });
+    else
+      statuses.push({
+        ...base,
+        state: "MISSING",
+        evidence: "preflight.endpoint_up 还是 false：先启动 8080 端点，再把开关改成 true"
+      });
     continue;
   }
 
@@ -272,7 +326,11 @@ for (const f of FIXTURES) {
     statuses.push(
       v === true
         ? { ...base, state: "READY", evidence: `${flagPath} === true` }
-        : { ...base, state: "MISSING", evidence: `${srcLabel} 的 ${flagPath} 当前是 ${JSON.stringify(v ?? null)}，需要改成 true` }
+        : {
+            ...base,
+            state: "MISSING",
+            evidence: `${srcLabel} 的 ${flagPath} 当前是 ${JSON.stringify(v ?? null)}，需要改成 true`
+          }
     );
     continue;
   }
@@ -330,8 +388,11 @@ report.fixtures = statuses;
  */
 /* 探测结果作为 override：--probe 可以把「开关说就绪」打回 MISSING */
 const probeOverride = new Map<string, FixtureState>();
-for (const st of statuses) if (PROBE_ONLY_FIXTURES.includes(st.key) || st.evidence.includes("只读探测")) probeOverride.set(st.key, st.state === "READY" ? "READY" : "MISSING");
-for (const st of statuses) if (PROBE_ONLY_FIXTURES.includes(st.key)) probeOverride.set(st.key, st.state);
+for (const st of statuses)
+  if (PROBE_ONLY_FIXTURES.includes(st.key) || st.evidence.includes("只读探测"))
+    probeOverride.set(st.key, st.state === "READY" ? "READY" : "MISSING");
+for (const st of statuses)
+  if (PROBE_ONLY_FIXTURES.includes(st.key)) probeOverride.set(st.key, st.state);
 const globalMissing = R.globalMissingAll(probeOverride);
 const caseRows: any[] = [];
 for (const s of scenarios) {
@@ -360,8 +421,25 @@ report.cases = {
   total: caseRows.length,
   ready: caseRows.filter((c) => c.state === "READY").length,
   blocked: caseRows.filter((c) => c.state === "BLOCKED").length,
-  blocked_by_global_only: caseRows.filter((c) => c.state === "BLOCKED" && c.missing_fixtures.length === 0 && c.missing_tokens.length === 0 && !c.missing_uid && !c.missing_sid && c.unknown_fixture_keys.length === 0).length,
-  blocked_by_flags_only: caseRows.filter((c) => c.state === "BLOCKED" && c.missing_fixtures.length === 0 && c.missing_tokens.length === 0 && !c.missing_uid && !c.missing_sid && c.unknown_fixture_keys.length === 0 && c.missing_global.every((k: string) => FLAG_KEYS.includes(k))).length,
+  blocked_by_global_only: caseRows.filter(
+    (c) =>
+      c.state === "BLOCKED" &&
+      c.missing_fixtures.length === 0 &&
+      c.missing_tokens.length === 0 &&
+      !c.missing_uid &&
+      !c.missing_sid &&
+      c.unknown_fixture_keys.length === 0
+  ).length,
+  blocked_by_flags_only: caseRows.filter(
+    (c) =>
+      c.state === "BLOCKED" &&
+      c.missing_fixtures.length === 0 &&
+      c.missing_tokens.length === 0 &&
+      !c.missing_uid &&
+      !c.missing_sid &&
+      c.unknown_fixture_keys.length === 0 &&
+      c.missing_global.every((k: string) => FLAG_KEYS.includes(k))
+  ).length,
   detail: caseRows
 };
 
@@ -390,7 +468,9 @@ for (const t of missingTokens) {
   if (fkey && todo.some((x) => x.key === fkey)) continue;
   const f = fkey ? findFixture(fkey) : undefined;
   const entry = templateFixtures[fkey ?? ""] ?? {};
-  const ids = scenarios.filter((s: any) => (tokensByCase.get(s.id) ?? new Set<string>()).has(t)).map((s: any) => s.id);
+  const ids = scenarios
+    .filter((s: any) => (tokensByCase.get(s.id) ?? new Set<string>()).has(t))
+    .map((s: any) => s.id);
   todo.push({
     order: order++,
     group: "7. bindings.v2.json 待填自然值",
@@ -496,7 +576,9 @@ report.summary_zh =
 const line = "─".repeat(78);
 console.log(`\n${line}\n飞书 E2E v2 · 跑前体检（${report.mode}）  ${report.generated_at}\n${line}`);
 console.log(report.summary_zh);
-console.log(`\n【端点】${endpointUrl}\n  ${report.endpoint.up === null ? "未探测" : report.endpoint.up ? "存活 ✅" : "连不上 ❌"} · ${report.endpoint.detail}`);
+console.log(
+  `\n【端点】${endpointUrl}\n  ${report.endpoint.up === null ? "未探测" : report.endpoint.up ? "存活 ✅" : "连不上 ❌"} · ${report.endpoint.detail}`
+);
 console.log(`\n【文件】`);
 for (const [k, v] of Object.entries(report.files)) console.log(`  ${v ? "✅" : "❌"} ${k}`);
 
@@ -504,7 +586,9 @@ console.log(`\n${line}\n前置条件明细\n${line}`);
 for (const st of statuses) {
   const icon = st.state === "READY" ? "✅" : st.state === "MISSING" ? "❌" : "❔";
   console.log(`${icon} [${st.severity}] ${st.key} — ${st.name}`);
-  console.log(`     影响 ${st.neededBy.length} 条 case${st.neededBy.length ? "：" + st.neededBy.slice(0, 8).join("、") + (st.neededBy.length > 8 ? " …" : "") : ""}`);
+  console.log(
+    `     影响 ${st.neededBy.length} 条 case${st.neededBy.length ? "：" + st.neededBy.slice(0, 8).join("、") + (st.neededBy.length > 8 ? " …" : "") : ""}`
+  );
   if (st.evidence) console.log(`     证据：${st.evidence}`);
 }
 
@@ -517,7 +601,9 @@ else {
       console.log(`\n[${t.group}]`);
       lastGroup = t.group;
     }
-    console.log(`  ${t.order}. [${t.severity}] ${t.title} — 卡住 ${t.blocks_cases} 条${t.side_effect ? " ⚠有副作用" : ""}`);
+    console.log(
+      `  ${t.order}. [${t.severity}] ${t.title} — 卡住 ${t.blocks_cases} 条${t.side_effect ? " ⚠有副作用" : ""}`
+    );
     console.log(`     ${String(t.evidence).split("\n")[0]}`);
   }
 }
@@ -542,7 +628,9 @@ md.push(`# 飞书 E2E v2 · 跑前体检与待办清单`);
 md.push(``);
 md.push(`生成时间：${report.generated_at} ｜ 模式：${report.mode} ｜ 结论：**${report.verdict}**`);
 md.push(``);
-md.push(`> 数据来源：\`bindings.v2.json\`（没有就用模板）。把下面每一项做完，\`preflight\` 结论会变成 **GO**，才能开跑。`);
+md.push(
+  `> 数据来源：\`bindings.v2.json\`（没有就用模板）。把下面每一项做完，\`preflight\` 结论会变成 **GO**，才能开跑。`
+);
 md.push(``);
 md.push(`## 一句话进度`);
 md.push(``);
@@ -551,12 +639,18 @@ md.push(`| --- | --- |`);
 md.push(`| 场景总数 | ${report.cases.total} |`);
 md.push(`| 现在就绪 | ${report.cases.ready} |`);
 md.push(`| 被前置卡住（BLOCKED，不算失败） | ${report.cases.blocked} |`);
-md.push(`| 前置条件 | ${FIXTURES.length} 项：READY ${statuses.filter((x) => x.state === "READY").length} / MISSING ${statuses.filter((x) => x.state === "MISSING").length} / UNKNOWN ${statuses.filter((x) => x.state === "UNKNOWN").length} |`);
-md.push(`| 待办 | ${todo.length} 项（MUST ${todo.filter((t) => t.severity === "MUST").length} / SHOULD ${todo.filter((t) => t.severity === "SHOULD").length}） |`);
+md.push(
+  `| 前置条件 | ${FIXTURES.length} 项：READY ${statuses.filter((x) => x.state === "READY").length} / MISSING ${statuses.filter((x) => x.state === "MISSING").length} / UNKNOWN ${statuses.filter((x) => x.state === "UNKNOWN").length} |`
+);
+md.push(
+  `| 待办 | ${todo.length} 项（MUST ${todo.filter((t) => t.severity === "MUST").length} / SHOULD ${todo.filter((t) => t.severity === "SHOULD").length}） |`
+);
 md.push(``);
 md.push(`## 端点`);
 md.push(``);
-md.push(`- \`${endpointUrl}\` → ${report.endpoint.up === null ? "未探测（加 --probe）" : report.endpoint.up ? "存活" : "连不上"}${report.endpoint.detail ? "：" + report.endpoint.detail : ""}`);
+md.push(
+  `- \`${endpointUrl}\` → ${report.endpoint.up === null ? "未探测（加 --probe）" : report.endpoint.up ? "存活" : "连不上"}${report.endpoint.detail ? "：" + report.endpoint.detail : ""}`
+);
 md.push(``);
 if (!report.files["bindings.v2.json"]) {
   md.push(`## 第 0 步：先建 bindings.v2.json`);
@@ -576,7 +670,9 @@ for (const t of todo) {
   byGroup.set(t.group, arr);
 }
 let n = 0;
-for (const [g, items] of [...byGroup.entries()].sort((a, b) => a[0].localeCompare(b[0], "zh-Hans-CN"))) {
+for (const [g, items] of [...byGroup.entries()].sort((a, b) =>
+  a[0].localeCompare(b[0], "zh-Hans-CN")
+)) {
   md.push(`### ${g}`);
   md.push(``);
   for (const t of items) {
@@ -584,7 +680,9 @@ for (const [g, items] of [...byGroup.entries()].sort((a, b) => a[0].localeCompar
     md.push(`#### ${n}. [${t.severity}] ${t.title}`);
     md.push(``);
     md.push(`- key：\`${t.key}\` ｜ 现状：${t.state}`);
-    md.push(`- 卡住 ${t.blocks_cases} 条 case${t.blocked_case_ids?.length ? "：" + t.blocked_case_ids.join("、") + (t.blocks_cases > t.blocked_case_ids.length ? " …" : "") : ""}`);
+    md.push(
+      `- 卡住 ${t.blocks_cases} 条 case${t.blocked_case_ids?.length ? "：" + t.blocked_case_ids.join("、") + (t.blocks_cases > t.blocked_case_ids.length ? " …" : "") : ""}`
+    );
     if (t.evidence) md.push(`- 证据：${String(t.evidence).replace(/\n/g, " ")}`);
     md.push(`- 怎么做：`);
     for (const l of String(t.action ?? "").split("\n")) md.push(`  ${l.trim() ? "> " + l : ">"}`);

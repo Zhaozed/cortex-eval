@@ -313,12 +313,7 @@
       "severity": "MUST",
       "state": "READY",
       "evidence": "已确认：{{self_name}} = \"赵泽宇\"",
-      "neededBy": [
-        "FS2-M01-01",
-        "FS2-M06-01",
-        "FS2-X04-01",
-        "FS2-X06-01"
-      ],
+      "neededBy": ["FS2-M01-01", "FS2-M06-01", "FS2-X04-01", "FS2-X06-01"],
       "howToPrepare": "无需操作，只要 auth.lark_user_token 就绪、bindings 的 fixtures['person.self'].value 填「赵泽宇」即可。",
       "sideEffect": false
     },
@@ -399,9 +394,7 @@
       "severity": "SHOULD",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"chat.large_group\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-S07-01"
-      ],
+      "neededBy": ["FS2-S07-01"],
       "howToPrepare": "挑一个你本来就在的、成员较多的群，把群名填进 fixtures['chat.large_group'].value。不想暴露真实群名就保持 filled=false，该 case 记 BLOCKED。",
       "sideEffect": false
     },
@@ -412,11 +405,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"chat.direct_history\"].filled 改成 true（前提是现实里真的成立）",
-      "neededBy": [
-        "FS2-M02-01",
-        "FS2-X02-01",
-        "FS2-A02-01"
-      ],
+      "neededBy": ["FS2-M02-01", "FS2-X02-01", "FS2-A02-01"],
       "howToPrepare": "打开你与秦宇龙的飞书单聊，确认里面有历史消息（几条就够，不必凑满 20 条）。没有就随便发一句「在吗」造一条。",
       "sideEffect": true
     },
@@ -427,10 +416,7 @@
       "severity": "SHOULD",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"chat.topic_message\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-M05-01",
-        "FS2-M08-01"
-      ],
+      "neededBy": ["FS2-M05-01", "FS2-M08-01"],
       "howToPrepare": "在飞书测试群里发一条消息并开启话题（或回复任意一条消息形成话题），主题写「回归排期 0917A」（token 只填「回归排期」，暗号留在正文里）。\n然后把这条话题的大致主题填进 fixtures['chat.topic_message'].value（自然语言描述即可，绝对不要填 message_id）。",
       "sideEffect": true
     },
@@ -441,12 +427,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"msg.keyword_in_group\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-M03-01",
-        "FS2-M04-01",
-        "FS2-X01-01",
-        "FS2-X03-01"
-      ],
+      "neededBy": ["FS2-M03-01", "FS2-M04-01", "FS2-X01-01", "FS2-X03-01"],
       "howToPrepare": "让秦宇龙在飞书测试群发一条含关键词的消息（关键词**固定用「排期」**，模板里 value 已预填，别改成别的词，否则 chat.direct_history 的要求对不上）。\n把关键词填进 fixtures['msg.keyword_in_group'].value。跑评测当天再确认一次它还在两天窗口内，超窗就重发一条。",
       "sideEffect": true
     },
@@ -476,9 +457,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.duplicate_title\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-D02-01"
-      ],
+      "neededBy": ["FS2-D02-01"],
       "howToPrepare": "再建 2 篇**标题完全相同**的 docx，标题「产品周会纪要 0917A」（两篇一模一样，正文可各写一句区分用）。标题填进 fixtures['doc.duplicate_title'].value。",
       "sideEffect": true
     },
@@ -489,9 +468,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.append_target\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-D04-01"
-      ],
+      "neededBy": ["FS2-D04-01"],
       "howToPrepare": "建一篇 docx，标题「追加测试文档 0917A」，正文至少 3 个独立段落。标题填进 fixtures['doc.append_target'].value。",
       "sideEffect": true
     },
@@ -502,9 +479,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.partial_target\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-D08-01"
-      ],
+      "neededBy": ["FS2-D08-01"],
       "howToPrepare": "建一篇 docx，标题「局部编辑测试文档 0917A」，正文按下面结构写：\n  一、上线计划：定于 <某个具体日期> 上线。\n  二、保留项：1) … 2) … 3) …\n  三、备选方案 A（含 2 个子项）\n  四、备选方案 B（含 2 个子项）\n标题填进 fixtures['doc.partial_target'].value。",
       "sideEffect": true
     },
@@ -515,9 +490,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.rewrite_target\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-S06-01"
-      ],
+      "neededBy": ["FS2-S06-01"],
       "howToPrepare": "建一篇 docx，标题「测试口气样本 0917A」，正文写 3 个小节、每节 2 段以上、口气故意随便一点。标题填进 fixtures['doc.rewrite_target'].value。",
       "sideEffect": true
     },
@@ -528,9 +501,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.rename_target\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-D05-01"
-      ],
+      "neededBy": ["FS2-D05-01"],
       "howToPrepare": "建一篇 docx，标题「改名测试文档 0917A」，正文写 2 段可识别内容。标题填进 fixtures['doc.rename_target'].value。",
       "sideEffect": true
     },
@@ -541,9 +512,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.prune_target\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-X02-01"
-      ],
+      "neededBy": ["FS2-X02-01"],
       "howToPrepare": "建一篇 docx，标题「测试精简副本 0917A」，正文前半段是正式内容、末尾列 3-5 条「备选方案」。标题填进 fixtures['doc.prune_target'].value。",
       "sideEffect": true
     },
@@ -554,9 +523,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"doc.codeword_pool\"].filled 改成 true（前提是现实里真的成立）",
-      "neededBy": [
-        "FS2-D03-01"
-      ],
+      "neededBy": ["FS2-D03-01"],
       "howToPrepare": "把上面几篇文档都建好即可。preflight 会用 feishu_search_docs 按暗号搜一次，命中 ≥3 篇且标题互不相同即通过。",
       "sideEffect": false
     },
@@ -596,9 +563,7 @@
       "severity": "SHOULD",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"calendar.second\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-C09-01"
-      ],
+      "neededBy": ["FS2-C09-01"],
       "howToPrepare": "只有一个日历就新建一个，命名「测试副日历 0917A」；本来就有多个就用现成的。\n把第二个日历的**显示名**填进 fixtures['calendar.second'].value（绝对不要填 calendar_id）。",
       "sideEffect": true
     },
@@ -609,10 +574,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"calendar.event_tomorrow\"].filled 改成 true（前提是现实里真的成立）",
-      "neededBy": [
-        "FS2-C01-01",
-        "FS2-A01-01"
-      ],
+      "neededBy": ["FS2-C01-01", "FS2-A01-01"],
       "howToPrepare": "最省事的做法：直接把 calendar.event_to_update / calendar.event_with_room 这两场会建在**明天下午**，本条就自动满足了。\n或者手工建一场「明日安排核验 0917A」的会。不需要填 value，保持 filled=true 即可。",
       "sideEffect": true
     },
@@ -623,10 +585,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"calendar.event_duplicate_title\"].filled 改成 true（前提是现实里真的成立）",
-      "neededBy": [
-        "FS2-C02-01",
-        "FS2-S03-01"
-      ],
+      "neededBy": ["FS2-C02-01", "FS2-S03-01"],
       "howToPrepare": "手工建这两场会（标题、时间、参会人严格按上面来）。跑完把两场都取消。不需要填 value，保持 filled=true。",
       "sideEffect": true
     },
@@ -637,9 +596,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"calendar.event_to_update\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-C06-01"
-      ],
+      "neededBy": ["FS2-C06-01"],
       "howToPrepare": "建在**明天下午**（这样 calendar.event_tomorrow 也顺带满足），标题「测试排期评审 0917A」（scenarios 里写死了这个说法），参会人本人 + 秦宇龙。\n标题填进 fixtures['calendar.event_to_update'].value。每轮跑完把它改回原时段，否则重跑记 BLOCKED。",
       "sideEffect": true
     },
@@ -650,9 +607,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"calendar.event_add_attendee\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-C07-01"
-      ],
+      "neededBy": ["FS2-C07-01"],
       "howToPrepare": "建一场**明天上午**的会，标题「测试方案对齐 0917A」。\n**标题必须含「测试方案对齐」四个字**——FS2-C07-01 的题面是「明天上午那场测试方案对齐」，题面写死了这个说法、没走 token，标题对不上就找不到会。\n参会人**只有本人**（这样「把秦宇龙也加进去」才是可验证的增量）。\n标题填进 fixtures['calendar.event_add_attendee'].value。每轮跑完把参会人恢复成只有本人。",
       "sideEffect": true
     },
@@ -663,9 +618,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"calendar.event_to_cancel\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-C08-01"
-      ],
+      "neededBy": ["FS2-C08-01"],
       "howToPrepare": "建一场**明天上午**的会，标题「测试房间核验 0917A」，**会议室选 room.suzhou_free 指定的那间并确认预订成功**（飞书日程里能看到会议室那一栏）。\n标题填进 fixtures['calendar.event_to_cancel'].value（题面会注入这个 token，所以 value 就填真实完整标题）。\n非幂等：每轮重跑前都要重新建一场同名的（3 次重复运行 = 要建 3 次，或每轮跑完重建）。",
       "sideEffect": true
     },
@@ -676,9 +629,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"calendar.event_with_room\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-X08-01"
-      ],
+      "neededBy": ["FS2-X08-01"],
       "howToPrepare": "建在明天下午，标题「测试房间评审 0917A」，会议室选 room.suzhou_free 指定的那间，参会人本人 + 秦宇龙。\n标题填进 fixtures['calendar.event_with_room'].value。每轮跑完把时段与会议室恢复原状（或重建）。",
       "sideEffect": true
     },
@@ -689,9 +640,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"calendar.busy_slot\"].filled 改成 true（前提是现实里真的成立）",
-      "neededBy": [
-        "FS2-S04-01"
-      ],
+      "neededBy": ["FS2-S04-01"],
       "howToPrepare": "手工在冲突 case 用到的那个时段给自己建一场会（标题「测试冲突占位 0917A」，scenarios 里写死了这个说法）。\n具体时段以该 case 的 fixture 文案为准。跑完把这场会删掉。",
       "sideEffect": true
     },
@@ -702,13 +651,7 @@
       "severity": "MUST",
       "state": "READY",
       "evidence": "已确认：{{room}} = \"苏州会议室\"",
-      "neededBy": [
-        "FS2-C05-01",
-        "FS2-C06-01",
-        "FS2-C08-01",
-        "FS2-X05-01",
-        "FS2-X08-01"
-      ],
+      "neededBy": ["FS2-C05-01", "FS2-C06-01", "FS2-C08-01", "FS2-X05-01", "FS2-X08-01"],
       "howToPrepare": "value 填**飞书里那间会议室的真实完整名称**（上一轮实测是「苏州会议室」，不是「苏州」）。\n确认它在 freebusy.slots_clear 列出的时段里仍空闲。被别人占了就告诉我，我换房间名并同步改期望值。\n断言侧**不做等值比对**：只要 feishu_list_room_availability 返回的房间名与 value 互为包含关系（「苏州」⊂「苏州会议室」）就算命中，避免因为简称/全称写法不同而误判。",
       "sideEffect": false
     },
@@ -719,9 +662,7 @@
       "severity": "SHOULD",
       "state": "READY",
       "evidence": "已确认：{{room_alt}} = \"WALL E\"",
-      "neededBy": [
-        "FS2-X08-01"
-      ],
+      "neededBy": ["FS2-X08-01"],
       "howToPrepare": "从公司会议室列表里挑一间非苏州、且大后天 14:00-15:00 空闲的，名字填进 fixtures['room.alt_free'].value。挑不出来就保持 filled=false，该 case 记 BLOCKED。",
       "sideEffect": false
     },
@@ -732,9 +673,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"room.ghost_absent\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-S05-01"
-      ],
+      "neededBy": ["FS2-S05-01"],
       "howToPrepare": "填一个明显不存在的名字，建议用暗号拼出来避免真撞上，例如「苏州0917A不存在的会议室」。\n填进 fixtures['room.ghost_absent'].value。填之前用 feishu_list_room_availability 或飞书后台确认它查不到。",
       "sideEffect": false
     },
@@ -745,11 +684,7 @@
       "severity": "SHOULD",
       "state": "MISSING",
       "evidence": "bindings.v2.template.json（模板，仅供静态检查） 的 preflight.room_bookable 当前是 false，需要改成 true",
-      "neededBy": [
-        "FS2-C05-01",
-        "FS2-C06-01",
-        "FS2-X08-01"
-      ],
+      "neededBy": ["FS2-C05-01", "FS2-C06-01", "FS2-X08-01"],
       "howToPrepare": "确认你能预约 room.suzhou_free 那间会议室，然后把 bindings.v2.json 的 preflight.room_bookable 改成 true；不能预约就保持 false 并告诉我。",
       "sideEffect": true
     },
@@ -782,9 +717,7 @@
       "severity": "SHOULD",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"ext.web_search\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-X06-01"
-      ],
+      "neededBy": ["FS2-X06-01"],
       "howToPrepare": "确认 cortex-agent 侧 web_search 的检索服务配额/密钥正常，随手问它一句需要联网的问题验证一下。",
       "sideEffect": false
     },
@@ -795,10 +728,7 @@
       "severity": "SHOULD",
       "state": "MISSING",
       "evidence": "未填：fixtures[\"ext.restaurant\"].value 要填自然值，并把 filled 改成 true",
-      "neededBy": [
-        "FS2-X06-01",
-        "FS2-V05-01"
-      ],
+      "neededBy": ["FS2-X06-01", "FS2-V05-01"],
       "howToPrepare": "确认 get_restaurant 在授权目录里且数据源可用；把要查的城市/商圈填进 fixtures['ext.restaurant'].value。",
       "sideEffect": false
     },
@@ -809,10 +739,7 @@
       "severity": "MUST",
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"unauth.slack\"].filled 改成 true（前提是现实里真的成立）",
-      "neededBy": [
-        "FS2-S01-01",
-        "FS2-S02-01"
-      ],
+      "neededBy": ["FS2-S01-01", "FS2-S02-01"],
       "howToPrepare": "什么都别做——只要别在这轮把 slack 授权打开就行。如果你打算打开，提前告诉我，这两条负例要重写。",
       "sideEffect": false
     }
@@ -831,10 +758,7 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
         "missing_fixtures": [],
@@ -853,17 +777,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
-        "missing_tokens": [
-          "doc_dup_title"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
+        "missing_tokens": ["doc_dup_title"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "doc.duplicate_title"
-        ],
+        "missing_fixtures": ["doc.duplicate_title"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -879,15 +796,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "doc.codeword_pool"
-        ],
+        "missing_fixtures": ["doc.codeword_pool"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -909,13 +821,9 @@
           "auth.write_approved",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "doc_append_title"
-        ],
+        "missing_tokens": ["doc_append_title"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "doc.append_target"
-        ],
+        "missing_fixtures": ["doc.append_target"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -937,13 +845,9 @@
           "auth.write_approved",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "doc_rename_title"
-        ],
+        "missing_tokens": ["doc_rename_title"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "doc.rename_target"
-        ],
+        "missing_fixtures": ["doc.rename_target"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -983,10 +887,7 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
         "missing_fixtures": [],
@@ -1011,13 +912,9 @@
           "auth.write_approved",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "doc_partial_title"
-        ],
+        "missing_tokens": ["doc_partial_title"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "doc.partial_target"
-        ],
+        "missing_fixtures": ["doc.partial_target"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1033,10 +930,7 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
         "missing_fixtures": [],
@@ -1055,15 +949,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "chat.direct_history"
-        ],
+        "missing_fixtures": ["chat.direct_history"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -1079,17 +968,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
-        "missing_tokens": [
-          "msg_keyword"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
+        "missing_tokens": ["msg_keyword"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "msg.keyword_in_group"
-        ],
+        "missing_fixtures": ["msg.keyword_in_group"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -1105,17 +987,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
-        "missing_tokens": [
-          "msg_keyword"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
+        "missing_tokens": ["msg_keyword"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "msg.keyword_in_group"
-        ],
+        "missing_fixtures": ["msg.keyword_in_group"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -1131,17 +1006,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
-        "missing_tokens": [
-          "topic_subject"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
+        "missing_tokens": ["topic_subject"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "chat.topic_message"
-        ],
+        "missing_fixtures": ["chat.topic_message"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -1214,13 +1082,9 @@
           "auth.send_whitelist",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "topic_subject"
-        ],
+        "missing_tokens": ["topic_subject"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "chat.topic_message"
-        ],
+        "missing_fixtures": ["chat.topic_message"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1236,10 +1100,7 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
         "missing_fixtures": [],
@@ -1258,16 +1119,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.writable",
-          "calendar.event_tomorrow"
-        ],
+        "missing_fixtures": ["calendar.writable", "calendar.event_tomorrow"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -1283,16 +1138,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.writable",
-          "calendar.event_duplicate_title"
-        ],
+        "missing_fixtures": ["calendar.writable", "calendar.event_duplicate_title"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -1308,15 +1157,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "freebusy.slots_clear"
-        ],
+        "missing_fixtures": ["freebusy.slots_clear"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -1340,10 +1184,7 @@
         ],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.writable",
-          "freebusy.slots_clear"
-        ],
+        "missing_fixtures": ["calendar.writable", "freebusy.slots_clear"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1367,11 +1208,7 @@
         ],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.writable",
-          "freebusy.slots_clear",
-          "room.bookable"
-        ],
+        "missing_fixtures": ["calendar.writable", "freebusy.slots_clear", "room.bookable"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1393,9 +1230,7 @@
           "auth.write_approved",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "event_to_update_title"
-        ],
+        "missing_tokens": ["event_to_update_title"],
         "missing_uid": false,
         "missing_fixtures": [
           "calendar.event_to_update",
@@ -1426,10 +1261,7 @@
         ],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.event_add_attendee",
-          "calendar.writable"
-        ],
+        "missing_fixtures": ["calendar.event_add_attendee", "calendar.writable"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1451,14 +1283,9 @@
           "auth.write_approved",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "event_to_cancel_title"
-        ],
+        "missing_tokens": ["event_to_cancel_title"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.event_to_cancel",
-          "calendar.writable"
-        ],
+        "missing_fixtures": ["calendar.event_to_cancel", "calendar.writable"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1474,15 +1301,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.second"
-        ],
+        "missing_fixtures": ["calendar.second"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -1506,10 +1328,7 @@
         ],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.writable",
-          "freebusy.slots_clear"
-        ],
+        "missing_fixtures": ["calendar.writable", "freebusy.slots_clear"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1531,15 +1350,9 @@
           "auth.write_approved",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "msg_keyword"
-        ],
+        "missing_tokens": ["msg_keyword"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "msg.keyword_in_group",
-          "calendar.writable",
-          "freebusy.slots_clear"
-        ],
+        "missing_fixtures": ["msg.keyword_in_group", "calendar.writable", "freebusy.slots_clear"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1562,14 +1375,9 @@
           "auth.send_whitelist",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "doc_prune_title"
-        ],
+        "missing_tokens": ["doc_prune_title"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "doc.prune_target",
-          "chat.direct_history"
-        ],
+        "missing_fixtures": ["doc.prune_target", "chat.direct_history"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1591,13 +1399,9 @@
           "auth.write_approved",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "msg_keyword"
-        ],
+        "missing_tokens": ["msg_keyword"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "msg.keyword_in_group"
-        ],
+        "missing_fixtures": ["msg.keyword_in_group"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1646,10 +1450,7 @@
         ],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.writable",
-          "freebusy.slots_clear"
-        ],
+        "missing_fixtures": ["calendar.writable", "freebusy.slots_clear"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1672,14 +1473,9 @@
           "auth.send_whitelist",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "search_topic"
-        ],
+        "missing_tokens": ["search_topic"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "ext.web_search",
-          "ext.restaurant"
-        ],
+        "missing_fixtures": ["ext.web_search", "ext.restaurant"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1704,10 +1500,7 @@
         ],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.writable",
-          "freebusy.slots_clear"
-        ],
+        "missing_fixtures": ["calendar.writable", "freebusy.slots_clear"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -1729,9 +1522,7 @@
           "auth.write_approved",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "event_room_title"
-        ],
+        "missing_tokens": ["event_room_title"],
         "missing_uid": false,
         "missing_fixtures": [
           "calendar.event_with_room",
@@ -1754,10 +1545,7 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
         "missing_fixtures": [],
@@ -1776,10 +1564,7 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
         "missing_fixtures": [],
@@ -1798,10 +1583,7 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
         "missing_fixtures": [],
@@ -1820,10 +1602,7 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
         "missing_fixtures": [],
@@ -1842,17 +1621,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
-        "missing_tokens": [
-          "restaurant_area"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
+        "missing_tokens": ["restaurant_area"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "ext.restaurant"
-        ],
+        "missing_fixtures": ["ext.restaurant"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -1868,10 +1640,7 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
         "missing_fixtures": [],
@@ -1890,16 +1659,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.writable",
-          "calendar.event_tomorrow"
-        ],
+        "missing_fixtures": ["calendar.writable", "calendar.event_tomorrow"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -1915,15 +1678,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "chat.direct_history"
-        ],
+        "missing_fixtures": ["chat.direct_history"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -1939,10 +1697,7 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
         "missing_fixtures": [],
@@ -1986,10 +1741,7 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
         "missing_fixtures": [],
@@ -2008,15 +1760,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "freebusy.slots_clear"
-        ],
+        "missing_fixtures": ["freebusy.slots_clear"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -2032,15 +1779,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "unauth.slack"
-        ],
+        "missing_fixtures": ["unauth.slack"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -2056,15 +1798,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "unauth.slack"
-        ],
+        "missing_fixtures": ["unauth.slack"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -2080,16 +1817,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.event_duplicate_title",
-          "calendar.writable"
-        ],
+        "missing_fixtures": ["calendar.event_duplicate_title", "calendar.writable"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -2105,16 +1836,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
         "missing_tokens": [],
         "missing_uid": false,
-        "missing_fixtures": [
-          "calendar.busy_slot",
-          "calendar.writable"
-        ],
+        "missing_fixtures": ["calendar.busy_slot", "calendar.writable"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -2130,18 +1855,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
-        "missing_tokens": [
-          "room_ghost"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
+        "missing_tokens": ["room_ghost"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "room.ghost_absent",
-          "calendar.writable"
-        ],
+        "missing_fixtures": ["room.ghost_absent", "calendar.writable"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -2163,13 +1880,9 @@
           "auth.write_approved",
           "auth.cleanup_approved"
         ],
-        "missing_tokens": [
-          "doc_rewrite_title"
-        ],
+        "missing_tokens": ["doc_rewrite_title"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "doc.rewrite_target"
-        ],
+        "missing_fixtures": ["doc.rewrite_target"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": true,
@@ -2185,18 +1898,10 @@
         "turns": 1,
         "execution_mode": "client",
         "state": "BLOCKED",
-        "missing_global": [
-          "auth.endpoint_up",
-          "auth.feishu_tools_15"
-        ],
-        "missing_tokens": [
-          "group_large_name"
-        ],
+        "missing_global": ["auth.endpoint_up", "auth.feishu_tools_15"],
+        "missing_tokens": ["group_large_name"],
         "missing_uid": false,
-        "missing_fixtures": [
-          "chat.large_group",
-          "calendar.writable"
-        ],
+        "missing_fixtures": ["chat.large_group", "calendar.writable"],
         "unknown_fixture_keys": [],
         "missing_sid": false,
         "writes_not_approved": false,
@@ -2406,9 +2111,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"chat.large_group\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-S07-01"
-      ],
+      "blocked_case_ids": ["FS2-S07-01"],
       "side_effect": false,
       "action": "挑一个你本来就在的、成员较多的群，把群名填进 fixtures['chat.large_group'].value。不想暴露真实群名就保持 filled=false，该 case 记 BLOCKED。"
     },
@@ -2421,11 +2124,7 @@
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"chat.direct_history\"].filled 改成 true（前提是现实里真的成立）",
       "blocks_cases": 3,
-      "blocked_case_ids": [
-        "FS2-M02-01",
-        "FS2-X02-01",
-        "FS2-A02-01"
-      ],
+      "blocked_case_ids": ["FS2-M02-01", "FS2-X02-01", "FS2-A02-01"],
       "side_effect": true,
       "action": "打开你与秦宇龙的飞书单聊，确认里面有历史消息（几条就够，不必凑满 20 条）。没有就随便发一句「在吗」造一条。"
     },
@@ -2438,10 +2137,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"chat.topic_message\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 2,
-      "blocked_case_ids": [
-        "FS2-M05-01",
-        "FS2-M08-01"
-      ],
+      "blocked_case_ids": ["FS2-M05-01", "FS2-M08-01"],
       "side_effect": true,
       "action": "在飞书测试群里发一条消息并开启话题（或回复任意一条消息形成话题），主题写「回归排期 0917A」（token 只填「回归排期」，暗号留在正文里）。\n然后把这条话题的大致主题填进 fixtures['chat.topic_message'].value（自然语言描述即可，绝对不要填 message_id）。"
     },
@@ -2454,12 +2150,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"msg.keyword_in_group\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 4,
-      "blocked_case_ids": [
-        "FS2-M03-01",
-        "FS2-M04-01",
-        "FS2-X01-01",
-        "FS2-X03-01"
-      ],
+      "blocked_case_ids": ["FS2-M03-01", "FS2-M04-01", "FS2-X01-01", "FS2-X03-01"],
       "side_effect": true,
       "action": "让秦宇龙在飞书测试群发一条含关键词的消息（关键词**固定用「排期」**，模板里 value 已预填，别改成别的词，否则 chat.direct_history 的要求对不上）。\n把关键词填进 fixtures['msg.keyword_in_group'].value。跑评测当天再确认一次它还在两天窗口内，超窗就重发一条。"
     },
@@ -2472,9 +2163,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.duplicate_title\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-D02-01"
-      ],
+      "blocked_case_ids": ["FS2-D02-01"],
       "side_effect": true,
       "action": "再建 2 篇**标题完全相同**的 docx，标题「产品周会纪要 0917A」（两篇一模一样，正文可各写一句区分用）。标题填进 fixtures['doc.duplicate_title'].value。"
     },
@@ -2487,9 +2176,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.append_target\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-D04-01"
-      ],
+      "blocked_case_ids": ["FS2-D04-01"],
       "side_effect": true,
       "action": "建一篇 docx，标题「追加测试文档 0917A」，正文至少 3 个独立段落。标题填进 fixtures['doc.append_target'].value。"
     },
@@ -2502,9 +2189,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.partial_target\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-D08-01"
-      ],
+      "blocked_case_ids": ["FS2-D08-01"],
       "side_effect": true,
       "action": "建一篇 docx，标题「局部编辑测试文档 0917A」，正文按下面结构写：\n  一、上线计划：定于 <某个具体日期> 上线。\n  二、保留项：1) … 2) … 3) …\n  三、备选方案 A（含 2 个子项）\n  四、备选方案 B（含 2 个子项）\n标题填进 fixtures['doc.partial_target'].value。"
     },
@@ -2517,9 +2202,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.rewrite_target\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-S06-01"
-      ],
+      "blocked_case_ids": ["FS2-S06-01"],
       "side_effect": true,
       "action": "建一篇 docx，标题「测试口气样本 0917A」，正文写 3 个小节、每节 2 段以上、口气故意随便一点。标题填进 fixtures['doc.rewrite_target'].value。"
     },
@@ -2532,9 +2215,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.rename_target\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-D05-01"
-      ],
+      "blocked_case_ids": ["FS2-D05-01"],
       "side_effect": true,
       "action": "建一篇 docx，标题「改名测试文档 0917A」，正文写 2 段可识别内容。标题填进 fixtures['doc.rename_target'].value。"
     },
@@ -2547,9 +2228,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"doc.prune_target\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-X02-01"
-      ],
+      "blocked_case_ids": ["FS2-X02-01"],
       "side_effect": true,
       "action": "建一篇 docx，标题「测试精简副本 0917A」，正文前半段是正式内容、末尾列 3-5 条「备选方案」。标题填进 fixtures['doc.prune_target'].value。"
     },
@@ -2562,9 +2241,7 @@
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"doc.codeword_pool\"].filled 改成 true（前提是现实里真的成立）",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-D03-01"
-      ],
+      "blocked_case_ids": ["FS2-D03-01"],
       "side_effect": false,
       "action": "把上面几篇文档都建好即可。preflight 会用 feishu_search_docs 按暗号搜一次，命中 ≥3 篇且标题互不相同即通过。"
     },
@@ -2603,9 +2280,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"calendar.second\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-C09-01"
-      ],
+      "blocked_case_ids": ["FS2-C09-01"],
       "side_effect": true,
       "action": "只有一个日历就新建一个，命名「测试副日历 0917A」；本来就有多个就用现成的。\n把第二个日历的**显示名**填进 fixtures['calendar.second'].value（绝对不要填 calendar_id）。"
     },
@@ -2618,10 +2293,7 @@
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"calendar.event_tomorrow\"].filled 改成 true（前提是现实里真的成立）",
       "blocks_cases": 2,
-      "blocked_case_ids": [
-        "FS2-C01-01",
-        "FS2-A01-01"
-      ],
+      "blocked_case_ids": ["FS2-C01-01", "FS2-A01-01"],
       "side_effect": true,
       "action": "最省事的做法：直接把 calendar.event_to_update / calendar.event_with_room 这两场会建在**明天下午**，本条就自动满足了。\n或者手工建一场「明日安排核验 0917A」的会。不需要填 value，保持 filled=true 即可。"
     },
@@ -2634,10 +2306,7 @@
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"calendar.event_duplicate_title\"].filled 改成 true（前提是现实里真的成立）",
       "blocks_cases": 2,
-      "blocked_case_ids": [
-        "FS2-C02-01",
-        "FS2-S03-01"
-      ],
+      "blocked_case_ids": ["FS2-C02-01", "FS2-S03-01"],
       "side_effect": true,
       "action": "手工建这两场会（标题、时间、参会人严格按上面来）。跑完把两场都取消。不需要填 value，保持 filled=true。"
     },
@@ -2650,9 +2319,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"calendar.event_to_update\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-C06-01"
-      ],
+      "blocked_case_ids": ["FS2-C06-01"],
       "side_effect": true,
       "action": "建在**明天下午**（这样 calendar.event_tomorrow 也顺带满足），标题「测试排期评审 0917A」（scenarios 里写死了这个说法），参会人本人 + 秦宇龙。\n标题填进 fixtures['calendar.event_to_update'].value。每轮跑完把它改回原时段，否则重跑记 BLOCKED。"
     },
@@ -2665,9 +2332,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"calendar.event_add_attendee\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-C07-01"
-      ],
+      "blocked_case_ids": ["FS2-C07-01"],
       "side_effect": true,
       "action": "建一场**明天上午**的会，标题「测试方案对齐 0917A」。\n**标题必须含「测试方案对齐」四个字**——FS2-C07-01 的题面是「明天上午那场测试方案对齐」，题面写死了这个说法、没走 token，标题对不上就找不到会。\n参会人**只有本人**（这样「把秦宇龙也加进去」才是可验证的增量）。\n标题填进 fixtures['calendar.event_add_attendee'].value。每轮跑完把参会人恢复成只有本人。"
     },
@@ -2680,9 +2345,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"calendar.event_to_cancel\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-C08-01"
-      ],
+      "blocked_case_ids": ["FS2-C08-01"],
       "side_effect": true,
       "action": "建一场**明天上午**的会，标题「测试房间核验 0917A」，**会议室选 room.suzhou_free 指定的那间并确认预订成功**（飞书日程里能看到会议室那一栏）。\n标题填进 fixtures['calendar.event_to_cancel'].value（题面会注入这个 token，所以 value 就填真实完整标题）。\n非幂等：每轮重跑前都要重新建一场同名的（3 次重复运行 = 要建 3 次，或每轮跑完重建）。"
     },
@@ -2695,9 +2358,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"calendar.event_with_room\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-X08-01"
-      ],
+      "blocked_case_ids": ["FS2-X08-01"],
       "side_effect": true,
       "action": "建在明天下午，标题「测试房间评审 0917A」，会议室选 room.suzhou_free 指定的那间，参会人本人 + 秦宇龙。\n标题填进 fixtures['calendar.event_with_room'].value。每轮跑完把时段与会议室恢复原状（或重建）。"
     },
@@ -2710,9 +2371,7 @@
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"calendar.busy_slot\"].filled 改成 true（前提是现实里真的成立）",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-S04-01"
-      ],
+      "blocked_case_ids": ["FS2-S04-01"],
       "side_effect": true,
       "action": "手工在冲突 case 用到的那个时段给自己建一场会（标题「测试冲突占位 0917A」，scenarios 里写死了这个说法）。\n具体时段以该 case 的 fixture 文案为准。跑完把这场会删掉。"
     },
@@ -2725,9 +2384,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"room.ghost_absent\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-S05-01"
-      ],
+      "blocked_case_ids": ["FS2-S05-01"],
       "side_effect": false,
       "action": "填一个明显不存在的名字，建议用暗号拼出来避免真撞上，例如「苏州0917A不存在的会议室」。\n填进 fixtures['room.ghost_absent'].value。填之前用 feishu_list_room_availability 或飞书后台确认它查不到。"
     },
@@ -2740,11 +2397,7 @@
       "state": "MISSING",
       "evidence": "bindings.v2.template.json（模板，仅供静态检查） 的 preflight.room_bookable 当前是 false，需要改成 true",
       "blocks_cases": 3,
-      "blocked_case_ids": [
-        "FS2-C05-01",
-        "FS2-C06-01",
-        "FS2-X08-01"
-      ],
+      "blocked_case_ids": ["FS2-C05-01", "FS2-C06-01", "FS2-X08-01"],
       "side_effect": true,
       "action": "确认你能预约 room.suzhou_free 那间会议室，然后把 bindings.v2.json 的 preflight.room_bookable 改成 true；不能预约就保持 false 并告诉我。"
     },
@@ -2781,9 +2434,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"ext.web_search\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 1,
-      "blocked_case_ids": [
-        "FS2-X06-01"
-      ],
+      "blocked_case_ids": ["FS2-X06-01"],
       "side_effect": false,
       "action": "确认 cortex-agent 侧 web_search 的检索服务配额/密钥正常，随手问它一句需要联网的问题验证一下。"
     },
@@ -2796,10 +2447,7 @@
       "state": "MISSING",
       "evidence": "未填：fixtures[\"ext.restaurant\"].value 要填自然值，并把 filled 改成 true",
       "blocks_cases": 2,
-      "blocked_case_ids": [
-        "FS2-X06-01",
-        "FS2-V05-01"
-      ],
+      "blocked_case_ids": ["FS2-X06-01", "FS2-V05-01"],
       "side_effect": false,
       "action": "确认 get_restaurant 在授权目录里且数据源可用；把要查的城市/商圈填进 fixtures['ext.restaurant'].value。"
     },
@@ -2812,10 +2460,7 @@
       "state": "MISSING",
       "evidence": "未确认：把 fixtures[\"unauth.slack\"].filled 改成 true（前提是现实里真的成立）",
       "blocks_cases": 2,
-      "blocked_case_ids": [
-        "FS2-S01-01",
-        "FS2-S02-01"
-      ],
+      "blocked_case_ids": ["FS2-S01-01", "FS2-S02-01"],
       "side_effect": false,
       "action": "什么都别做——只要别在这轮把 slack 授权打开就行。如果你打算打开，提前告诉我，这两条负例要重写。"
     }

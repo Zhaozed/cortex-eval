@@ -94,20 +94,8 @@
     "web_search"
   ],
   "tool_coverage_built_count": 24,
-  "card_coverage": [
-    "CONFIRM",
-    "DOC",
-    "EVENT",
-    "LIST",
-    "MESSAGE"
-  ],
-  "card_coverage_built": [
-    "CONFIRM",
-    "DOC",
-    "EVENT",
-    "LIST",
-    "MESSAGE"
-  ],
+  "card_coverage": ["CONFIRM", "DOC", "EVENT", "LIST", "MESSAGE"],
+  "card_coverage_built": ["CONFIRM", "DOC", "EVENT", "LIST", "MESSAGE"],
   "sid_policy": null,
   "fixtures_snapshot": null,
   "dimension_declaration_count": {
@@ -287,16 +275,8 @@
       ],
       "expected_card": null,
       "side_effect": false,
-      "blocked_if": [
-        "person.self",
-        "person.qinyulong",
-        "chat.test_group"
-      ],
-      "unresolved_tokens": [
-        "self_name",
-        "colleague",
-        "group_name"
-      ],
+      "blocked_if": ["person.self", "person.qinyulong", "chat.test_group"],
+      "unresolved_tokens": ["self_name", "colleague", "group_name"],
       "cleanup": "只读，无写入。",
       "definition_sha256": "9764b244ab1f54355890c36457b4a3be1e411c8641624314a8bd1c78e5af5ac7"
     },
@@ -338,12 +318,8 @@
       ],
       "expected_card": null,
       "side_effect": true,
-      "blocked_if": [
-        "person.self"
-      ],
-      "unresolved_tokens": [
-        "codeword"
-      ],
+      "blocked_if": ["person.self"],
+      "unresolved_tokens": ["codeword"],
       "cleanup": "消息无删除工具：把 message_id 记入人工清理清单，评测结束后在飞书内撤回或删除。",
       "definition_sha256": "85a6722a5403d0488fce6dd59c03d8a12e6cd2bfd3691977ba14c18b4e195770"
     },
@@ -386,12 +362,8 @@
       ],
       "expected_card": "LIST",
       "side_effect": false,
-      "blocked_if": [
-        "chat.test_group"
-      ],
-      "unresolved_tokens": [
-        "group_name"
-      ],
+      "blocked_if": ["chat.test_group"],
+      "unresolved_tokens": ["group_name"],
       "cleanup": "只读，无写入。",
       "definition_sha256": "b4225ebe79c8bde39d90ae4346150e826b92a5987aea2dd73c45e50c2057de01"
     },
@@ -434,12 +406,8 @@
       ],
       "expected_card": "DOC",
       "side_effect": false,
-      "blocked_if": [
-        "doc.readonly_unique"
-      ],
-      "unresolved_tokens": [
-        "doc_readonly_title"
-      ],
+      "blocked_if": ["doc.readonly_unique"],
+      "unresolved_tokens": ["doc_readonly_title"],
       "cleanup": "只读，无写入，无需清理。",
       "definition_sha256": "be34733af02dca1d6654214f795a963961ee2532dedc5f7f8b8220651afa8c19"
     },
@@ -482,10 +450,7 @@
       ],
       "expected_card": "EVENT",
       "side_effect": false,
-      "blocked_if": [
-        "calendar.writable",
-        "calendar.event_tomorrow"
-      ],
+      "blocked_if": ["calendar.writable", "calendar.event_tomorrow"],
       "unresolved_tokens": [],
       "cleanup": "只读，无写入。",
       "definition_sha256": "bdf78f2b93d5bdecd5e065462cfd9faf279ab22a0b050c52b5161adc9cf2f697"
@@ -529,16 +494,8 @@
       ],
       "expected_card": null,
       "side_effect": true,
-      "blocked_if": [
-        "doc.readonly_unique",
-        "person.qinyulong",
-        "person.self"
-      ],
-      "unresolved_tokens": [
-        "doc_readonly_title",
-        "colleague",
-        "codeword"
-      ],
+      "blocked_if": ["doc.readonly_unique", "person.qinyulong", "person.self"],
+      "unresolved_tokens": ["doc_readonly_title", "colleague", "codeword"],
       "cleanup": "把两条 message_id 记入人工清理清单，评测结束后在飞书内撤回。",
       "definition_sha256": "68710a08db4797ea48f83d587bd990fb1a904ce0b5d28e8b07d096bd943d210c"
     },
@@ -579,13 +536,8 @@
       ],
       "expected_card": "MESSAGE",
       "side_effect": false,
-      "blocked_if": [
-        "person.qinyulong",
-        "chat.direct_history"
-      ],
-      "unresolved_tokens": [
-        "colleague"
-      ],
+      "blocked_if": ["person.qinyulong", "chat.direct_history"],
+      "unresolved_tokens": ["colleague"],
       "cleanup": "只读，无写入。",
       "definition_sha256": "169445925a2cc38fae4ca8fb6a1510b7563748be153f413c346cbf5ffa74f42e"
     },
@@ -629,13 +581,8 @@
       ],
       "expected_card": "CONFIRM",
       "side_effect": true,
-      "blocked_if": [
-        "chat.test_group"
-      ],
-      "unresolved_tokens": [
-        "group_name",
-        "codeword"
-      ],
+      "blocked_if": ["chat.test_group"],
+      "unresolved_tokens": ["group_name", "codeword"],
       "cleanup": "把 message_id 记入人工清理清单，评测结束后在飞书内撤回。",
       "definition_sha256": "328e6e1a14ef89fb7eaa506aff69cefe6ede0e2734739941d62dcdf7f1e911a7"
     },
@@ -677,12 +624,8 @@
       ],
       "expected_card": "DOC",
       "side_effect": false,
-      "blocked_if": [
-        "doc.readonly_unique"
-      ],
-      "unresolved_tokens": [
-        "doc_readonly_title"
-      ],
+      "blocked_if": ["doc.readonly_unique"],
+      "unresolved_tokens": ["doc_readonly_title"],
       "cleanup": "只读，无写入。",
       "definition_sha256": "bbf65f740a33f535cb982bfce503fbf03e374865b014cf3572548d36bd29b9ff"
     },
@@ -719,13 +662,8 @@
       ],
       "expected_card": null,
       "side_effect": false,
-      "blocked_if": [
-        "person.qinyulong",
-        "unauth.slack"
-      ],
-      "unresolved_tokens": [
-        "colleague"
-      ],
+      "blocked_if": ["person.qinyulong", "unauth.slack"],
+      "unresolved_tokens": ["colleague"],
       "cleanup": "无写入，无需清理。",
       "definition_sha256": "a856bc49fbd917f7ff9cf1b85b2d69df4b52ab04d2437cdd8396001c60e9a0d8"
     },
@@ -761,12 +699,8 @@
       ],
       "expected_card": null,
       "side_effect": false,
-      "blocked_if": [
-        "unauth.slack"
-      ],
-      "unresolved_tokens": [
-        "codeword"
-      ],
+      "blocked_if": ["unauth.slack"],
+      "unresolved_tokens": ["codeword"],
       "cleanup": "无写入（若命中只读查询亦无副作用）。",
       "definition_sha256": "ac47ce008a6802d5ae35f1efe36d68c4a07948045b82b2913604e6f8925a5a75"
     },
@@ -808,15 +742,8 @@
       ],
       "expected_card": null,
       "side_effect": false,
-      "blocked_if": [
-        "calendar.busy_slot",
-        "person.qinyulong",
-        "calendar.writable"
-      ],
-      "unresolved_tokens": [
-        "colleague",
-        "codeword"
-      ],
+      "blocked_if": ["calendar.busy_slot", "person.qinyulong", "calendar.writable"],
+      "unresolved_tokens": ["colleague", "codeword"],
       "cleanup": "无写入；calendar.busy_slot 保留供三次重跑使用，评测结束后取消。",
       "definition_sha256": "88b67f07c8d1e849cd1531114cbb13301bff994d76b95fb0aadee4ce1cc43055"
     },
@@ -855,13 +782,8 @@
       ],
       "expected_card": null,
       "side_effect": false,
-      "blocked_if": [
-        "room.ghost_absent",
-        "calendar.writable"
-      ],
-      "unresolved_tokens": [
-        "room_ghost"
-      ],
+      "blocked_if": ["room.ghost_absent", "calendar.writable"],
+      "unresolved_tokens": ["room_ghost"],
       "cleanup": "无写入，无需清理。",
       "definition_sha256": "2aaaeb2c59b52b1e636303b063b5bff955035de34ccd3d326b49090cbd199e33"
     },
@@ -906,13 +828,8 @@
       ],
       "expected_card": "DOC",
       "side_effect": true,
-      "blocked_if": [
-        "doc.readonly_unique"
-      ],
-      "unresolved_tokens": [
-        "doc_readonly_title",
-        "codeword"
-      ],
+      "blocked_if": ["doc.readonly_unique"],
+      "unresolved_tokens": ["doc_readonly_title", "codeword"],
       "cleanup": "把新建文档标识记入资源清单，评测结束后人工归档；原文档若出现改动即记为产品缺陷。",
       "definition_sha256": "b608933e3a0401202c46641bcef8e436b56488d677ee8c880189114a7a37478b"
     }

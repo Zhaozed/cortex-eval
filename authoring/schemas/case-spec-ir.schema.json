@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cortex.case-spec-ir.v1",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "sourcePath",
+    "profile",
+    "domain",
+    "capabilities",
+    "branches",
+    "constraints"
+  ],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "sourcePath": { "type": "string", "minLength": 1 },
+    "profile": { "type": "object", "required": ["id", "version"] },
+    "domain": { "type": "string", "minLength": 1 },
+    "userInput": { "type": ["string", "null"] },
+    "capabilities": { "type": "array", "items": { "type": "string" } },
+    "branches": { "type": "array", "items": { "type": "string" } },
+    "detectedTools": { "type": "array", "items": { "type": "string" } },
+    "detectedA2ui": { "type": "array", "items": { "type": "string" } },
+    "constraints": { "type": "object", "required": ["readOnly", "requiresEvidence"] }
+  },
+  "additionalProperties": false
+}

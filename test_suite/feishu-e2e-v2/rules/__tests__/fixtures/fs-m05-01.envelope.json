@@ -1,485 +1,448 @@
 {
- "ok": true,
- "task_name": "EVAL_E2E",
- "execution_mode": "isolated",
- "parsed_output": {
-  "schema_version": 1,
-  "reply_type": "NOTICE",
-  "reply_text": "飞书「飞书测试群」在 15:00–17:00 这段时间没有新消息。最近几条关于排期的讨论都在上午：结论：\n- M07话题基座排期方案已出，需要确认。- M04排期测试回归通过后走全量。需要你回复的问题：- 确认 M07话题基座的排期方案。- 确认 M04的回归结果（如果还没确认的话）。",
-  "present_mode": "none",
-  "request_identity": {
-   "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
-   "included_req_ids": [
-    "aaaaaaaaaaaaaaaaaaaaaaaa00000009"
-   ],
-   "task_id": "task_TESTTASK0029"
-  },
-  "route": {
-   "decision": "NEW",
-   "facts": {
-    "domain": "other",
-    "llm_intent": "NEW",
+  "ok": true,
+  "task_name": "EVAL_E2E",
+  "execution_mode": "isolated",
+  "parsed_output": {
+    "schema_version": 1,
+    "reply_type": "NOTICE",
+    "reply_text": "飞书「飞书测试群」在 15:00–17:00 这段时间没有新消息。最近几条关于排期的讨论都在上午：结论：\n- M07话题基座排期方案已出，需要确认。- M04排期测试回归通过后走全量。需要你回复的问题：- 确认 M07话题基座的排期方案。- 确认 M04的回归结果（如果还没确认的话）。",
+    "present_mode": "none",
+    "request_identity": {
+      "root_req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
+      "included_req_ids": ["aaaaaaaaaaaaaaaaaaaaaaaa00000009"],
+      "task_id": "task_TESTTASK0029"
+    },
+    "route": {
+      "decision": "NEW",
+      "facts": {
+        "domain": "other",
+        "llm_intent": "NEW",
+        "tools": ["feishu_list_messages"],
+        "reason": "需要读取指定飞书群聊消息以进行分析总结，符合 feishu 授权工具的使用范围。"
+      }
+    },
     "tools": [
-     "feishu_list_messages"
-    ],
-    "reason": "需要读取指定飞书群聊消息以进行分析总结，符合 feishu 授权工具的使用范围。"
-   }
-  },
-  "tools": [
-   {
-    "name": null
-   },
-   {
-    "name": null
-   },
-   {
-    "name": null
-   }
-  ],
-  "tool_executions": [
-   {
-    "tool_request_id": "tool_TESTTOOL0030",
-    "status": "SUCCEEDED",
-    "call_step_id": "step_TESTSTEP0031",
-    "calls": [
-     {
-      "name": "feishu_search_messages",
-      "param": {
-       "chat_id": "oc_TESTCHAT0009",
-       "end_time": "2026-09-15T17:00:00+08:00",
-       "start_time": "2026-09-15T15:00:00+08:00"
-      },
-      "tool_kind": "ONLINE",
-      "online_tool_category": "feishu"
-     }
-    ],
-    "terminals": [
-     {
-      "type": "TOOL_RESULT",
-      "tool_result": {
-       "status": "SUCCESS",
-       "result": {
-        "messages": [
-         {
-          "chat_id": "oc_TESTCHAT0009",
-          "create_time": "2026-09-15T08:12:36.489Z",
-          "message_id": "om_TESTMSG0032",
-          "msg_type": "text",
-          "sender_id": "ou_TESTUSER0007",
-          "text": "M07话题基座：排期方案已出，请确认。[EVAL:feishu-20260915-r1-M07]"
-         },
-         {
-          "chat_id": "oc_TESTCHAT0009",
-          "create_time": "2026-09-15T08:12:34.560Z",
-          "message_id": "om_TESTMSG0033",
-          "msg_type": "text",
-          "parent_id": "om_TESTMSG0034",
-          "root_id": "om_TESTMSG0034",
-          "sender_id": "ou_TESTUSER0007",
-          "text": "收到，回归通过后走全量。[EVAL:feishu-20260915-r1-M04]"
-         },
-         {
-          "chat_id": "oc_TESTCHAT0009",
-          "create_time": "2026-09-15T08:01:31.370Z",
-          "message_id": "om_TESTMSG0034",
-          "msg_type": "text",
-          "sender_id": "ou_TESTUSER0007",
-          "text": "排期测试：灰度后全量，请确认回归结果。[EVAL:feishu-20260915-r1-M04]"
-         }
-        ],
-        "total": 3
-       }
-      }
-     }
-    ]
-   },
-   {
-    "tool_request_id": "tool_TESTTOOL0035",
-    "status": "SUCCEEDED",
-    "call_step_id": "step_TESTSTEP0036",
-    "calls": [
-     {
-      "name": "feishu_search_messages",
-      "param": {
-       "chat_id": "oc_TESTCHAT0009",
-       "end_time": "2026-09-15T17:00:00+08:00",
-       "query": "",
-       "start_time": "2026-09-15T15:00:00+08:00"
-      },
-      "tool_kind": "ONLINE",
-      "online_tool_category": "feishu"
-     }
-    ],
-    "terminals": [
-     {
-      "type": "TOOL_RESULT",
-      "tool_result": {
-       "status": "SUCCESS",
-       "result": {
-        "messages": [
-         {
-          "chat_id": "oc_TESTCHAT0009",
-          "create_time": "2026-09-15T08:12:36.489Z",
-          "message_id": "om_TESTMSG0032",
-          "msg_type": "text",
-          "sender_id": "ou_TESTUSER0007",
-          "text": "M07话题基座：排期方案已出，请确认。[EVAL:feishu-20260915-r1-M07]"
-         },
-         {
-          "chat_id": "oc_TESTCHAT0009",
-          "create_time": "2026-09-15T08:12:34.560Z",
-          "message_id": "om_TESTMSG0033",
-          "msg_type": "text",
-          "parent_id": "om_TESTMSG0034",
-          "root_id": "om_TESTMSG0034",
-          "sender_id": "ou_TESTUSER0007",
-          "text": "收到，回归通过后走全量。[EVAL:feishu-20260915-r1-M04]"
-         },
-         {
-          "chat_id": "oc_TESTCHAT0009",
-          "create_time": "2026-09-15T08:01:31.370Z",
-          "message_id": "om_TESTMSG0034",
-          "msg_type": "text",
-          "sender_id": "ou_TESTUSER0007",
-          "text": "排期测试：灰度后全量，请确认回归结果。[EVAL:feishu-20260915-r1-M04]"
-         }
-        ],
-        "total": 3
-       }
-      }
-     }
-    ]
-   },
-   {
-    "tool_request_id": "tool_TESTTOOL0037",
-    "status": "SUCCEEDED",
-    "call_step_id": "step_TESTSTEP0038",
-    "calls": [
-     {
-      "name": "feishu_list_messages",
-      "param": {
-       "chat_id": "oc_TESTCHAT0009",
-       "limit": 50
-      },
-      "tool_kind": "ONLINE",
-      "online_tool_category": "feishu"
-     }
-    ],
-    "terminals": [
-     {
-      "type": "TOOL_RESULT",
-      "tool_result": {
-       "status": "SUCCESS",
-       "result": {
-        "messages": [
-         {
-          "chat_id": "oc_TESTCHAT0009",
-          "create_time": "2026-09-15T08:12:36.489Z",
-          "message_id": "om_TESTMSG0032",
-          "msg_type": "text",
-          "sender_id": "ou_TESTUSER0007",
-          "text": "M07话题基座：排期方案已出，请确认。[EVAL:feishu-20260915-r1-M07]"
-         },
-         {
-          "chat_id": "oc_TESTCHAT0009",
-          "create_time": "2026-09-15T08:12:34.560Z",
-          "message_id": "om_TESTMSG0033",
-          "msg_type": "text",
-          "parent_id": "om_TESTMSG0034",
-          "root_id": "om_TESTMSG0034",
-          "sender_id": "ou_TESTUSER0007",
-          "text": "收到，回归通过后走全量。[EVAL:feishu-20260915-r1-M04]"
-         },
-         {
-          "chat_id": "oc_TESTCHAT0009",
-          "create_time": "2026-09-15T08:01:31.370Z",
-          "message_id": "om_TESTMSG0034",
-          "msg_type": "text",
-          "sender_id": "ou_TESTUSER0007",
-          "text": "排期测试：灰度后全量，请确认回归结果。[EVAL:feishu-20260915-r1-M04]"
-         },
-         {
-          "chat_id": "oc_TESTCHAT0009",
-          "create_time": "2026-09-15T04:10:48.963Z",
-          "message_id": "om_TESTMSG0039",
-          "msg_type": "system"
-         }
-        ]
-       }
-      }
-     }
-    ]
-   }
-  ],
-  "tool_execution_count": 3,
-  "a2ui_surface_ids": [
-   "infoChip",
-   "cortex:task_TESTTASK0029:asst_TESTASST0040"
-  ],
-  "a2ui_source_tools": [
-   "feishu_list_messages"
-  ],
-  "a2ui_surfaces": [
-   {
-    "surface_id": "infoChip",
-    "catalog_id": "https://loona.dm/catalog/v1",
-    "component_ids": [
-     "root"
-    ],
-    "source_tool_names": [
-     "feishu_list_messages"
-    ],
-    "frame_count": 3,
-    "data_model": {
-     "computed": {
-      "arguments": "{\"chat_id\": \"oc_TESTCHAT0009\", \"limit\": 50}",
-      "argumentsLabel": "参数",
-      "icon": "loading_spin_ccw",
-      "title": "正在feishu_list_messages",
-      "toolName": "feishu_list_messages"
-     },
-     "static": null
-    }
-   },
-   {
-    "surface_id": "cortex:task_TESTTASK0029:asst_TESTASST0040",
-    "catalog_id": "https://loona.dm/catalog/v1",
-    "component_ids": [
-     "root",
-     "col",
-     "header",
-     "headerIcon",
-     "label",
-     "divider",
-     "title",
-     "results",
-     "messageItem",
-     "messageContent",
-     "messageMeta",
-     "messageText",
-     "tags",
-     "tagItem"
-    ],
-    "source_tool_names": [
-     "feishu_list_messages"
-    ],
-    "frame_count": 3,
-    "data_model": {
-     "computed": {
-      "label": "feishu_list_messages",
-      "paginationNotice": "",
-      "results": [
-       {
-        "detail": "",
-        "meta": "2026-09-15T08:12:36.489Z",
-        "sender": "发送人姓名未返回",
-        "text": "M07话题基座：排期方案已出，请确认。[EVAL:feishu-20260915-r1-M07]",
-        "timestamp": "2026-09-15T08:12:36.489Z"
-       },
-       {
-        "detail": "",
-        "meta": "2026-09-15T08:12:34.560Z",
-        "sender": "发送人姓名未返回",
-        "text": "收到，回归通过后走全量。[EVAL:feishu-20260915-r1-M04]",
-        "timestamp": "2026-09-15T08:12:34.560Z"
-       },
-       {
-        "detail": "",
-        "meta": "2026-09-15T08:01:31.370Z",
-        "sender": "发送人姓名未返回",
-        "text": "排期测试：灰度后全量，请确认回归结果。[EVAL:feishu-20260915-r1-M04]",
-        "timestamp": "2026-09-15T08:01:31.370Z"
-       },
-       {
-        "detail": "",
-        "meta": "2026-09-15T04:10:48.963Z",
-        "sender": "发送人姓名未返回",
-        "text": "",
-        "timestamp": "2026-09-15T04:10:48.963Z"
-       }
-      ],
-      "title": "feishu_list_messages"
-     },
-     "static": null
-    }
-   }
-  ],
-  "a2ui_validation": {
-   "error_codes": [
-    "list_path_not_array"
-   ],
-   "error_count": 1,
-   "has_errors": true,
-   "has_validator_errors": false,
-   "info_count": 0,
-   "issue_codes": [
-    "list_path_not_array"
-   ],
-   "payload_count": 4,
-   "surface_count": 2,
-   "surfaces": [
-    {
-     "catalog_id": "https://loona.dm/catalog/v1",
-     "component_ids": [
-      "root"
-     ],
-     "error_codes": [],
-     "error_count": 0,
-     "frame_count": 3,
-     "has_errors": false,
-     "info_count": 0,
-     "issue_codes": [],
-     "issues": [],
-     "issues_truncated": false,
-     "source_tool_names": [
-      "feishu_list_messages"
-     ],
-     "surface_id": "infoChip",
-     "validator_error": null,
-     "warn_count": 0
-    },
-    {
-     "catalog_id": "https://loona.dm/catalog/v1",
-     "component_ids": [
-      "root",
-      "col",
-      "header",
-      "headerIcon"
-     ],
-     "error_codes": [
-      "list_path_not_array"
-     ],
-     "error_count": 1,
-     "frame_count": 3,
-     "has_errors": true,
-     "info_count": 0,
-     "issue_codes": [
-      "list_path_not_array"
-     ],
-     "issues": [
       {
-       "code": "list_path_not_array",
-       "level": "error",
-       "location": "component:tags.children.path",
-       "message": "List 的 children.path=\"/computed/tags\" 不是数组",
-       "suggestion": "updateDataModel.value 需要包含该数组路径。当前数据字段：_chip, action_TESTRES0028, computed, render。"
+        "name": null
+      },
+      {
+        "name": null
+      },
+      {
+        "name": null
       }
-     ],
-     "issues_truncated": false,
-     "source_tool_names": [
-      "feishu_list_messages"
-     ],
-     "surface_id": "cortex:task_TESTTASK0029:asst_TESTASST0040",
-     "validator_error": null,
-     "warn_count": 0
+    ],
+    "tool_executions": [
+      {
+        "tool_request_id": "tool_TESTTOOL0030",
+        "status": "SUCCEEDED",
+        "call_step_id": "step_TESTSTEP0031",
+        "calls": [
+          {
+            "name": "feishu_search_messages",
+            "param": {
+              "chat_id": "oc_TESTCHAT0009",
+              "end_time": "2026-09-15T17:00:00+08:00",
+              "start_time": "2026-09-15T15:00:00+08:00"
+            },
+            "tool_kind": "ONLINE",
+            "online_tool_category": "feishu"
+          }
+        ],
+        "terminals": [
+          {
+            "type": "TOOL_RESULT",
+            "tool_result": {
+              "status": "SUCCESS",
+              "result": {
+                "messages": [
+                  {
+                    "chat_id": "oc_TESTCHAT0009",
+                    "create_time": "2026-09-15T08:12:36.489Z",
+                    "message_id": "om_TESTMSG0032",
+                    "msg_type": "text",
+                    "sender_id": "ou_TESTUSER0007",
+                    "text": "M07话题基座：排期方案已出，请确认。[EVAL:feishu-20260915-r1-M07]"
+                  },
+                  {
+                    "chat_id": "oc_TESTCHAT0009",
+                    "create_time": "2026-09-15T08:12:34.560Z",
+                    "message_id": "om_TESTMSG0033",
+                    "msg_type": "text",
+                    "parent_id": "om_TESTMSG0034",
+                    "root_id": "om_TESTMSG0034",
+                    "sender_id": "ou_TESTUSER0007",
+                    "text": "收到，回归通过后走全量。[EVAL:feishu-20260915-r1-M04]"
+                  },
+                  {
+                    "chat_id": "oc_TESTCHAT0009",
+                    "create_time": "2026-09-15T08:01:31.370Z",
+                    "message_id": "om_TESTMSG0034",
+                    "msg_type": "text",
+                    "sender_id": "ou_TESTUSER0007",
+                    "text": "排期测试：灰度后全量，请确认回归结果。[EVAL:feishu-20260915-r1-M04]"
+                  }
+                ],
+                "total": 3
+              }
+            }
+          }
+        ]
+      },
+      {
+        "tool_request_id": "tool_TESTTOOL0035",
+        "status": "SUCCEEDED",
+        "call_step_id": "step_TESTSTEP0036",
+        "calls": [
+          {
+            "name": "feishu_search_messages",
+            "param": {
+              "chat_id": "oc_TESTCHAT0009",
+              "end_time": "2026-09-15T17:00:00+08:00",
+              "query": "",
+              "start_time": "2026-09-15T15:00:00+08:00"
+            },
+            "tool_kind": "ONLINE",
+            "online_tool_category": "feishu"
+          }
+        ],
+        "terminals": [
+          {
+            "type": "TOOL_RESULT",
+            "tool_result": {
+              "status": "SUCCESS",
+              "result": {
+                "messages": [
+                  {
+                    "chat_id": "oc_TESTCHAT0009",
+                    "create_time": "2026-09-15T08:12:36.489Z",
+                    "message_id": "om_TESTMSG0032",
+                    "msg_type": "text",
+                    "sender_id": "ou_TESTUSER0007",
+                    "text": "M07话题基座：排期方案已出，请确认。[EVAL:feishu-20260915-r1-M07]"
+                  },
+                  {
+                    "chat_id": "oc_TESTCHAT0009",
+                    "create_time": "2026-09-15T08:12:34.560Z",
+                    "message_id": "om_TESTMSG0033",
+                    "msg_type": "text",
+                    "parent_id": "om_TESTMSG0034",
+                    "root_id": "om_TESTMSG0034",
+                    "sender_id": "ou_TESTUSER0007",
+                    "text": "收到，回归通过后走全量。[EVAL:feishu-20260915-r1-M04]"
+                  },
+                  {
+                    "chat_id": "oc_TESTCHAT0009",
+                    "create_time": "2026-09-15T08:01:31.370Z",
+                    "message_id": "om_TESTMSG0034",
+                    "msg_type": "text",
+                    "sender_id": "ou_TESTUSER0007",
+                    "text": "排期测试：灰度后全量，请确认回归结果。[EVAL:feishu-20260915-r1-M04]"
+                  }
+                ],
+                "total": 3
+              }
+            }
+          }
+        ]
+      },
+      {
+        "tool_request_id": "tool_TESTTOOL0037",
+        "status": "SUCCEEDED",
+        "call_step_id": "step_TESTSTEP0038",
+        "calls": [
+          {
+            "name": "feishu_list_messages",
+            "param": {
+              "chat_id": "oc_TESTCHAT0009",
+              "limit": 50
+            },
+            "tool_kind": "ONLINE",
+            "online_tool_category": "feishu"
+          }
+        ],
+        "terminals": [
+          {
+            "type": "TOOL_RESULT",
+            "tool_result": {
+              "status": "SUCCESS",
+              "result": {
+                "messages": [
+                  {
+                    "chat_id": "oc_TESTCHAT0009",
+                    "create_time": "2026-09-15T08:12:36.489Z",
+                    "message_id": "om_TESTMSG0032",
+                    "msg_type": "text",
+                    "sender_id": "ou_TESTUSER0007",
+                    "text": "M07话题基座：排期方案已出，请确认。[EVAL:feishu-20260915-r1-M07]"
+                  },
+                  {
+                    "chat_id": "oc_TESTCHAT0009",
+                    "create_time": "2026-09-15T08:12:34.560Z",
+                    "message_id": "om_TESTMSG0033",
+                    "msg_type": "text",
+                    "parent_id": "om_TESTMSG0034",
+                    "root_id": "om_TESTMSG0034",
+                    "sender_id": "ou_TESTUSER0007",
+                    "text": "收到，回归通过后走全量。[EVAL:feishu-20260915-r1-M04]"
+                  },
+                  {
+                    "chat_id": "oc_TESTCHAT0009",
+                    "create_time": "2026-09-15T08:01:31.370Z",
+                    "message_id": "om_TESTMSG0034",
+                    "msg_type": "text",
+                    "sender_id": "ou_TESTUSER0007",
+                    "text": "排期测试：灰度后全量，请确认回归结果。[EVAL:feishu-20260915-r1-M04]"
+                  },
+                  {
+                    "chat_id": "oc_TESTCHAT0009",
+                    "create_time": "2026-09-15T04:10:48.963Z",
+                    "message_id": "om_TESTMSG0039",
+                    "msg_type": "system"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "tool_execution_count": 3,
+    "a2ui_surface_ids": ["infoChip", "cortex:task_TESTTASK0029:asst_TESTASST0040"],
+    "a2ui_source_tools": ["feishu_list_messages"],
+    "a2ui_surfaces": [
+      {
+        "surface_id": "infoChip",
+        "catalog_id": "https://loona.dm/catalog/v1",
+        "component_ids": ["root"],
+        "source_tool_names": ["feishu_list_messages"],
+        "frame_count": 3,
+        "data_model": {
+          "computed": {
+            "arguments": "{\"chat_id\": \"oc_TESTCHAT0009\", \"limit\": 50}",
+            "argumentsLabel": "参数",
+            "icon": "loading_spin_ccw",
+            "title": "正在feishu_list_messages",
+            "toolName": "feishu_list_messages"
+          },
+          "static": null
+        }
+      },
+      {
+        "surface_id": "cortex:task_TESTTASK0029:asst_TESTASST0040",
+        "catalog_id": "https://loona.dm/catalog/v1",
+        "component_ids": [
+          "root",
+          "col",
+          "header",
+          "headerIcon",
+          "label",
+          "divider",
+          "title",
+          "results",
+          "messageItem",
+          "messageContent",
+          "messageMeta",
+          "messageText",
+          "tags",
+          "tagItem"
+        ],
+        "source_tool_names": ["feishu_list_messages"],
+        "frame_count": 3,
+        "data_model": {
+          "computed": {
+            "label": "feishu_list_messages",
+            "paginationNotice": "",
+            "results": [
+              {
+                "detail": "",
+                "meta": "2026-09-15T08:12:36.489Z",
+                "sender": "发送人姓名未返回",
+                "text": "M07话题基座：排期方案已出，请确认。[EVAL:feishu-20260915-r1-M07]",
+                "timestamp": "2026-09-15T08:12:36.489Z"
+              },
+              {
+                "detail": "",
+                "meta": "2026-09-15T08:12:34.560Z",
+                "sender": "发送人姓名未返回",
+                "text": "收到，回归通过后走全量。[EVAL:feishu-20260915-r1-M04]",
+                "timestamp": "2026-09-15T08:12:34.560Z"
+              },
+              {
+                "detail": "",
+                "meta": "2026-09-15T08:01:31.370Z",
+                "sender": "发送人姓名未返回",
+                "text": "排期测试：灰度后全量，请确认回归结果。[EVAL:feishu-20260915-r1-M04]",
+                "timestamp": "2026-09-15T08:01:31.370Z"
+              },
+              {
+                "detail": "",
+                "meta": "2026-09-15T04:10:48.963Z",
+                "sender": "发送人姓名未返回",
+                "text": "",
+                "timestamp": "2026-09-15T04:10:48.963Z"
+              }
+            ],
+            "title": "feishu_list_messages"
+          },
+          "static": null
+        }
+      }
+    ],
+    "a2ui_validation": {
+      "error_codes": ["list_path_not_array"],
+      "error_count": 1,
+      "has_errors": true,
+      "has_validator_errors": false,
+      "info_count": 0,
+      "issue_codes": ["list_path_not_array"],
+      "payload_count": 4,
+      "surface_count": 2,
+      "surfaces": [
+        {
+          "catalog_id": "https://loona.dm/catalog/v1",
+          "component_ids": ["root"],
+          "error_codes": [],
+          "error_count": 0,
+          "frame_count": 3,
+          "has_errors": false,
+          "info_count": 0,
+          "issue_codes": [],
+          "issues": [],
+          "issues_truncated": false,
+          "source_tool_names": ["feishu_list_messages"],
+          "surface_id": "infoChip",
+          "validator_error": null,
+          "warn_count": 0
+        },
+        {
+          "catalog_id": "https://loona.dm/catalog/v1",
+          "component_ids": ["root", "col", "header", "headerIcon"],
+          "error_codes": ["list_path_not_array"],
+          "error_count": 1,
+          "frame_count": 3,
+          "has_errors": true,
+          "info_count": 0,
+          "issue_codes": ["list_path_not_array"],
+          "issues": [
+            {
+              "code": "list_path_not_array",
+              "level": "error",
+              "location": "component:tags.children.path",
+              "message": "List 的 children.path=\"/computed/tags\" 不是数组",
+              "suggestion": "updateDataModel.value 需要包含该数组路径。当前数据字段：_chip, action_TESTRES0028, computed, render。"
+            }
+          ],
+          "issues_truncated": false,
+          "source_tool_names": ["feishu_list_messages"],
+          "surface_id": "cortex:task_TESTTASK0029:asst_TESTASST0040",
+          "validator_error": null,
+          "warn_count": 0
+        }
+      ],
+      "warn_count": 0
+    },
+    "outbound_capture": {
+      "status": "COLLECTED",
+      "request_ended": true,
+      "payload_count": 4,
+      "record_count": 11,
+      "failed_sids": [],
+      "observed_sids": ["eval-aaaaaaaaaaaaaaaaaaaaaaaa0000000a", "feishu-20260915-r1-m04"],
+      "error_type": null
+    },
+    "coverage": {
+      "evaluation_ready": true,
+      "truncated": false,
+      "retry_recommended": false
+    },
+    "final_output": {
+      "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
+      "text": "飞书「飞书测试群」在 15:00–17:00 这段时间没有新消息。最近几条关于排期的讨论都在上午：结论：\n- M07话题基座排期方案已出，需要确认。- M04排期测试回归通过后走全量。需要你回复的问题：- 确认 M07话题基座的排期方案。- 确认 M04的回归结果（如果还没确认的话）。",
+      "kind": "NOTICE",
+      "role": "assistant",
+      "asst_msg_id": "asst_TESTASST0040"
+    },
+    "delivered_messages": [
+      {
+        "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
+        "text": "飞书「飞书测试群」在 15:00–17:00 这段时间没有新消息。最近几条关于排期的讨论都在上午：结论：\n- M07话题基座排期方案已出，需要确认。- M04排期测试回归通过后走全量。需要你回复的问题：- 确认 M07话题基座的排期方案。- 确认 M04的回归结果（如果还没确认的话）。",
+        "kind": "NOTICE",
+        "role": "assistant",
+        "asst_msg_id": "asst_TESTASST0040"
+      }
+    ],
+    "errors": [
+      {
+        "audit_persisted_at": "2026-09-15T09:26:22.297726+00:00",
+        "call_id": 399,
+        "error_code": "INVALID_REQUEST",
+        "error_message_available": true,
+        "error_message_redacted": true,
+        "raw_failure_output": {
+          "body": {
+            "error": {
+              "code": 400,
+              "message": "Request contains an invalid argument.",
+              "status": "INVALID_ARGUMENT"
+            }
+          },
+          "status_code": 400
+        },
+        "raw_failure_output_available": true,
+        "raw_failure_output_redacted": false,
+        "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
+        "source": "llm_audit"
+      },
+      {
+        "audit_persisted_at": "2026-09-15T09:26:30.523244+00:00",
+        "call_id": 401,
+        "error_code": "INVALID_REQUEST",
+        "error_message_available": true,
+        "error_message_redacted": true,
+        "raw_failure_output": {
+          "body": {
+            "error": {
+              "code": 400,
+              "message": "Request contains an invalid argument.",
+              "status": "INVALID_ARGUMENT"
+            }
+          },
+          "status_code": 400
+        },
+        "raw_failure_output_available": true,
+        "raw_failure_output_redacted": false,
+        "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
+        "source": "llm_audit"
+      },
+      {
+        "audit_persisted_at": "2026-09-15T09:26:35.546092+00:00",
+        "call_id": 403,
+        "error_code": "INVALID_REQUEST",
+        "error_message_available": true,
+        "error_message_redacted": true,
+        "raw_failure_output": {
+          "body": {
+            "error": {
+              "code": 400,
+              "message": "Request contains an invalid argument.",
+              "status": "INVALID_ARGUMENT"
+            }
+          },
+          "status_code": 400
+        },
+        "raw_failure_output_available": true,
+        "raw_failure_output_redacted": false,
+        "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
+        "source": "llm_audit"
+      }
+    ],
+    "unsupported_reason": null,
+    "conversation_execution": {
+      "complete": true,
+      "completed_turns": 1,
+      "expected_turns": 1,
+      "observed_turns": 1
     }
-   ],
-   "warn_count": 0
-  },
-  "outbound_capture": {
-   "status": "COLLECTED",
-   "request_ended": true,
-   "payload_count": 4,
-   "record_count": 11,
-   "failed_sids": [],
-   "observed_sids": [
-    "eval-aaaaaaaaaaaaaaaaaaaaaaaa0000000a",
-    "feishu-20260915-r1-m04"
-   ],
-   "error_type": null
-  },
-  "coverage": {
-   "evaluation_ready": true,
-   "truncated": false,
-   "retry_recommended": false
-  },
-  "final_output": {
-   "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
-   "text": "飞书「飞书测试群」在 15:00–17:00 这段时间没有新消息。最近几条关于排期的讨论都在上午：结论：\n- M07话题基座排期方案已出，需要确认。- M04排期测试回归通过后走全量。需要你回复的问题：- 确认 M07话题基座的排期方案。- 确认 M04的回归结果（如果还没确认的话）。",
-   "kind": "NOTICE",
-   "role": "assistant",
-   "asst_msg_id": "asst_TESTASST0040"
-  },
-  "delivered_messages": [
-   {
-    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
-    "text": "飞书「飞书测试群」在 15:00–17:00 这段时间没有新消息。最近几条关于排期的讨论都在上午：结论：\n- M07话题基座排期方案已出，需要确认。- M04排期测试回归通过后走全量。需要你回复的问题：- 确认 M07话题基座的排期方案。- 确认 M04的回归结果（如果还没确认的话）。",
-    "kind": "NOTICE",
-    "role": "assistant",
-    "asst_msg_id": "asst_TESTASST0040"
-   }
-  ],
-  "errors": [
-   {
-    "audit_persisted_at": "2026-09-15T09:26:22.297726+00:00",
-    "call_id": 399,
-    "error_code": "INVALID_REQUEST",
-    "error_message_available": true,
-    "error_message_redacted": true,
-    "raw_failure_output": {
-     "body": {
-      "error": {
-       "code": 400,
-       "message": "Request contains an invalid argument.",
-       "status": "INVALID_ARGUMENT"
-      }
-     },
-     "status_code": 400
-    },
-    "raw_failure_output_available": true,
-    "raw_failure_output_redacted": false,
-    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
-    "source": "llm_audit"
-   },
-   {
-    "audit_persisted_at": "2026-09-15T09:26:30.523244+00:00",
-    "call_id": 401,
-    "error_code": "INVALID_REQUEST",
-    "error_message_available": true,
-    "error_message_redacted": true,
-    "raw_failure_output": {
-     "body": {
-      "error": {
-       "code": 400,
-       "message": "Request contains an invalid argument.",
-       "status": "INVALID_ARGUMENT"
-      }
-     },
-     "status_code": 400
-    },
-    "raw_failure_output_available": true,
-    "raw_failure_output_redacted": false,
-    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
-    "source": "llm_audit"
-   },
-   {
-    "audit_persisted_at": "2026-09-15T09:26:35.546092+00:00",
-    "call_id": 403,
-    "error_code": "INVALID_REQUEST",
-    "error_message_available": true,
-    "error_message_redacted": true,
-    "raw_failure_output": {
-     "body": {
-      "error": {
-       "code": 400,
-       "message": "Request contains an invalid argument.",
-       "status": "INVALID_ARGUMENT"
-      }
-     },
-     "status_code": 400
-    },
-    "raw_failure_output_available": true,
-    "raw_failure_output_redacted": false,
-    "req_id": "aaaaaaaaaaaaaaaaaaaaaaaa00000009",
-    "source": "llm_audit"
-   }
-  ],
-  "unsupported_reason": null,
-  "conversation_execution": {
-   "complete": true,
-   "completed_turns": 1,
-   "expected_turns": 1,
-   "observed_turns": 1
   }
- }
 }

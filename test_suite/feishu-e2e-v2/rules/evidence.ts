@@ -115,6 +115,23 @@ export const AUTHORIZED_TOOLS: readonly string[] = [
 /** 评测框架自身的申报工具，不属于业务目录，但会出现在 tool_executions 里（D6.2）。 */
 export const META_TOOLS: readonly string[] = ["declare_miss_tool_candidates"];
 
+/** 读/搜/列类工具：返回空对象/空数组是合法语义（0 条结果、线程无回复、无人空闲），D3.2 不判为空结果失败。 */
+export const EMPTY_OK_TOOLS: readonly string[] = [
+  "feishu_search_docs",
+  "feishu_search_messages",
+  "feishu_search_users",
+  "feishu_list_messages",
+  "feishu_list_conversations",
+  "feishu_list_chat_members",
+  "feishu_list_room_availability",
+  "list_events",
+  "feishu_query_free_busy",
+  "feishu_get_thread_replies",
+  "web_search",
+  "get_restaurant",
+  "list_restaurants"
+];
+
 /** 写入型工具（默认清单；场景可用 allowedWrites 的键扩充）。 */
 export const DEFAULT_WRITE_TOOLS: readonly string[] = [
   "create_event",
@@ -516,9 +533,7 @@ export function presentMode(frame: Frame): string | null {
 
 export function executions(frame: Frame): readonly Json[] | Insufficient {
   const value = arr(frame.p.tool_executions);
-  return value === null
-    ? insufficient(`第${frame.index + 1}帧缺 tool_executions 数组`)
-    : value;
+  return value === null ? insufficient(`第${frame.index + 1}帧缺 tool_executions 数组`) : value;
 }
 
 /**
@@ -609,7 +624,10 @@ export function cardFamiliesOfSurface(surface: Surface): readonly CardFamily[] {
     }
     if (matched) hit.push(family);
   }
-  if (!hit.length && CARD_FAMILY_COMPONENTS.TEXT.some((k) => componentHits(surface.componentIds, k))) {
+  if (
+    !hit.length &&
+    CARD_FAMILY_COMPONENTS.TEXT.some((k) => componentHits(surface.componentIds, k))
+  ) {
     hit.push("TEXT");
   }
   return hit;
@@ -624,9 +642,7 @@ export function cardTypes(frame: Frame): readonly CardFamily[] | Insufficient {
 
 export function a2uiValidation(frame: Frame): Record<string, Json> | Insufficient {
   const value = rec(frame.p.a2ui_validation);
-  return value === null
-    ? insufficient(`第${frame.index + 1}帧缺 a2ui_validation`)
-    : value;
+  return value === null ? insufficient(`第${frame.index + 1}帧缺 a2ui_validation`) : value;
 }
 
 export function outboundCapture(frame: Frame): Record<string, Json> | Insufficient {
@@ -641,9 +657,7 @@ export function finalOutput(frame: Frame): Record<string, Json> | Insufficient {
 
 export function deliveredMessages(frame: Frame): readonly Json[] | Insufficient {
   const value = arr(frame.p.delivered_messages);
-  return value === null
-    ? insufficient(`第${frame.index + 1}帧缺 delivered_messages 数组`)
-    : value;
+  return value === null ? insufficient(`第${frame.index + 1}帧缺 delivered_messages 数组`) : value;
 }
 
 export function routeDecision(frame: Frame): string | Insufficient {
@@ -677,7 +691,10 @@ export const INTERNAL_ID_PATTERNS: readonly (readonly [string, string])[] = [
   ["内部步骤/任务ID", "(?:tool|asst|task|step|call)_[A-Za-z0-9]{6,}"],
   ["裸URL", "https?://[^\\s，。、）)】]+"],
   ["日历ID", "[A-Za-z0-9._-]+@group\\.calendar\\.[A-Za-z0-9.-]+"],
-  ["内部字段名", "(?:calendar_id|message_id|open_id|chat_id|document_id|tool_request_id|root_req_id|page_token)"]
+  [
+    "内部字段名",
+    "(?:calendar_id|message_id|open_id|chat_id|document_id|tool_request_id|root_req_id|page_token)"
+  ]
 ];
 
 /** 原始工具名形态（D4.3 / D5.7 都不得让用户看见）。 */

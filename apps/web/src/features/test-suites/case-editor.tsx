@@ -305,6 +305,22 @@ export function CaseEditor({
     setAssertionKeys(result.state.draft.assert.map(() => crypto.randomUUID()));
   };
 
+  // Reveal and report one native validity failure instead of silently dropping the save.
+  const surfaceNativeValidityError = (): boolean => {
+    const form = formRef.current;
+    if (form === null || form.checkValidity()) return false;
+    const invalid = form.querySelector<HTMLElement>(":invalid");
+    const collapsed = invalid?.closest("details") ?? null;
+    if (collapsed !== null) collapsed.open = true;
+    setStructuredError({
+      message: message("caseEditor.fieldInvalid"),
+      target: "ROOT",
+      assertionIndex: null
+    });
+    if (invalid !== null) focusAfterSave(() => invalid.focus());
+    return true;
+  };
+
   // Save only the currently validated shared Draft.
   const save = async (): Promise<void> => {
     if (savingRef.current) return;
@@ -336,7 +352,7 @@ export function CaseEditor({
       else setStructuredError({ message: error, target: "GUIDED_ASSERTION", assertionIndex: 0 });
       return;
     }
-    if (!savingFromJson && formRef.current?.reportValidity() === false) return;
+    if (!savingFromJson && surfaceNativeValidityError()) return;
     if (!savingFromJson) setEditor(next);
     savingRef.current = true;
     setSaving(true);
@@ -481,7 +497,7 @@ export function CaseEditor({
                                 type="number"
                                 min="0"
                                 max="1"
-                                step="0.01"
+                                step="any"
                                 {...field}
                                 onChange={(event) =>
                                   field.onChange(event.currentTarget.valueAsNumber)

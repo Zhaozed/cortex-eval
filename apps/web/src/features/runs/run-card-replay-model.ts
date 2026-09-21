@@ -19,27 +19,37 @@ function surfaceOf(message: Record<string, unknown>): string | null {
     if (text(object(message[key]).surfaceId)) return text(object(message[key]).surfaceId);
   return null;
 }
-/** A new createSurface in a later outbound batch begins a new incarnation of that ID.
- * Keep earlier stages inspectable, but do not feed earlier incarnations into this replay.
- * Deltas within an incarnation remain ordered; the stored evidence is never changed.
+/**
+ * Replay a prefix without sending duplicate createSurface messages for an already-live ID.
+ *
+ * Tool progress often stores a complete InfoChip snapshot on every outbound batch. The
+ * renderer rejects a second createSurface for the same live ID, so repeated creates are
+ * treated as idempotent snapshots and their update messages are retained. A create after
+ * deleteSurface is a real new incarnation and is kept. Cross-turn isolation is handled by
+ * the caller below.
  */
 function replayPrefix(payloads: readonly Record<string, unknown>[]): Record<string, unknown>[] {
-  const starts = new Map<string, number>();
-  payloads.forEach((p, index) => {
-    for (const message of records(p.messages)) {
-      const id = text(object(message.createSurface).surfaceId);
-      if (id) starts.set(id, index);
-    }
-  });
+  const live = new Set<string>();
   return payloads
-    .map((p, index) => ({
-      ...p,
-      messages: records(p.messages).filter((message) => {
-        const id = surfaceOf(message);
-        return id === null || index >= (starts.get(id) ?? 0);
-      })
-    }))
-    .filter((p) => p.messages.length > 0);
+    .map((payload) => {
+      const messages = records(payload.messages).flatMap((message) => {
+        const createId = text(object(message.createSurface).surfaceId);
+        if (createId) {
+          if (live.has(createId)) {
+            const withoutDuplicateCreate = { ...message };
+            delete withoutDuplicateCreate.createSurface;
+            return Object.keys(withoutDuplicateCreate).length ? [withoutDuplicateCreate] : [];
+          }
+          live.add(createId);
+          return [message];
+        }
+        const surface = surfaceOf(message);
+        if (surface && object(message.deleteSurface).surfaceId === surface) live.delete(surface);
+        return [message];
+      });
+      return { ...payload, messages };
+    })
+    .filter((payload) => payload.messages.length > 0);
 }
 /** Replay prefixes, never isolated delta messages. Keep original ordering and global messages. */
 export function cardReplayFrames(payloads: readonly Record<string, unknown>[]): CardReplayFrame[] {

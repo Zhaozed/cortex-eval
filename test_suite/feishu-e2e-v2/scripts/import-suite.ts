@@ -43,9 +43,13 @@ const base = (get("--base") ?? "http://127.0.0.1:4310").replace(/\/$/, "");
 const deleteId = get("--delete-suite");
 if (deleteId) {
   if (PROTECTED_SUITE_IDS.has(deleteId)) throw new Error(`拒绝执行：${deleteId} 是受保护的旧套件`);
-  const detail = await (await fetch(`${base}/api/v1/test-suites/${deleteId}`)).json() as any;
-  const res = await fetch(`${base}/api/v1/test-suites/${deleteId}?expectedRevision=${detail.revision}`, { method: "DELETE" });
-  if (!res.ok && res.status !== 204) throw new Error(`删除失败 HTTP ${res.status}\n${(await res.text()).slice(0, 500)}`);
+  const detail = (await (await fetch(`${base}/api/v1/test-suites/${deleteId}`)).json()) as any;
+  const res = await fetch(
+    `${base}/api/v1/test-suites/${deleteId}?expectedRevision=${detail.revision}`,
+    { method: "DELETE" }
+  );
+  if (!res.ok && res.status !== 204)
+    throw new Error(`删除失败 HTTP ${res.status}\n${(await res.text()).slice(0, 500)}`);
   console.log(`已删除套件 ${deleteId}（${detail.name}）`);
   process.exit(0);
 }
@@ -72,7 +76,8 @@ console.log(`读取 ${lines.length} 条 case：${casesPath}`);
 async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(base + path, init);
   const body = await res.text();
-  if (!res.ok) throw new Error(`${init?.method ?? "GET"} ${path} → HTTP ${res.status}\n${body.slice(0, 800)}`);
+  if (!res.ok)
+    throw new Error(`${init?.method ?? "GET"} ${path} → HTTP ${res.status}\n${body.slice(0, 800)}`);
   return body ? (JSON.parse(body) as T) : (undefined as T);
 }
 
@@ -89,7 +94,9 @@ for (let page = 0; page < 50; page += 1) {
 }
 if (suite) {
   if (PROTECTED_SUITE_IDS.has(suite.id)) throw new Error(`拒绝执行：${suite.id} 是受保护的旧套件`);
-  console.log(`复用已有套件：${suite.name}（id=${suite.id}，revision=${suite.revision}，当前 ${suite.caseCount} 条）`);
+  console.log(
+    `复用已有套件：${suite.name}（id=${suite.id}，revision=${suite.revision}，当前 ${suite.caseCount} 条）`
+  );
   /* 描述漂移会让「全集 / MINI 冒烟」在平台列表里长得一样，必须同步。dry-run 只提示不动手 */
   if ((suite as any).description !== description) {
     if (dryRun) console.log("[dry-run] 描述与平台现值不一致，真导入时会 PUT 同步");
@@ -127,15 +134,21 @@ if (dryRun && !suite) {
 const suiteId = suite!.id;
 
 /* 2/3. 导入（先 dryRun 再真导） */
-const filename = basename(casesPath).endsWith(".jsonl") ? basename(casesPath) : `${basename(casesPath)}.jsonl`;
+const filename = basename(casesPath).endsWith(".jsonl")
+  ? basename(casesPath)
+  : `${basename(casesPath)}.jsonl`;
 async function postImport(expectedRevision: number, isDry: boolean) {
   const form = new FormData();
   form.append("file", new Blob([raw], { type: "application/x-ndjson" }), filename);
   const qs = new URLSearchParams({ expectedRevision: String(expectedRevision) });
   if (isDry) qs.set("dryRun", "true");
-  const res = await fetch(`${base}/api/v1/test-suites/${suiteId}/import?${qs}`, { method: "POST", body: form });
+  const res = await fetch(`${base}/api/v1/test-suites/${suiteId}/import?${qs}`, {
+    method: "POST",
+    body: form
+  });
   const body = await res.text();
-  if (!res.ok) throw new Error(`导入${isDry ? "预检" : ""}失败 HTTP ${res.status}\n${body.slice(0, 3000)}`);
+  if (!res.ok)
+    throw new Error(`导入${isDry ? "预检" : ""}失败 HTTP ${res.status}\n${body.slice(0, 3000)}`);
   return body ? JSON.parse(body) : null;
 }
 
@@ -143,7 +156,8 @@ const current = await api<any>(`/api/v1/test-suites/${suiteId}`);
 const preview = await postImport(current.revision, true);
 console.log(`服务端预检：${JSON.stringify(preview?.summary ?? preview, null, 2).slice(0, 1200)}`);
 const previewErrors = (preview?.errors ?? preview?.issues ?? []) as any[];
-if (previewErrors.length && !force) throw new Error(`服务端预检报 ${previewErrors.length} 处问题，已中止。加 --force 可强行导入。`);
+if (previewErrors.length && !force)
+  throw new Error(`服务端预检报 ${previewErrors.length} 处问题，已中止。加 --force 可强行导入。`);
 
 if (dryRun) {
   console.log("[dry-run] 预检通过，未真导入。");
@@ -160,7 +174,8 @@ for (let page = 0; page < 20; page += 1) {
   const qs = new URLSearchParams({ limit: "100" });
   if (caseCursor) qs.set("cursor", caseCursor);
   const res = await api<any>(`/api/v1/test-suites/${suiteId}/cases?${qs}`);
-  for (const it of res.items ?? []) readBack.push(it.caseKey ?? it.case_id ?? it.metadata?.case_id ?? "?");
+  for (const it of res.items ?? [])
+    readBack.push(it.caseKey ?? it.case_id ?? it.metadata?.case_id ?? "?");
   caseCursor = res.nextCursor;
   if (!caseCursor) break;
 }

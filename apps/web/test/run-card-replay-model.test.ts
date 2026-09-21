@@ -34,25 +34,59 @@ it("retains prior stages while deletion-only updates do not become broken empty 
   expect(frames).toHaveLength(1);
   expect(frames[0]?.batch).toBe(0);
 });
-it("replays repeated IDs as separate incarnations while preserving later deltas and other surfaces", () => {
-  const create = (surfaceId: string) => ({ createSurface: { surfaceId } });
-  const update = (surfaceId: string, value: number) => ({ updateDataModel: { surfaceId, value } });
+it("keeps repeated snapshot updates and later display cards in the replay", () => {
   const payloads = [
-    { messages: [create("chip"), update("chip", 1), create("tasks")] },
-    { messages: [create("chip"), update("chip", 2)] },
-    { messages: [update("chip", 3)] }
+    {
+      messages: [
+        { createSurface: { surfaceId: "infoChip" } },
+        {
+          updateComponents: {
+            surfaceId: "infoChip",
+            components: [{ id: "root", component: "InfoChip" }]
+          }
+        },
+        { updateDataModel: { surfaceId: "infoChip", value: { text: "搜索中" } } }
+      ]
+    },
+    {
+      messages: [
+        { createSurface: { surfaceId: "infoChip" } },
+        {
+          updateComponents: {
+            surfaceId: "infoChip",
+            components: [{ id: "root", component: "InfoChip" }]
+          }
+        },
+        { updateDataModel: { surfaceId: "infoChip", value: { text: "已完成" } } }
+      ]
+    },
+    {
+      messages: [
+        { createSurface: { surfaceId: "tasks" } },
+        {
+          updateComponents: { surfaceId: "tasks", components: [{ id: "root", component: "Card" }] }
+        },
+        { updateDataModel: { surfaceId: "tasks", value: { title: "发布方案 V2｜正式版" } } }
+      ]
+    }
   ];
   const original = JSON.stringify(payloads);
   const frames = cardReplayFrames(payloads);
-  expect(frames[0]?.payloads).toEqual([{ messages: [create("chip"), update("chip", 1)] }]);
-  expect(frames.find((f) => f.batch === 1 && f.surface === "chip")?.payloads).toEqual([
-    payloads[1]
+  const second = payloads[1];
+  if (!second) throw new Error("test fixture missing second payload");
+  const chipFrame = frames.find((f) => f.batch === 1 && f.surface === "infoChip");
+  expect(chipFrame?.payloads).toEqual([
+    payloads[0],
+    {
+      messages: [
+        { updateComponents: second.messages[1]!.updateComponents },
+        { updateDataModel: second.messages[2]!.updateDataModel }
+      ]
+    }
   ]);
-  expect(frames.at(-1)?.payloads).toEqual([
-    { messages: [create("tasks")] },
-    payloads[1],
-    payloads[2]
-  ]);
+  const displayFrame = frames.find((f) => f.batch === 2 && f.surface === "tasks");
+  expect(displayFrame?.payloads).toEqual([payloads[2]]);
+  expect(frames.at(-1)?.payloads.flatMap((p) => p.messages)).toHaveLength(8);
   expect(JSON.stringify(payloads)).toBe(original);
 });
 

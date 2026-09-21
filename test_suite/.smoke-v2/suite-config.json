@@ -48,17 +48,11 @@
   "known_natural_values": {
     "person_name": "秦宇龙",
     "group_name": "飞书测试群",
-    "group_members": [
-      "赵泽宇",
-      "周壮",
-      "秦宇龙"
-    ],
+    "group_members": ["赵泽宇", "周壮", "秦宇龙"],
     "meeting_room": "苏州",
     "writable_calendar_name": "赵泽宇的日历"
   },
-  "unauthorized_tool_families": [
-    "slack"
-  ],
+  "unauthorized_tool_families": ["slack"],
   "notes": [
     "present_mode 实测恒为 none，禁止作为出卡判据；出卡看 a2ui_surfaces[].surface_id 是否以 cortex: 开头（infoChip 是进度条，不算结果卡）。",
     "prompt 禁止出现 URL / ou_ oc_ om_ omm_ on_ 前缀 ID / docx token / calendar_id / ISO8601 时间 / [EVAL:] 标记。",
@@ -83,17 +77,8 @@
       "feishu_send_message",
       "feishu_update_doc"
     ],
-    "calendar(5)": [
-      "create_event",
-      "delete_events",
-      "get_event",
-      "list_events",
-      "update_event"
-    ],
-    "external(2)": [
-      "web_search",
-      "get_restaurant"
-    ]
+    "calendar(5)": ["create_event", "delete_events", "get_event", "list_events", "update_event"],
+    "external(2)": ["web_search", "get_restaurant"]
   },
   "target_tools": [
     "create_event",

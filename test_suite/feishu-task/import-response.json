@@ -1,0 +1,13 @@
+{
+  "count": 11,
+  "suite": {
+    "id": "01a0c236-10c7-761f-a62d-82c39f70a933",
+    "name": "飞书-任务评测",
+    "description": "UID=2075490654049271808；11例覆盖T01-T09，并新增2条组合长链路。7例isolated只读/单动作，4例client用于跨轮可信身份、确认与长链路。规则：真实tool_executions优先；collection_id只来自成功清单结果；Feishu仅返回一级任务；空结果、权限失败、分页未完成和部分失败分开表达；未知写结果先回读不重试。创建/更新/删除类按真实task_id精确清理。",
+    "caseCount": 11,
+    "suiteHash": "7eb550bd2f0b3bf09f4240fd85ca1627bcf9c270b61c176f958058952df488b6",
+    "revision": 3,
+    "createdAt": "2026-09-21T04:25:18.279Z",
+    "updatedAt": "2026-09-21T07:32:11.078Z"
+  }
+}

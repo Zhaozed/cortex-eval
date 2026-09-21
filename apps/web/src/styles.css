@@ -2577,6 +2577,17 @@ a {
   font-size: 11px;
   color: #6e818d;
 }
+.run-check-heading-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.run-check-heading-actions > span {
+  font-size: 11px;
+  color: #6e818d;
+}
 .run-check-overall {
   padding: 0 14px;
   color: #6e818d;
@@ -2628,22 +2639,24 @@ a {
   padding: 4px 14px;
 }
 
-/* --- v2 Assertion readability: tier badges, dimension groups, veto summary --- */
-/* Case 详情页顶部结论条：结论 + 硬性/质量计数 + 失败项 top1。 */
+/* --- v2 Assertion readability: tier badges, dimension groups, single verdict card --- */
+/* Case 详情页顶部结论卡：只保留一个结论容器，失败项统一列在卡内。 */
 .run-verdict-bar {
   margin: 0 14px 12px;
-  padding: 10px 12px;
+  padding: 12px 14px 13px;
   border: 1px solid var(--line-strong);
-  border-left: 3px solid var(--line-strong);
-  border-radius: 8px;
-  background: var(--paper-deep);
+  border-left: 4px solid var(--line-strong);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(31 55 72 / 5%);
 }
 .run-verdict-bar[data-verdict="PASS"] {
   border-left-color: var(--pass);
 }
 .run-verdict-bar[data-verdict="FAIL"] {
+  border-color: var(--hard-line);
   border-left-color: var(--danger);
-  background: var(--danger-tint);
+  background: #fffafa;
 }
 .run-verdict-bar[data-verdict="EVALUATION_ERROR"] {
   border-left-color: var(--warn);
@@ -2658,8 +2671,8 @@ a {
   color: var(--ink-soft);
 }
 .run-verdict-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
 }
 .run-verdict-bar[data-verdict="PASS"] .run-verdict-label {
   color: var(--pass-dark);
@@ -2691,35 +2704,91 @@ a {
   font-size: 11px;
   font-weight: 600;
 }
-.run-verdict-top1 {
-  margin-top: 9px;
-  padding-top: 9px;
-  border-top: 1px dashed var(--line-strong);
+.run-verdict-issues {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--hard-line);
 }
-.run-verdict-top1-head {
-  display: inline-block;
-  margin-right: 7px;
-  padding: 1px 7px;
-  border-radius: 4px;
-  background: #e8edf2;
+.run-verdict-issues-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+  color: var(--danger-dark);
+  font-size: 12px;
+}
+.run-verdict-issues-head > strong {
+  font-weight: 700;
+}
+.run-verdict-issues-head > span {
   color: var(--muted);
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
-.run-verdict-top1-name {
+.run-verdict-issues > ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.run-verdict-issue {
+  padding: 8px 10px;
+  border: 1px solid #efd4d4;
+  border-radius: 7px;
+  background: #fff;
+}
+.run-check-item-issue {
+  border-top: 0;
+  padding: 0;
+  background: transparent;
+}
+.run-check-item-issue > summary {
+  color: var(--danger-dark);
+}
+.run-check-item-issue .run-check-name {
+  color: var(--danger-dark);
+}
+.run-check-item-issue .run-check-body {
+  padding-bottom: 0;
+}
+.run-verdict-issue-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.run-verdict-issue-name {
   display: inline-flex;
+  min-width: 0;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 6px;
-  color: var(--ink-soft);
+  color: var(--danger-dark);
   font-size: 12px;
   font-weight: 600;
 }
-.run-verdict-top1-name > span {
+.run-verdict-issue-name > span {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.run-verdict-top1 .run-check-reason {
+.run-verdict-issue-head [data-slot="badge"] {
+  flex: 0 0 auto;
+  font-size: 10px;
+}
+.run-verdict-issue .run-check-reason {
   margin: 5px 0 0;
+}
+.run-verdict-issue-evidence {
+  margin-top: 6px;
+  border-top: 1px dashed #ead7d7;
+  padding-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.run-verdict-issue-evidence > summary {
+  cursor: pointer;
 }
 /* 列表里的黄色角标：PASS 也带质量缺陷。 */
 .run-soft-miss {
@@ -2734,69 +2803,50 @@ a {
   font-weight: 600;
   white-space: nowrap;
 }
-.run-check-veto {
-  margin: 0 14px 10px;
-  padding: 9px 11px;
-  border: 1px solid var(--hard-line);
-  border-left: 3px solid var(--danger);
-  border-radius: 8px;
-  background: var(--hard-soft);
-}
-.run-check-veto-head {
-  margin: 0 0 6px;
-  color: var(--danger-dark);
-  font-size: 12px;
-  font-weight: 600;
-}
-.run-check-veto ol {
-  margin: 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 7px;
-}
-.run-check-veto-name {
-  color: var(--danger-dark);
-  font-size: 12px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-.run-check-veto-empty {
-  margin: 0 14px 10px;
-  padding: 8px 10px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 8px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.run-check-toggle {
-  margin: 0 14px 8px;
-  padding: 4px 9px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  background: #fff;
-  color: var(--ink-soft);
-  font-size: 11px;
-  cursor: pointer;
-}
-.run-check-toggle:hover {
-  background: var(--paper-deep);
-}
 .run-check-group {
   border-top: 1px solid #edf0f3;
 }
-.run-check-group-head {
+.run-check-group > summary {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 9px 14px 3px;
+  padding: 11px 14px;
   background: #fbfcfd;
+  cursor: pointer;
+  list-style: none;
+}
+.run-check-group > summary::-webkit-details-marker {
+  display: none;
+}
+.run-check-group > summary::before {
+  content: "›";
+  flex: 0 0 auto;
+  color: #718795;
+  font-size: 18px;
+  line-height: 1;
+  transform: translateY(-1px);
+  transition: transform 120ms ease;
+}
+.run-check-group[open] > summary::before {
+  transform: rotate(90deg) translateX(-1px);
 }
 .run-check-group-head h4 {
   margin: 0;
   color: var(--ink-soft);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+}
+.run-check-group-title {
+  flex: 1;
+  min-width: 0;
+}
+.run-check-group > summary:focus-visible {
+  outline: 2px solid #4d9bb5;
+  outline-offset: -2px;
+}
+.run-check-group-content {
+  border-top: 1px solid #edf0f3;
 }
 .run-check-group-head > span {
   color: var(--muted);
@@ -2819,6 +2869,9 @@ a {
   padding: 4px 14px 10px;
   color: var(--muted);
   font-size: 11px;
+}
+.run-check-group-issues {
+  color: var(--danger-dark);
 }
 .run-check-item > summary .run-check-title {
   display: inline;
@@ -2857,19 +2910,38 @@ a {
   margin: 0 4px;
   color: #a9b6c0;
 }
-.run-check-reason {
+.run-check-item > summary {
+  list-style: none;
+}
+.run-check-item > summary::-webkit-details-marker {
+  display: none;
+}
+.run-check-item > summary > span:first-child::before {
+  content: "›";
+  display: inline-block;
+  color: #8596a1;
+  margin-right: 7px;
+}
+.run-check-item[open] > summary > span:first-child::before {
+  transform: rotate(90deg);
+}
+.run-check-item > summary [data-slot="badge"] {
+  flex-shrink: 0;
+  font-size: 10px;
+}
+.run-check-item[data-status="FAIL"] {
+  background: #fffbfa;
+}
+.run-check-body {
+  padding: 0 0 9px 12px;
+}
+.run-check-body > p {
   margin: 2px 0 6px;
   font-size: 12px;
-  line-height: 1.65;
-  color: #33475b;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
-.run-check-reason[data-state="FAIL"] {
-  color: var(--danger-dark);
-}
-.run-check-reason[data-state="PASS"] {
-  color: var(--pass-dark);
+.run-check-engine {
+  border-top: 1px solid #edf0f3;
+  padding: 4px 14px;
 }
 
 /* --- Dimension pass rates on the Run dashboard (per Assertion, not per Case) --- */
@@ -3027,8 +3099,7 @@ a {
 .run-output-message > .run-message-text:first-child {
   margin-top: 0 !important;
 }
-.run-output-message[data-source="GENERATED"],
-.run-output-message[data-source="PROJECTION"] {
+.run-output-message[data-source="GENERATED"] {
   background: #fffdf7;
   border-color: #ede7d4;
 }
@@ -6821,4 +6892,73 @@ a {
   .run-progress-steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+/* --- 实际输出：WebUI 风格的消息块（一条 assistant 消息 = 一个块，块内逐段成气泡） --- */
+.run-output-badges {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.run-output-badge {
+  padding: 1px 6px;
+  background: #eaf1f7;
+  border: 1px solid #d8e4ee;
+  border-radius: 999px;
+  color: #4c6478;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 15px;
+  white-space: nowrap;
+}
+.run-output-segments {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.run-output-segment {
+  padding: 7px 10px;
+  background: #ffffff;
+  border: 1px solid #e2ebf2;
+  border-radius: 10px;
+  border-top-left-radius: 3px;
+  color: #1d2b36;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.run-output-seq {
+  display: inline-block;
+  min-width: 20px;
+  margin-right: 6px;
+  color: #93a5b3;
+  font-size: 10px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  vertical-align: 1px;
+}
+.run-output-message[data-source="USER_VIEW"] {
+  background: #f2f7fb;
+  border-color: #dfe9f2;
+}
+.run-output-message[data-source="FINAL_OUTPUT"],
+.run-output-message[data-source="OUTBOUND"],
+.run-output-message[data-source="REPLY_TEXT"] {
+  background: #fffdf7;
+  border-color: #ede7d4;
+}
+.run-output-message[data-partial="true"] .run-message-text {
+  color: #7a6326;
+}
+.run-output-cardnote {
+  padding: 8px 10px;
+  background: #f6f8fa;
+  border: 1px dashed #dde5ec;
+  border-radius: 6px;
+  color: #6b7f8d;
+  font-size: 11px;
+  line-height: 1.6;
 }

@@ -1,0 +1,23 @@
+- id: search-result-list
+  version: 1.0.0
+  runtime_component: list_simple
+  evidence:
+    - a2ui.component
+    - a2ui.props.items
+- id: document-body
+  version: 1.0.0
+  runtime_component: markdown_title_body
+  evidence:
+    - a2ui.component
+    - a2ui.props.title
+    - a2ui.props.body
+- id: tool-start
+  version: 1.0.0
+  runtime_component: tool_start
+  evidence:
+    - a2ui.lifecycle
+- id: tool-fail
+  version: 1.0.0
+  runtime_component: tool_fail
+  evidence:
+    - a2ui.lifecycle

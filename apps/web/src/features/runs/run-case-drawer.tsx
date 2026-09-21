@@ -277,7 +277,7 @@ export function RunCaseDrawer({
               <div className="run-case-results-grid">
                 <RunCaseChecks row={fullRow} />
                 <RunCaseOutput
-                  key={`${row.caseKey}-${fullRow.review?.revision ?? 0}`}
+                  key={row.caseKey}
                   mode="messages"
                   row={fullRow}
                   review={fullRow.review}
@@ -310,7 +310,7 @@ export function RunCaseDrawer({
         <TabsContent value="trace" className="run-case-tab run-trace-tab">
           {analysisOpen && <RunAnalysisControl api={api} runId={runId} />}
           <RunTracePanel
-            key={`${row.caseKey}-${fullRow.evaluation?.finalCaseResultHash ?? "pending"}`}
+            key={row.caseKey}
             row={fullRow}
             target={traceTarget}
             runId={runId}

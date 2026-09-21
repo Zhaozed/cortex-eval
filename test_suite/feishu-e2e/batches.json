@@ -1,15 +1,6 @@
 {
   "total": 33,
-  "order": [
-    "P00",
-    "P01",
-    "P02",
-    "P03",
-    "P04",
-    "freeze",
-    "evaluate",
-    "cleanup"
-  ],
+  "order": ["P00", "P01", "P02", "P03", "P04", "freeze", "evaluate", "cleanup"],
   "preparation_is_not_a_case": true,
   "concurrency": 1,
   "core_33": [

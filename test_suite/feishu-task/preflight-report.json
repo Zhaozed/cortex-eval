@@ -1,0 +1,19 @@
+{
+  "status": "IMPORT_READY",
+  "uid": "2075490654049271808",
+  "checks": {
+    "case_schema": "PASS",
+    "preview": "PASS",
+    "import": "PASS",
+    "readback": "PASS",
+    "feishu_authorization": "NOT_PROBED",
+    "fixture_resource_ids": "DYNAMIC_RUNTIME_REQUIRED",
+    "cleanup_plan": "PRESENT"
+  },
+  "blocking_for_run": [
+    "Feishu Task provider authorization and runtime fixture availability must be verified before starting a real run."
+  ],
+  "revision": 3,
+  "suite_hash": "7eb550bd2f0b3bf09f4240fd85ca1627bcf9c270b61c176f958058952df488b6",
+  "modified_cases": ["FT-T04", "FT-T07", "FT-LC01", "FT-LC02"]
+}

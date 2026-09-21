@@ -1,3 +1,4 @@
+import { RunDiagnosticControl } from "./run-diagnostic-control.tsx";
 import { useState, type ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
@@ -85,6 +86,12 @@ export function ImportedRunDashboard({
           <Badge variant="outline">离线导入</Badge>
         </div>
         <div className="run-dashboard-actions">
+          <RunDiagnosticControl
+            key={runId}
+            runId={runId}
+            ready={true}
+            defaultModelId={context.evaluator.sourceId}
+          />
           <details className="run-dashboard-more">
             <summary>更多</summary>
             <div>

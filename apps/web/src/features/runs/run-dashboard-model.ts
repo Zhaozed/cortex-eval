@@ -41,12 +41,16 @@ export async function dashboardPages<T>(
   } while (cursor !== null);
   return items;
 }
+/** Committed REST Case details, reused across dashboard polls; a listed result never changes. */
+export type DashboardCaseDetailCache = Map<string, RunCaseDetail>;
+
 /** Load only immutable records from this Run; pending definitions are not available in this API. */
 export async function loadDashboardCases(
   api: RunApi,
   runId: string,
   hasReport: boolean,
-  signal: AbortSignal
+  signal: AbortSignal,
+  details?: DashboardCaseDetailCache
 ): Promise<DashboardCase[]> {
   if (hasReport) {
     const items = await dashboardPages((cursor) =>
@@ -78,27 +82,29 @@ export async function loadDashboardCases(
     dashboardPages((cursor) => api.listEvaluations({ runId, cursor, limit: 100 }, signal))
   ]);
   const byCase = new Map(evaluations.map((entry) => [entry.result.caseKey, entry.result]));
-  const definitions = new Map<string, RunCaseDetail["definition"]>();
-  const fullResults = new Map<string, RunCaseDetail>();
+  const known = details ?? new Map<string, RunCaseDetail>();
+  // `listCases` only returns committed results, so a detail already read stays valid: a poll pays
+  // for the Cases that finished since the last one instead of re-reading the whole Run.
+  const unread = executions.filter((rest) => !known.has(rest.caseKey));
   // Existing endpoint has no summary metadata; bound local read concurrency until a DTO extension is justified.
-  for (let offset = 0; offset < executions.length; offset += 8) {
-    const details = await Promise.all(
-      executions.slice(offset, offset + 8).map((rest) => api.getCase(runId, rest.caseKey, signal))
+  for (let offset = 0; offset < unread.length; offset += 8) {
+    const loaded = await Promise.all(
+      unread.slice(offset, offset + 8).map((rest) => api.getCase(runId, rest.caseKey, signal))
     );
-    for (const detail of details) {
-      definitions.set(detail.caseKey, detail.definition);
-      fullResults.set(detail.caseKey, detail);
-    }
+    for (const detail of loaded) known.set(detail.caseKey, detail);
   }
   return executions
-    .map((rest) => ({
-      caseKey: rest.caseKey,
-      ordinal: rest.ordinal,
-      rest: fullResults.get(rest.caseKey) ?? rest,
-      evaluation: byCase.get(rest.caseKey),
-      definition: definitions.get(rest.caseKey),
-      report: undefined
-    }))
+    .map((rest) => {
+      const detail = known.get(rest.caseKey);
+      return {
+        caseKey: rest.caseKey,
+        ordinal: rest.ordinal,
+        rest: detail ?? rest,
+        evaluation: byCase.get(rest.caseKey),
+        definition: detail?.definition,
+        report: undefined
+      };
+    })
     .sort((a, b) => a.ordinal - b.ordinal);
 }
 /** Execution status is not the business verdict. */

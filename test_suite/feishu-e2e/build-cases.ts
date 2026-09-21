@@ -273,7 +273,9 @@ await writeFile(
       sha256: sha(data),
       business_executed: false,
       endpoint_id: suiteConfig.endpoint_id,
-      draft_ingress_lock: ready ? null : "client模式不发送sid；E2E入口返回EVAL_E2E_CLIENT_CONTEXT_REQUIRED，Router前拒绝",
+      draft_ingress_lock: ready
+        ? null
+        : "client模式不发送sid；E2E入口返回EVAL_E2E_CLIENT_CONTEXT_REQUIRED，Router前拒绝",
       notes:
         "ready仅表示已通过绑定检查，不代表权限/故障/业务/UI验收通过；preflight由运行负责人声明而非自动探测",
       entries: receipts

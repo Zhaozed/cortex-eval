@@ -24,7 +24,9 @@ const repoRoot = resolve(root, "../..");
 /* --------------------------------------------------------------- CLI */
 const argv = process.argv.slice(2);
 const collect = (name: string): string[] =>
-  argv.reduce<string[]>((acc, a, i) => (a === name ? [...acc, argv[i + 1] ?? ""] : acc), []).filter(Boolean);
+  argv
+    .reduce<string[]>((acc, a, i) => (a === name ? [...acc, argv[i + 1] ?? ""] : acc), [])
+    .filter(Boolean);
 const runIds = collect("--run");
 const baselineIds = collect("--baseline");
 const suiteIds = collect("--suite");
@@ -41,7 +43,8 @@ const dbPath = resolve(repoRoot, ".cortex-eval/db/cortex-eval.sqlite3");
 
 const db = new DatabaseSync(dbPath, { readOnly: true });
 const q = <T = any>(sql: string, ...args: any[]): T[] => db.prepare(sql).all(...args) as T[];
-const one = <T = any>(sql: string, ...args: any[]): T | undefined => db.prepare(sql).get(...args) as T | undefined;
+const one = <T = any>(sql: string, ...args: any[]): T | undefined =>
+  db.prepare(sql).get(...args) as T | undefined;
 
 /* ------------------------------------------------- 维度层定义（SPEC §2） */
 const LAYERS: Record<string, string> = {
@@ -52,8 +55,8 @@ const LAYERS: Record<string, string> = {
   D5: "视觉交互（A2UI）",
   D6: "安全与边界"
 };
-const layerOf = (metric: string): string => (/【(?:硬性|质量)】(D\d)\./.exec(metric)?.[1] ?? "?");
-const subOf = (metric: string): string => (/【(?:硬性|质量)】(D\d\.\d+)/.exec(metric)?.[1] ?? "?");
+const layerOf = (metric: string): string => /【(?:硬性|质量)】(D\d)\./.exec(metric)?.[1] ?? "?";
+const subOf = (metric: string): string => /【(?:硬性|质量)】(D\d\.\d+)/.exec(metric)?.[1] ?? "?";
 const kindOf = (metric: string): "HARD" | "SOFT" | "UNKNOWN" =>
   metric.startsWith("【硬性】") ? "HARD" : metric.startsWith("【质量】") ? "SOFT" : "UNKNOWN";
 const humanOf = (metric: string): string => metric.split("｜").slice(1).join("｜") || metric;
@@ -62,7 +65,8 @@ const humanOf = (metric: string): string => metric.split("｜").slice(1).join("�
  * reason 以「证据不足：」开头。这类项被算成「通过」，必须单独统计——占比过高说明是采集/端点问题，本轮结论作废。
  */
 const INSUFFICIENT_RE = /^证据不足[：:]/;
-const isInsufficient = (reason: string | null | undefined): boolean => INSUFFICIENT_RE.test(String(reason ?? "").trim());
+const isInsufficient = (reason: string | null | undefined): boolean =>
+  INSUFFICIENT_RE.test(String(reason ?? "").trim());
 /** 证据不足占比超过这个值，本轮结论作废（先修采集再重跑）。 */
 const EVIDENCE_GAP_LIMIT = 0.1;
 
@@ -178,21 +182,26 @@ function loadRun(runId: string): CaseRun[] {
     const resourceIds = new Set<string>();
     try {
       const po = JSON.parse(r.provider_output_json ?? "null");
-      const frames: any[] = Array.isArray(po?.parsed_output?.turns) && po.parsed_output.turns.length
-        ? po.parsed_output.turns.map((t: any) => t.parsed_output).filter(Boolean)
-        : po?.parsed_output
-          ? [po.parsed_output]
-          : [];
+      const frames: any[] =
+        Array.isArray(po?.parsed_output?.turns) && po.parsed_output.turns.length
+          ? po.parsed_output.turns.map((t: any) => t.parsed_output).filter(Boolean)
+          : po?.parsed_output
+            ? [po.parsed_output]
+            : [];
       for (const f of frames) {
         for (const te of f?.tool_executions ?? []) {
           const name = te?.calls?.[0]?.name ?? te?.calls?.[0]?.tool_name ?? "?";
           toolSequence.push(`${name}:${te?.status ?? "?"}`);
         }
         const blob = JSON.stringify(f ?? {});
-        for (const m of blob.matchAll(/\b(?:ou|oc|om|omm|on)_[A-Za-z0-9]{8,}\b/g)) resourceIds.add(m[0]);
-        for (const m of blob.matchAll(/"event_id"\s*:\s*"([^"]+)"/g)) resourceIds.add(`event:${m[1]}`);
-        for (const m of blob.matchAll(/"message_id"\s*:\s*"([^"]+)"/g)) resourceIds.add(`message:${m[1]}`);
-        for (const m of blob.matchAll(/"doc(?:ument)?_token"\s*:\s*"([^"]+)"/g)) resourceIds.add(`doc:${m[1]}`);
+        for (const m of blob.matchAll(/\b(?:ou|oc|om|omm|on)_[A-Za-z0-9]{8,}\b/g))
+          resourceIds.add(m[0]);
+        for (const m of blob.matchAll(/"event_id"\s*:\s*"([^"]+)"/g))
+          resourceIds.add(`event:${m[1]}`);
+        for (const m of blob.matchAll(/"message_id"\s*:\s*"([^"]+)"/g))
+          resourceIds.add(`message:${m[1]}`);
+        for (const m of blob.matchAll(/"doc(?:ument)?_token"\s*:\s*"([^"]+)"/g))
+          resourceIds.add(`doc:${m[1]}`);
       }
     } catch {
       /* 证据缺失不影响断言统计 */
@@ -200,7 +209,12 @@ function loadRun(runId: string): CaseRun[] {
     let tokens: CaseRun["tokens"] = null;
     try {
       const t = JSON.parse(r.token_usage_json ?? "null");
-      if (t) tokens = { input: Number(t.input ?? t.prompt ?? 0), output: Number(t.output ?? t.completion ?? 0), cached: Number(t.cached_input ?? t.cached ?? 0) };
+      if (t)
+        tokens = {
+          input: Number(t.input ?? t.prompt ?? 0),
+          output: Number(t.output ?? t.completion ?? 0),
+          cached: Number(t.cached_input ?? t.cached ?? 0)
+        };
     } catch {
       tokens = null;
     }
@@ -210,7 +224,11 @@ function loadRun(runId: string): CaseRun[] {
       runId,
       caseKey: String(r.case_key),
       caseId,
-      name: String(def?.description ?? "").split("｜").slice(2).join("｜") || caseId,
+      name:
+        String(def?.description ?? "")
+          .split("｜")
+          .slice(2)
+          .join("｜") || caseId,
       domain: caseId.split("-").slice(0, 2).join("-"),
       businessModule: String(meta.business_module ?? ""),
       scenarioTag: String(meta.scenario_tag ?? ""),
@@ -231,7 +249,9 @@ function loadRun(runId: string): CaseRun[] {
       softTotal: soft.length,
       toolSequence,
       resourceIds: [...resourceIds],
-      restError: r.error_type ? `${r.error_type}${r.error_message ? "：" + String(r.error_message).slice(0, 120) : ""}` : null
+      restError: r.error_type
+        ? `${r.error_type}${r.error_message ? "：" + String(r.error_message).slice(0, 120) : ""}`
+        : null
     } satisfies CaseRun;
   });
 }
@@ -239,7 +259,9 @@ function loadRun(runId: string): CaseRun[] {
 const runs = new Map<string, CaseRun[]>();
 for (const id of runIds) runs.set(id, loadRun(id));
 const baseline = new Map<string, CaseRun[]>();
-for (const id of baselineIds.length ? baselineIds : [one<any>(`SELECT id FROM run_log WHERE id=?`, "")?.id ?? ""].filter(Boolean)) {
+for (const id of baselineIds.length
+  ? baselineIds
+  : [one<any>(`SELECT id FROM run_log WHERE id=?`, "")?.id ?? ""].filter(Boolean)) {
   if (id) baseline.set(id, loadRun(id));
 }
 if (!baselineIds.length) {
@@ -262,25 +284,46 @@ interface CaseAggregate {
   hardTotal: number;
   softPass: number;
   softTotal: number;
-  failedSubs: { sub: string; metric: string; name: string; kind: string; reason: string; times: number }[];
+  failedSubs: {
+    sub: string;
+    metric: string;
+    name: string;
+    kind: string;
+    reason: string;
+    times: number;
+  }[];
 }
 const byCase = new Map<string, CaseRun[]>();
-for (const [, list] of runs) for (const c of list) {
-  const arr = byCase.get(c.caseId) ?? [];
-  arr.push(c);
-  byCase.set(c.caseId, arr);
-}
+for (const [, list] of runs)
+  for (const c of list) {
+    const arr = byCase.get(c.caseId) ?? [];
+    arr.push(c);
+    byCase.set(c.caseId, arr);
+  }
 const RANK: Verdict[] = ["PASS", "FAIL", "LABEL_ERROR", "BLOCKED", "EVAL_ERROR"];
 const aggregates: CaseAggregate[] = [...byCase.entries()].map(([caseId, list]) => {
   const tally = new Map<Verdict, number>();
   for (const c of list) tally.set(c.verdict, (tally.get(c.verdict) ?? 0) + 1);
-  const majority = [...tally.entries()].sort((a, b) => b[1] - a[1] || RANK.indexOf(a[0]) - RANK.indexOf(b[0]))[0]?.[0] ?? "EVAL_ERROR";
-  const failed = new Map<string, { sub: string; metric: string; name: string; kind: string; reason: string; times: number }>();
+  const majority =
+    [...tally.entries()].sort(
+      (a, b) => b[1] - a[1] || RANK.indexOf(a[0]) - RANK.indexOf(b[0])
+    )[0]?.[0] ?? "EVAL_ERROR";
+  const failed = new Map<
+    string,
+    { sub: string; metric: string; name: string; kind: string; reason: string; times: number }
+  >();
   for (const c of list)
     for (const a of c.assertions)
       if (a.status !== "PASS") {
         const k = a.metric;
-        const e = failed.get(k) ?? { sub: a.sub, metric: a.metric, name: a.human, kind: a.kind, reason: a.reason, times: 0 };
+        const e = failed.get(k) ?? {
+          sub: a.sub,
+          metric: a.metric,
+          name: a.human,
+          kind: a.kind,
+          reason: a.reason,
+          times: 0
+        };
         e.times += 1;
         if (a.reason) e.reason = a.reason;
         failed.set(k, e);
@@ -303,7 +346,9 @@ const aggregates: CaseAggregate[] = [...byCase.entries()].map(([caseId, list]) =
 aggregates.sort((a, b) => a.caseId.localeCompare(b.caseId));
 
 /* --------------------------------------------------------- Suite 级指标 */
-const effective = aggregates.filter((a) => !["BLOCKED", "LABEL_ERROR", "EVAL_ERROR"].includes(a.verdict));
+const effective = aggregates.filter(
+  (a) => !["BLOCKED", "LABEL_ERROR", "EVAL_ERROR"].includes(a.verdict)
+);
 const hardGatePass = effective.filter((a) => a.verdict === "PASS").length;
 const allAssertions = aggregates.flatMap((a) => a.runs.flatMap((r) => r.assertions));
 const softAll = allAssertions.filter((a) => a.kind === "SOFT");
@@ -311,13 +356,29 @@ const hardAll = allAssertions.filter((a) => a.kind === "HARD");
 
 const subStats = new Map<
   string,
-  { sub: string; layer: string; name: string; kind: string; pass: number; total: number; insufficient: number; realPass: number }
+  {
+    sub: string;
+    layer: string;
+    name: string;
+    kind: string;
+    pass: number;
+    total: number;
+    insufficient: number;
+    realPass: number;
+  }
 >();
 for (const a of allAssertions) {
   if (a.sub === "?") continue;
-  const e =
-    subStats.get(a.sub) ??
-    { sub: a.sub, layer: a.layer, name: a.human, kind: a.kind, pass: 0, total: 0, insufficient: 0, realPass: 0 };
+  const e = subStats.get(a.sub) ?? {
+    sub: a.sub,
+    layer: a.layer,
+    name: a.human,
+    kind: a.kind,
+    pass: 0,
+    total: 0,
+    insufficient: 0,
+    realPass: 0
+  };
   e.total += 1;
   const ins = isInsufficient(a.reason);
   if (ins) e.insufficient += 1;
@@ -336,18 +397,26 @@ const evidenceGap = {
   ratio: allAssertions.length ? insufficientAll.length / allAssertions.length : 0,
   limit: EVIDENCE_GAP_LIMIT,
   /** true = 本轮结论作废，先修采集/端点再重跑 */
-  invalid: allAssertions.length > 0 && insufficientAll.length / allAssertions.length > EVIDENCE_GAP_LIMIT,
+  invalid:
+    allAssertions.length > 0 && insufficientAll.length / allAssertions.length > EVIDENCE_GAP_LIMIT,
   bySub: Object.fromEntries(
     [...subStats.values()]
       .filter((s) => s.insufficient > 0)
       .sort((a, b) => b.insufficient - a.insufficient)
       .map((s) => [s.sub, { insufficient: s.insufficient, total: s.total, name: s.name }])
   ),
-  samples: insufficientAll.slice(0, 20).map((a) => ({ sub: a.sub, metric: a.metric, reason: a.reason }))
+  samples: insufficientAll
+    .slice(0, 20)
+    .map((a) => ({ sub: a.sub, metric: a.metric, reason: a.reason }))
 };
 const layerStats = new Map<string, { layer: string; name: string; pass: number; total: number }>();
 for (const s of subStats.values()) {
-  const e = layerStats.get(s.layer) ?? { layer: s.layer, name: LAYERS[s.layer] ?? s.layer, pass: 0, total: 0 };
+  const e = layerStats.get(s.layer) ?? {
+    layer: s.layer,
+    name: LAYERS[s.layer] ?? s.layer,
+    pass: 0,
+    total: 0
+  };
   e.pass += s.pass;
   e.total += s.total;
   layerStats.set(s.layer, e);
@@ -365,7 +434,8 @@ const visualScore = (() => {
 const suiteCfg = JSON.parse(await readFile(resolve(root, "suite-config.json"), "utf8"));
 let scenarios: any[] = [];
 try {
-  scenarios = (JSON.parse(await readFile(resolve(root, "scenarios.v2.json"), "utf8"))?.cases ?? []) as any[];
+  scenarios = (JSON.parse(await readFile(resolve(root, "scenarios.v2.json"), "utf8"))?.cases ??
+    []) as any[];
 } catch {
   scenarios = [];
 }
@@ -378,7 +448,8 @@ for (const s of scenarios) {
   for (const t of Object.keys(s?.expected?.allowedWrites ?? {})) expectedTools.add(t);
 }
 const observedTools = new Set<string>();
-for (const a of aggregates) for (const r of a.runs) for (const t of r.toolSequence) observedTools.add(t.split(":")[0]!);
+for (const a of aggregates)
+  for (const r of a.runs) for (const t of r.toolSequence) observedTools.add(t.split(":")[0]!);
 const coveredTools = [...expectedTools].filter((t) => observedTools.has(t));
 const expectedCards = new Set<string>(scenarios.map((s) => s?.expected?.card).filter(Boolean));
 
@@ -393,9 +464,15 @@ for (const a of aggregates) {
 }
 
 /* 性能 */
-const latencies = aggregates.flatMap((a) => a.runs.map((r) => r.latencyMs ?? NaN)).filter(Number.isFinite);
-const tokenIn = aggregates.flatMap((a) => a.runs.map((r) => r.tokens?.input ?? NaN)).filter(Number.isFinite);
-const tokenOut = aggregates.flatMap((a) => a.runs.map((r) => r.tokens?.output ?? NaN)).filter(Number.isFinite);
+const latencies = aggregates
+  .flatMap((a) => a.runs.map((r) => r.latencyMs ?? NaN))
+  .filter(Number.isFinite);
+const tokenIn = aggregates
+  .flatMap((a) => a.runs.map((r) => r.tokens?.input ?? NaN))
+  .filter(Number.isFinite);
+const tokenOut = aggregates
+  .flatMap((a) => a.runs.map((r) => r.tokens?.output ?? NaN))
+  .filter(Number.isFinite);
 const toolCounts = aggregates.flatMap((a) => a.runs.map((r) => r.toolSequence.length));
 
 /* 稳定性 */
@@ -406,7 +483,11 @@ const baselineByCase = new Map<string, CaseRun>();
 for (const [, list] of baseline) for (const c of list) baselineByCase.set(c.caseId, c);
 const regression = aggregates
   .filter((a) => baselineByCase.has(a.caseId))
-  .map((a) => ({ caseId: a.caseId, before: baselineByCase.get(a.caseId)!.verdict, after: a.verdict }))
+  .map((a) => ({
+    caseId: a.caseId,
+    before: baselineByCase.get(a.caseId)!.verdict,
+    after: a.verdict
+  }))
   .filter((x) => x.before !== x.after);
 
 /* ------------------------------------------------------------- JSON */
@@ -423,14 +504,21 @@ const reportJson = {
     hard_gate_pass_rate: effective.length ? hardGatePass / effective.length : null,
     soft_pass: softAll.filter((a) => a.status === "PASS").length,
     soft_total: softAll.length,
-    soft_pass_rate: softAll.length ? softAll.filter((a) => a.status === "PASS").length / softAll.length : null,
+    soft_pass_rate: softAll.length
+      ? softAll.filter((a) => a.status === "PASS").length / softAll.length
+      : null,
     hard_total: hardAll.length,
     voice_score_d4: voiceScore,
     visual_score_d5: visualScore,
     defect_density: effective.length ? defects.length / effective.length : null,
     attribution,
-    unstable_cases: unstable.map((a) => ({ case_id: a.caseId, verdicts: a.runs.map((r) => r.verdict) })),
-    consistency_rate: aggregates.length ? (aggregates.length - unstable.length) / aggregates.length : null,
+    unstable_cases: unstable.map((a) => ({
+      case_id: a.caseId,
+      verdicts: a.runs.map((r) => r.verdict)
+    })),
+    consistency_rate: aggregates.length
+      ? (aggregates.length - unstable.length) / aggregates.length
+      : null,
     /* 证据不足总账：invalid=true 时本轮结论作废（SPEC §8.5） */
     evidence_gap: {
       count: evidenceGap.count,
@@ -442,7 +530,9 @@ const reportJson = {
     }
   },
   layers: [...layerStats.values()].sort((a, b) => a.layer.localeCompare(b.layer)),
-  subitems: [...subStats.values()].sort((a, b) => a.sub.localeCompare(b.sub, "en", { numeric: true })),
+  subitems: [...subStats.values()].sort((a, b) =>
+    a.sub.localeCompare(b.sub, "en", { numeric: true })
+  ),
   coverage: {
     tools_expected: expectedTools.size,
     tools_target: suiteCfg.target_tool_coverage ?? null,
@@ -470,7 +560,13 @@ const reportJson = {
     domain: a.domain,
     verdict: a.verdict,
     stable: a.stable,
-    runs: a.runs.map((r) => ({ run_id: r.runId, verdict: r.verdict, score: r.score, latency_ms: r.latencyMs, rest_error: r.restError })),
+    runs: a.runs.map((r) => ({
+      run_id: r.runId,
+      verdict: r.verdict,
+      score: r.score,
+      latency_ms: r.latencyMs,
+      rest_error: r.restError
+    })),
     hard: `${a.hardPass}/${a.hardTotal}`,
     soft: `${a.softPass}/${a.softTotal}`,
     failed: a.failedSubs,
@@ -494,7 +590,10 @@ L.push(
     `语音分 ${voiceScore === null ? "—" : (voiceScore * 100).toFixed(1) + "%"}，视觉分 ${visualScore === null ? "—" : (visualScore * 100).toFixed(1) + "%"}。`
 );
 if (aggregates.length !== effective.length)
-  L.push(``), L.push(`> 另有 ${aggregates.length - effective.length} 条不计入通过率：BLOCKED ${attribution.BLOCKED} / LABEL_ERROR ${attribution.LABEL_ERROR} / EVAL_ERROR ${attribution.EVAL_ERROR}。这些是**前置或评测框架的问题，不是产品的问题**。`);
+  (L.push(``),
+    L.push(
+      `> 另有 ${aggregates.length - effective.length} 条不计入通过率：BLOCKED ${attribution.BLOCKED} / LABEL_ERROR ${attribution.LABEL_ERROR} / EVAL_ERROR ${attribution.EVAL_ERROR}。这些是**前置或评测框架的问题，不是产品的问题**。`
+    ));
 L.push(``);
 L.push(`## 0. 本轮结论可信吗（先看这个）`);
 L.push(``);
@@ -508,14 +607,18 @@ if (evidenceGap.invalid) {
     `> ⚠️ 有 ${evidenceGap.count}/${evidenceGap.total} 条断言（${pct(evidenceGap.count, evidenceGap.total)}）证据不足、按放行处理，未超 ${(evidenceGap.limit * 100).toFixed(0)}% 上限，本轮结论可用，但下面标了「证据不足」的子项通过率是**虚高**的，看「真判通过」那列。`
   );
 } else {
-  L.push(`> ✅ 全部 ${evidenceGap.total} 条断言都拿到了判定所需字段，没有「证据不足」放行项，下面的通过率是实打实的。`);
+  L.push(
+    `> ✅ 全部 ${evidenceGap.total} 条断言都拿到了判定所需字段，没有「证据不足」放行项，下面的通过率是实打实的。`
+  );
 }
 if (evidenceGap.count > 0) {
   L.push(``);
   L.push(`| 子项 | 名称 | 证据不足 / 总数 |`);
   L.push(`| --- | --- | --- |`);
   for (const [sub, v] of Object.entries(evidenceGap.bySub))
-    L.push(`| ${sub} | ${String((v as any).name).slice(0, 40)} | ${(v as any).insufficient}/${(v as any).total} |`);
+    L.push(
+      `| ${sub} | ${String((v as any).name).slice(0, 40)} | ${(v as any).insufficient}/${(v as any).total} |`
+    );
 }
 L.push(``);
 L.push(`## 1. 维度通过率（按断言条数算，不按 case 算）`);
@@ -529,13 +632,17 @@ L.push(`### 子项明细（最弱的排前面，直接定位问题）`);
 L.push(``);
 L.push(`| 子项 | 类型 | 名称（人话判据） | 通过率 | 通过/总数 | 真判通过 | 证据不足 |`);
 L.push(`| --- | --- | --- | --- | --- | --- | --- |`);
-const sortedSubs = [...subStats.values()].sort((a, b) => a.realPass / (a.total || 1) - b.realPass / (b.total || 1));
+const sortedSubs = [...subStats.values()].sort(
+  (a, b) => a.realPass / (a.total || 1) - b.realPass / (b.total || 1)
+);
 for (const s of sortedSubs)
   L.push(
     `| ${s.sub} | ${s.kind === "HARD" ? "硬性" : "质量"} | ${s.name} | ${pct(s.pass, s.total)} | ${s.pass}/${s.total} | ${s.realPass}/${s.total} | ${s.insufficient ? `⚠️ ${s.insufficient}` : "0"} |`
   );
 L.push(``);
-L.push(`> **通过率** = status 为 PASS 的占比（证据不足也算 PASS）。**真判通过** = 真的取到证据且判赢的占比，这才是产品真实水平。两列差得越多，说明这个子项越没被真正考到。`);
+L.push(
+  `> **通过率** = status 为 PASS 的占比（证据不足也算 PASS）。**真判通过** = 真的取到证据且判赢的占比，这才是产品真实水平。两列差得越多，说明这个子项越没被真正考到。`
+);
 L.push(``);
 L.push(`## 2. Case 结论（${aggregates.length} 条，跑 ${reportJson.runs_per_case} 次取多数）`);
 L.push(``);
@@ -555,7 +662,9 @@ if (!failing.length) L.push(`没有硬性失败项。`);
 for (const a of failing) {
   L.push(`### ${a.caseId}　${a.name}`);
   for (const f of a.failedSubs.slice(0, 6)) {
-    L.push(`- **${f.sub}｜${f.name || humanOf(f.metric)}**（${f.kind === "HARD" ? "硬性" : "质量"}，${f.times} 次运行里失败 ${f.times} 次）`);
+    L.push(
+      `- **${f.sub}｜${f.name || humanOf(f.metric)}**（${f.kind === "HARD" ? "硬性" : "质量"}，${f.times} 次运行里失败 ${f.times} 次）`
+    );
     L.push(`  > ${f.reason.replace(/\n+/g, " ").slice(0, 600)}`);
   }
   L.push(``);
@@ -564,21 +673,33 @@ L.push(`## 4. 覆盖率`);
 L.push(``);
 L.push(`| 项 | 值 |`);
 L.push(`| --- | --- |`);
-L.push(`| 工具覆盖率 | ${reportJson.coverage.tools_covered} / ${reportJson.coverage.tools_expected} 期望工具被真实调用（目标 ${reportJson.coverage.tools_target ?? "—"}） |`);
+L.push(
+  `| 工具覆盖率 | ${reportJson.coverage.tools_covered} / ${reportJson.coverage.tools_expected} 期望工具被真实调用（目标 ${reportJson.coverage.tools_target ?? "—"}） |`
+);
 L.push(`| 未命中的期望工具 | ${reportJson.coverage.tools_missing.join("、") || "无"} |`);
 L.push(`| 期望外被调用的工具 | ${reportJson.coverage.tools_unexpected.join("、") || "无"} |`);
 L.push(`| 卡片类型覆盖 | ${reportJson.coverage.cards_expected.join("、") || "—"} |`);
-L.push(`| 结论一致率（稳定性） | ${reportJson.suite.consistency_rate === null ? "—" : (reportJson.suite.consistency_rate * 100).toFixed(1) + "%"}（${unstable.length} 条不一致） |`);
+L.push(
+  `| 结论一致率（稳定性） | ${reportJson.suite.consistency_rate === null ? "—" : (reportJson.suite.consistency_rate * 100).toFixed(1) + "%"}（${unstable.length} 条不一致） |`
+);
 L.push(``);
 L.push(`## 5. 性能`);
 L.push(``);
 L.push(`| 指标 | P50 | P95 |`);
 L.push(`| --- | --- | --- |`);
-L.push(`| 端到端时延(ms) | ${reportJson.performance.latency_p50_ms ?? "—"} | ${reportJson.performance.latency_p95_ms ?? "—"} |`);
-L.push(`| input token | ${reportJson.performance.token_input_p50 ?? "—"} | ${reportJson.performance.token_input_p95 ?? "—"} |`);
-L.push(`| output token | ${reportJson.performance.token_output_p50 ?? "—"} | ${reportJson.performance.token_output_p95 ?? "—"} |`);
+L.push(
+  `| 端到端时延(ms) | ${reportJson.performance.latency_p50_ms ?? "—"} | ${reportJson.performance.latency_p95_ms ?? "—"} |`
+);
+L.push(
+  `| input token | ${reportJson.performance.token_input_p50 ?? "—"} | ${reportJson.performance.token_input_p95 ?? "—"} |`
+);
+L.push(
+  `| output token | ${reportJson.performance.token_output_p50 ?? "—"} | ${reportJson.performance.token_output_p95 ?? "—"} |`
+);
 L.push(``);
-L.push(`单 case 工具调用次数：${reportJson.performance.tool_calls_min ?? "—"} ～ ${reportJson.performance.tool_calls_max ?? "—"}`);
+L.push(
+  `单 case 工具调用次数：${reportJson.performance.tool_calls_min ?? "—"} ～ ${reportJson.performance.tool_calls_max ?? "—"}`
+);
 L.push(``);
 if (regression.length) {
   L.push(`## 6. 与基线的回归 diff`);
@@ -595,7 +716,10 @@ if (!withRes.length) L.push(`本次没有采集到资源 ID。`);
 else {
   L.push(`| Case | 资源 ID |`);
   L.push(`| --- | --- |`);
-  for (const a of withRes) L.push(`| ${a.caseId} | ${[...new Set(a.runs.flatMap((r) => r.resourceIds))].slice(0, 8).join("<br>")} |`);
+  for (const a of withRes)
+    L.push(
+      `| ${a.caseId} | ${[...new Set(a.runs.flatMap((r) => r.resourceIds))].slice(0, 8).join("<br>")} |`
+    );
 }
 L.push(``);
 L.push(`> 日程可按 event_id 取消；文档和消息没有删除工具，需要人工按暗号搜出来删。`);
@@ -606,5 +730,17 @@ const jsonPath = resolve(outDir, `report-${stamp}.json`);
 const mdPath = resolve(outDir, `report-${stamp}.md`);
 await writeFile(jsonPath, JSON.stringify(reportJson, null, 2) + "\n");
 await writeFile(mdPath, L.join("\n") + "\n");
-console.log(JSON.stringify({ json: jsonPath, md: mdPath, cases: aggregates.length, hard_gate_pass: hardGatePass, effective: effective.length }, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      json: jsonPath,
+      md: mdPath,
+      cases: aggregates.length,
+      hard_gate_pass: hardGatePass,
+      effective: effective.length
+    },
+    null,
+    2
+  )
+);
 db.close();

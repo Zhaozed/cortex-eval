@@ -1,0 +1,6 @@
+generator: "@cortex-eval/authoring@0.1.0"
+profile: dev-validation@1.0.0
+sourcePath: >-
+  /Users/joey/Documents/cortex测评/cortex-eval/evaluation_sources/feishu/D01-search-document.md
+readiness: BLOCKED
+caseIds: []

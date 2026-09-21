@@ -76,12 +76,12 @@ it("merges checks with results and shows generated follow-ups beside delivered o
   const output = screen.getByRole("region", { name: "实际输出" });
   expect(within(output).getByText("正在查询")).toBeVisible();
   expect(within(output).getByText("查到了两条待办")).toBeVisible();
-  expect(within(output).getByText("已生成 · 交付未确认")).toBeVisible();
+  expect(within(output).getByText("链路生成记录")).toBeVisible();
   expect(screen.queryByText("private thought")).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "分项评测" })).not.toBeInTheDocument();
   const checks = screen.getByRole("region", { name: "验收检查" });
-  expect(within(checks).getByText("quality", { exact: true })).toBeVisible();
-  expect(checks.querySelector("details.run-check-item")).not.toHaveAttribute("open");
+  expect(within(checks).getByRole("heading", { name: /未分类/ })).toBeVisible();
+  expect(checks.querySelector("details.run-check-item")).toBeNull();
   await screen.findByText(/本次执行未记录 A2UI 卡片/);
 });
 it("shows every user round separately for a multi-turn Case", () => {

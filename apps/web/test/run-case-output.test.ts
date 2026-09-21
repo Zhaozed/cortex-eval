@@ -54,8 +54,9 @@ it("shows generated final replies without falsely claiming they were delivered",
 });
 it("preserves unknown chronology and does not invent missing replies", () => {
   expect(observedReplies(evidenceRow({}))).toEqual([]);
+  // reply_text is the last resort and holds the final segment only, so it says so.
   expect(observedReplies(evidenceRow({ reply_text: "legacy reply" }))[0]?.source).toBe(
-    "PROJECTION"
+    "REPLY_TEXT"
   );
   expect(
     observedReplies(

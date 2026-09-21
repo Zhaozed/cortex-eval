@@ -1,0 +1,12 @@
+- id: feishu.search_docs
+  version: 1.0.0
+  runtime_name: search_docs
+  description: 当前 ToolHub 文档搜索工具
+- id: feishu.get_doc
+  version: 1.0.0
+  runtime_name: feishu_get_doc
+  description: 当前 ToolHub 文档读取工具
+- id: feishu.get_user_profile
+  version: 1.0.0
+  runtime_name: feishu_get_user_profile
+  description: 当前 ToolHub 用户资料工具

@@ -1,3 +1,14 @@
+import type { DiagnosticSnapshot } from "@cortex-eval/contracts/src/diagnostic-report-contracts.ts";
+import {
+  DiagnosticReportService,
+  type DiagnosticModelConfig
+} from "./diagnostic-report-service.ts";
+import { DiagnosticReportStore } from "./diagnostic-report-store.ts";
+import { createDiagnosticSnapshot } from "./diagnostic-report-snapshot.ts";
+import {
+  createDiagnosticModelClient,
+  type DiagnosticModelClient
+} from "@cortex-eval/evaluation-adapters/src/diagnostic-model-client.ts";
 import { RunLivePreviewService } from "./run-live-preview-service.ts";
 import { livePreviewContext } from "./run-live-preview-context.ts";
 import { RunReviewStore } from "./run-review-store.ts";
@@ -87,6 +98,7 @@ export interface LocalServerRuntimeOptions {
   readonly allowedHosts?: readonly string[] | undefined;
   /** Optional test-owned Analyzer boundary; production defaults to the official SDK adapter. */
   readonly analysisModelClient?: AnalysisModelClient | undefined;
+  readonly diagnosticModelClient?: DiagnosticModelClient | undefined;
 }
 
 /** Fully composed Local Server lifecycle. */
@@ -416,7 +428,48 @@ export async function createLocalServerRuntime(
       rejectAnalysisProposal: analysisDecisions.rejectProposal.bind(analysisDecisions),
       acceptAnalysisProposal: analysisDecisions.acceptProposal.bind(analysisDecisions)
     };
+    const diagnosticStore = new DiagnosticReportStore(
+      join(options.projectRoot, ".cortex-eval", "diagnostic-reports")
+    );
+    await diagnosticStore.recover();
+    const diagnosticReports = new DiagnosticReportService({
+      store: diagnosticStore,
+      model:
+        options.diagnosticModelClient ??
+        createDiagnosticModelClient({ readSecret: (key) => process.env[key] }),
+      ready: async (runId): Promise<boolean> => (await reports.get(runId)) !== null,
+      snapshot: async (runId, signal): Promise<DiagnosticSnapshot> => {
+        const overview = await reports.get(runId);
+        if (!overview) throw new Error("DIAG_NOT_READY");
+        const credentialValues = Object.entries(process.env)
+          .filter(([key]) => /(?:KEY|SECRET|TOKEN|PASSWORD)/i.test(key))
+          .map(([, value]) => value)
+          .filter((value): value is string => !!value && value.length >= 8);
+        return createDiagnosticSnapshot(
+          overview,
+          reports.streamCases(runId),
+          signal,
+          credentialValues
+        );
+      },
+      configuration: async (id): Promise<DiagnosticModelConfig | null> =>
+        transactionManager.execute(async (tx) => {
+          const value = await tx.configurations.getResource("LLM", id);
+          if (value?.kind !== "LLM") return null;
+          return {
+            definition: value.definition,
+            identity: {
+              configId: value.id,
+              name: value.name,
+              provider: value.definition.providerType,
+              model: value.definition.model,
+              configHash: value.semanticHash
+            }
+          };
+        })
+    });
     const server = buildLocalServer({
+      diagnosticReports,
       allowedHosts: options.allowedHosts,
       runReviewStore: reviews,
       runPreviewOrigin: () => liveRenderer.origin,

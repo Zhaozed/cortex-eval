@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { manualOverride, type DashboardCase } from "./run-dashboard-model.ts";
 import { Badge } from "../../components/ui/badge.tsx";
 import { EvidenceJson } from "./run-trace-panel.tsx";
@@ -38,7 +38,7 @@ interface CheckItem {
   readonly matches: readonly AssertionResult[];
 }
 
-/** Assertions grouped by dimension layer, failures first. */
+/** Assertions grouped by dimension layer; failed items are summarized in the verdict card. */
 interface CheckGroup {
   readonly key: string;
   readonly label: string;
@@ -60,23 +60,72 @@ function outcomeStatus(item: CheckItem): string {
   return item.passed ? "PASS" : item.failed ? "FAIL" : (item.resultStatus ?? "UNRESOLVED");
 }
 
-// Report order of a dimension layer; unclassified always trails the six declared layers.
-function dimensionRank(dimension: string | null): number {
-  const index = ASSERTION_DIMENSIONS.findIndex((entry) => entry.id === dimension);
-  return index === -1 ? ASSERTION_DIMENSIONS.length : index;
-}
+/** Shared assertion card used by both passed items and the failure list in the verdict card. */
+function RunCheckItem({
+  item,
+  variant
+}: {
+  readonly item: CheckItem;
+  readonly variant: "passed" | "issue";
+}): ReactElement {
+  // Every assertion starts collapsed. The verdict card still keeps the failure reason in the
+  // shared body, but users open it on demand instead of getting a pre-expanded card.
+  const [open, setOpen] = useState(false);
 
-/** SPEC §6「失败项 top1」: a vetoed gate outranks a quality miss, then dimension, then order. */
-function topFailureOf(items: readonly CheckItem[]): CheckItem | undefined {
-  return items
-    .filter((item) => !item.passed)
-    .sort(
-      (left, right) =>
-        Number(right.parsed.tier === "HARD") - Number(left.parsed.tier === "HARD") ||
-        itemRank(left) - itemRank(right) ||
-        dimensionRank(left.parsed.dimension) - dimensionRank(right.parsed.dimension) ||
-        left.index - right.index
-    )[0];
+  return (
+    <details
+      className={`run-check-item${variant === "issue" ? " run-check-item-issue" : ""}`}
+      open={open}
+      data-status={item.resultStatus}
+      data-tier={item.parsed.tier}
+    >
+      <summary
+        onClick={(event) => {
+          event.preventDefault();
+          setOpen((current) => !current);
+        }}
+      >
+        <span className="run-check-title">
+          <Badge className="run-check-tier" data-tier={item.parsed.tier}>
+            {item.parsed.tierLabel}
+          </Badge>
+          <span className="run-check-name">{item.parsed.title}</span>
+          {item.parsed.detail !== "" && (
+            <span className="run-check-detail">{item.parsed.detail}</span>
+          )}
+        </span>
+        <Badge variant="outline" data-status={item.resultStatus}>
+          {item.stateLabel}
+        </Badge>
+      </summary>
+      <div className="run-check-body">
+        <p className="run-muted">
+          {item.kind}
+          {item.score !== undefined && item.score !== null ? ` · 得分 ${item.score}` : ""} ·{" "}
+          {item.parsed.tierLabel} · {item.parsed.dimensionLabel}
+          {item.parsed.code === null && item.parsed.raw !== "" && (
+            <> · metric 原文：{item.parsed.raw}</>
+          )}
+        </p>
+        <p
+          className="run-check-reason"
+          data-state={item.failed ? "FAIL" : item.passed ? "PASS" : "OTHER"}
+        >
+          {item.reason}
+        </p>
+        {!item.expected && <p role="alert">缺少对应的预期定义，不能确认评测配置。</p>}
+        <details>
+          <summary>原始 JSON（断言定义与分项结果）</summary>
+          <EvidenceJson
+            value={{
+              expected: item.expected ?? "未记录",
+              result: item.result ?? item.matches
+            }}
+          />
+        </details>
+      </div>
+    </details>
+  );
 }
 
 /** Pair by immutable assertion index; never match descriptions or silently drop missing results. */
@@ -132,8 +181,10 @@ export function RunCaseChecks({ row }: { readonly row: DashboardCase }): ReactEl
   );
   const hardFailures = items.filter((item) => item.parsed.tier === "HARD" && item.failed);
   const softFailures = items.filter((item) => item.parsed.tier === "SOFT" && item.failed);
-  const topFailure = topFailureOf(items);
+  const issueItems = items.filter((item) => !item.passed);
   const verdict = evaluation?.status;
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  useEffect(() => setOpenGroups({}), [row.caseKey]);
   const groups: CheckGroup[] = [
     ...ASSERTION_DIMENSIONS.map((entry) => ({
       key: entry.id,
@@ -168,16 +219,17 @@ export function RunCaseChecks({ row }: { readonly row: DashboardCase }): ReactEl
               : "WARN"
       } satisfies CheckGroup;
     });
-  // Passing items stay expanded while nothing failed, and fold away as soon as a failure exists.
-  const [folded, setFolded] = useState<boolean | null>(null);
-  const showPassed = folded ?? failed + unresolved === 0;
+  // Failed/unresolved items are summarized once in the verdict card. Each dimension is an
+  // independently collapsible group; all groups start closed so the drawer stays compact.
   return (
     <section className="run-result-panel run-check-panel" aria-label="验收检查">
       <div className="run-panel-heading">
         <h3>验收检查</h3>
-        <span>
-          {passed} 通过 · {failed} 未通过{unresolved > 0 ? ` · ${unresolved} 待处理 / 异常` : ""}
-        </span>
+        <div className="run-check-heading-actions">
+          <span>
+            {passed} 通过 · {failed} 未通过{unresolved > 0 ? ` · ${unresolved} 待处理 / 异常` : ""}
+          </span>
+        </div>
       </div>
       <div className="run-verdict-bar" data-verdict={verdict ?? "PENDING"}>
         <div className="run-verdict-line">
@@ -212,81 +264,68 @@ export function RunCaseChecks({ row }: { readonly row: DashboardCase }): ReactEl
             </span>
           )}
         </div>
-        {topFailure && (
-          <div className="run-verdict-top1">
-            <span className="run-verdict-top1-head">失败项 top1</span>
-            <span className="run-verdict-top1-name">
-              <Badge className="run-check-tier" data-tier={topFailure.parsed.tier}>
-                {topFailure.parsed.tierLabel}
-              </Badge>
-              <span>
-                {topFailure.parsed.title}
-                {topFailure.parsed.detail !== "" ? `｜${topFailure.parsed.detail}` : ""}
-              </span>
-            </span>
-            <p className="run-check-reason" data-state={topFailure.failed ? "FAIL" : "OTHER"}>
-              {topFailure.reason}
-            </p>
+        {issueItems.length > 0 && (
+          <div className="run-verdict-issues" role={verdict === "FAIL" ? "alert" : undefined}>
+            <div className="run-verdict-issues-head">
+              <strong>
+                {hardFailures.length > 0
+                  ? "未通过项 · 硬性门禁失败，直接导致 FAIL"
+                  : verdict === "FAIL"
+                    ? "未通过项"
+                    : "需关注项"}
+              </strong>
+              <span>{issueItems.length} 项</span>
+            </div>
+            <ul>
+              {issueItems.map((item) => (
+                <li key={item.index} className="run-verdict-issue" data-status={item.resultStatus}>
+                  <RunCheckItem item={item} variant="issue" />
+                </li>
+              ))}
+            </ul>
           </div>
         )}
+        {evaluation && (
+          <p className="run-check-overall">
+            自动结论：
+            {evaluation.status === "PASS"
+              ? "通过"
+              : evaluation.status === "FAIL"
+                ? "未通过"
+                : evaluation.status === "EVALUATION_ERROR"
+                  ? "评测异常"
+                  : "无法评测"}{" "}
+            · 原始自动结果保留
+          </p>
+        )}
+        {evaluation && manualOverride(row) && (
+          <p className="run-check-overall" data-manual-override="true">
+            人工复核为最终结论，已覆盖自动结论；归因与说明见复核记录。
+          </p>
+        )}
       </div>
-      {hardFailures.length > 0 && (
-        <div className="run-check-veto" role="alert">
-          <p className="run-check-veto-head">一票否决项：以下硬性门禁失败，直接导致结论 FAIL</p>
-          <ol>
-            {hardFailures.map((item) => (
-              <li key={item.index}>
-                <span className="run-check-veto-name">{item.parsed.title}</span>
-                <p className="run-check-reason" data-state="FAIL">
-                  {item.reason}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-      {verdict === "FAIL" && hardFailures.length === 0 && (
-        <p className="run-check-veto-empty">
-          结论 FAIL，但没有【硬性】项失败：可能是断言未使用【硬性】/【质量】前缀，或加权得分低于
-          Case 阈值
-          {row.definition ? ` ${row.definition.threshold}` : "（阈值未记录）"}。
-        </p>
-      )}
-      {evaluation && (
-        <p className="run-check-overall">
-          自动结论：
-          {evaluation.status === "PASS"
-            ? "通过"
-            : evaluation.status === "FAIL"
-              ? "未通过"
-              : evaluation.status === "EVALUATION_ERROR"
-                ? "评测异常"
-                : "无法评测"}{" "}
-          · 原始自动结果保留
-        </p>
-      )}
-      {evaluation && manualOverride(row) && (
-        <p className="run-check-overall" data-manual-override="true">
-          人工复核为最终结论，已覆盖自动结论；归因与说明见复核记录。
-        </p>
-      )}
       {items.length === 0 && <p className="run-muted">未记录验收项</p>}
-      {passed > 0 && (
-        <button
-          type="button"
-          className="run-check-toggle"
-          aria-expanded={showPassed}
-          onClick={() => setFolded(!showPassed)}
-        >
-          {showPassed ? `折叠 ${passed} 项已通过` : `展开 ${passed} 项已通过`}
-        </button>
-      )}
       {groups.map((group) => {
-        const visible = group.items.filter((item) => showPassed || !item.passed);
+        const visible = group.items.filter((item) => item.passed);
+        const issueCount = group.items.filter((item) => !item.passed).length;
+        const open = openGroups[group.key] === true;
         return (
-          <section className="run-check-group" key={group.key} data-dimension={group.key}>
-            <div className="run-check-group-head">
-              <h4>{group.label}</h4>
+          <details
+            className="run-check-group"
+            key={group.key}
+            data-dimension={group.key}
+            open={open}
+          >
+            <summary
+              className="run-check-group-head"
+              onClick={(event) => {
+                event.preventDefault();
+                setOpenGroups((current) => ({ ...current, [group.key]: !open }));
+              }}
+            >
+              <span className="run-check-group-title">
+                <h4>{group.label}</h4>
+              </span>
               <span data-state={group.state}>
                 {group.tiers.marked
                   ? `本组 硬性 ${group.tiers.hard.pass}/${group.tiers.hard.total} 通过 · 质量 ${group.tiers.soft.pass}/${group.tiers.soft.total} 通过${
@@ -297,65 +336,23 @@ export function RunCaseChecks({ row }: { readonly row: DashboardCase }): ReactEl
                   : `本组 ${group.pass}/${group.items.length} 通过`}
                 {group.state === "WARN" ? "（质量未达标，不阻断结论）" : ""}
               </span>
-            </div>
-            {visible.map((item) => (
-              <details
-                key={item.index}
-                className="run-check-item"
-                open={!item.passed}
-                data-status={item.resultStatus}
-                data-tier={item.parsed.tier}
-              >
-                <summary>
-                  <span className="run-check-title">
-                    <Badge className="run-check-tier" data-tier={item.parsed.tier}>
-                      {item.parsed.tierLabel}
-                    </Badge>
-                    <span className="run-check-name">{item.parsed.title}</span>
-                    {item.parsed.detail !== "" && (
-                      <span className="run-check-detail">{item.parsed.detail}</span>
-                    )}
-                  </span>
-                  <Badge variant="outline" data-status={item.resultStatus}>
-                    {item.stateLabel}
-                  </Badge>
-                </summary>
-                <div className="run-check-body">
-                  <p className="run-muted">
-                    {item.kind}
-                    {item.score !== undefined && item.score !== null
-                      ? ` · 得分 ${item.score}`
-                      : ""}{" "}
-                    · {item.parsed.tierLabel} · {item.parsed.dimensionLabel}
-                    {item.parsed.code === null && item.parsed.raw !== "" && (
-                      <> · metric 原文：{item.parsed.raw}</>
-                    )}
+            </summary>
+            {open && (
+              <div className="run-check-group-content">
+                {visible.map((item) => (
+                  <RunCheckItem key={item.index} item={item} variant="passed" />
+                ))}
+                {issueCount > 0 && (
+                  <p className="run-check-group-empty run-check-group-issues">
+                    {issueCount} 项未通过，详情已在上方结论卡列出。
                   </p>
-                  <p
-                    className="run-check-reason"
-                    data-state={item.failed ? "FAIL" : item.passed ? "PASS" : "OTHER"}
-                  >
-                    {item.reason}
-                  </p>
-                  {!item.expected && <p role="alert">缺少对应的预期定义，不能确认评测配置。</p>}
-                  <details>
-                    <summary>原始 JSON（断言定义与分项结果）</summary>
-                    <EvidenceJson
-                      value={{
-                        expected: item.expected ?? "未记录",
-                        result: item.result ?? item.matches
-                      }}
-                    />
-                  </details>
-                </div>
-              </details>
-            ))}
-            {visible.length === 0 && (
-              <p className="run-check-group-empty">
-                本维度 {group.items.length} 项全部通过，已折叠。
-              </p>
+                )}
+                {visible.length === 0 && issueCount === 0 && (
+                  <p className="run-check-group-empty">本维度暂无可展示的验收项。</p>
+                )}
+              </div>
             )}
-          </section>
+          </details>
         );
       })}
       {evaluation !== undefined && (evaluation.reason ?? evaluation.evaluationError) && (

@@ -1,0 +1,26 @@
+capabilities:
+  - document.search@1.0.0
+  - document.read@1.0.0
+  - user.profile.lookup@1.0.0
+capabilityBindings:
+  - capability: document.search
+    tool: feishu.search_docs
+    runtimeName: search_docs
+  - capability: document.read
+    tool: feishu.get_doc
+    runtimeName: feishu_get_doc
+  - capability: user.profile.lookup
+    tool: feishu.get_user_profile
+    runtimeName: feishu_get_user_profile
+runtimeTools:
+  - search_docs
+  - feishu_get_doc
+  - feishu_get_user_profile
+a2ui:
+  - search-result-list@1.0.0
+  - document-body@1.0.0
+  - tool-start@1.0.0
+  - tool-fail@1.0.0
+fixtures: []
+assertionTemplates:
+  - agent-executions@1.0.0

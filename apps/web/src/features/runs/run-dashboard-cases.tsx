@@ -1,5 +1,5 @@
 import { hasObservedCards, visualReviewRequired } from "./run-output-model.ts";
-import { useState, type ReactElement } from "react";
+import { memo, useRef, useState, type ReactElement } from "react";
 import { Badge } from "../../components/ui/badge.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { Input } from "../../components/ui/input.tsx";
@@ -32,8 +32,12 @@ function softMisses(row: DashboardCase): number {
   return softFailureCount(row.evaluation?.assertions ?? []);
 }
 
-/** Compact Case list and local pagination; all evidence actions preserve the current filters. */
-export function RunDashboardCases({
+/**
+ * Compact Case list and local pagination; all evidence actions preserve the current filters.
+ * Memoized so a one-second Run progress poll does not re-render the table (and tear down an open
+ * Case drawer) when the row set it displays has not actually changed.
+ */
+export const RunDashboardCases = memo(function RunDashboardCases({
   api,
   runId,
   rows,
@@ -60,7 +64,13 @@ export function RunDashboardCases({
   const [selected, setSelected] = useState<string | null>(() =>
     new URLSearchParams(window.location.search).get("case")
   );
-  const selectedRow = rows.find((row) => row.caseKey === selected);
+  const foundRow = rows.find((row) => row.caseKey === selected);
+  // A refreshed snapshot can momentarily miss the open Case; keep rendering the last row read for
+  // it so an ongoing trace inspection is never interrupted by another Case finishing.
+  const lastSelectedRow = useRef<DashboardCase | null>(null);
+  if (foundRow !== undefined) lastSelectedRow.current = foundRow;
+  const selectedRow =
+    foundRow ?? (lastSelectedRow.current?.caseKey === selected ? lastSelectedRow.current : null);
   const [tab, setTab] = useState<CaseTab>(() =>
     new URLSearchParams(window.location.search).get("tab") === "trace" ? "trace" : "result"
   );
@@ -374,4 +384,4 @@ export function RunDashboardCases({
       </Sheet>
     </section>
   );
-}
+});

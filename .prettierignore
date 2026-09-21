@@ -4,3 +4,4 @@ node_modules/
 test_suite/current/
 packages/work-package/test-fixtures/work-package-v2/
 pnpm-lock.yaml
+test_suite/*/.local/

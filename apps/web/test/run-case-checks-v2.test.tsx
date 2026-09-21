@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from "@testing-library/react";
-import { userEvent } from "@testing-library/user-event";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { DashboardCase } from "../src/features/runs/run-dashboard-model.ts";
@@ -53,12 +52,14 @@ function mount(row: DashboardCase): HTMLElement {
 }
 
 const D1 = "【硬性】D1.1 单意图单动作｜一句话只触发一个业务动作";
+const D2 = "【硬性】D2.1 工具调用顺序正确｜先查人再查内容";
+const D3 = "【硬性】D3.1 证据链完整｜采集链路完整可复现";
 const D5 = "【硬性】D5.1 该出卡时必须出卡｜日程结果必须给 EVENT 卡，进度条不算";
 const D4_LEN = "【质量】D4.7 语音长度｜闲聊 ≤2句 ≤40字";
 const D4_ID = "【质量】D4.3 不泄露内部ID｜reply_text 不出现 ou_ 开头的人名替代";
 
 describe("v2 断言可读性", () => {
-  it("按 D1→D6 分组，组头拆硬性/质量，软性失败不被 PASS 掩盖", async () => {
+  it("按 D1→D6 分组，组头拆硬性/质量，软性失败不被 PASS 掩盖", () => {
     const checks = mount({
       ...evidenceRow({}),
       definition: definition(
@@ -79,7 +80,8 @@ describe("v2 断言可读性", () => {
     expect(within(checks).getByText("硬性 2/2 通过")).toBeVisible();
     expect(within(checks).getByText("质量 0/2 通过")).toBeVisible();
     expect(within(checks).getByText(/2 项质量未达标 · 不阻断 PASS/)).toBeVisible();
-    expect(within(checks).getByText("失败项 top1")).toBeVisible();
+    expect(within(checks).getByText("需关注项")).toBeVisible();
+    expect(within(checks).queryByText("失败项 top1")).toBeNull();
     // 维度分组与组头计数
     expect(within(checks).getByRole("heading", { name: "D1 意图与路由" })).toBeVisible();
     expect(within(checks).getByRole("heading", { name: "D4 语音可播报性" })).toBeVisible();
@@ -90,15 +92,21 @@ describe("v2 断言可读性", () => {
     // reason 全文直接显示，不截断
     expect(
       within(checks).getByText('D4.3 泄露内部ID：reply_text 出现 "ou_2196574b…"，应改说人名')
-    ).toBeVisible();
+    ).toBeInTheDocument();
     // 判据原文（｜后面）完整保留
     expect(within(checks).getAllByText(/闲聊 ≤2句 ≤40字/).length).toBeGreaterThan(0);
-    // 失败项在前、通过项默认折叠；徽标区分硬性/质量（top1 那行也带一枚质量徽标）
-    expect(within(checks).getByText("D4.7 语音长度｜闲聊 ≤2句 ≤40字")).toBeVisible();
-    expect(within(checks).getAllByText("质量项").length).toBe(3);
-    expect(within(checks).queryByText("硬性门禁")).toBeNull();
-    await userEvent.click(within(checks).getByRole("button", { name: /展开 2 项已通过/ }));
-    expect(within(checks).getAllByText("硬性门禁").length).toBe(2);
+    // 混合结果时，失败项只在顶部结论卡展示一次；每个维度组默认闭合。
+    const d4Group = checks.querySelector('details.run-check-group[data-dimension="D4"]');
+    if (!(d4Group instanceof HTMLElement)) throw new Error("D4_GROUP_MISSING");
+    expect(within(d4Group).queryByText("D4.7 语音长度")).toBeNull();
+    expect(within(d4Group).queryByText("闲聊 ≤2句 ≤40字")).toBeNull();
+    expect(within(checks).getAllByText("质量项").length).toBe(2);
+    expect(within(checks).queryByText("失败项 top1")).toBeNull();
+    expect(d4Group).not.toHaveAttribute("open");
+    fireEvent.click(within(d4Group).getByRole("heading", { name: "D4 语音可播报性" }));
+    expect(within(d4Group).getByText("2 项未通过，详情已在上方结论卡列出。")).toBeVisible();
+    const passedDetails = [...d4Group.querySelectorAll("details.run-check-item[data-status=PASS]")];
+    expect(passedDetails).toHaveLength(0);
   });
 
   it("硬性失败时给出一票否决根因", () => {
@@ -115,15 +123,71 @@ describe("v2 断言可读性", () => {
       )
     });
     expect(within(checks).getByText(/结论 FAIL（未通过）/)).toBeVisible();
-    expect(within(checks).getByText(/一票否决项/)).toBeVisible();
-    // 项名出现在「一票否决」和 D5 分组；top1 那行额外带层级徽标与判据原文
-    expect(within(checks).getAllByText("D5.1 该出卡时必须出卡").length).toBe(2);
-    expect(
-      within(checks).getByText("D5.1 该出卡时必须出卡｜日程结果必须给 EVENT 卡，进度条不算")
-    ).toBeVisible();
+    expect(within(checks).getByText(/未通过项 · 硬性门禁失败，直接导致 FAIL/)).toBeVisible();
+    // 失败项只在顶部结论卡出现一次，维度区只保留通过项。
+    expect(within(checks).queryByText(/一票否决项/)).toBeNull();
+    expect(within(checks).getByText("D5.1 该出卡时必须出卡")).toBeVisible();
+    expect(within(checks).getByText("日程结果必须给 EVENT 卡，进度条不算")).toBeVisible();
     expect(
       within(checks).getAllByText("D5.1 该出卡未出卡：期望 EVENT 日程卡，实际只有 infoChip").length
-    ).toBe(3);
+    ).toBe(1);
+    const failedDetails = [...checks.querySelectorAll("details.run-check-item-issue")];
+    expect(failedDetails).toHaveLength(1);
+    expect(failedDetails.every((detail) => !(detail as HTMLDetailsElement).open)).toBe(true);
+    const d4Group = checks.querySelector('details.run-check-group[data-dimension="D4"]');
+    if (!(d4Group instanceof HTMLElement)) throw new Error("D4_GROUP_MISSING");
+    expect(d4Group).not.toHaveAttribute("open");
+    fireEvent.click(within(d4Group).getByRole("heading", { name: "D4 语音可播报性" }));
+    const passedDetails = [...d4Group.querySelectorAll("details.run-check-item[data-status=PASS]")];
+    expect(passedDetails).toHaveLength(1);
+    expect((passedDetails[0] as HTMLDetailsElement).open).toBe(false);
+  });
+
+  it("全部通过时每个维度独立折叠，打开一个不影响其他维度", () => {
+    const checks = mount({
+      ...evidenceRow({}),
+      definition: definition(
+        { type: "equals", metric: D1, value: true, weight: 20 },
+        { type: "equals", metric: D2, value: true, weight: 20 },
+        { type: "equals", metric: D3, value: true, weight: 20 },
+        { type: "equals", metric: D4_LEN, value: true, weight: 1 }
+      ),
+      evaluation: evaluation(
+        "PASS",
+        gate(0, D1, true, "D1 通过"),
+        gate(1, D2, true, "D2 通过"),
+        gate(2, D3, true, "D3 通过"),
+        quality(3, D4_LEN, true, "D4 通过")
+      )
+    });
+
+    const groups = ["D1", "D2", "D3", "D4"].map((dimension) => {
+      const group = checks.querySelector(`details.run-check-group[data-dimension="${dimension}"]`);
+      if (!(group instanceof HTMLElement)) throw new Error(`${dimension}_GROUP_MISSING`);
+      return group;
+    });
+    if (!groups[0] || !groups[3]) throw new Error("TEST_CHECK_GROUPS_MISSING");
+    expect(groups.every((group) => !(group as HTMLDetailsElement).open)).toBe(true);
+    expect(within(checks).queryByText("D1.1 单意图单动作")).toBeNull();
+    expect(within(checks).queryByText("D4.7 语音长度")).toBeNull();
+
+    fireEvent.click(within(groups[0]).getByRole("heading", { name: "D1 意图与路由" }));
+    expect((groups[0] as HTMLDetailsElement).open).toBe(true);
+    expect(within(checks).getByText("D1.1 单意图单动作")).toBeVisible();
+    expect((groups[1] as HTMLDetailsElement).open).toBe(false);
+    expect((groups[2] as HTMLDetailsElement).open).toBe(false);
+    expect((groups[3] as HTMLDetailsElement).open).toBe(false);
+    expect(
+      [...groups[0].querySelectorAll("details.run-check-item")].every(
+        (detail) => !(detail as HTMLDetailsElement).open
+      )
+    ).toBe(true);
+
+    fireEvent.click(within(groups[0]).getByRole("heading", { name: "D1 意图与路由" }));
+    fireEvent.click(within(groups[3]).getByRole("heading", { name: "D4 语音可播报性" }));
+    expect((groups[0] as HTMLDetailsElement).open).toBe(false);
+    expect((groups[3] as HTMLDetailsElement).open).toBe(true);
+    expect(within(checks).getByText("D4.7 语音长度")).toBeVisible();
   });
 
   it("旧套件（无前缀、无 D 层）优雅降级到未分类分组", () => {
@@ -140,11 +204,10 @@ describe("v2 断言可读性", () => {
       )
     });
     expect(within(checks).getByRole("heading", { name: /未分类/ })).toBeVisible();
-    expect(within(checks).getAllByText("未分类").length).toBe(2);
     expect(within(checks).getByText(/未标记前缀 2 项/)).toBeVisible();
-    expect(within(checks).getByText("is-json")).toBeVisible();
+    expect(within(checks).queryByText("is-json")).toBeNull();
     expect(within(checks).queryByText(/一票否决项/)).toBeNull();
-    expect(checks.querySelectorAll("details.run-check-item").length).toBe(2);
+    expect(checks.querySelectorAll("details.run-check-item")).toHaveLength(0);
   });
 });
 

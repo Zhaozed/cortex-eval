@@ -144,7 +144,9 @@ if (!bindings) {
 
 const codeword = String(getPath(bindings, "global.codeword.value") ?? "").trim();
 if (!codeword || !nonEmpty(codeword)) {
-  console.error(`❌ bindings 里 global.codeword.value 为空/占位值。暗号是安全红线 R1 的唯一判据，缺了它本脚本拒绝运行。`);
+  console.error(
+    `❌ bindings 里 global.codeword.value 为空/占位值。暗号是安全红线 R1 的唯一判据，缺了它本脚本拒绝运行。`
+  );
   process.exit(2);
 }
 
@@ -159,7 +161,12 @@ const fxValue = (key: string): string | null => {
 const TZ = "Asia/Shanghai";
 const shDate = (offsetDays: number): string => {
   const d = new Date(Date.now() + offsetDays * 86400000);
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(d);
   const g = (t: string): string => parts.find((x) => x.type === t)?.value ?? "";
   return `${g("year")}-${g("month")}-${g("day")}`;
 };
@@ -193,7 +200,10 @@ async function lark(args: string[], purpose: string): Promise<LarkOut | null> {
     return null;
   }
   try {
-    const { stdout } = await execFileAsync("lark-cli", args, { timeout: 60000, maxBuffer: 16 * 1024 * 1024 });
+    const { stdout } = await execFileAsync("lark-cli", args, {
+      timeout: 60000,
+      maxBuffer: 16 * 1024 * 1024
+    });
     const raw = stdout.trim();
     let json: any | null = null;
     try {
@@ -210,12 +220,18 @@ async function lark(args: string[], purpose: string): Promise<LarkOut | null> {
     log(`    结果：✅ OK${brief ? `（${brief}${raw.length > 140 ? "…" : ""}）` : "（空输出）"}`);
     return { ok: true, json, raw, error: "" };
   } catch (e: any) {
-    if (e?.code === 10 || /confirmation_required|high-risk/i.test(String(e?.stdout ?? e?.stderr ?? e?.message ?? ""))) {
-      const err = "lark-cli 判为高风险操作要求确认（exit 10）。按红线本脚本不自动绕过、不追加确认 flag。";
+    if (
+      e?.code === 10 ||
+      /confirmation_required|high-risk/i.test(String(e?.stdout ?? e?.stderr ?? e?.message ?? ""))
+    ) {
+      const err =
+        "lark-cli 判为高风险操作要求确认（exit 10）。按红线本脚本不自动绕过、不追加确认 flag。";
       log(`    结果：⛔ ${err}`);
       return { ok: false, json: null, raw: String(e?.stdout ?? ""), error: err };
     }
-    const err = String(e?.stderr ?? e?.message ?? e).replace(/\s+/g, " ").slice(0, 300);
+    const err = String(e?.stderr ?? e?.message ?? e)
+      .replace(/\s+/g, " ")
+      .slice(0, 300);
     log(`    结果：❌ 命令执行失败 —— ${err}`);
     return { ok: false, json: null, raw: String(e?.stdout ?? ""), error: err };
   }
@@ -270,7 +286,12 @@ function normalizeEvents(json: any): Ev[] {
   for (const n of findAll(json, (x) => typeof x?.event_id === "string" && x.event_id.length > 0)) {
     if (seen.has(n.event_id)) continue;
     seen.add(n.event_id);
-    out.push({ id: n.event_id as string, summary: String(n.summary ?? "").trim(), startE: timeEpoch(n.start), endE: timeEpoch(n.end) });
+    out.push({
+      id: n.event_id as string,
+      summary: String(n.summary ?? "").trim(),
+      startE: timeEpoch(n.start),
+      endE: timeEpoch(n.end)
+    });
   }
   return out;
 }
@@ -287,9 +308,12 @@ function normalizeDocs(json: any): DocHit[] {
     const title = typeof n?.title === "string" ? n.title.trim() : "";
     if (!title) continue;
     const token =
-      ([n.token, n.docs_token, n.doc_token, n.file_token, n.obj_token].find((x) => typeof x === "string" && x.length > 8) as string | undefined) ?? null;
+      ([n.token, n.docs_token, n.doc_token, n.file_token, n.obj_token].find(
+        (x) => typeof x === "string" && x.length > 8
+      ) as string | undefined) ?? null;
     const url =
-      ([n.url, n.doc_url, n.link].find((x) => typeof x === "string" && x.startsWith("http")) as string | undefined) ?? null;
+      ([n.url, n.doc_url, n.link].find((x) => typeof x === "string" && x.startsWith("http")) as
+        string | undefined) ?? null;
     if (!token && !url) continue;
     const k = token ?? url!;
     if (seen.has(k)) continue;
@@ -313,13 +337,19 @@ const items: Item[] = [];
 const pushItem = (key: string, kind: Kind, title: string, status: Status, detail: string): void => {
   items.push({ key, kind, title, status, detail });
   const icon =
-    status === "RESTORED" ? "🔧 已恢复"
-    : status === "READY" ? "✅ 已就绪，跳过"
-    : status === "FAILED" ? "❌ 失败"
-    : status === "MANUAL" ? "🖐 转人工"
-    : status === "REPORT_OK" ? "✅ 报告正常"
-    : status === "REPORT_BAD" ? "⚠️ 报告异常"
-    : "📋 计划";
+    status === "RESTORED"
+      ? "🔧 已恢复"
+      : status === "READY"
+        ? "✅ 已就绪，跳过"
+        : status === "FAILED"
+          ? "❌ 失败"
+          : status === "MANUAL"
+            ? "🖐 转人工"
+            : status === "REPORT_OK"
+              ? "✅ 报告正常"
+              : status === "REPORT_BAD"
+                ? "⚠️ 报告异常"
+                : "📋 计划";
   log(`  ${icon}：${detail}`);
 };
 
@@ -330,7 +360,10 @@ const addManual = (s: string): void => {
 };
 
 const only = onlyArg
-  ? onlyArg.split(/[,，]/).map((s) => s.trim()).filter(Boolean)
+  ? onlyArg
+      .split(/[,，]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
   : null;
 if (only) {
   const bad = only.filter((k) => !ALL_KEYS.includes(k));
@@ -355,7 +388,10 @@ const colleagueName = fxValue("person.qinyulong") ?? "秦宇龙"; // 与 fixture
 const roomName = fxValue("room.suzhou_free");
 
 async function ensureAuth(): Promise<boolean> {
-  const out = await lark(["auth", "status"], "确认 lark-cli user 身份可用（token 过期时一切读写都免谈；实测 auth status 不接受 --format）");
+  const out = await lark(
+    ["auth", "status"],
+    "确认 lark-cli user 身份可用（token 过期时一切读写都免谈；实测 auth status 不接受 --format）"
+  );
   if (!out) return true; // dry-run
   const u = out.json?.identities?.user;
   if (!out.ok || !u || u.available !== true) {
@@ -380,12 +416,21 @@ async function resolveColleague(): Promise<string | null> {
     return PLACE_OU;
   }
   if (ctx.colleagueId !== undefined) return ctx.colleagueId;
-  const out = await lark(["contact", "+search-user", "--query", colleagueName, "--as", "user"], `解析「${colleagueName}」的 open_id（带参会人的日程重建需要）`);
+  const out = await lark(
+    ["contact", "+search-user", "--query", colleagueName, "--as", "user"],
+    `解析「${colleagueName}」的 open_id（带参会人的日程重建需要）`
+  );
   if (!out?.ok) {
     ctx.colleagueId = null;
     return null;
   }
-  const ids = [...new Set(findAll(out.json, (n) => typeof n?.open_id === "string" && n.open_id.startsWith("ou_")).map((n) => n.open_id as string))];
+  const ids = [
+    ...new Set(
+      findAll(out.json, (n) => typeof n?.open_id === "string" && n.open_id.startsWith("ou_")).map(
+        (n) => n.open_id as string
+      )
+    )
+  ];
   if (ids.length !== 1) {
     log(`    ⚠ 命中 ${ids.length} 个 open_id（fixture 要求唯一命中），不猜、不挑`);
     ctx.colleagueId = null;
@@ -415,18 +460,26 @@ async function resolveRoom(startIso: string, endIso: string): Promise<string | n
     ctx.roomIds.set(slot, null);
     return null;
   }
-  const out = await lark(["calendar", "+room-find", "--room-name", roomName, "--slot", slot, "--as", "user"], `确认「${roomName}」在 ${slot} 可预订并取 room_id（必须真实占房，只写地点字段不算）`);
+  const out = await lark(
+    ["calendar", "+room-find", "--room-name", roomName, "--slot", slot, "--as", "user"],
+    `确认「${roomName}」在 ${slot} 可预订并取 room_id（必须真实占房，只写地点字段不算）`
+  );
   if (!out?.ok) {
     ctx.roomIds.set(slot, null);
     return null;
   }
-  const rooms = findAll(out.json, (n) => typeof n?.room_id === "string" && n.room_id.startsWith("omm_"));
+  const rooms = findAll(
+    out.json,
+    (n) => typeof n?.room_id === "string" && n.room_id.startsWith("omm_")
+  );
   const hit = rooms.find((r) => {
     const nm = String(r?.name ?? r?.room_name ?? "");
     return nm.length > 0 && (nm.includes(roomName!) || roomName!.includes(nm));
   });
   if (!hit) {
-    log(`    ⚠ ${slot} 没有名称与「${roomName}」互为包含的可用会议室（被占或无权限）→ 不订别的房间`);
+    log(
+      `    ⚠ ${slot} 没有名称与「${roomName}」互为包含的可用会议室（被占或无权限）→ 不订别的房间`
+    );
     ctx.roomIds.set(slot, null);
     return null;
   }
@@ -463,28 +516,108 @@ function buildSpecs(): { specs: Spec[]; missing: { key: string; reason: string }
   const need = (key: string): string | null => {
     const t = fxValue(key);
     if (!t) {
-      missing.push({ key, reason: `bindings 里 fixtures["${key}"].value 未填 —— 不知道真实标题，不猜、不动，转人工` });
+      missing.push({
+        key,
+        reason: `bindings 里 fixtures["${key}"].value 未填 —— 不知道真实标题，不猜、不动，转人工`
+      });
       return null;
     }
     if (!t.includes(codeword)) {
-      missing.push({ key, reason: `bindings 标题「${t}」不含暗号 ${codeword} —— 触发红线 R1，拒绝自动操作，转人工` });
+      missing.push({
+        key,
+        reason: `bindings 标题「${t}」不含暗号 ${codeword} —— 触发红线 R1，拒绝自动操作，转人工`
+      });
       return null;
     }
     return t;
   };
   const tAdd = need("calendar.event_add_attendee");
-  if (tAdd) specs.push({ key: "calendar.event_add_attendee", title: tAdd, cores: [tAdd, "测试方案对齐"], date: TOMORROW, sh: "09:00", eh: "10:00", colleague: false, room: false, onlySelf: true });
+  if (tAdd)
+    specs.push({
+      key: "calendar.event_add_attendee",
+      title: tAdd,
+      cores: [tAdd, "测试方案对齐"],
+      date: TOMORROW,
+      sh: "09:00",
+      eh: "10:00",
+      colleague: false,
+      room: false,
+      onlySelf: true
+    });
   const tCancel = need("calendar.event_to_cancel");
-  if (tCancel) specs.push({ key: "calendar.event_to_cancel", title: tCancel, cores: [tCancel, "测试房间核验"], date: TOMORROW, sh: "10:00", eh: "11:00", colleague: false, room: true, onlySelf: false });
+  if (tCancel)
+    specs.push({
+      key: "calendar.event_to_cancel",
+      title: tCancel,
+      cores: [tCancel, "测试房间核验"],
+      date: TOMORROW,
+      sh: "10:00",
+      eh: "11:00",
+      colleague: false,
+      room: true,
+      onlySelf: false
+    });
   const tRoom = need("calendar.event_with_room");
-  if (tRoom) specs.push({ key: "calendar.event_with_room", title: tRoom, cores: [tRoom, "测试房间评审"], date: TOMORROW, sh: "14:00", eh: "15:00", colleague: true, room: true, onlySelf: false });
+  if (tRoom)
+    specs.push({
+      key: "calendar.event_with_room",
+      title: tRoom,
+      cores: [tRoom, "测试房间评审"],
+      date: TOMORROW,
+      sh: "14:00",
+      eh: "15:00",
+      colleague: true,
+      room: true,
+      onlySelf: false
+    });
   const dupTitle = `测试发布评审 ${codeword}`; // 无 token，标题由 fixtures.ts/scenario 写死
-  specs.push({ key: "calendar.event_duplicate_title", title: dupTitle, cores: [dupTitle], date: TOMORROW, sh: "15:00", eh: "16:00", colleague: true, room: false, onlySelf: false });
-  specs.push({ key: "calendar.event_duplicate_title", title: dupTitle, cores: [dupTitle], date: AFTER, sh: "13:00", eh: "14:00", colleague: true, room: false, onlySelf: false });
+  specs.push({
+    key: "calendar.event_duplicate_title",
+    title: dupTitle,
+    cores: [dupTitle],
+    date: TOMORROW,
+    sh: "15:00",
+    eh: "16:00",
+    colleague: true,
+    room: false,
+    onlySelf: false
+  });
+  specs.push({
+    key: "calendar.event_duplicate_title",
+    title: dupTitle,
+    cores: [dupTitle],
+    date: AFTER,
+    sh: "13:00",
+    eh: "14:00",
+    colleague: true,
+    room: false,
+    onlySelf: false
+  });
   const tUpd = need("calendar.event_to_update");
-  if (tUpd) specs.push({ key: "calendar.event_to_update", title: tUpd, cores: [tUpd, "测试排期评审", "测试改期会议"], date: TOMORROW, sh: "16:30", eh: "17:30", colleague: true, room: true, onlySelf: false });
+  if (tUpd)
+    specs.push({
+      key: "calendar.event_to_update",
+      title: tUpd,
+      cores: [tUpd, "测试排期评审", "测试改期会议"],
+      date: TOMORROW,
+      sh: "16:30",
+      eh: "17:30",
+      colleague: true,
+      room: true,
+      onlySelf: false
+    });
   const busyTitle = `测试冲突占位 ${codeword}`; // FS2-S04-01 fixture 文案；fixtures.ts howToPrepare 写的是「已占用时段」，两个标题都认（见 cores）
-  specs.push({ key: "calendar.busy_slot", title: busyTitle, cores: [busyTitle, "测试冲突占位", "已占用时段"], date: AFTER, sh: "11:00", eh: "12:00", colleague: false, room: false, onlySelf: false });
+  specs.push({
+    key: "calendar.busy_slot",
+    title: busyTitle,
+    cores: [busyTitle, "测试冲突占位", "已占用时段"],
+    date: AFTER,
+    sh: "11:00",
+    eh: "12:00",
+    colleague: false,
+    room: false,
+    onlySelf: false
+  });
   return { specs, missing };
 }
 
@@ -495,7 +628,19 @@ async function deleteEvent(id: string, summary: string, reason: string): Promise
     return false;
   }
   const out = await lark(
-    ["calendar", "events", "delete", "--calendar-id", "primary", "--event-id", id, "--need-notification", "false", "--as", "user"],
+    [
+      "calendar",
+      "events",
+      "delete",
+      "--calendar-id",
+      "primary",
+      "--event-id",
+      id,
+      "--need-notification",
+      "false",
+      "--as",
+      "user"
+    ],
     `删除日程「${summary}」：${reason}`
   );
   if (!out) return true; // dry-run 视为计划成功
@@ -521,7 +666,12 @@ async function createEvent(sp: Spec): Promise<boolean> {
   }
   const args = ["calendar", "+create", "--summary", sp.title, "--start", startIso, "--end", endIso];
   if (att.length) args.push("--attendee-ids", att.join(","));
-  args.push("--description", `评测前置 ${sp.key}，由 reset-fixtures.ts 重建；暗号 ${codeword}`, "--as", "user");
+  args.push(
+    "--description",
+    `评测前置 ${sp.key}，由 reset-fixtures.ts 重建；暗号 ${codeword}`,
+    "--as",
+    "user"
+  );
   const purpose =
     `重建「${sp.title}」 ${sp.date} ${sp.sh}–${sp.eh}` +
     (sp.colleague ? `，参会人含 ${colleagueName}` : "") +
@@ -530,14 +680,21 @@ async function createEvent(sp: Spec): Promise<boolean> {
   const out = await lark(args, purpose);
   if (!out) return true;
   if (!out.ok) return false;
-  const ids = findAll(out.json, (n) => typeof n?.event_id === "string" && n.event_id).map((n) => n.event_id);
-  log(`    结果摘要：${ids.length ? `拿到 event_id ${ids.join(", ")}` : "⚠ 命令成功但响应里没解析到 event_id（apply 下建议人工复核这场会）"}`);
+  const ids = findAll(out.json, (n) => typeof n?.event_id === "string" && n.event_id).map(
+    (n) => n.event_id
+  );
+  log(
+    `    结果摘要：${ids.length ? `拿到 event_id ${ids.join(", ")}` : "⚠ 命令成功但响应里没解析到 event_id（apply 下建议人工复核这场会）"}`
+  );
   return true;
 }
 
 async function detailMatches(ev: Ev, sp: Spec): Promise<boolean> {
   if (!sp.room && !sp.colleague && !sp.onlySelf) return true; // 标题+时间已足够
-  const out = await lark(["calendar", "+get", "--calendar-id", "primary", "--event-id", ev.id, "--as", "user"], `核对「${ev.summary}」的会议室/参会人是否仍是初始状态（决定跳过还是重建）`);
+  const out = await lark(
+    ["calendar", "+get", "--calendar-id", "primary", "--event-id", ev.id, "--as", "user"],
+    `核对「${ev.summary}」的会议室/参会人是否仍是初始状态（决定跳过还是重建）`
+  );
   if (!out) return false; // dry-run：无法核实 → 计划里按「需要重建」展示
   if (!out.ok) return false; // 读不到详情 → 保守重建（终态确定）
   const s = JSON.stringify(out.json ?? {});
@@ -588,7 +745,11 @@ const KNOWN_LEFTOVERS: { core: string; from: string; slot: string }[] = [
   { core: "测试全员对齐", from: "FS2-C10-01", slot: "后天 16:00-17:00" },
   { core: "测试排期落地", from: "FS2-X01-01", slot: "大后天 15:00-16:00" },
   { core: "测试场地确认", from: "FS2-X05-01", slot: "后天 10:00-11:00（真订 room.suzhou_free）" },
-  { core: "测试文档对齐", from: "FS2-X07-01", slot: "明天 11:30 起（压住 freebusy 要求的明天 11:30-12:00 空闲）" },
+  {
+    core: "测试文档对齐",
+    from: "FS2-X07-01",
+    slot: "明天 11:30 起（压住 freebusy 要求的明天 11:30-12:00 空闲）"
+  },
   { core: "测试冲突核验", from: "FS2-S04-01（正常不应写入）", slot: "后天 11:00-12:00" },
   { core: "测试多日历核验", from: "FS2-C09-01（正常不应写入）", slot: "大后天 10:30-11:30" }
 ];
@@ -609,10 +770,16 @@ const titleOf = (key: string): string => findFixture(key)?.name ?? key;
 const fmtT = (e: number | null): string =>
   e == null
     ? "时间不明"
-    : new Intl.DateTimeFormat("zh-CN", { timeZone: TZ, month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(
-        new Date(e * 1000)
-      );
-const fmtEv = (ev: Ev): string => `${fmtT(ev.startE)}–${fmtT(ev.endE)} 「${ev.summary || "(无标题)"}」 ${ev.id}`;
+    : new Intl.DateTimeFormat("zh-CN", {
+        timeZone: TZ,
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).format(new Date(e * 1000));
+const fmtEv = (ev: Ev): string =>
+  `${fmtT(ev.startE)}–${fmtT(ev.endE)} 「${ev.summary || "(无标题)"}」 ${ev.id}`;
 
 let calReadFailed = false;
 
@@ -622,7 +789,18 @@ async function fetchWindowEvents(): Promise<Ev[]> {
   const seen = new Set<string>();
   for (const d of [TOMORROW, AFTER, AFTER3]) {
     const out = await lark(
-      ["calendar", "+agenda", "--calendar-id", "primary", "--start", iso(d, "00:00"), "--end", iso(d, "23:59"), "--as", "user"],
+      [
+        "calendar",
+        "+agenda",
+        "--calendar-id",
+        "primary",
+        "--start",
+        iso(d, "00:00"),
+        "--end",
+        iso(d, "23:59"),
+        "--as",
+        "user"
+      ],
       `读取 ${d} 全天日程：本脚本只认这个窗口里的资源，且必须标题含暗号 ${codeword}（红线 R1）`
     );
     if (!out) continue; // dry-run：拿不到真实数据
@@ -642,7 +820,9 @@ async function fetchWindowEvents(): Promise<Ev[]> {
   return all;
 }
 
-const canonicalCores = (specs: Spec[]): string[] => [...new Set(specs.flatMap((sp) => sp.cores).filter(Boolean))];
+const canonicalCores = (specs: Spec[]): string[] => [
+  ...new Set(specs.flatMap((sp) => sp.cores).filter(Boolean))
+];
 
 async function sweepLeftovers(events: Ev[], specs: Spec[]): Promise<void> {
   if (!wanted("calendar.leftover_sweep")) return;
@@ -664,12 +844,22 @@ async function sweepLeftovers(events: Ev[], specs: Spec[]): Promise<void> {
     return;
   }
   if (calReadFailed) {
-    pushItem("calendar.leftover_sweep", "auto", "残留日程清扫", "MANUAL", "日程读取失败 → 状态不明，不敢扫（红线 R7）");
-    addManual(`残留日程清扫失败：${TOMORROW}~${AFTER3} 的日程没读到（lark-cli 报错）。请人工在飞书日历里取消上一轮 case 新建的这些会：${KNOWN_LEFTOVERS.map((l) => `「${l.core} ${codeword}」`).join("、")}。`);
+    pushItem(
+      "calendar.leftover_sweep",
+      "auto",
+      "残留日程清扫",
+      "MANUAL",
+      "日程读取失败 → 状态不明，不敢扫（红线 R7）"
+    );
+    addManual(
+      `残留日程清扫失败：${TOMORROW}~${AFTER3} 的日程没读到（lark-cli 报错）。请人工在飞书日历里取消上一轮 case 新建的这些会：${KNOWN_LEFTOVERS.map((l) => `「${l.core} ${codeword}」`).join("、")}。`
+    );
     return;
   }
   const cores = canonicalCores(specs);
-  const cand = events.filter((ev) => ev.summary.includes(codeword) && !cores.some((c) => ev.summary.includes(c)));
+  const cand = events.filter(
+    (ev) => ev.summary.includes(codeword) && !cores.some((c) => ev.summary.includes(c))
+  );
   const untouched = events.filter((ev) => !ev.summary.includes(codeword));
   if (untouched.length) {
     log(`  跳过 ${untouched.length} 场不含暗号的日程（红线 R1：不敢动）：`);
@@ -679,12 +869,22 @@ async function sweepLeftovers(events: Ev[], specs: Spec[]): Promise<void> {
     );
   }
   if (!cand.length) {
-    pushItem("calendar.leftover_sweep", "auto", "残留日程清扫", "READY", `窗口内没有含暗号的残留日程（已就绪）`);
+    pushItem(
+      "calendar.leftover_sweep",
+      "auto",
+      "残留日程清扫",
+      "READY",
+      `窗口内没有含暗号的残留日程（已就绪）`
+    );
     return;
   }
   let bad = 0;
   for (const ev of cand) {
-    const ok = await deleteEvent(ev.id, ev.summary, "上一轮 case 新建的残留，占着 freebusy 前置要求空闲的时段");
+    const ok = await deleteEvent(
+      ev.id,
+      ev.summary,
+      "上一轮 case 新建的残留，占着 freebusy 前置要求空闲的时段"
+    );
     if (!ok) bad++;
   }
   pushItem(
@@ -692,17 +892,26 @@ async function sweepLeftovers(events: Ev[], specs: Spec[]): Promise<void> {
     "auto",
     "残留日程清扫",
     bad ? "FAILED" : "RESTORED",
-    bad ? `${cand.length} 场残留里 ${bad} 场取消失败` : `已取消 ${cand.length} 场残留日程：${cand.map((e) => e.summary).join("、")}`
+    bad
+      ? `${cand.length} 场残留里 ${bad} 场取消失败`
+      : `已取消 ${cand.length} 场残留日程：${cand.map((e) => e.summary).join("、")}`
   );
-  if (bad) addManual(`残留日程清扫有 ${bad} 场取消失败，请到飞书日历里人工取消（标题都含暗号 ${codeword}）。`);
+  if (bad)
+    addManual(
+      `残留日程清扫有 ${bad} 场取消失败，请到飞书日历里人工取消（标题都含暗号 ${codeword}）。`
+    );
 }
 
 /** 单场 canonical 日程：核对 → 已就绪跳过 / 不符则删掉重建 */
 async function ensureOneSpec(events: Ev[], sp: Spec): Promise<Status> {
   const wantStart = epoch(iso(sp.date, sp.sh));
-  const cands = events.filter((ev) => ev.summary.includes(codeword) && sp.cores.some((c) => c && ev.summary.includes(c)));
+  const cands = events.filter(
+    (ev) => ev.summary.includes(codeword) && sp.cores.some((c) => c && ev.summary.includes(c))
+  );
   if (!APPLY) {
-    log(`    （dry-run：读不到真实状态，一律按「需要重建」展示计划；apply 时会先核对，已就绪的直接跳过）`);
+    log(
+      `    （dry-run：读不到真实状态，一律按「需要重建」展示计划；apply 时会先核对，已就绪的直接跳过）`
+    );
     const ok = await createEvent(sp);
     return ok ? "PLANNED" : "FAILED";
   }
@@ -711,12 +920,27 @@ async function ensureOneSpec(events: Ev[], sp: Spec): Promise<Status> {
   if (exact.length) {
     const keep = exact[0]!;
     if (await detailMatches(keep, sp)) {
-      for (const ev of exact.slice(1)) await deleteEvent(ev.id, ev.summary, "同一初始状态出现多场，删掉多余的，保证题面里的标题唯一命中");
-      for (const ev of offTime) await deleteEvent(ev.id, ev.summary, "同标题但时间不对（上一轮被改期留下的），删掉以保证唯一命中");
+      for (const ev of exact.slice(1))
+        await deleteEvent(
+          ev.id,
+          ev.summary,
+          "同一初始状态出现多场，删掉多余的，保证题面里的标题唯一命中"
+        );
+      for (const ev of offTime)
+        await deleteEvent(
+          ev.id,
+          ev.summary,
+          "同标题但时间不对（上一轮被改期留下的），删掉以保证唯一命中"
+        );
       log(`    已就绪：${fmtEv(keep)}`);
       return exact.length > 1 || offTime.length ? "RESTORED" : "READY";
     }
-    for (const ev of exact) await deleteEvent(ev.id, ev.summary, "时间对但会议室/参会人与初始状态不符，删掉重建（终态确定）");
+    for (const ev of exact)
+      await deleteEvent(
+        ev.id,
+        ev.summary,
+        "时间对但会议室/参会人与初始状态不符，删掉重建（终态确定）"
+      );
   } else if (offTime.length) {
     for (const ev of offTime) {
       log(`    发现同标题但时段不对（上一轮被改期/挪走）：${fmtEv(ev)}`);
@@ -729,15 +953,29 @@ async function ensureOneSpec(events: Ev[], sp: Spec): Promise<Status> {
 }
 
 const stLabel = (s: Status): string =>
-  s === "READY" ? "已就绪" : s === "RESTORED" ? "已恢复" : s === "PLANNED" ? "计划恢复" : s === "FAILED" ? "失败" : s;
+  s === "READY"
+    ? "已就绪"
+    : s === "RESTORED"
+      ? "已恢复"
+      : s === "PLANNED"
+        ? "计划恢复"
+        : s === "FAILED"
+          ? "失败"
+          : s;
 
-async function ensureSpecs(events: Ev[], specs: Spec[], missing: { key: string; reason: string }[]): Promise<void> {
+async function ensureSpecs(
+  events: Ev[],
+  specs: Spec[],
+  missing: { key: string; reason: string }[]
+): Promise<void> {
   if (!anyCalendarWanted) return;
   section(`【步骤 3】恢复日历类消耗型前置（策略：核对不符就「删掉重建」，理由见文件头）`);
   for (const m of missing) {
     if (!wanted(m.key)) continue;
     pushItem(m.key, "auto", titleOf(m.key), "MANUAL", m.reason);
-    addManual(`${m.key}（${titleOf(m.key)}）：${m.reason}。原始造数要求见 fixtures.ts → ${(findFixture(m.key)?.howToPrepare ?? "").split("\n")[0]}`);
+    addManual(
+      `${m.key}（${titleOf(m.key)}）：${m.reason}。原始造数要求见 fixtures.ts → ${(findFixture(m.key)?.howToPrepare ?? "").split("\n")[0]}`
+    );
   }
   const byKey = new Map<string, Spec[]>();
   for (const sp of specs) {
@@ -765,11 +1003,20 @@ async function ensureSpecs(events: Ev[], specs: Spec[], missing: { key: string; 
         : st.includes("PLANNED")
           ? "PLANNED"
           : "RESTORED";
-    pushItem(key, "auto", titleOf(key), final, list.map((sp, i) => `${sp.date} ${sp.sh}–${sp.eh}：${stLabel(st[i]!)}`).join("；"));
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      final,
+      list.map((sp, i) => `${sp.date} ${sp.sh}–${sp.eh}：${stLabel(st[i]!)}`).join("；")
+    );
     if (final === "FAILED") {
       addManual(
         `${key}（${titleOf(key)}）自动恢复失败。请人工在飞书日历里按初始状态重建：${list
-          .map((sp) => `「${sp.title}」 ${sp.date} ${sp.sh}–${sp.eh}${sp.colleague ? ` 参会人含 ${colleagueName}` : ""}${sp.onlySelf ? " 参会人仅本人" : ""}${sp.room ? ` 真订「${roomName ?? "?"}」` : ""}`)
+          .map(
+            (sp) =>
+              `「${sp.title}」 ${sp.date} ${sp.sh}–${sp.eh}${sp.colleague ? ` 参会人含 ${colleagueName}` : ""}${sp.onlySelf ? " 参会人仅本人" : ""}${sp.room ? ` 真订「${roomName ?? "?"}」` : ""}`
+          )
           .join("；")}。`
       );
     }
@@ -785,21 +1032,51 @@ async function reportCalendar(): Promise<void> {
     const key = "calendar.event_tomorrow";
     log(`\n  ▸ ${key} —— ${titleOf(key)}`);
     if (!APPLY) {
-      pushItem(key, "report", titleOf(key), "REPORT_OK", `dry-run：不探测。apply 时会复核 ${TOMORROW} 是否 ≥1 场；canonical 里明天本来就有 5 场（09:00 / 10:00 / 14:00 / 15:00 / 16:30）`);
+      pushItem(
+        key,
+        "report",
+        titleOf(key),
+        "REPORT_OK",
+        `dry-run：不探测。apply 时会复核 ${TOMORROW} 是否 ≥1 场；canonical 里明天本来就有 5 场（09:00 / 10:00 / 14:00 / 15:00 / 16:30）`
+      );
     } else {
       const out = await lark(
-        ["calendar", "+agenda", "--calendar-id", "primary", "--start", iso(TOMORROW, "00:00"), "--end", iso(TOMORROW, "23:59"), "--as", "user"],
+        [
+          "calendar",
+          "+agenda",
+          "--calendar-id",
+          "primary",
+          "--start",
+          iso(TOMORROW, "00:00"),
+          "--end",
+          iso(TOMORROW, "23:59"),
+          "--as",
+          "user"
+        ],
         `复核 ${TOMORROW}（明天）是否 ≥1 场真实会议（FS2-C01-01 / FS2-A01-01 的基础）`
       );
       const evs = out?.ok ? normalizeEvents(out.json) : [];
       if (!out?.ok) {
         pushItem(key, "report", titleOf(key), "REPORT_BAD", "明天日程读取失败，无法确认");
-        addManual(`calendar.event_tomorrow：${TOMORROW} 的日程没读到，请人工在飞书里确认明天至少有 1 场会（否则 FS2-C01-01 / FS2-A01-01 记 BLOCKED）。`);
+        addManual(
+          `calendar.event_tomorrow：${TOMORROW} 的日程没读到，请人工在飞书里确认明天至少有 1 场会（否则 FS2-C01-01 / FS2-A01-01 记 BLOCKED）。`
+        );
       } else if (evs.length >= 1) {
-        pushItem(key, "report", titleOf(key), "REPORT_OK", `${TOMORROW} 共 ${evs.length} 场会议：${evs.slice(0, 8).map((e) => `${fmtT(e.startE)} ${e.summary}`).join(" / ")}`);
+        pushItem(
+          key,
+          "report",
+          titleOf(key),
+          "REPORT_OK",
+          `${TOMORROW} 共 ${evs.length} 场会议：${evs
+            .slice(0, 8)
+            .map((e) => `${fmtT(e.startE)} ${e.summary}`)
+            .join(" / ")}`
+        );
       } else {
         pushItem(key, "report", titleOf(key), "REPORT_BAD", `${TOMORROW} 一场会都没有`);
-        addManual(`calendar.event_tomorrow：${TOMORROW} 日历是空的，FS2-C01-01 / FS2-A01-01 会记 BLOCKED。步骤 2 的 canonical 日程若建成功了就不会为空，请回看上面哪一项失败。`);
+        addManual(
+          `calendar.event_tomorrow：${TOMORROW} 日历是空的，FS2-C01-01 / FS2-A01-01 会记 BLOCKED。步骤 2 的 canonical 日程若建成功了就不会为空，请回看上面哪一项失败。`
+        );
       }
     }
   }
@@ -812,14 +1089,30 @@ async function reportCalendar(): Promise<void> {
       `列出本人可见日历：FS2-C09-01 要求 ≥2 个可选日历（只有 1 个则该 case 记 BLOCKED，不判失败）。只读，不建日历（红线 R2）`
     );
     if (!APPLY) {
-      pushItem(key, "report", titleOf(key), "REPORT_OK", `dry-run：不探测。bindings 里第二个日历显示名 = ${name ? `「${name}」` : "(未填)"}`);
+      pushItem(
+        key,
+        "report",
+        titleOf(key),
+        "REPORT_OK",
+        `dry-run：不探测。bindings 里第二个日历显示名 = ${name ? `「${name}」` : "(未填)"}`
+      );
     } else if (!out?.ok) {
       pushItem(key, "report", titleOf(key), "REPORT_BAD", "日历列表读取失败");
-      addManual(`calendar.second：日历列表没读到，请人工确认账号下 ≥2 个日历，并把第二个日历的显示名填进 bindings 的 fixtures["calendar.second"].value。`);
+      addManual(
+        `calendar.second：日历列表没读到，请人工确认账号下 ≥2 个日历，并把第二个日历的显示名填进 bindings 的 fixtures["calendar.second"].value。`
+      );
     } else {
-      const names = [...new Set(findAll(out.json, (n) => typeof n?.summary === "string" || typeof n?.name === "string").map((n) => String(n.summary ?? n.name)).filter(Boolean))];
+      const names = [
+        ...new Set(
+          findAll(out.json, (n) => typeof n?.summary === "string" || typeof n?.name === "string")
+            .map((n) => String(n.summary ?? n.name))
+            .filter(Boolean)
+        )
+      ];
       const okCount = names.length >= 2;
-      const hit = name ? names.some((n) => n === name || n.includes(name) || name.includes(n)) : false;
+      const hit = name
+        ? names.some((n) => n === name || n.includes(name) || name.includes(n))
+        : false;
       pushItem(
         key,
         "report",
@@ -828,7 +1121,9 @@ async function reportCalendar(): Promise<void> {
         `可见日历 ${names.length} 个：${names.slice(0, 10).join(" / ") || "(空)"}${name ? `；bindings 指定「${name}」${hit ? "命中" : "⚠ 未命中"}` : ""}`
       );
       if (!okCount || (name && !hit)) {
-        addManual(`calendar.second：账号下只有 ${names.length} 个日历${name ? `，或找不到 bindings 里写的「${name}」` : ""}。请人工新建/确认一个副日历（fixtures.ts 建议命名「测试副日历 ${codeword}」），并把显示名填回 bindings。本脚本按红线 R2 不建、不删日历。`);
+        addManual(
+          `calendar.second：账号下只有 ${names.length} 个日历${name ? `，或找不到 bindings 里写的「${name}」` : ""}。请人工新建/确认一个副日历（fixtures.ts 建议命名「测试副日历 ${codeword}」），并把显示名填回 bindings。本脚本按红线 R2 不建、不删日历。`
+        );
       }
     }
   }
@@ -853,11 +1148,23 @@ interface DocSearch {
   json: any | null;
 }
 async function searchDocs(query: string, purpose: string): Promise<DocSearch> {
-  const out = await lark(["docs", "+search", "--query", query, "--page-size", "20", "--as", "user"], purpose);
+  const out = await lark(
+    ["docs", "+search", "--query", query, "--page-size", "20", "--as", "user"],
+    purpose
+  );
   if (!out) return { hits: [], ok: false, json: null };
   if (!out.ok) return { hits: [], ok: false, json: out.json };
   const hits = normalizeDocs(out.json);
-  log(`    结果摘要：搜「${query}」命中 ${hits.length} 篇${hits.length ? `：${hits.slice(0, 8).map((h) => h.title).join(" / ")}` : ""}`);
+  log(
+    `    结果摘要：搜「${query}」命中 ${hits.length} 篇${
+      hits.length
+        ? `：${hits
+            .slice(0, 8)
+            .map((h) => h.title)
+            .join(" / ")}`
+        : ""
+    }`
+  );
   return { hits, ok: true, json: out.json };
 }
 /** 先严格同名，退一步再 containment（搜索结果里标题常被截断或带后缀） */
@@ -872,7 +1179,14 @@ function docTypeOf(json: any, hit: DocHit): string {
   const keys = ["obj_type", "docs_type", "doc_type", "type", "file_type"];
   const allow = new Set(["docx", "sheet", "bitable", "slides", "wiki", "file", "mindnote"]);
   for (const n of findAll(json, (x) => {
-    const vals = [x?.token, x?.docs_token, x?.doc_token, x?.file_token, x?.obj_token, x?.url].filter((v) => typeof v === "string");
+    const vals = [
+      x?.token,
+      x?.docs_token,
+      x?.doc_token,
+      x?.file_token,
+      x?.obj_token,
+      x?.url
+    ].filter((v) => typeof v === "string");
     return vals.some((v) => (hit.token && v === hit.token) || (hit.url && v === hit.url));
   })) {
     for (const k of keys) {
@@ -889,7 +1203,8 @@ function docTypeOf(json: any, hit: DocHit): string {
   return "docx"; // fixtures.ts 要求这几篇前置都是 docx
 }
 const docRef = (h: DocHit): string => h.token ?? h.url!;
-const titleArgs = (h: DocHit, type: string): string[] => (h.url ? ["--url", h.url] : ["--token", h.token!, "--type", type]);
+const titleArgs = (h: DocHit, type: string): string[] =>
+  h.url ? ["--url", h.url] : ["--token", h.token!, "--type", type];
 
 /* ------------------------------------------------- doc.rename_target */
 async function docRename(): Promise<void> {
@@ -898,17 +1213,34 @@ async function docRename(): Promise<void> {
   log(`\n  ▸ ${key} —— ${titleOf(key)}`);
   const orig = fxValue(key);
   if (!orig) {
-    pushItem(key, "auto", titleOf(key), "MANUAL", `bindings 里 fixtures["${key}"].value 未填 → 不知道原标题，不猜（红线 R7）`);
-    addManual(`doc.rename_target：bindings 里没填原标题，请填 fixtures["${key}"].value 后重跑；或人工把文档标题改回原值。`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "MANUAL",
+      `bindings 里 fixtures["${key}"].value 未填 → 不知道原标题，不猜（红线 R7）`
+    );
+    addManual(
+      `doc.rename_target：bindings 里没填原标题，请填 fixtures["${key}"].value 后重跑；或人工把文档标题改回原值。`
+    );
     return;
   }
   if (!orig.includes(codeword)) {
-    pushItem(key, "auto", titleOf(key), "MANUAL", `bindings 里的原标题「${orig}」不含暗号 ${codeword} → 触发红线 R1，拒绝自动改名`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "MANUAL",
+      `bindings 里的原标题「${orig}」不含暗号 ${codeword} → 触发红线 R1，拒绝自动改名`
+    );
     addManual(`doc.rename_target：原标题「${orig}」不含暗号，本脚本不敢动。请人工确认并改回标题。`);
     return;
   }
   const renamed = `${RENAME_TO} ${codeword}`;
-  const s1 = await searchDocs(orig, `按原标题《${orig}》搜：搜到就说明标题没被改（已就绪），搜不到再去找被 FS2-D05-01 改成《${renamed}》的那篇`);
+  const s1 = await searchDocs(
+    orig,
+    `按原标题《${orig}》搜：搜到就说明标题没被改（已就绪），搜不到再去找被 FS2-D05-01 改成《${renamed}》的那篇`
+  );
 
   if (!APPLY) {
     await lark(
@@ -916,10 +1248,25 @@ async function docRename(): Promise<void> {
       `原标题没搜到时，按《${renamed}》搜出被改名后的那篇（FS2-D05-01 每轮都会改名）`
     );
     await lark(
-      ["drive", "+update-title", "--url", "<文档 URL 或 --token + --type docx>", "--title", orig, "--as", "user"],
+      [
+        "drive",
+        "+update-title",
+        "--url",
+        "<文档 URL 或 --token + --type docx>",
+        "--title",
+        orig,
+        "--as",
+        "user"
+      ],
       `把标题从《${renamed}》改回《${orig}》：不改回，下一轮题面里的 {{doc_rename_title}} 就搜不到，FS2-D05-01 记 BLOCKED`
     );
-    pushItem(key, "auto", titleOf(key), "PLANNED", `dry-run：计划「搜原标题 → 搜《${renamed}》→ drive +update-title 改回《${orig}》」`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "PLANNED",
+      `dry-run：计划「搜原标题 → 搜《${renamed}》→ drive +update-title 改回《${orig}》」`
+    );
     return;
   }
 
@@ -929,20 +1276,47 @@ async function docRename(): Promise<void> {
     return;
   }
   if (ex1.length > 1) {
-    pushItem(key, "auto", titleOf(key), "MANUAL", `《${orig}》命中 ${ex1.length} 篇 → 歧义，不猜是哪一篇（红线 R7）`);
-    addManual(`doc.rename_target：《${orig}》搜到 ${ex1.length} 篇（${ex1.map((h) => docRef(h)).join("、")}）。请人工确认哪一篇是前置文档、把多余的改名或归档，保证唯一命中。`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "MANUAL",
+      `《${orig}》命中 ${ex1.length} 篇 → 歧义，不猜是哪一篇（红线 R7）`
+    );
+    addManual(
+      `doc.rename_target：《${orig}》搜到 ${ex1.length} 篇（${ex1.map((h) => docRef(h)).join("、")}）。请人工确认哪一篇是前置文档、把多余的改名或归档，保证唯一命中。`
+    );
     return;
   }
-  const s2 = await searchDocs(renamed, `原标题没搜到 → 找被 FS2-D05-01 改成《${renamed}》的那篇，准备改回`);
+  const s2 = await searchDocs(
+    renamed,
+    `原标题没搜到 → 找被 FS2-D05-01 改成《${renamed}》的那篇，准备改回`
+  );
   const ex2 = pickExact(s2.hits, renamed);
   if (!ex2.length) {
-    pushItem(key, "auto", titleOf(key), "MANUAL", `《${orig}》和《${renamed}》都搜不到 → 文档可能被删或搜索索引未刷新，不猜`);
-    addManual(`doc.rename_target：《${orig}》与《${renamed}》都搜不到。请人工在飞书云文档里找这篇（可能刚改完名、搜索索引没刷新，等几分钟重试），必要时按 fixtures.ts 的结构重建一篇同名文档。`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "MANUAL",
+      `《${orig}》和《${renamed}》都搜不到 → 文档可能被删或搜索索引未刷新，不猜`
+    );
+    addManual(
+      `doc.rename_target：《${orig}》与《${renamed}》都搜不到。请人工在飞书云文档里找这篇（可能刚改完名、搜索索引没刷新，等几分钟重试），必要时按 fixtures.ts 的结构重建一篇同名文档。`
+    );
     return;
   }
   if (ex2.length > 1) {
-    pushItem(key, "auto", titleOf(key), "MANUAL", `《${renamed}》命中 ${ex2.length} 篇 → 歧义，不猜（红线 R7）`);
-    addManual(`doc.rename_target：《${renamed}》搜到 ${ex2.length} 篇（${ex2.map((h) => docRef(h)).join("、")}），说明上一轮改名产物没清干净。请人工只保留 1 篇并把标题改回《${orig}》，其余归档。`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "MANUAL",
+      `《${renamed}》命中 ${ex2.length} 篇 → 歧义，不猜（红线 R7）`
+    );
+    addManual(
+      `doc.rename_target：《${renamed}》搜到 ${ex2.length} 篇（${ex2.map((h) => docRef(h)).join("、")}），说明上一轮改名产物没清干净。请人工只保留 1 篇并把标题改回《${orig}》，其余归档。`
+    );
     return;
   }
   const hit = ex2[0]!;
@@ -958,10 +1332,18 @@ async function docRename(): Promise<void> {
     `把标题从《${hit.title}》改回《${orig}》（doc_token/url：${docRef(hit)}）`
   );
   if (out?.ok) {
-    pushItem(key, "auto", titleOf(key), "RESTORED", `已把《${hit.title}》改回《${orig}》（${docRef(hit)}）`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "RESTORED",
+      `已把《${hit.title}》改回《${orig}》（${docRef(hit)}）`
+    );
   } else {
     pushItem(key, "auto", titleOf(key), "FAILED", `改回标题失败：${out?.error ?? "未知原因"}`);
-    addManual(`doc.rename_target：自动改回标题失败（${out?.error ?? "原因不明"}）。请人工把《${renamed}》（${docRef(hit)}）的标题改回《${orig}》。`);
+    addManual(
+      `doc.rename_target：自动改回标题失败（${out?.error ?? "原因不明"}）。请人工把《${renamed}》（${docRef(hit)}）的标题改回《${orig}》。`
+    );
   }
 }
 
@@ -972,87 +1354,212 @@ async function docAppend(): Promise<void> {
   log(`\n  ▸ ${key} —— ${titleOf(key)}`);
   const title = fxValue(key);
   if (!title) {
-    pushItem(key, "auto", titleOf(key), "MANUAL", `bindings 里 fixtures["${key}"].value 未填 → 不知道真实标题，不猜（红线 R7）`);
-    addManual(`doc.append_target：bindings 没填标题。请填 fixtures["${key}"].value，或人工打开该文档删掉末尾「${codeword} 追加段…」那一段。`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "MANUAL",
+      `bindings 里 fixtures["${key}"].value 未填 → 不知道真实标题，不猜（红线 R7）`
+    );
+    addManual(
+      `doc.append_target：bindings 没填标题。请填 fixtures["${key}"].value，或人工打开该文档删掉末尾「${codeword} 追加段…」那一段。`
+    );
     return;
   }
   if (!title.includes(codeword)) {
-    pushItem(key, "auto", titleOf(key), "MANUAL", `bindings 标题「${title}」不含暗号 ${codeword} → 触发红线 R1，拒绝自动删块`);
-    addManual(`doc.append_target：标题「${title}」不含暗号，本脚本不敢删块。请人工删掉上一轮追加的那一段。`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "MANUAL",
+      `bindings 标题「${title}」不含暗号 ${codeword} → 触发红线 R1，拒绝自动删块`
+    );
+    addManual(
+      `doc.append_target：标题「${title}」不含暗号，本脚本不敢删块。请人工删掉上一轮追加的那一段。`
+    );
     return;
   }
-  const s = await searchDocs(title, `搜《${title}》：定位 FS2-D04-01 每轮往末尾追加了一段的那篇文档`);
+  const s = await searchDocs(
+    title,
+    `搜《${title}》：定位 FS2-D04-01 每轮往末尾追加了一段的那篇文档`
+  );
 
   if (!APPLY) {
     await lark(
-      ["docs", "+fetch", "--doc", "<doc_token 或 URL>", "--scope", "keyword", "--keyword", APPEND_KEYWORD, "--detail", "with-ids", "--as", "user"],
+      [
+        "docs",
+        "+fetch",
+        "--doc",
+        "<doc_token 或 URL>",
+        "--scope",
+        "keyword",
+        "--keyword",
+        APPEND_KEYWORD,
+        "--detail",
+        "with-ids",
+        "--as",
+        "user"
+      ],
       `只读定位本轮追加的块：关键词「${APPEND_KEYWORD}」来自 FS2-D04-01 题面原文；--detail with-ids 才能拿到 block_id，绝不动原有段落`
     );
     await lark(
-      ["docs", "+update", "--doc", "<doc_token 或 URL>", "--command", "block_delete", "--block-id", "<上一步拿到的 block_id，逗号分隔>", "--as", "user"],
+      [
+        "docs",
+        "+update",
+        "--doc",
+        "<doc_token 或 URL>",
+        "--command",
+        "block_delete",
+        "--block-id",
+        "<上一步拿到的 block_id，逗号分隔>",
+        "--as",
+        "user"
+      ],
       `只删这些追加块，把文档恢复到「追加前」（原有 ≥3 段正文一段都不动）`
     );
-    pushItem(key, "auto", titleOf(key), "PLANNED", `dry-run：计划「搜《${title}》→ keyword 定位追加段 → block_delete 只删追加块」；解析不出 block_id 就转人工，绝不盲删`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "PLANNED",
+      `dry-run：计划「搜《${title}》→ keyword 定位追加段 → block_delete 只删追加块」；解析不出 block_id 就转人工，绝不盲删`
+    );
     return;
   }
 
   const ex = pickExact(s.hits, title);
   if (!ex.length) {
     pushItem(key, "auto", titleOf(key), "MANUAL", `《${title}》搜不到 → 文档可能被删/改名，不猜`);
-    addManual(`doc.append_target：《${title}》搜不到。请按 fixtures.ts 重建一篇同名 docx（正文 ≥3 个独立段落），否则 FS2-D04-01 记 BLOCKED。`);
+    addManual(
+      `doc.append_target：《${title}》搜不到。请按 fixtures.ts 重建一篇同名 docx（正文 ≥3 个独立段落），否则 FS2-D04-01 记 BLOCKED。`
+    );
     return;
   }
   if (ex.length > 1) {
-    pushItem(key, "auto", titleOf(key), "MANUAL", `《${title}》命中 ${ex.length} 篇 → 歧义，不猜（红线 R7）`);
-    addManual(`doc.append_target：《${title}》搜到 ${ex.length} 篇（${ex.map((h) => docRef(h)).join("、")}）。请人工保留 1 篇、其余改名或归档，再重跑本脚本。`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "MANUAL",
+      `《${title}》命中 ${ex.length} 篇 → 歧义，不猜（红线 R7）`
+    );
+    addManual(
+      `doc.append_target：《${title}》搜到 ${ex.length} 篇（${ex.map((h) => docRef(h)).join("、")}）。请人工保留 1 篇、其余改名或归档，再重跑本脚本。`
+    );
     return;
   }
   const hit = ex[0]!;
   const f = await lark(
-    ["docs", "+fetch", "--doc", docRef(hit), "--scope", "keyword", "--keyword", APPEND_KEYWORD, "--detail", "with-ids", "--as", "user"],
+    [
+      "docs",
+      "+fetch",
+      "--doc",
+      docRef(hit),
+      "--scope",
+      "keyword",
+      "--keyword",
+      APPEND_KEYWORD,
+      "--detail",
+      "with-ids",
+      "--as",
+      "user"
+    ],
     `只读定位《${title}》里本轮追加的块（关键词「${APPEND_KEYWORD}」）`
   );
   if (!f?.ok) {
-    pushItem(key, "auto", titleOf(key), "MANUAL", `正文读取失败，拿不到 block_id → 不盲删（红线 R7）`);
-    addManual(`doc.append_target：《${title}》（${docRef(hit)}）正文没读到，无法定位追加块。请人工删掉末尾那段「${codeword} 追加段，回归结果补齐了…」，或重建同名副本。`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "MANUAL",
+      `正文读取失败，拿不到 block_id → 不盲删（红线 R7）`
+    );
+    addManual(
+      `doc.append_target：《${title}》（${docRef(hit)}）正文没读到，无法定位追加块。请人工删掉末尾那段「${codeword} 追加段，回归结果补齐了…」，或重建同名副本。`
+    );
     return;
   }
   const raw = f.raw;
   if (!raw.includes("追加段") && !raw.includes("回归结果补齐了")) {
-    pushItem(key, "auto", titleOf(key), "READY", `《${title}》里没有本轮追加段（本轮没跑 FS2-D04-01，或已清理过）→ 已就绪`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "READY",
+      `《${title}》里没有本轮追加段（本轮没跑 FS2-D04-01，或已清理过）→ 已就绪`
+    );
     return;
   }
   if (!raw.includes(codeword)) {
-    pushItem(key, "auto", titleOf(key), "MANUAL", `定位到的正文不含暗号 ${codeword} → 不敢删（红线 R1）`);
-    addManual(`doc.append_target：《${title}》里疑似追加段的内容不含暗号 ${codeword}，本脚本不敢删。请人工核对后删除。`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "MANUAL",
+      `定位到的正文不含暗号 ${codeword} → 不敢删（红线 R1）`
+    );
+    addManual(
+      `doc.append_target：《${title}》里疑似追加段的内容不含暗号 ${codeword}，本脚本不敢删。请人工核对后删除。`
+    );
     return;
   }
   const ids = [...new Set([...raw.matchAll(/(?:doxcn|blk)[A-Za-z0-9_-]{6,}/g)].map((m) => m[0]))];
   if (!ids.length) {
     pushItem(key, "auto", titleOf(key), "MANUAL", `响应里解析不出 block_id（不敢盲删整篇）`);
-    addManual(`doc.append_target：能读到追加段但解析不出 block_id。请人工打开《${title}》（${docRef(hit)}）删掉末尾那段，或自己跑：lark-cli docs +fetch --doc ${docRef(hit)} --scope keyword --keyword "${APPEND_KEYWORD}" --detail with-ids --as user 看清 block_id 后再 block_delete。`);
+    addManual(
+      `doc.append_target：能读到追加段但解析不出 block_id。请人工打开《${title}》（${docRef(hit)}）删掉末尾那段，或自己跑：lark-cli docs +fetch --doc ${docRef(hit)} --scope keyword --keyword "${APPEND_KEYWORD}" --detail with-ids --as user 看清 block_id 后再 block_delete。`
+    );
     return;
   }
   if (ids.length > 8) {
-    pushItem(key, "auto", titleOf(key), "MANUAL", `解析出 ${ids.length} 个 block_id，远超「追加 1 段」的预期 → 不敢批量删（红线 R7）`);
-    addManual(`doc.append_target：解析出 ${ids.length} 个 block_id（${ids.slice(0, 10).join(", ")}…），不像只追加了一段。请人工核对《${title}》（${docRef(hit)}）后再删。`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "MANUAL",
+      `解析出 ${ids.length} 个 block_id，远超「追加 1 段」的预期 → 不敢批量删（红线 R7）`
+    );
+    addManual(
+      `doc.append_target：解析出 ${ids.length} 个 block_id（${ids.slice(0, 10).join(", ")}…），不像只追加了一段。请人工核对《${title}》（${docRef(hit)}）后再删。`
+    );
     return;
   }
   const out = await lark(
-    ["docs", "+update", "--doc", docRef(hit), "--command", "block_delete", "--block-id", ids.join(","), "--as", "user"],
+    [
+      "docs",
+      "+update",
+      "--doc",
+      docRef(hit),
+      "--command",
+      "block_delete",
+      "--block-id",
+      ids.join(","),
+      "--as",
+      "user"
+    ],
     `删掉本轮追加的 ${ids.length} 个块（${ids.join(", ")}），把《${title}》恢复到追加前`
   );
   if (out?.ok) {
-    pushItem(key, "auto", titleOf(key), "RESTORED", `已删除追加的 ${ids.length} 个块，《${title}》恢复原状`);
+    pushItem(
+      key,
+      "auto",
+      titleOf(key),
+      "RESTORED",
+      `已删除追加的 ${ids.length} 个块，《${title}》恢复原状`
+    );
   } else {
     pushItem(key, "auto", titleOf(key), "FAILED", `删块失败：${out?.error ?? "未知原因"}`);
-    addManual(`doc.append_target：自动删块失败（${out?.error ?? "原因不明"}）。请人工打开《${title}》（${docRef(hit)}）删掉末尾追加段。`);
+    addManual(
+      `doc.append_target：自动删块失败（${out?.error ?? "原因不明"}）。请人工打开《${title}》（${docRef(hit)}）删掉末尾追加段。`
+    );
   }
 }
 
 /* --------------------------------------------- 云文档：只读报告项 */
 async function reportDocs(): Promise<void> {
-  const keys = ["doc.readonly_unique", "doc.duplicate_title", "doc.codeword_pool"].filter((k) => wanted(k));
+  const keys = ["doc.readonly_unique", "doc.duplicate_title", "doc.codeword_pool"].filter((k) =>
+    wanted(k)
+  );
   if (!keys.length) return;
   section(`【步骤 6】云文档只读复核（只报告，一个字都不改）`);
 
@@ -1062,21 +1569,49 @@ async function reportDocs(): Promise<void> {
     log(`\n  ▸ ${key} —— ${titleOf(key)}（红线 R3：只报告，发现被改也不自动修）`);
     if (!title) {
       pushItem(key, "report", titleOf(key), "REPORT_BAD", "bindings 里没填标题，无法复核");
-      addManual(`doc.readonly_unique：bindings 没填 fixtures["${key}"].value。请填《飞书测试文档-auto》的真实完整标题（标题里不带暗号，暗号写在正文首行）。`);
+      addManual(
+        `doc.readonly_unique：bindings 没填 fixtures["${key}"].value。请填《飞书测试文档-auto》的真实完整标题（标题里不带暗号，暗号写在正文首行）。`
+      );
     } else if (!APPLY) {
-      pushItem(key, "report", titleOf(key), "REPORT_OK", `dry-run：不探测。apply 时会核对《${title}》唯一命中 1 篇，且正文仍含暗号 + 决策/风险/待办三块`);
+      pushItem(
+        key,
+        "report",
+        titleOf(key),
+        "REPORT_OK",
+        `dry-run：不探测。apply 时会核对《${title}》唯一命中 1 篇，且正文仍含暗号 + 决策/风险/待办三块`
+      );
     } else {
-      const s = await searchDocs(title, `搜《${title}》：必须唯一命中 1 篇（7 条只读文档 case 的目标；命中 ≥2 篇这些 case 全变歧义）`);
+      const s = await searchDocs(
+        title,
+        `搜《${title}》：必须唯一命中 1 篇（7 条只读文档 case 的目标；命中 ≥2 篇这些 case 全变歧义）`
+      );
       const ex = pickExact(s.hits, title);
       if (ex.length !== 1) {
-        pushItem(key, "report", titleOf(key), "REPORT_BAD", `《${title}》命中 ${ex.length} 篇（要求唯一 1 篇）`);
+        pushItem(
+          key,
+          "report",
+          titleOf(key),
+          "REPORT_BAD",
+          `《${title}》命中 ${ex.length} 篇（要求唯一 1 篇）`
+        );
         addManual(
           `doc.readonly_unique：《${title}》命中 ${ex.length} 篇（${ex.map((h) => docRef(h)).join("、") || "0 篇"}）。命中 2 篇以上会让 FS2-D01/D07/X04/X07/V04/A05/S08 全部变歧义、只能判 LABEL_ERROR。请人工把多余副本改名或移到归档文件夹（红线 R2：本脚本不删文档），保留唯一一篇。`
         );
       } else {
         const hit = ex[0]!;
         const f = await lark(
-          ["docs", "+fetch", "--doc", docRef(hit), "--scope", "full", "--doc-format", "markdown", "--as", "user"],
+          [
+            "docs",
+            "+fetch",
+            "--doc",
+            docRef(hit),
+            "--scope",
+            "full",
+            "--doc-format",
+            "markdown",
+            "--as",
+            "user"
+          ],
           `只读核对《${title}》正文：暗号 + 决策（先灰度后全量）/ 风险（回归未完成）/ 待办（补回归结果）三块是否都还在`
         );
         const text = f?.raw ?? "";
@@ -1089,12 +1624,28 @@ async function reportDocs(): Promise<void> {
         const lacks = need.filter(([, kw]) => !text.includes(kw)).map(([n]) => n);
         if (!f?.ok) {
           pushItem(key, "report", titleOf(key), "REPORT_BAD", `正文读取失败，无法确认是否被改`);
-          addManual(`doc.readonly_unique：《${title}》正文没读到（${f?.error ?? "原因不明"}）。请人工打开确认它没被任何 case 改过、且仍含决策/风险/待办三块。`);
+          addManual(
+            `doc.readonly_unique：《${title}》正文没读到（${f?.error ?? "原因不明"}）。请人工打开确认它没被任何 case 改过、且仍含决策/风险/待办三块。`
+          );
         } else if (lacks.length) {
-          pushItem(key, "report", titleOf(key), "REPORT_BAD", `《${title}》正文缺少：${lacks.join("、")} → 只读文档疑似被改（R3：只报告不自动修）`);
-          addManual(`doc.readonly_unique：《${title}》（${docRef(hit)}）正文里找不到「${lacks.join("、")}」。它是只读前置，任何 case 都不该改它；被改了就是产品缺陷。请人工核对并补回原文（决策=先灰度后全量、风险=回归未完成、待办=补回归结果且负责人未指定），本脚本不自动改。`);
+          pushItem(
+            key,
+            "report",
+            titleOf(key),
+            "REPORT_BAD",
+            `《${title}》正文缺少：${lacks.join("、")} → 只读文档疑似被改（R3：只报告不自动修）`
+          );
+          addManual(
+            `doc.readonly_unique：《${title}》（${docRef(hit)}）正文里找不到「${lacks.join("、")}」。它是只读前置，任何 case 都不该改它；被改了就是产品缺陷。请人工核对并补回原文（决策=先灰度后全量、风险=回归未完成、待办=补回归结果且负责人未指定），本脚本不自动改。`
+          );
         } else {
-          pushItem(key, "report", titleOf(key), "REPORT_OK", `《${title}》唯一命中，正文含暗号与决策/风险/待办三块（未被改）`);
+          pushItem(
+            key,
+            "report",
+            titleOf(key),
+            "REPORT_OK",
+            `《${title}》唯一命中，正文含暗号与决策/风险/待办三块（未被改）`
+          );
         }
       }
     }
@@ -1106,17 +1657,42 @@ async function reportDocs(): Promise<void> {
     log(`\n  ▸ ${key} —— ${titleOf(key)}`);
     if (!title) {
       pushItem(key, "report", titleOf(key), "REPORT_BAD", "bindings 里没填同名文档标题");
-      addManual(`doc.duplicate_title：bindings 没填 fixtures["${key}"].value。请按 fixtures.ts 建 2 篇标题完全相同的 docx（建议《产品周会纪要 ${codeword}》），并把标题填进 bindings。`);
+      addManual(
+        `doc.duplicate_title：bindings 没填 fixtures["${key}"].value。请按 fixtures.ts 建 2 篇标题完全相同的 docx（建议《产品周会纪要 ${codeword}》），并把标题填进 bindings。`
+      );
     } else if (!APPLY) {
-      pushItem(key, "report", titleOf(key), "REPORT_OK", `dry-run：不探测。apply 时会核对《${title}》确实有 ≥2 篇同名`);
+      pushItem(
+        key,
+        "report",
+        titleOf(key),
+        "REPORT_OK",
+        `dry-run：不探测。apply 时会核对《${title}》确实有 ≥2 篇同名`
+      );
     } else {
-      const s = await searchDocs(title, `搜《${title}》：FS2-D02-01 要求确实存在 ≥2 篇同名文档（歧义负例）`);
+      const s = await searchDocs(
+        title,
+        `搜《${title}》：FS2-D02-01 要求确实存在 ≥2 篇同名文档（歧义负例）`
+      );
       const ex = pickExact(s.hits, title);
       if (ex.length >= 2) {
-        pushItem(key, "report", titleOf(key), "REPORT_OK", `《${title}》同名 ${ex.length} 篇（≥2，歧义负例成立）`);
+        pushItem(
+          key,
+          "report",
+          titleOf(key),
+          "REPORT_OK",
+          `《${title}》同名 ${ex.length} 篇（≥2，歧义负例成立）`
+        );
       } else {
-        pushItem(key, "report", titleOf(key), "REPORT_BAD", `《${title}》只命中 ${ex.length} 篇（要求 ≥2 篇）`);
-        addManual(`doc.duplicate_title：《${title}》只搜到 ${ex.length} 篇，FS2-D02-01 会记 BLOCKED。请人工再建一篇**标题完全相同**的 docx（正文可各写一句区分：一篇排期写明天、一篇写后天）。红线 R2：本脚本不建也不删文档。`);
+        pushItem(
+          key,
+          "report",
+          titleOf(key),
+          "REPORT_BAD",
+          `《${title}》只命中 ${ex.length} 篇（要求 ≥2 篇）`
+        );
+        addManual(
+          `doc.duplicate_title：《${title}》只搜到 ${ex.length} 篇，FS2-D02-01 会记 BLOCKED。请人工再建一篇**标题完全相同**的 docx（正文可各写一句区分：一篇排期写明天、一篇写后天）。红线 R2：本脚本不建也不删文档。`
+        );
       }
     }
   }
@@ -1129,24 +1705,46 @@ async function reportDocs(): Promise<void> {
       `按暗号 ${codeword} 搜文档：FS2-D03-01 要求 ≥3 篇、且标题互不相同（同名会制造它自己不该有的歧义）`
     );
     if (!APPLY) {
-      pushItem(key, "report", titleOf(key), "REPORT_OK", `dry-run：不探测。apply 时会统计标题含 ${codeword} 的文档数与重名情况，并把 case 每轮新建的 ${CASE_CREATED_DOCS.map((d) => `《${d.core} ${codeword}》`).join("、")} 列入人工归档清单`);
+      pushItem(
+        key,
+        "report",
+        titleOf(key),
+        "REPORT_OK",
+        `dry-run：不探测。apply 时会统计标题含 ${codeword} 的文档数与重名情况，并把 case 每轮新建的 ${CASE_CREATED_DOCS.map((d) => `《${d.core} ${codeword}》`).join("、")} 列入人工归档清单`
+      );
       return;
     }
     if (!out?.ok) {
       pushItem(key, "report", titleOf(key), "REPORT_BAD", "按暗号搜索失败");
-      addManual(`doc.codeword_pool：按暗号 ${codeword} 搜文档失败（${out?.error ?? "原因不明"}）。请人工在飞书云文档里搜一次，确认标题含暗号的文档 ≥3 篇且标题互不相同。`);
+      addManual(
+        `doc.codeword_pool：按暗号 ${codeword} 搜文档失败（${out?.error ?? "原因不明"}）。请人工在飞书云文档里搜一次，确认标题含暗号的文档 ≥3 篇且标题互不相同。`
+      );
     } else {
       const hits = normalizeDocs(out.json).filter((h) => h.title.includes(codeword));
       const byTitle = new Map<string, number>();
       for (const h of hits) byTitle.set(h.title, (byTitle.get(h.title) ?? 0) + 1);
       const titles = [...byTitle.keys()];
-      const dupBad = [...byTitle.entries()].filter(([t, n]) => n > 1 && t !== fxValue("doc.duplicate_title"));
+      const dupBad = [...byTitle.entries()].filter(
+        ([t, n]) => n > 1 && t !== fxValue("doc.duplicate_title")
+      );
       log(`    结果摘要：标题含暗号的文档 ${hits.length} 篇、${titles.length} 个不同标题`);
       for (const [t, n] of byTitle) log(`      · 《${t}》 × ${n}`);
       if (titles.length >= 3 && !dupBad.length) {
-        pushItem(key, "report", titleOf(key), "REPORT_OK", `暗号文档 ${hits.length} 篇 / ${titles.length} 个不同标题（≥3 且无意外重名）`);
+        pushItem(
+          key,
+          "report",
+          titleOf(key),
+          "REPORT_OK",
+          `暗号文档 ${hits.length} 篇 / ${titles.length} 个不同标题（≥3 且无意外重名）`
+        );
       } else {
-        pushItem(key, "report", titleOf(key), "REPORT_BAD", `不同标题 ${titles.length} 个（要求 ≥3）${dupBad.length ? `；意外重名：${dupBad.map(([t, n]) => `《${t}》×${n}`).join("、")}` : ""}`);
+        pushItem(
+          key,
+          "report",
+          titleOf(key),
+          "REPORT_BAD",
+          `不同标题 ${titles.length} 个（要求 ≥3）${dupBad.length ? `；意外重名：${dupBad.map(([t, n]) => `《${t}》×${n}`).join("、")}` : ""}`
+        );
       }
       if (dupBad.length) {
         addManual(
@@ -1154,7 +1752,9 @@ async function reportDocs(): Promise<void> {
         );
       }
       if (titles.length < 3) {
-        addManual(`doc.codeword_pool：标题含暗号 ${codeword} 的文档只有 ${titles.length} 个不同标题（要求 ≥3），FS2-D03-01 会记 BLOCKED。请人工确认 doc.append_target / doc.partial_target / doc.rename_target / doc.prune_target / doc.duplicate_title 这几篇都建好了。`);
+        addManual(
+          `doc.codeword_pool：标题含暗号 ${codeword} 的文档只有 ${titles.length} 个不同标题（要求 ≥3），FS2-D03-01 会记 BLOCKED。请人工确认 doc.append_target / doc.partial_target / doc.rename_target / doc.prune_target / doc.duplicate_title 这几篇都建好了。`
+        );
       }
     }
   }
@@ -1173,8 +1773,14 @@ function docRebuildOnly(): void {
     if (!wanted(key)) continue;
     const title = fxValue(key);
     const f = findFixture(key);
-    const prep = (f?.howToPrepare ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
-    const structReq = (prep.find((l) => l.startsWith("建一篇")) ?? prep[0] ?? "").replace(/。+$/, "");
+    const prep = (f?.howToPrepare ?? "")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const structReq = (prep.find((l) => l.startsWith("建一篇")) ?? prep[0] ?? "").replace(
+      /。+$/,
+      ""
+    );
     pushItem(
       key,
       "auto",
@@ -1189,10 +1795,14 @@ function docRebuildOnly(): void {
 }
 
 async function docsPipeline(): Promise<void> {
-  const keys = ["doc.rename_target", "doc.append_target", ...REBUILD_ONLY_KEYS].filter((k) => wanted(k));
+  const keys = ["doc.rename_target", "doc.append_target", ...REBUILD_ONLY_KEYS].filter((k) =>
+    wanted(k)
+  );
   if (!keys.length) return;
   section(`【步骤 5】云文档类前置：能自动恢复的恢复（改回标题 / 删掉本轮追加块），不能的转人工`);
-  log(`  红线 R2：本脚本永不调用 drive +delete，不删任何整篇文档；红线 R3：doc.readonly_unique 只报告不修。`);
+  log(
+    `  红线 R2：本脚本永不调用 drive +delete，不删任何整篇文档；红线 R3：doc.readonly_unique 只报告不修。`
+  );
   await docRename();
   await docAppend();
   docRebuildOnly();
@@ -1201,15 +1811,28 @@ async function docsPipeline(): Promise<void> {
 /* ============================================================ 人工清单（静态部分） */
 const scenariosPath = resolve(root, "scenarios.v2.json");
 /** 兜底：scenarios.v2.json 读不到时用这份写死的清单（来源同上，人工核对过） */
-const FALLBACK_SEND_CASES = ["FS2-M06-01", "FS2-M07-01", "FS2-M08-01", "FS2-A04-01", "FS2-X02-01", "FS2-X04-01", "FS2-X06-01", "FS2-X07-01"];
+const FALLBACK_SEND_CASES = [
+  "FS2-M06-01",
+  "FS2-M07-01",
+  "FS2-M08-01",
+  "FS2-A04-01",
+  "FS2-X02-01",
+  "FS2-X04-01",
+  "FS2-X06-01",
+  "FS2-X07-01"
+];
 const FALLBACK_CREATE_DOC_CASES = ["FS2-D06-01", "FS2-X03-01", "FS2-S08-01"];
 
 async function collectStaticManual(): Promise<string[]> {
   const sc = await readJsonSafe(scenariosPath);
   const cases: any[] = Array.isArray(sc?.cases) ? sc.cases : [];
   const writesOf = (c: any): string[] => Object.keys(c?.expected?.allowedWrites ?? {});
-  const sendIds = cases.filter((c) => writesOf(c).includes("feishu_send_message")).map((c) => String(c.id));
-  const createIds = cases.filter((c) => writesOf(c).includes("feishu_create_doc")).map((c) => String(c.id));
+  const sendIds = cases
+    .filter((c) => writesOf(c).includes("feishu_send_message"))
+    .map((c) => String(c.id));
+  const createIds = cases
+    .filter((c) => writesOf(c).includes("feishu_create_doc"))
+    .map((c) => String(c.id));
   const sends = sendIds.length ? sendIds : FALLBACK_SEND_CASES;
   const creates = createIds.length ? createIds : FALLBACK_CREATE_DOC_CASES;
   const out: string[] = [];
@@ -1238,7 +1861,9 @@ async function collectStaticManual(): Promise<string[]> {
 /* ============================================================ 总结与退出码 */
 function printSummary(allManual: string[]): void {
   section(`【总结】`);
-  const auto = items.filter((i) => i.kind === "auto" && (i.status === "RESTORED" || i.status === "PLANNED"));
+  const auto = items.filter(
+    (i) => i.kind === "auto" && (i.status === "RESTORED" || i.status === "PLANNED")
+  );
   const ready = items.filter((i) => i.status === "READY");
   const failed = items.filter((i) => i.status === "FAILED");
   const manual = items.filter((i) => i.status === "MANUAL" || i.status === "REPORT_BAD");
@@ -1251,9 +1876,16 @@ function printSummary(allManual: string[]): void {
     log(`  [${tag}] ${i.key.padEnd(30, " ")} ${stLabel(i.status).padEnd(6, " ")} ${i.detail}`);
   }
 
-  log(`\n自动恢复 ${auto.length} 项 / 跳过 ${ready.length} 项（已就绪）/ 需人工 ${allManual.length} 项`);
-  log(`（另有只读报告项：正常 ${repOk.length} / 异常 ${repBad.length}；自动项转人工 ${manual.filter((i) => i.kind === "auto").length} 项；执行失败 ${failed.length} 项）`);
-  if (!APPLY) log(`注意：当前是 dry-run，「自动恢复 ${auto.length} 项」是**计划**条数，一条都没真跑；要真跑加 --apply。`);
+  log(
+    `\n自动恢复 ${auto.length} 项 / 跳过 ${ready.length} 项（已就绪）/ 需人工 ${allManual.length} 项`
+  );
+  log(
+    `（另有只读报告项：正常 ${repOk.length} / 异常 ${repBad.length}；自动项转人工 ${manual.filter((i) => i.kind === "auto").length} 项；执行失败 ${failed.length} 项）`
+  );
+  if (!APPLY)
+    log(
+      `注意：当前是 dry-run，「自动恢复 ${auto.length} 项」是**计划**条数，一条都没真跑；要真跑加 --apply。`
+    );
 
   log(`\n【需人工处理清单（明天照做，按顺序）】`);
   if (!allManual.length) log(`  （无）`);
@@ -1269,19 +1901,32 @@ function printSummary(allManual: string[]): void {
 async function main(): Promise<number> {
   log(`飞书 E2E v2 · 轮间前置恢复脚本 reset-fixtures`);
   log(LINE);
-  log(`  模式        ：${APPLY ? "🔴 apply（真实写飞书资源）" : "🟢 dry-run（默认；只打印计划，一条都不执行）"}`);
+  log(
+    `  模式        ：${APPLY ? "🔴 apply（真实写飞书资源）" : "🟢 dry-run（默认；只打印计划，一条都不执行）"}`
+  );
   log(`  bindings    ：${bindingsPath}`);
   log(`  暗号（R1）  ：${codeword}`);
   log(`  日期（沪）  ：今天 ${TODAY} / 明天 ${TOMORROW} / 后天 ${AFTER} / 大后天 ${AFTER3}`);
   log(`  同事 / 房间 ：${colleagueName} / ${roomName ?? "(bindings 未填 room.suzhou_free)"}`);
   if (only) log(`  --only      ：${only.join("、")}`);
-  if (!APPLY) log(`  说明        ：dry-run 读不到真实资源状态，所有判断按「需要重建」展示；已就绪的项要 apply 时才识别得出。`);
+  if (!APPLY)
+    log(
+      `  说明        ：dry-run 读不到真实资源状态，所有判断按「需要重建」展示；已就绪的项要 apply 时才识别得出。`
+    );
 
   section(`【步骤 0】身份确认（只读）`);
   const authOk = await ensureAuth();
   if (APPLY && !authOk) {
-    pushItem("auth.lark_user_token", "auto", "lark-cli user 身份", "FAILED", "user 身份不可用 → 本轮没有执行任何恢复动作（读写全免谈）");
-    addManual(`lark-cli user 身份不可用：先跑 lark-cli auth login 完成扫码授权（记得给日历/文档/IM 的写权限），再重跑本脚本 --apply。`);
+    pushItem(
+      "auth.lark_user_token",
+      "auto",
+      "lark-cli user 身份",
+      "FAILED",
+      "user 身份不可用 → 本轮没有执行任何恢复动作（读写全免谈）"
+    );
+    addManual(
+      `lark-cli user 身份不可用：先跑 lark-cli auth login 完成扫码授权（记得给日历/文档/IM 的写权限），再重跑本脚本 --apply。`
+    );
     printSummary([...(await collectStaticManual()), ...manualSteps]);
     return 1;
   }
@@ -1291,7 +1936,10 @@ async function main(): Promise<number> {
   if (anyCalendarWanted) {
     section(`【步骤 1】读取 ${TOMORROW} ~ ${AFTER3} 的日程（后面所有判断的唯一数据来源）`);
     events = await fetchWindowEvents();
-    if (APPLY) log(`  窗口内共 ${events.length} 场日程；其中含暗号 ${codeword} 的 ${events.filter((e) => e.summary.includes(codeword)).length} 场。`);
+    if (APPLY)
+      log(
+        `  窗口内共 ${events.length} 场日程；其中含暗号 ${codeword} 的 ${events.filter((e) => e.summary.includes(codeword)).length} 场。`
+      );
   }
 
   await sweepLeftovers(events, specs);
