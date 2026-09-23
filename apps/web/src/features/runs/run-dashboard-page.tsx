@@ -1,3 +1,4 @@
+import { RunBriefSummary } from "./run-brief-summary.tsx";
 import { RunDiagnosticControl } from "./run-diagnostic-control.tsx";
 import { ArrowLeft } from "lucide-react";
 import { returnFromRun } from "../../lib/return-navigation.ts";
@@ -401,9 +402,25 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
             </strong>
           </div>
           <div>
-            <span>评测模型</span>
+            <span>断言评测模型（配置）</span>
             <strong>{run.evaluator.config.model}</strong>
           </div>
+          {rows.some((row) => row.evaluation?.semanticEvaluation) && (
+            <div>
+              <span>JEV 评测模型</span>
+              <strong>
+                {[
+                  ...new Set(
+                    rows.flatMap((row) =>
+                      row.evaluation?.semanticEvaluation
+                        ? [row.evaluation.semanticEvaluation.model]
+                        : []
+                    )
+                  )
+                ].join("、")}
+              </strong>
+            </div>
+          )}
         </div>
         <details>
           <summary className="run-dashboard-config-toggle">
@@ -467,6 +484,7 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
         </div>
       </section>
       <RunTokenSummary rows={rows} ready={totalsReady} />
+      <RunBriefSummary rows={rows} ready={totalsReady} />
       {analysisOpen && <RunAnalysisControl api={api} runId={runId} />}
       {reviews.isError && (
         <p role="alert" className="run-muted">

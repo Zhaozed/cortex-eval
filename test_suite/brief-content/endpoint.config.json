@@ -1,0 +1,14 @@
+{
+  "contractVersion": "cortex.endpoint-config.v1",
+  "urlTemplate": "http://127.0.0.1:8000/eval/e2e/brief/replay",
+  "method": "POST",
+  "headers": {
+    "Content-Type": {
+      "kind": "LITERAL",
+      "value": "application/json"
+    }
+  },
+  "bodySelector": "/request_body",
+  "timeoutMs": 150000,
+  "defaultConcurrency": 2
+}

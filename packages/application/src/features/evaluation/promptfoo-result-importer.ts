@@ -28,6 +28,7 @@ import { explainJsonSchemaResult } from "@cortex-eval/reporting/src/json-schema-
 import { load as loadYaml } from "js-yaml";
 
 import { validatePromptfooRowError } from "./promptfoo-row-error-parser.ts";
+import type { PlatformSemanticEvaluation } from "./semantic-evaluation-port.ts";
 
 /** Raw Artifact integrity exposed in each evaluated Case. */
 export interface PromptfooRawEvidence {
@@ -129,6 +130,8 @@ export interface ImportedEvalCase {
   readonly diffs: readonly EvalDiffHashFact[];
   /** Deduplicated Case Metric results. */
   readonly metrics: readonly EvalMetricHashFact[];
+  /** Optional JEV semantic evaluation evidence. */
+  readonly semanticEvaluation?: PlatformSemanticEvaluation;
   /** Promptfoo-observed latency. */
   readonly latencyMs: number | null;
   /** Promptfoo-observed grader token usage. */

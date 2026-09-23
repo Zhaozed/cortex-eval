@@ -124,8 +124,22 @@ export function RunCaseDrawer({
           执行耗时 {`${(fullRow.rest.durationMs / 1000).toFixed(2)} s`}
           <small>
             Agent {usage.recorded ? usage.total.toLocaleString() : "未采集"}
-            {usage.recorded > 0 && !usage.complete ? "（部分）" : ""} · Judge{" "}
+            {usage.recorded > 0 && !usage.complete ? "（部分）" : ""} · 断言评测{" "}
             {evaluation?.tokenUsage?.totalTokens.toLocaleString() ?? "未采集"} Token
+            {evaluation?.semanticEvaluation && (
+              <>
+                {" "}
+                · JEV{" "}
+                {evaluation.semanticEvaluation.metrics?.inputTokens !== undefined &&
+                evaluation.semanticEvaluation.metrics.outputTokens !== undefined
+                  ? (
+                      evaluation.semanticEvaluation.metrics.inputTokens +
+                      evaluation.semanticEvaluation.metrics.outputTokens
+                    ).toLocaleString()
+                  : "未采集"}{" "}
+                Token
+              </>
+            )}
           </small>
         </span>
         <Button size="sm" variant="ghost" onClick={() => setWide(!wide)}>

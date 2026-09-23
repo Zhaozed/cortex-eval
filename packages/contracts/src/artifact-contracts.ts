@@ -6,6 +6,7 @@ import {
   AnalyzerCaseErrorCodeV1Schema
 } from "./analysis-contracts.ts";
 import { CaseDefinitionV1Schema } from "./case-contracts.ts";
+import { JevCaseEvaluationV1Schema } from "./semantic-evaluation-contracts.ts";
 import {
   BusinessKeySchema,
   JsonObjectSchema,
@@ -261,6 +262,7 @@ const EvalObservedV1Schema = z
     assertions: z.array(AssertionResultV1Schema),
     diffs: z.array(AssertionDiffV1Schema),
     metrics: z.array(MetricResultV1Schema),
+    semanticEvaluation: JevCaseEvaluationV1Schema.optional(),
     latencyMs: z.number().nonnegative().nullable(),
     tokenUsage: TokenUsageV1Schema.nullable(),
     cost: z.number().nonnegative().nullable(),
@@ -292,6 +294,7 @@ const EvalErrorV1Schema = z.strictObject({
   assertions: z.array(AssertionResultV1Schema),
   diffs: z.array(AssertionDiffV1Schema),
   metrics: z.array(MetricResultV1Schema),
+  semanticEvaluation: JevCaseEvaluationV1Schema.optional(),
   latencyMs: z.number().nonnegative().nullable(),
   tokenUsage: TokenUsageV1Schema.nullable(),
   cost: z.number().nonnegative().nullable(),
@@ -312,6 +315,7 @@ const NotEvaluatedV1Schema = z.strictObject({
   assertions: z.array(AssertionResultV1Schema).length(0),
   diffs: z.array(AssertionDiffV1Schema).length(0),
   metrics: z.array(MetricResultV1Schema),
+  semanticEvaluation: JevCaseEvaluationV1Schema.optional(),
   latencyMs: z.null(),
   tokenUsage: z.null(),
   cost: z.null(),

@@ -1,0 +1,141 @@
+{
+  "contractVersion": "cortex.case-definition.v1",
+  "description": "meeting 简报合成样例（非真实用户数据）",
+  "threshold": 1,
+  "vars": {
+    "task": "生成 meeting brief",
+    "request_body": {
+      "bundle": {
+        "version": 1,
+        "brief_type": "meeting",
+        "context": {
+          "uid": 7,
+          "current_time": "2026-09-23T00:00:00Z",
+          "timezone": "Asia/Shanghai",
+          "lang": "zh-Hans",
+          "recent_conversation_messages": []
+        },
+        "material": {
+          "snapshot": {
+            "owner_user_id": "7",
+            "as_of": "2026-09-23T00:00:00Z",
+            "members": [
+              {
+                "member_ref": "meeting-1",
+                "calendar_occurrence_id": "synthetic-occ-1",
+                "start_at": "2026-09-23T02:00:00Z",
+                "end_at": "2026-09-23T03:00:00Z",
+                "calendar_timezone": "Asia/Shanghai",
+                "public_details": {
+                  "title": "Atlas 试点评审",
+                  "participant_display_names": [
+                    "Alex",
+                    "Bo"
+                  ],
+                  "participants_complete": true,
+                  "location": "会议室 A",
+                  "agenda": "确认 20 个核心案例、脱敏权限与上线风险。",
+                  "participants": []
+                },
+                "retrieval_identities": []
+              }
+            ],
+            "persons": [],
+            "projects": [],
+            "memories": []
+          },
+          "enrichment": {
+            "evidence": [
+              {
+                "evidence_id": "email-1",
+                "source": "MAIL",
+                "text": "Atlas 试点评审：Bo 确认脱敏权限尚未审批完成。",
+                "member_refs": [
+                  "meeting-1"
+                ],
+                "source_key": "synthetic-mail",
+                "locator": "mail-1",
+                "occurred_at": "2026-09-22T22:00:00Z",
+                "person_ids": [],
+                "complete": true,
+                "related_attendees": [],
+                "author_attendees": []
+              }
+            ],
+            "coverage": [
+              {
+                "source": "SLACK",
+                "source_key": "synthetic-slack",
+                "status": "UNAVAILABLE",
+                "reason": null,
+                "calls": 1
+              }
+            ]
+          }
+        }
+      },
+      "timeout_seconds": 120
+    }
+  },
+  "metadata": {
+    "case_id": "brief-meeting-001",
+    "req_id": "eval-meeting-001",
+    "task_id": "brief-replay",
+    "business_module": "brief_meeting",
+    "scenario_tag": "synthetic_positive"
+  },
+  "semanticEvaluation": {
+    "contractVersion": "cortex.semantic-evaluation-contract.v1",
+    "goal": "基于冻结材料生成 meeting 简报",
+    "successCriteria": [
+      "覆盖核心事项，不把背景噪音当成重点，不捏造事实"
+    ],
+    "enabledDimensions": [
+      "response"
+    ],
+    "scorePassThreshold": 0.85,
+    "brief": {
+      "briefType": "meeting",
+      "checklist": [
+        {
+          "id": "core_cases",
+          "tier": "P0",
+          "assertion": "提醒需确认20个核心案例，而非声称已经确认完成",
+          "sourceRefs": [
+            "/material/snapshot/members/0/public_details/agenda"
+          ]
+        },
+        {
+          "id": "privacy",
+          "tier": "P0",
+          "assertion": "指出脱敏权限尚未审批完成",
+          "sourceRefs": [
+            "/material/enrichment/evidence/0/text"
+          ]
+        },
+        {
+          "id": "meeting_time",
+          "tier": "P1",
+          "assertion": "说明会议在2026年9月23日北京时间10点开始",
+          "sourceRefs": [
+            "/material/snapshot/members/0/start_at",
+            "/context/timezone"
+          ]
+        }
+      ],
+      "constraints": {
+        "allowedGenerationStatuses": [
+          "generated"
+        ]
+      }
+    }
+  },
+  "assert": [
+    {
+      "type": "javascript",
+      "metric": "Brief replay 成功",
+      "weight": 1,
+      "value": "const body = typeof output === \"string\" ? JSON.parse(output) : output; return body.ok === true && body.task_name === \"EVAL_BRIEF_REPLAY\";"
+    }
+  ]
+}

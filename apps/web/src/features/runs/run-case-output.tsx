@@ -1,3 +1,5 @@
+import { RunBriefContent } from "./run-brief-content.tsx";
+import { BriefReplayOutputSchema } from "@cortex-eval/contracts/src/brief-evaluation-contracts.ts";
 import { executionIssue } from "./run-execution-issue.ts";
 import { RunLiveCard } from "./run-live-card.tsx";
 import { useState, type ReactElement } from "react";
@@ -132,6 +134,8 @@ export function RunCaseOutput({
   // Replies are labelled by round only when execution turns map 1:1 onto the sent user rounds.
   const rounds = conversationTurns(row).filter((turn) => turn.kind === "user").length,
     perRound = rounds > 1 && records(p.turns).length === rounds;
+  if (BriefReplayOutputSchema.safeParse(p).success)
+    return <RunBriefContent row={row} mode={mode} />;
   return (
     <section
       className={`run-result-panel run-output-panel${mode === "cards" ? " run-card-workbench" : ""}`}

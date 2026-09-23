@@ -49,6 +49,8 @@ export interface CaseDefinition {
     /** Explicit opt-in to Web screenshots; omitted means disabled. */
     readonly a2uiCapture?: boolean;
   };
+  /** Optional product-facing semantic contract evaluated by JEV. */
+  readonly semanticEvaluation?: DomainJsonObject | undefined;
   /** Ordered Assertions. */
   readonly assertions: readonly AssertionDefinition[];
 }

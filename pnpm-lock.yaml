@@ -269,6 +269,9 @@ importers:
 
   packages/application:
     dependencies:
+      '@cortex-eval/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@cortex-eval/domain':
         specifier: workspace:*
         version: link:../domain
@@ -326,6 +329,9 @@ importers:
       '@cortex-eval/application':
         specifier: workspace:*
         version: link:../application
+      '@cortex-eval/authoring':
+        specifier: workspace:*
+        version: link:../authoring
       '@cortex-eval/contracts':
         specifier: workspace:*
         version: link:../contracts

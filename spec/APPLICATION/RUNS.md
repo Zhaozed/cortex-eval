@@ -98,3 +98,7 @@ Report 重试只接受 `FAILED/DONE` 的 `REPORT_STAGE_FAILED` 或 `REPORT_RECON
 重试沿用 Run ID、冻结快照和已有上游事实，不重新发送 REST 请求；这与创建新 Run 的 Retry/Force 是两个操作。SQLite 按 `expectedRevision` 和当前失败状态抢占，递增 Revision、清空阶段错误与完成时间后进入目标阶段的 `RUNNING`。全局唯一运行约束仍然生效。Run Detail 的 `canRetryEvaluation`、`canRetryReport` 来自服务端判定；客户端不能仅凭错误文案开放重试。
 
 事实入口为 [platform-run-models.ts](../../packages/application/src/features/runs/platform-run-models.ts)、[platform-evaluation-service.ts](../../packages/application/src/features/evaluation/platform-evaluation-service.ts)、[platform-report-service.ts](../../packages/application/src/features/reporting/platform-report-service.ts) 与 [sqlite-platform-run-repository.ts](../../packages/storage-sqlite/src/sqlite-platform-run-repository.ts)。测试入口为 [Evaluation 服务测试](../../packages/application/test/platform-evaluation-service.test.ts)、[Report 服务测试](../../packages/application/test/platform-report-service.test.ts) 与 [SQLite Report 重试测试](../../packages/storage-sqlite/test/sqlite-report-retry.test.ts)。
+
+## Brief 内容评测
+
+Brief 复用现有 Case、Endpoint 与运行快照，不新增独立执行系统。原子标注、最终内容展示及裁判异常语义见 [Brief 内容评测](../PACKAGES/BRIEF_EVALUATION.md)。

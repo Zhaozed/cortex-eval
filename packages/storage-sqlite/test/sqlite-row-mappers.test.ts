@@ -87,6 +87,51 @@ describe("SQLite Case 行映射", () => {
     });
   });
 
+  it("读取包含 JEV 语义评测契约的 Case", () => {
+    const definition = {
+      ...completeDefinition(),
+      semanticEvaluation: {
+        contractVersion: "cortex.semantic-evaluation-contract.v1",
+        goal: "Route the request and answer safely",
+        successCriteria: ["The correct route is selected"],
+        enabledDimensions: ["routing", "tool-use", "safety"],
+        toolPolicy: { requiredTools: ["feishu.task.get"] }
+      }
+    } satisfies CaseDefinition;
+    const definitionJson = caseDefinitionJson(definition);
+    const stored = mapStoredTestCase({
+      ...row(),
+      definition_json: canonicalJson(definitionJson),
+      definition_hash: hashCaseDefinition({
+        contractVersion: "cortex.case-definition.v1",
+        caseKey: definition.caseKey,
+        definition: definitionJson
+      })
+    });
+
+    expect(stored.definition).toEqual(definition);
+  });
+
+  it("拒绝非法 JEV 语义评测契约", () => {
+    const source = JSON.parse(row().definition_json) as DomainJsonObject;
+    source.semanticEvaluation = {
+      contractVersion: "cortex.semantic-evaluation-contract.v1",
+      goal: "",
+      successCriteria: [],
+      enabledDimensions: ["routing"]
+    };
+    const definitionJson = source;
+    expectInvalidRow({
+      ...row(),
+      definition_json: canonicalJson(definitionJson),
+      definition_hash: hashCaseDefinition({
+        contractVersion: "cortex.case-definition.v1",
+        caseKey: row().case_key,
+        definition: definitionJson
+      })
+    });
+  });
+
   it.each([
     { field: "definition_json", value: "{" },
     { field: "definition_json", value: "[]" },

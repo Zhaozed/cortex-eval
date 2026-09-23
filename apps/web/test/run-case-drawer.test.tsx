@@ -248,7 +248,7 @@ it("lists per-call tokens and timing, deduplicates copies, and links to the actu
     })
   );
   await screen.findByText(/本次执行未记录 A2UI 卡片/);
-  await userEvent.click(screen.getByText("评测用量 · Judge", { exact: true }));
+  await userEvent.click(screen.getByText("评测用量 · 断言评测", { exact: true }));
   expect(screen.queryByRole("table", { name: "Agent 模型调用" })).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: /查看 Agent 逐模型耗时/ }));
   expect(screen.getByRole("tab", { name: "执行链路" })).toHaveAttribute("aria-selected", "true");

@@ -380,6 +380,8 @@ export interface EvalResultTable {
   token_usage_json: string | null;
   /** Promptfoo grader cost. */
   cost: number | null;
+  /** Optional JEV semantic evaluation evidence JSON. */
+  semantic_evaluation_json: string | null;
   /** Allowlisted raw evidence reference JSON. */
   allowlist_raw_evidence_json: string;
   /** Semantic normalized Eval hash. */

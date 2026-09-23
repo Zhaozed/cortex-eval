@@ -50,6 +50,9 @@ export function caseDefinitionJson(definition: CaseDefinition): DomainJsonObject
         ? {}
         : { a2ui_capture: definition.metadata.a2uiCapture })
     },
+    ...(definition.semanticEvaluation === undefined
+      ? {}
+      : { semanticEvaluation: definition.semanticEvaluation }),
     assert: definition.assertions.map(assertionDefinitionJson)
   };
 }

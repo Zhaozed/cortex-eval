@@ -85,6 +85,9 @@ export function mapReportEvaluationToV1(
     assertions: value.assertions,
     diffs: value.diffs,
     metrics: value.metrics,
+    ...(value.semanticEvaluation === undefined
+      ? {}
+      : { semanticEvaluation: value.semanticEvaluation }),
     latencyMs: value.latencyMs,
     tokenUsage: value.tokenUsage,
     cost: value.cost,

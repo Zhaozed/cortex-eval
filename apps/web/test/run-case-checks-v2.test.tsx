@@ -190,6 +190,71 @@ describe("v2 断言可读性", () => {
     expect(within(checks).getByText("D4.7 语音长度")).toBeVisible();
   });
 
+  it("展示 JEV 的通过/失败维度、返回值、概率、证据与可折叠原始结果", () => {
+    const checks = mount({
+      ...evidenceRow({}),
+      definition: definition({ type: "equals", metric: D1, value: true, weight: 20 }),
+      evaluation: {
+        ...evaluation("FAIL", gate(0, D1, true, "确定性断言通过")),
+        semanticEvaluation: {
+          provider: "HTTP",
+          model: "jev-latest",
+          planVersion: "jev-plan.v1",
+          result: {
+            contractVersion: "cortex.semantic-evaluation-contract.v1",
+            passed: false,
+            score: 0.6174545,
+            decisions: [
+              {
+                questionId: "task-outcome.completed",
+                kind: "BOOLEAN",
+                value: false,
+                probability: 0.34,
+                applicable: true,
+                reason: "JEV 判定未通过；平台无法从当前 Trace 归因。",
+                providerReason: "未达到通过条件",
+                platformReason: "JEV 判定未通过；平台无法从当前 Trace 归因。",
+                providerResponse: { type: "noul", noul: 0.34 },
+                evidence: [],
+                evidenceRefs: []
+              },
+              {
+                questionId: "routing.correct",
+                kind: "BOOLEAN",
+                value: true,
+                probability: 0.82,
+                applicable: true,
+                evidence: ["命中正确路由"],
+                evidenceRefs: []
+              }
+            ],
+            blockingFailures: ["task-outcome.completed: 未达到通过条件"],
+            warnings: []
+          }
+        }
+      }
+    });
+    expect(within(checks).getByText("JEV 语义评测")).toBeVisible();
+    expect(within(checks).getByText("1/2 检查项通过")).toBeVisible();
+    expect(within(checks).getByText("逐项判定")).toBeVisible();
+    expect(within(checks).getAllByText("任务是否完成").length).toBe(1);
+    expect(within(checks).getByText("JEV 判定未通过；平台无法从当前 Trace 归因。")).toBeVisible();
+    expect(within(checks).getAllByText("JEV 返回原因：")[0]?.parentElement).toHaveTextContent(
+      "未达到通过条件"
+    );
+    expect(within(checks).getByText("JEV 判断为“是”的概率：34%")).toBeVisible();
+
+    const panel = checks.querySelector("details.run-jev-panel");
+    if (!(panel instanceof HTMLDetailsElement)) throw new Error("JEV_PANEL_MISSING");
+    expect(panel.open).toBe(true);
+    fireEvent.click(within(panel).getByText("JEV 语义评测"));
+    expect(panel.open).toBe(false);
+    fireEvent.click(within(panel).getByText("JEV 语义评测"));
+    expect(panel.open).toBe(true);
+    expect(within(checks).getByText("路由是否正确")).toBeVisible();
+    expect(within(checks).getByText("PASS · 通过")).toBeVisible();
+  });
+
   it("旧套件（无前缀、无 D 层）优雅降级到未分类分组", () => {
     const checks = mount({
       ...evidenceRow({}),

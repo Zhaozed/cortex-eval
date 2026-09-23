@@ -44,6 +44,12 @@ import analysisCaseMessages from "@cortex-eval/contracts/messages/analysis-case.
 import { FetchRestExecutor } from "@cortex-eval/evaluation-adapters/src/fetch-rest-executor.ts";
 import { PlatformPromptfooEvaluationEngine } from "@cortex-eval/evaluation-adapters/src/platform-promptfoo-evaluation-engine.ts";
 import { PromptfooRuntimePreflight } from "@cortex-eval/evaluation-adapters/src/promptfoo-runtime-preflight.ts";
+import {
+  createJevHttpProvider,
+  DEFAULT_ENDPOINT as JEV_DEFAULT_ENDPOINT,
+  DEFAULT_MODEL as JEV_DEFAULT_MODEL
+} from "@cortex-eval/evaluation-adapters/src/jev-http-provider.ts";
+import { createJevSemanticEvaluator } from "@cortex-eval/evaluation-adapters/src/jev-semantic-evaluator.ts";
 import { createFrozenAnalyzerModelClient } from "@cortex-eval/evaluation-adapters/src/frozen-analyzer-model-client.ts";
 import {
   PROMPTFOO_CAPABILITY_MATRIX_HASH,
@@ -291,6 +297,23 @@ export async function createLocalServerRuntime(
       messageResolver: { message: runMessage },
       eventSink: lifecycleEventSink
     });
+    const jevApiKeyEnv = process.env.CORTEX_JEV_API_KEY_ENV;
+    const jevEndpoint = process.env.CORTEX_JEV_ENDPOINT ?? JEV_DEFAULT_ENDPOINT;
+    const jevModel = process.env.CORTEX_JEV_MODEL ?? JEV_DEFAULT_MODEL;
+    const jevEnabled =
+      process.env.CORTEX_JEV_ENDPOINT !== undefined ||
+      process.env.CORTEX_JEV_MODEL !== undefined ||
+      jevApiKeyEnv !== undefined;
+    const semanticEvaluator = !jevEnabled
+      ? undefined
+      : createJevSemanticEvaluator({
+          provider: createJevHttpProvider({
+            providerType: "HTTP",
+            endpoint: jevEndpoint,
+            model: jevModel,
+            ...(jevApiKeyEnv === undefined ? {} : { apiKeyEnv: jevApiKeyEnv })
+          })
+        });
     const evaluations = new PlatformEvaluationService({
       runTransactionManager,
       evalTransactionManager: storage.createEvalTransactionManager(),
@@ -309,7 +332,8 @@ export async function createLocalServerRuntime(
       clock,
       messageResolver: { message: runMessage },
       eventSink: lifecycleEventSink,
-      pipelineReportStarter: reports
+      pipelineReportStarter: reports,
+      semanticEvaluator
     });
     const reviews = new RunReviewStore(
       join(options.projectRoot, ".cortex-eval", "run-case-reviews"),

@@ -1,3 +1,4 @@
+import { validateBriefInput } from "./brief-evaluation-contracts.ts";
 import { z } from "zod";
 
 import {
@@ -10,6 +11,7 @@ import {
   JsonValueSchema,
   type JsonValue
 } from "./contracts-primitives.ts";
+import { SemanticEvaluationContractV1Schema } from "./semantic-evaluation-contracts.ts";
 
 /** Case Definition protocol version. */
 export const CASE_DEFINITION_V1 = "cortex.case-definition.v1" as const;
@@ -80,7 +82,7 @@ const AssertionDefinitionV1SchemaInternal: z.ZodType<AssertionDefinitionV1> = z.
 export const AssertionDefinitionV1Schema = AssertionDefinitionV1SchemaInternal;
 
 /** Full current Case Definition without runtime output. */
-export const CaseDefinitionV1Schema = z.strictObject({
+const CaseDefinitionV1BaseSchema = z.strictObject({
   contractVersion: z.literal(CASE_DEFINITION_V1),
   description: z.string().trim().min(1),
   threshold: z.number().min(0).max(1),
@@ -96,7 +98,16 @@ export const CaseDefinitionV1Schema = z.strictObject({
     scenario_tag: z.string().trim().min(1),
     a2ui_capture: z.boolean().optional()
   }),
+  /** Optional semantic contract compiled into a JEV decision plan at runtime. */
+  semanticEvaluation: SemanticEvaluationContractV1Schema.optional(),
   assert: z.array(AssertionDefinitionV1Schema).min(1)
+});
+
+export const CaseDefinitionV1Schema = CaseDefinitionV1BaseSchema.superRefine((value, ctx) => {
+  if (value.semanticEvaluation?.brief === undefined) return;
+  const error = validateBriefInput(value.semanticEvaluation.brief, value.vars.request_body);
+  if (error !== null)
+    ctx.addIssue({ code: "custom", path: ["vars", "request_body"], message: error });
 });
 
 /** Case Definition DTO. */
@@ -135,7 +146,9 @@ const CurrentFixtureAssertionV1Schema = z.preprocess(
   AssertionDefinitionV1Schema
 );
 
-const CurrentFixtureCaseV1Schema = CaseDefinitionV1Schema.omit({ contractVersion: true }).extend({
+const CurrentFixtureCaseV1Schema = CaseDefinitionV1BaseSchema.omit({
+  contractVersion: true
+}).extend({
   assert: z.array(CurrentFixtureAssertionV1Schema).min(1)
 });
 

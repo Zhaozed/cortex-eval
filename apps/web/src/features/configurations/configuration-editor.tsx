@@ -1,3 +1,4 @@
+import { BriefEndpointPreset } from "./brief-endpoint-preset.tsx";
 import { Plus, Trash2 } from "lucide-react";
 import { useLayoutEffect, useRef, useState, type ReactElement, type Ref } from "react";
 import {
@@ -381,6 +382,7 @@ function EndpointEditor(props: ConfigurationEditorProps): ReactElement {
     <Form {...form}>
       <form className="form-stack" onSubmit={(event) => event.preventDefault()}>
         <fieldset className="editor-fieldset" disabled={busy !== "IDLE" || conflict !== null}>
+          <BriefEndpointPreset form={form} />
           <FormField
             control={form.control}
             name="name"

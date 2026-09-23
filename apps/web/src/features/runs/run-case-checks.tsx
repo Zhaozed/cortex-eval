@@ -1,3 +1,4 @@
+import { RunSemanticEvaluation } from "./run-jev-evaluation.tsx";
 import { useEffect, useState, type ReactElement } from "react";
 import { manualOverride, type DashboardCase } from "./run-dashboard-model.ts";
 import { Badge } from "../../components/ui/badge.tsx";
@@ -304,6 +305,7 @@ export function RunCaseChecks({ row }: { readonly row: DashboardCase }): ReactEl
           </p>
         )}
       </div>
+      {evaluation && <RunSemanticEvaluation evaluation={evaluation} />}
       {items.length === 0 && <p className="run-muted">未记录验收项</p>}
       {groups.map((group) => {
         const visible = group.items.filter((item) => item.passed);

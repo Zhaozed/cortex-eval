@@ -1,4 +1,5 @@
 import { RUN_METADATA_MIGRATION } from "./sqlite-run-metadata-migration.ts";
+import { JEV_SEMANTIC_EVALUATION_MIGRATION } from "./sqlite-jev-semantic-evaluation-migration.ts";
 import { sql, type Kysely } from "kysely";
 import type { Migration, MigrationProvider } from "kysely/migration";
 
@@ -260,7 +261,8 @@ export class CortexMigrationProvider implements MigrationProvider {
       "003_evaluation_summary": EVALUATION_SUMMARY_MIGRATION,
       "004_reporting_versions": REPORTING_MIGRATION,
       "005_case_analysis_versions": CASE_ANALYSIS_MIGRATION,
-      "006_run_metadata": RUN_METADATA_MIGRATION
+      "006_run_metadata": RUN_METADATA_MIGRATION,
+      "007_jev_semantic_evaluation": JEV_SEMANTIC_EVALUATION_MIGRATION
     });
   }
 }

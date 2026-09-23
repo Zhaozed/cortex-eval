@@ -1,3 +1,4 @@
+import { briefEvaluationError } from "./brief-evaluation-error.ts";
 import { canRetryEvaluation, platformRunProgress } from "../runs/platform-run-models.ts";
 import { evaluationFailureDiagnostic } from "./evaluation-failure-diagnostic.ts";
 import type { Clock } from "../../application-ports.ts";
@@ -24,6 +25,8 @@ import type {
   PlatformEvalResultQuery
 } from "./platform-eval-models.ts";
 import type { PlatformEvalTransactionManager } from "./platform-eval-ports.ts";
+import type { PlatformSemanticEvaluator } from "./semantic-evaluation-port.ts";
+import { enrichEvalCaseWithSemanticEvaluation } from "./semantic-evaluation-enrichment.ts";
 import {
   disposeFrozenEvaluationRaw,
   isFrozenEvaluationRawSource,
@@ -94,6 +97,8 @@ export interface PlatformEvaluationServiceDependencies {
   readonly eventSink: PlatformEvaluationEventSink;
   /** Automatic Report starter for PIPELINE Runs. */
   readonly pipelineReportStarter?: PlatformReportStageStarter | undefined;
+  /** Optional case-level JEV semantic evaluator. */
+  readonly semanticEvaluator?: PlatformSemanticEvaluator | undefined;
   /** Cross-process cancellation observation interval. */
   readonly cancellationPollMs?: number | undefined;
 }
@@ -158,6 +163,8 @@ export class PlatformEvaluationService {
   readonly #events: PlatformEvaluationEventSink;
   /** Next-stage starter used after a successful PIPELINE Evaluation commit. */
   readonly #pipelineReportStarter: PlatformReportStageStarter | undefined;
+  /** Optional case-level JEV semantic evaluator. */
+  readonly #semanticEvaluator: PlatformSemanticEvaluator | undefined;
   /** Cancellation polling interval. */
   readonly #pollMs: number;
   /** Active Evaluation Abort controllers. */
@@ -182,6 +189,7 @@ export class PlatformEvaluationService {
     this.#messages = dependencies.messageResolver;
     this.#events = dependencies.eventSink;
     this.#pipelineReportStarter = dependencies.pipelineReportStarter;
+    this.#semanticEvaluator = dependencies.semanticEvaluator;
     this.#pollMs = poll;
   }
 
@@ -393,8 +401,50 @@ export class PlatformEvaluationService {
       const imported = isFrozenEvaluationRawSource(executed.raw)
         ? await importPartialPromptfooResultRows({ ...importInput, rows: executed.raw.openRows() })
         : importPartialPromptfooResults({ ...importInput, raw: executed.raw });
+      const pendingByOrdinal = new Map(
+        pendingRestResults.map((result) => [result.ordinal, result])
+      );
+      const semanticallyEvaluated = await Promise.all(
+        imported.map(async (item) => {
+          const frozen = run.suite.cases[item.ordinal];
+          if (
+            frozen?.caseKey !== item.caseKey ||
+            frozen.definition.semanticEvaluation === undefined
+          ) {
+            return item;
+          }
+          if (item.status !== "PASS" && item.status !== "FAIL") return item;
+          const rest = pendingByOrdinal.get(item.ordinal);
+          if (rest?.status !== "SUCCEEDED") return item;
+          if (this.#semanticEvaluator === undefined) throw new Error("JEV_NOT_CONFIGURED");
+          const isBrief = frozen.definition.semanticEvaluation.brief !== undefined;
+          if (isBrief && !rest.providerOutput.ok) return item;
+          try {
+            const semanticEvaluation = await this.#semanticEvaluator.evaluate({
+              caseDefinition: frozen.definition,
+              providerOutput: rest.providerOutput,
+              durationMs: rest.durationMs,
+              signal: controller.signal
+            });
+            return enrichEvalCaseWithSemanticEvaluation({
+              item,
+              semanticEvaluation,
+              caseDefinitionHash: rest.caseDefinitionHash,
+              restResultHash: rest.resultHash
+            });
+          } catch (error) {
+            if (!isBrief || controller.signal.aborted) throw error;
+            return briefEvaluationError({
+              item,
+              error,
+              caseDefinitionHash: rest.caseDefinitionHash,
+              restResultHash: rest.resultHash
+            });
+          }
+        })
+      );
       const completedAt = this.#clock.now();
-      const importedByOrdinal = new Map(imported.map((item) => [item.ordinal, item]));
+      const importedByOrdinal = new Map(semanticallyEvaluated.map((item) => [item.ordinal, item]));
       const results = run.suite.cases.map((frozen) => {
         const reused = reusedByOrdinal.get(frozen.ordinal);
         if (reused !== undefined) {

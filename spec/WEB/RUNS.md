@@ -184,3 +184,7 @@ REST 展示总数、完成、成功和错误；逐 Case 表只显示真实结果
 - 未提交报告的 `REPORT_STAGE_FAILED` / `REPORT_RECONCILIATION_FAILED` 在 REST/Evaluation 集合完整时提供“重新生成报告”，不调用 Agent/Judge。启动仍使用 Revision CAS 和全局运行锁，取消及已提交报告不能借此覆盖。
 - Provider `ok=false` 可携带 `parsed_output` 部分证据；仍按执行异常统计，不因 HTTP 200 算通过。原始信封、Hash 与多轮 `turns` 保留；展示投影不得改变断言入参。
 - 多轮 Trace、回复、Token、A2UI 按 req_id 与轮次关联。缺少采集元数据按未知处理；采集不完整如实标注并可由人工给出最终结论，覆盖时填写归因与说明。每轮原始 JSON 及完整原记录均可查。
+
+## Brief 内容评测
+
+Brief 复用现有 Case、Endpoint 与运行快照，不新增独立执行系统。原子标注、最终内容展示及裁判异常语义见 [Brief 内容评测](../PACKAGES/BRIEF_EVALUATION.md)。

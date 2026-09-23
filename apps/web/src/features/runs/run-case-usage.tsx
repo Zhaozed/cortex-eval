@@ -12,19 +12,31 @@ export function RunCaseUsage({
   readonly onTrace: (target: string) => void;
 }): ReactElement {
   const evaluation = row.evaluation;
+  const jev = evaluation?.semanticEvaluation;
+  const metrics = jev?.metrics;
+  const jevTotal =
+    metrics?.inputTokens !== undefined && metrics.outputTokens !== undefined
+      ? metrics.inputTokens + metrics.outputTokens
+      : undefined;
   const num = (v: number | null | undefined): string => (v == null ? "未采集" : v.toLocaleString());
   return (
     <details className="run-usage-detail">
       <summary>
-        <strong>评测用量 · Judge</strong>
+        <strong>评测用量 · 断言评测{jev ? " / JEV" : ""}</strong>
         <span>
-          {num(evaluation?.tokenUsage?.totalTokens)} Token · {duration(evaluation?.latencyMs)}
+          {jev ? (
+            "分项查看耗时与 Token"
+          ) : (
+            <>
+              {num(evaluation?.tokenUsage?.totalTokens)} Token · {duration(evaluation?.latencyMs)}
+            </>
+          )}
         </span>
       </summary>
       <div className="run-usage-content">
         <div className="run-usage-table-wrap">
           <table className="run-usage-table">
-            <caption>Judge 评测{evaluation?.provenance ? " · 历史复用记录" : ""}</caption>
+            <caption>评测用量{evaluation?.provenance ? " · 历史复用记录" : ""}</caption>
             <thead>
               <tr>
                 <th>记录范围</th>
@@ -36,17 +48,28 @@ export function RunCaseUsage({
             </thead>
             <tbody>
               <tr>
-                <td>本 Case 评测汇总</td>
+                <td>断言评测（不含 JEV）</td>
                 <td>{duration(evaluation?.latencyMs)}</td>
                 <td>{num(evaluation?.tokenUsage?.inputTokens)}</td>
                 <td>{num(evaluation?.tokenUsage?.outputTokens)}</td>
                 <td>{num(evaluation?.tokenUsage?.totalTokens)}</td>
               </tr>
+              {jev && (
+                <tr>
+                  <td>JEV{metrics && !metrics.usageComplete ? "（统计不完整）" : ""}</td>
+                  <td>{duration(metrics?.durationMs)}</td>
+                  <td>{num(metrics?.inputTokens)}</td>
+                  <td>{num(metrics?.outputTokens)}</td>
+                  <td>{num(jevTotal)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
-        <p className="run-muted">Judge 按本 Case 已采集的评测记录汇总，暂无逐 Rubric 用量。</p>
+        <p className="run-muted">
+          断言评测与 JEV 分开统计，不含 Agent 消耗；缺失用量显示未采集，不作为 0。
+        </p>
         <Button size="sm" variant="link" onClick={() => onTrace("case-trace-usage")}>
           查看 Agent 逐模型耗时与 Token → 执行链路
         </Button>

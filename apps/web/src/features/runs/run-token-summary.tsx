@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { DashboardCase } from "./run-dashboard-model.ts";
 import { judgeUsage } from "./run-dashboard-model.ts";
+import { jevUsage } from "./run-jev-usage.ts";
 import { agentUsage } from "./run-evidence-model.ts";
 
 /** Compact factual usage: recorded consumption is useful even when the audit is incomplete. */
@@ -14,11 +15,13 @@ export function RunTokenSummary({
 }): ReactElement {
   const [expanded, setExpanded] = useState(false);
   const agent = agentUsage(rows),
-    judge = judgeUsage(rows);
+    judge = judgeUsage(rows),
+    jev = jevUsage(rows);
   const agentKnown = ready && agent.recorded > 0,
-    judgeKnown = ready && judge.recorded > 0;
-  const complete = ready && agent.complete && judge.recorded === judge.expected;
-  const any = agentKnown || judgeKnown;
+    judgeKnown = ready && judge.recorded > 0,
+    jevKnown = ready && jev.recorded > 0;
+  const complete = ready && agent.complete && judge.recorded === judge.expected && jev.complete;
+  const any = agentKnown || judgeKnown || jevKnown;
   const format = (n: number, known: boolean): string => (known ? n.toLocaleString() : "未采集");
   return (
     <section className="run-usage" aria-label="Token 汇总">
@@ -26,7 +29,11 @@ export function RunTokenSummary({
         <span>Token 用量</span>
         <strong>
           {any
-            ? ((agentKnown ? agent.total : 0) + (judgeKnown ? judge.total : 0)).toLocaleString()
+            ? (
+                (agentKnown ? agent.total : 0) +
+                (judgeKnown ? judge.total : 0) +
+                (jevKnown ? jev.total : 0)
+              ).toLocaleString()
             : "未采集"}
         </strong>
         {any && !complete && <span className="run-usage-note">已记录部分</span>}
@@ -36,9 +43,15 @@ export function RunTokenSummary({
         <strong>{format(agent.total, agentKnown)}</strong>
       </div>
       <div className="run-usage-part">
-        <span>评测模型</span>
+        <span>断言评测</span>
         <strong>{format(judge.total, judgeKnown)}</strong>
       </div>
+      {jev.expected > 0 && (
+        <div className="run-usage-part">
+          <span>JEV {jevKnown && !jev.complete ? "（已知部分）" : ""}</span>
+          <strong>{format(jev.total, jevKnown)}</strong>
+        </div>
+      )}
       <button
         className="run-usage-toggle"
         aria-expanded={expanded}
@@ -65,11 +78,19 @@ export function RunTokenSummary({
                 <td>{format(agent.total, agentKnown)}</td>
               </tr>
               <tr>
-                <td>评测模型</td>
+                <td>断言评测</td>
                 <td>{format(judge.input, judgeKnown)}</td>
                 <td>{format(judge.output, judgeKnown)}</td>
                 <td>{format(judge.total, judgeKnown)}</td>
               </tr>
+              {jev.expected > 0 && (
+                <tr>
+                  <td>JEV{!jev.complete ? "（未完整采集）" : ""}</td>
+                  <td>{format(jev.input, ready && jev.inputKnown)}</td>
+                  <td>{format(jev.output, ready && jev.outputKnown)}</td>
+                  <td>{format(jev.total, jevKnown)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
           <p>

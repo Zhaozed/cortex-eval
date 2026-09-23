@@ -264,7 +264,8 @@ const TABLE_SPECS: readonly EntityTableSpec[] = [
       "updated_at",
       "ordinal",
       "case_definition_hash",
-      "run_result_hash"
+      "run_result_hash",
+      "semantic_evaluation_json"
     ],
     join: "JOIN case_result ON case_result.run_id = eval_result.run_id AND case_result.case_key = eval_result.case_key",
     orderBy: "eval_result.run_id COLLATE BINARY, eval_result.case_key COLLATE BINARY"

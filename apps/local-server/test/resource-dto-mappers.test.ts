@@ -21,6 +21,15 @@ describe("P3 HTTP DTO Mapper", () => {
         business_module: "chat",
         scenario_tag: "edge"
       },
+      semanticEvaluation: {
+        contractVersion: "cortex.semantic-evaluation-contract.v1" as const,
+        goal: "Route the request and answer safely",
+        successCriteria: ["The correct route is selected"],
+        enabledDimensions: ["routing", "tool-use", "safety"] as (
+          "routing" | "tool-use" | "safety"
+        )[],
+        toolPolicy: { requiredTools: ["feishu.task.get"] }
+      },
       assert: [
         {
           type: "assert-set",

@@ -5,6 +5,7 @@ import type {
 } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 
 import type { ImportedTokenUsage, PromptfooRawEvidence } from "./promptfoo-result-importer.ts";
+import type { PlatformSemanticEvaluation } from "./semantic-evaluation-port.ts";
 
 /** Reuse identity for one copied Evaluation result. */
 export interface PlatformEvalReuseProvenance {
@@ -40,6 +41,8 @@ export interface PlatformEvalCaseResult {
   readonly diffs: readonly EvalDiffHashFact[];
   /** Deduplicated Metric results. */
   readonly metrics: readonly EvalMetricHashFact[];
+  /** Optional JEV semantic evaluation evidence. */
+  readonly semanticEvaluation?: PlatformSemanticEvaluation | null;
   /** Promptfoo-observed latency. */
   readonly latencyMs: number | null;
   /** Promptfoo-observed grader token usage. */

@@ -244,6 +244,8 @@ export interface EvalResultHashInput {
   readonly diffs: readonly EvalDiffHashFact[];
   /** Stable Case Metric facts. */
   readonly metrics: readonly EvalMetricHashFact[];
+  /** Optional semantic evaluator evidence. */
+  readonly semanticEvaluation?: DomainJsonValue | null;
 }
 
 /** One ordered Case identity inside a complete Eval result set. */
@@ -535,7 +537,8 @@ export function hashEvalResult(input: EvalResultHashInput): string {
     evaluationError: input.evaluationError === null ? null : { ...input.evaluationError },
     assertions: input.assertions.map((item) => ({ ...item })),
     diffs: input.diffs.map((item) => ({ ...item })),
-    metrics: input.metrics.map((item) => ({ ...item }))
+    metrics: input.metrics.map((item) => ({ ...item })),
+    ...(input.semanticEvaluation === undefined ? {} : { semanticEvaluation: input.semanticEvaluation })
   });
 }
 

@@ -29,6 +29,7 @@ const SAFE_CODES = new Set([
   "EVALUATOR_SECRET_MISSING",
   "EVALUATOR_CONFIG_INVALID",
   "EVALUATOR_PROVIDER_RESPONSE_INVALID",
+  "JEV_PROVIDER_FAILED",
   "PROVIDER_CAPABILITY_UNSUPPORTED",
   "PROVIDER_REQUEST_FAILED",
   "RUN_EVALUATION_REST_HASH_MISSING",
@@ -48,6 +49,7 @@ const SAFE_CODES = new Set([
 function safeCode(error: unknown): string {
   if (!(error instanceof Error)) return "UNKNOWN_EVALUATION_ERROR";
   if (/^PROMPTFOO_PROCESS_EXIT:-?\d{1,3}$/.test(error.message)) return error.message;
+  if (/^JEV_HTTP_FAILED:\d{3}:[A-Z0-9_]{1,64}$/.test(error.message)) return error.message;
   // Prefer an explicit closed code field: a decorated message must not lose the diagnosis.
   const explicit = "code" in error ? error.code : undefined;
   if (typeof explicit === "string" && SAFE_CODES.has(explicit)) return explicit;

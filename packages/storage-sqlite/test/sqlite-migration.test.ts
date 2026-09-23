@@ -202,7 +202,7 @@ describe("SQLite 初始化与 Migration", () => {
     );
     expect(runColumns.map((item) => item.name)).toContain("analysis_import_identity_json");
     expect(migrations.map((item) => item.name)).toContain("005_case_analysis_versions");
-    expect(migrations.at(-1)?.name).toBe("006_run_metadata");
+    expect(migrations.at(-1)?.name).toBe("007_jev_semantic_evaluation");
     expect(runColumns.map((item) => item.name)).toEqual(
       expect.arrayContaining(["run_name", "run_description"])
     );

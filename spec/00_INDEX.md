@@ -159,3 +159,7 @@ Todo Planner修正、E2E草稿和实际执行证据断言复用既有Case与Prom
 - [PACKAGES/EVALUATION_ADAPTERS.md](PACKAGES/EVALUATION_ADAPTERS.md)：冻结 Evaluator 瞬态重试、Provider 诊断与进程错误分类。
 - [WEB/TEST_SUITES.md](WEB/TEST_SUITES.md)：Agent 执行、回复与调用策略的结构化编辑。
 - [本次开发交付记录](../docs/development-spec-2026-09-15.md)：本次推送的变更范围、对应 spec 与实际校验记录；不替代模块事实文档。
+
+## Brief 内容评测
+
+- [Brief 内容评测](PACKAGES/BRIEF_EVALUATION.md)：冻结材料回放、原子 GT、评分、裁判异常与界面边界。

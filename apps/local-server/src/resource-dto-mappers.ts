@@ -8,6 +8,7 @@ import type {
   AssertionDefinition,
   CaseDefinition
 } from "@cortex-eval/domain/src/domain-evaluation.ts";
+import type { DomainJsonObject } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 import type {
   AnalysisPromptDefinition,
   EndpointConfigDefinition,
@@ -74,6 +75,11 @@ export function mapCaseDefinitionFromV1(value: CaseDefinitionV1): CaseDefinition
         ? {}
         : { a2uiCapture: value.metadata.a2ui_capture })
     },
+    ...(value.semanticEvaluation === undefined
+      ? {}
+      : {
+          semanticEvaluation: value.semanticEvaluation as unknown as DomainJsonObject
+        }),
     assertions: value.assert.map(mapAssertionFromV1)
   };
 }
@@ -95,6 +101,12 @@ export function mapCaseDefinitionToV1(value: CaseDefinition): CaseDefinitionV1 {
         ? {}
         : { a2ui_capture: value.metadata.a2uiCapture })
     },
+    ...(value.semanticEvaluation === undefined
+      ? {}
+      : {
+          semanticEvaluation:
+            value.semanticEvaluation as unknown as CaseDefinitionV1["semanticEvaluation"]
+        }),
     assert: value.assertions.map(mapAssertionToV1)
   };
 }

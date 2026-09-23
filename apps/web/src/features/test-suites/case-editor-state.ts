@@ -5,6 +5,7 @@ import {
 } from "@cortex-eval/contracts/src/case-contracts.ts";
 import { JsonObjectSchema } from "@cortex-eval/contracts/src/contracts-primitives.ts";
 import type { z } from "zod";
+import type { SemanticEvaluationContractV1 } from "@cortex-eval/contracts/src/semantic-evaluation-contracts.ts";
 
 /** Explicit Case editor modes sharing one validated Draft. */
 export type CaseEditorMode = "STRUCTURED" | "JSON";
@@ -93,13 +94,22 @@ export function createCaseEditorState(definition: CaseDefinitionV1): CaseEditorS
 /** Replace only structured fields while retaining whole Request Body and Assertions. */
 export function applyStructuredCaseFields(
   state: CaseEditorState,
-  fields: StructuredCaseFields
+  fields: StructuredCaseFields,
+  semanticEvaluation?: SemanticEvaluationContractV1,
+  requestBodyText?: string
 ): CaseEditorResult {
+  const body =
+    requestBodyText === undefined
+      ? { ok: true as const, value: state.draft.vars.request_body }
+      : parseJson(requestBodyText);
+  if (!body.ok) return { ok: false, state, errorPath: "vars.request_body" };
+  const { semanticEvaluation: previousSemantic, ...base } = state.draft;
+  void previousSemantic;
   const parsed = CaseDefinitionV1Schema.safeParse({
-    ...state.draft,
+    ...base,
     description: fields.description,
     threshold: fields.threshold,
-    vars: { ...state.draft.vars, task: fields.task },
+    vars: { ...state.draft.vars, task: fields.task, request_body: body.value },
     metadata: {
       case_id: fields.caseId,
       req_id: fields.reqId,
@@ -107,7 +117,8 @@ export function applyStructuredCaseFields(
       business_module: fields.businessModule,
       scenario_tag: fields.scenarioTag,
       ...(fields.a2uiCapture === undefined ? {} : { a2ui_capture: fields.a2uiCapture })
-    }
+    },
+    ...(semanticEvaluation === undefined ? {} : { semanticEvaluation })
   });
   if (!parsed.success) return { ok: false, state, errorPath: issuePath(parsed.error) };
   return {
@@ -122,10 +133,12 @@ export function replaceRequestBodyJson(state: CaseEditorState, text: string): Ca
   if (!raw.ok) return { ok: false, state, errorPath: "vars.request_body" };
   const parsed = JsonObjectSchema.safeParse(raw.value);
   if (!parsed.success) return { ok: false, state, errorPath: "vars.request_body" };
-  const draft = CaseDefinitionV1Schema.parse({
+  const checked = CaseDefinitionV1Schema.safeParse({
     ...state.draft,
     vars: { ...state.draft.vars, request_body: parsed.data }
   });
+  if (!checked.success) return { ok: false, state, errorPath: issuePath(checked.error) };
+  const draft = checked.data;
   return { ok: true, state: { mode: "STRUCTURED", draft, jsonText: serialize(draft) } };
 }
 

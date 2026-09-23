@@ -39,6 +39,7 @@ import { z } from "zod";
 
 import { SqliteRowInvalidError } from "./sqlite-row-mappers.ts";
 import type { RunLogTable } from "./sqlite-schema.ts";
+import { SemanticEvaluationContractV1Schema } from "./sqlite-semantic-evaluation-schemas.ts";
 
 export const Sha256Schema = z.string().regex(/^[0-9a-f]{64}$/);
 export const UtcDateTimeSchema = z.string().refine((value) => {
@@ -108,6 +109,7 @@ export const CaseDefinitionV1Schema = z.strictObject({
     scenario_tag: z.string().trim().min(1),
     a2ui_capture: z.boolean().optional()
   }),
+  semanticEvaluation: SemanticEvaluationContractV1Schema.optional(),
   assert: z.array(PersistedAssertionSchema).min(1)
 });
 type CaseDefinitionV1 = z.infer<typeof CaseDefinitionV1Schema>;
@@ -448,6 +450,9 @@ export function caseFromV1(value: CaseDefinitionV1): CaseDefinition {
         ? {}
         : { a2uiCapture: value.metadata.a2ui_capture })
     },
+    ...(value.semanticEvaluation === undefined
+      ? {}
+      : { semanticEvaluation: value.semanticEvaluation as unknown as DomainJsonObject }),
     assertions: value.assert.map(assertionFromV1)
   };
 }

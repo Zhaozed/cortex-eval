@@ -100,3 +100,7 @@ Suite 创建、编辑的名称或说明错误关联并聚焦当前表单。Case 
 [case-agent-rule-fields.tsx](../../apps/web/src/features/test-suites/case-agent-rule-fields.tsx) 提供执行结果、回复交付与工具调用禁止/次数限制的结构化编辑；[agent-rule-authoring.ts](../../packages/contracts/src/assertion-rules/agent-rule-authoring.ts) 统一负责作者校验和普通 JavaScript Assertion 生成。失败执行期望必须提供错误码，不能同时附带成功结果检查；集合期望不能包含重复值，时刻必须包含时区。调用策略只按显式工具名计数，不能凭名称猜测工具是否有副作用。
 
 结构化模式只接管能无损识别的生成规则；任意脚本继续通过原脚本入口编辑。请求体与变量编辑沿用冻结 Revision、冲突恢复和保存校验，不另建写入通道。测试入口为 [Agent 规则表单测试](../../apps/web/test/case-agent-rule-fields.test.tsx)、[请求字段测试](../../apps/web/test/case-request-fields.test.tsx) 与 [作者契约测试](../../packages/contracts/test/agent-rule-authoring.test.ts)。
+
+## Brief 内容评测
+
+Brief 复用现有 Case、Endpoint 与运行快照，不新增独立执行系统。原子标注、最终内容展示及裁判异常语义见 [Brief 内容评测](../PACKAGES/BRIEF_EVALUATION.md)。

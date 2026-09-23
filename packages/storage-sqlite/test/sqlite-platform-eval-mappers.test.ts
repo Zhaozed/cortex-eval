@@ -1,5 +1,5 @@
 import type { PlatformEvalCaseResult } from "@cortex-eval/application/src/features/evaluation/platform-eval-models.ts";
-import { canonicalJson } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
+import { canonicalJson, type DomainJsonValue } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 import { hashEvalResult, hashFinalCaseResult } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 import { describe, expect, it } from "vitest";
 
@@ -123,7 +123,36 @@ function result(
   };
 }
 
-function row(value: PlatformEvalCaseResult): EvalResultRowProjection {
+function semanticEvaluation(): NonNullable<PlatformEvalCaseResult["semanticEvaluation"]> {
+  return {
+    provider: "jev",
+    model: "jev-test",
+    planVersion: "cortex.semantic-evaluation-plan.v1",
+    result: {
+      contractVersion: "cortex.semantic-evaluation-result.v1",
+      passed: false,
+      score: 0.25,
+      decisions: [
+        {
+          questionId: "routing.correct",
+          kind: "BOOLEAN",
+          value: false,
+          applicable: true,
+          reason: "The observed route does not match the case requirement.",
+          evidence: ["route=calendar"],
+          evidenceRefs: ["trace.step.1"]
+        }
+      ],
+      blockingFailures: ["routing.correct"],
+      warnings: []
+    }
+  };
+}
+
+function row(
+  value: PlatformEvalCaseResult,
+  semanticEvaluationJsonOverride?: DomainJsonValue | null
+): EvalResultRowProjection {
   return {
     run_id: value.runId,
     case_key: value.caseKey,
@@ -138,6 +167,14 @@ function row(value: PlatformEvalCaseResult): EvalResultRowProjection {
     latency_ms: value.latencyMs,
     token_usage_json: value.tokenUsage === null ? null : canonicalJson({ ...value.tokenUsage }),
     cost: value.cost,
+    semantic_evaluation_json:
+      semanticEvaluationJsonOverride === undefined
+        ? value.semanticEvaluation === null || value.semanticEvaluation === undefined
+          ? null
+          : canonicalJson(value.semanticEvaluation as unknown as DomainJsonValue)
+        : semanticEvaluationJsonOverride === null
+          ? null
+          : canonicalJson(semanticEvaluationJsonOverride),
     allowlist_raw_evidence_json:
       value.rawEvidence === null ? canonicalJson(null) : canonicalJson({ ...value.rawEvidence }),
     eval_result_hash: value.evalResultHash,
@@ -214,6 +251,103 @@ describe("SQLite 平台 Eval 行映射", () => {
     expect(mapPlatformEvalResult(row(executionReuse)).provenance).toEqual(
       executionReuse.provenance
     );
+  });
+
+  it("兼容 JEV 历史 JSON 缺少 Schema 默认字段时的 Hash", () => {
+    const semantic = semanticEvaluation();
+    const persistedSemantic = {
+      ...semantic,
+      result: {
+        ...semantic.result,
+        decisions: semantic.result.decisions.map(({ applicable, evidenceRefs, ...decision }) =>
+          decision
+        )
+      }
+    } as unknown as DomainJsonValue;
+    const base = result("FAIL");
+    const historical: PlatformEvalCaseResult = {
+      ...base,
+      semanticEvaluation: semantic,
+      evalResultHash: hashEvalResult({
+        contractVersion: "cortex.eval-result.v1",
+        caseKey: base.caseKey,
+        status: base.status,
+        promptfooSuccess: base.promptfooSuccess,
+        score: base.score,
+        reason: base.reason,
+        evaluationError: base.evaluationError,
+        assertions: base.assertions,
+        diffs: base.diffs,
+        metrics: base.metrics,
+        semanticEvaluation: persistedSemantic
+      }),
+      finalCaseResultHash: hashFinalCaseResult({
+        contractVersion: "cortex.final-case-result.v1",
+        caseDefinitionHash: DEFINITION_HASH,
+        restResultHash: REST_HASH,
+        evalResultHash: hashEvalResult({
+          contractVersion: "cortex.eval-result.v1",
+          caseKey: base.caseKey,
+          status: base.status,
+          promptfooSuccess: base.promptfooSuccess,
+          score: base.score,
+          reason: base.reason,
+          evaluationError: base.evaluationError,
+          assertions: base.assertions,
+          diffs: base.diffs,
+          metrics: base.metrics,
+          semanticEvaluation: persistedSemantic
+        })
+      })
+    };
+    const rowWithHistoricalJson = row(historical, persistedSemantic);
+    const mapped = mapPlatformEvalResult(rowWithHistoricalJson);
+    expect(mapped.semanticEvaluation?.result.decisions[0]).toMatchObject({
+      questionId: "routing.correct",
+      applicable: true,
+      evidence: ["route=calendar"],
+      evidenceRefs: []
+    });
+  });
+
+  it("兼容带 JEV 结果但按旧版 Eval Hash 持久化的历史记录", () => {
+    const semantic = semanticEvaluation();
+    const base = result("FAIL");
+    const historical: PlatformEvalCaseResult = {
+      ...base,
+      semanticEvaluation: semantic,
+      // Before semantic evaluation was added to the hash input, this was the
+      // persisted Eval hash even though the row already contained JEV evidence.
+      evalResultHash: base.evalResultHash,
+      finalCaseResultHash: hashFinalCaseResult({
+        contractVersion: "cortex.final-case-result.v1",
+        caseDefinitionHash: DEFINITION_HASH,
+        restResultHash: REST_HASH,
+        evalResultHash: base.evalResultHash
+      })
+    };
+
+    expect(mapPlatformEvalResult(row(historical))).toEqual(historical);
+
+    const current = {
+      ...historical,
+      evalResultHash: hashEvalResult({
+        contractVersion: "cortex.eval-result.v1",
+        caseKey: historical.caseKey,
+        status: historical.status,
+        promptfooSuccess: historical.promptfooSuccess,
+        score: historical.score,
+        reason: historical.reason,
+        evaluationError: historical.evaluationError,
+        assertions: historical.assertions,
+        diffs: historical.diffs,
+        metrics: historical.metrics,
+        semanticEvaluation: semantic as unknown as DomainJsonValue
+      })
+    };
+    expect(evalResultInsertValues(current)).toMatchObject({
+      semantic_evaluation_json: canonicalJson(semantic as unknown as DomainJsonValue)
+    });
   });
 
   it("拒绝非法 JSON、非法状态形状、冲突来源和语义 Hash 篡改", () => {

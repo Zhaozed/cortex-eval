@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { SqliteRowInvalidError } from "./sqlite-row-mappers.ts";
 import type { EvalResultTable } from "./sqlite-schema.ts";
+import { SemanticEvaluationSchema } from "./sqlite-semantic-evaluation-schemas.ts";
 
 const Sha256Schema = z.string().regex(/^[0-9a-f]{64}$/);
 const JsonValueSchema: z.ZodType<DomainJsonValue> = z.lazy(() =>
@@ -75,6 +76,7 @@ const EvalCaseStorageSchema = z
     assertions: z.array(AssertionSchema),
     diffs: z.array(DiffSchema),
     metrics: z.array(MetricSchema),
+    semanticEvaluation: SemanticEvaluationSchema.nullable(),
     latencyMs: z.number().nonnegative().nullable(),
     tokenUsage: TokenUsageSchema.nullable(),
     cost: z.number().nonnegative().nullable(),
@@ -157,7 +159,34 @@ function mapProvenance(row: EvalResultTable): PlatformEvalCaseResult["provenance
 }
 
 // Recompute the semantic Eval hash from normalized facts only.
-function semanticEvalResultHash(value: PlatformEvalCaseResult): string {
+function semanticEvalResultHash(
+  value: PlatformEvalCaseResult,
+  semanticEvaluation: DomainJsonValue | undefined =
+    value.semanticEvaluation == null
+      ? undefined
+      : (value.semanticEvaluation as unknown as DomainJsonValue)
+): string {
+  return hashEvalResult({
+    contractVersion: "cortex.eval-result.v1",
+    caseKey: value.caseKey,
+    status: value.status,
+    promptfooSuccess: value.promptfooSuccess,
+    score: value.score,
+    reason: value.reason,
+    evaluationError: value.evaluationError,
+    assertions: value.assertions,
+    diffs: value.diffs,
+    metrics: value.metrics,
+    ...(semanticEvaluation === undefined ? {} : { semanticEvaluation })
+  });
+}
+
+/**
+ * Historical Eval rows were persisted before semantic evaluation became part of the
+ * per-Case hash. Keep those immutable rows readable while all new rows use the
+ * semantic-aware hash above.
+ */
+function legacySemanticEvalResultHash(value: PlatformEvalCaseResult): string {
   return hashEvalResult({
     contractVersion: "cortex.eval-result.v1",
     caseKey: value.caseKey,
@@ -190,6 +219,7 @@ export function evalResultInsertValues(value: PlatformEvalCaseResult): Insertabl
     assertions: value.assertions,
     diffs: value.diffs,
     metrics: value.metrics,
+    semanticEvaluation: value.semanticEvaluation ?? null,
     latencyMs: value.latencyMs,
     tokenUsage: value.tokenUsage,
     cost: value.cost,
@@ -215,6 +245,10 @@ export function evalResultInsertValues(value: PlatformEvalCaseResult): Insertabl
     latency_ms: value.latencyMs,
     token_usage_json: value.tokenUsage === null ? null : canonicalJson({ ...value.tokenUsage }),
     cost: value.cost,
+    semantic_evaluation_json:
+      value.semanticEvaluation === null || value.semanticEvaluation === undefined
+        ? null
+        : canonicalJson(value.semanticEvaluation as unknown as DomainJsonValue),
     allowlist_raw_evidence_json:
       value.rawEvidence === null ? canonicalJson(null) : canonicalJson({ ...value.rawEvidence }),
     eval_result_hash: value.evalResultHash,
@@ -231,6 +265,9 @@ export function evalResultInsertValues(value: PlatformEvalCaseResult): Insertabl
 /** Map and semantically verify one persisted normalized Eval result. */
 export function mapPlatformEvalResult(row: EvalResultRowProjection): PlatformEvalCaseResult {
   const provenance = mapProvenance(row);
+  const semanticEvaluationJson = (row as unknown as {
+    readonly semantic_evaluation_json?: string | null;
+  }).semantic_evaluation_json;
   const parsed = EvalCaseStorageSchema.safeParse({
     caseKey: row.case_key,
     ordinal: row.ordinal,
@@ -243,6 +280,10 @@ export function mapPlatformEvalResult(row: EvalResultRowProjection): PlatformEva
     assertions: parseJson(row.assertion_results_json),
     diffs: parseJson(row.expected_actual_diffs_json),
     metrics: parseJson(row.metric_results_json),
+    semanticEvaluation:
+      semanticEvaluationJson === null || semanticEvaluationJson === undefined
+        ? null
+        : parseJson(semanticEvaluationJson),
     latencyMs: row.latency_ms,
     tokenUsage: row.token_usage_json === null ? null : parseJson(row.token_usage_json),
     cost: row.cost,
@@ -253,9 +294,11 @@ export function mapPlatformEvalResult(row: EvalResultRowProjection): PlatformEva
   });
   if (!parsed.success) throw new SqliteRowInvalidError();
   const value = parsed.data;
+  const { semanticEvaluation, ...withoutSemanticEvaluation } = value;
   const result: PlatformEvalCaseResult = {
     runId: row.run_id,
-    ...value,
+    ...withoutSemanticEvaluation,
+    ...(semanticEvaluation === null ? {} : { semanticEvaluation }),
     rawEvidence:
       value.rawEvidence === null
         ? null
@@ -269,18 +312,28 @@ export function mapPlatformEvalResult(row: EvalResultRowProjection): PlatformEva
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
-  const evalResultHash = semanticEvalResultHash(result);
-  const finalCaseResultHash = hashFinalCaseResult({
-    contractVersion: "cortex.final-case-result.v1",
-    caseDefinitionHash: row.case_definition_hash,
-    restResultHash: row.run_result_hash,
-    evalResultHash
+  // Zod applies defaults to older semantic payloads (for example,
+  // `applicable`, `evidence`, and `evidenceRefs`). Validate both the normalized
+  // representation returned by this mapper and the exact JSON representation
+  // that was used when the historical hash was written.
+  const semanticHashCandidates = [
+    semanticEvalResultHash(result),
+    semanticEvaluationJson === null || semanticEvaluationJson === undefined
+      ? null
+      : semanticEvalResultHash(result, parseJson(semanticEvaluationJson) as DomainJsonValue),
+    legacySemanticEvalResultHash(result)
+  ].filter((candidate): candidate is string => candidate !== null);
+  const validHashPair = semanticHashCandidates.some((candidate) => {
+    if (candidate !== value.evalResultHash) return false;
+    return (
+      hashFinalCaseResult({
+        contractVersion: "cortex.final-case-result.v1",
+        caseDefinitionHash: row.case_definition_hash,
+        restResultHash: row.run_result_hash,
+        evalResultHash: candidate
+      }) === value.finalCaseResultHash
+    );
   });
-  if (
-    evalResultHash !== value.evalResultHash ||
-    finalCaseResultHash !== value.finalCaseResultHash
-  ) {
-    throw new SqliteRowInvalidError();
-  }
+  if (!validHashPair) throw new SqliteRowInvalidError();
   return result;
 }

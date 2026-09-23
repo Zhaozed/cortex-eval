@@ -31,7 +31,8 @@ import {
 } from "@cortex-eval/contracts/src/artifact-contracts.ts";
 import {
   canonicalJson,
-  type DomainJsonObject
+  type DomainJsonObject,
+  type DomainJsonValue
 } from "@cortex-eval/domain/src/domain-canonical-hash.ts";
 import {
   hashEvalResultSet,
@@ -183,6 +184,9 @@ function evalArtifactCase(value: PlatformEvalCaseResult): DomainJsonObject {
     assertions: value.assertions.map((item) => ({ ...item })),
     diffs: value.diffs.map((item) => ({ ...item })),
     metrics: value.metrics.map((item) => ({ ...item })),
+    ...(value.semanticEvaluation === undefined
+      ? {}
+      : { semanticEvaluation: value.semanticEvaluation as unknown as DomainJsonValue }),
     latencyMs: value.latencyMs,
     tokenUsage: value.tokenUsage === null ? null : { ...value.tokenUsage },
     cost: value.cost,

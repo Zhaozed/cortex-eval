@@ -15,6 +15,7 @@ import { collectRubricPromptKeys } from "@cortex-eval/domain/src/domain-resource
 import type { Selectable } from "kysely";
 
 import type { TestCaseTable } from "./sqlite-schema.ts";
+import { SemanticEvaluationContractV1Schema } from "./sqlite-semantic-evaluation-schemas.ts";
 
 /** Stable corrupt-row failure raised before Application receives dirty data. */
 export class SqliteRowInvalidError extends Error {
@@ -157,6 +158,7 @@ function caseDefinition(source: DomainJsonObject): CaseDefinition {
     "threshold",
     "vars",
     "metadata",
+    ...(Object.hasOwn(root, "semanticEvaluation") ? ["semanticEvaluation"] : []),
     "assert"
   ]);
   if (root.contractVersion !== "cortex.case-definition.v1") throw new SqliteRowInvalidError();
@@ -175,6 +177,13 @@ function caseDefinition(source: DomainJsonObject): CaseDefinition {
     throw new SqliteRowInvalidError();
   const assertions = root.assert;
   if (!Array.isArray(assertions)) throw new SqliteRowInvalidError();
+  const semanticEvaluation = root.semanticEvaluation;
+  if (
+    semanticEvaluation !== undefined &&
+    !SemanticEvaluationContractV1Schema.safeParse(semanticEvaluation).success
+  ) {
+    throw new SqliteRowInvalidError();
+  }
   const definition: CaseDefinition = {
     caseKey: stringMember(metadata, "case_id"),
     description: stringMember(root, "description"),
@@ -188,6 +197,9 @@ function caseDefinition(source: DomainJsonObject): CaseDefinition {
       scenarioTag: stringMember(metadata, "scenario_tag"),
       ...(typeof metadata.a2ui_capture === "boolean" ? { a2uiCapture: metadata.a2ui_capture } : {})
     },
+    ...(semanticEvaluation === undefined
+      ? {}
+      : { semanticEvaluation: semanticEvaluation as DomainJsonObject }),
     assertions: assertions.map(assertion)
   };
   const validation = validateCaseDefinition(definition);

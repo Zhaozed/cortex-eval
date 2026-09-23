@@ -1,8 +1,10 @@
+import { BriefCaseFields } from "./brief-case-fields.tsx";
 import {
   ASSERTION_ISSUES,
   caseAssertionsIssue
 } from "@cortex-eval/contracts/src/assertion-rules/authoring-validation.ts";
 import type { CaseDefinitionV1 } from "@cortex-eval/contracts/src/case-contracts.ts";
+import type { SemanticEvaluationContractV1 } from "@cortex-eval/contracts/src/semantic-evaluation-contracts.ts";
 import { useCallback, useLayoutEffect, useRef, useState, type ReactElement } from "react";
 import { useForm } from "react-hook-form";
 
@@ -11,6 +13,7 @@ import { CaseCreatableSelect } from "./case-choice-fields.tsx";
 import { newCaseAssertion } from "./case-field-rule.ts";
 import { CaseAssertionFields } from "./case-assertion-fields.tsx";
 import { CaseRequestFields } from "./case-request-fields.tsx";
+import { JevSemanticEvaluationFields } from "./jev-semantic-evaluation-fields.tsx";
 import { EMPTY_CASE_FILTER_OPTIONS, type CaseFilterOptions } from "./case-filter-options.ts";
 import { Button } from "../../components/ui/button.tsx";
 import {
@@ -133,6 +136,9 @@ export function CaseEditor({
   const [assertionKeys, setAssertionKeys] = useState(() =>
     initialDefinition.assert.map(() => crypto.randomUUID())
   );
+  const [jevContract, setJevContract] = useState<SemanticEvaluationContractV1 | undefined>(
+    () => initialDefinition.semanticEvaluation
+  );
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [structuredError, setStructuredError] = useState<StructuredEditorError | null>(null);
   const [saving, setSaving] = useState(false);
@@ -240,11 +246,20 @@ export function CaseEditor({
 
   // Compile all structured controls into one Contract-valid shared Draft.
   const compileStructured = (): CaseEditorState | null => {
-    const fields = applyStructuredCaseFields(editor, form.getValues());
+    const fields = applyStructuredCaseFields(
+      editor,
+      {
+        ...form.getValues()
+      },
+      jevContract,
+      requestBodyText
+    );
     if (!fields.ok) {
       const editorField = caseApiPathToEditorField(fields.errorPath);
       const formField = CASE_API_FORM_FIELDS[editorField];
-      if (formField !== undefined) {
+      if (editorField === "vars.request_body") {
+        reportStructuredError(message("caseEditor.requestBodyInvalid"), "REQUEST_BODY");
+      } else if (formField !== undefined) {
         form.setError(formField, { type: "contract", message: message("caseEditor.fieldInvalid") });
         focusAfterSave(() => form.setFocus(formField));
       } else {
@@ -300,6 +315,7 @@ export function CaseEditor({
     setJsonError(null);
     setEditor(result.state);
     form.reset(structuredValues(result.state.draft));
+    setJevContract(result.state.draft.semanticEvaluation);
     setRequestBodyText(formattedJson(result.state.draft.vars.request_body));
     setAssertionTexts(result.state.draft.assert.map(formattedJson));
     setAssertionKeys(result.state.draft.assert.map(() => crypto.randomUUID()));
@@ -404,6 +420,11 @@ export function CaseEditor({
               <TabsTrigger value="JSON">{message("caseEditor.json")}</TabsTrigger>
             </TabsList>
             <TabsContent value="STRUCTURED" className="case-authoring-layout">
+              <BriefCaseFields
+                value={jevContract}
+                onChange={setJevContract}
+                onImport={setRequestBodyText}
+              />
               <div className="case-authoring-context">
                 <section className="case-authoring-basics case-structured-grid">
                   <div className="field-wide case-section-heading">
@@ -536,6 +557,7 @@ export function CaseEditor({
                   </details>
                 </section>
                 <CaseRequestFields
+                  briefMode={jevContract?.brief !== undefined}
                   text={requestBodyText}
                   rawRef={requestBodyRef}
                   error={structuredError?.target === "REQUEST_BODY"}
@@ -555,6 +577,26 @@ export function CaseEditor({
                     <p>选择规则、填写参数；保存时自动检查配置。</p>
                   </div>
                 </div>
+                {jevContract?.brief && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setAssertionKeys([crypto.randomUUID()]);
+                      setAssertionTexts([
+                        formattedJson({
+                          type: "javascript",
+                          metric: "Brief replay 成功",
+                          weight: 1,
+                          value:
+                            'const body = typeof output === "string" ? JSON.parse(output) : output; return body.ok === true && body.task_name === "EVAL_BRIEF_REPLAY";'
+                        })
+                      ]);
+                    }}
+                  >
+                    替换为 Brief replay 基础检查
+                  </Button>
+                )}
                 <datalist id="case-output-paths">
                   {[
                     "ok",
@@ -607,6 +649,9 @@ export function CaseEditor({
                     }}
                   />
                 ))}
+                {!jevContract?.brief && (
+                  <JevSemanticEvaluationFields value={jevContract} onChange={setJevContract} />
+                )}
                 <FormField
                   control={form.control}
                   name="a2uiCapture"
