@@ -10,6 +10,9 @@ export function briefEvaluationError(input: {
 }): ImportedEvalCase {
   const known = new Set([
     "BRIEF_JUDGE_REVIEW_REQUIRED",
+    "BRIEF_LLM_NOT_CONFIGURED",
+    "BRIEF_JUDGE_TIMEOUT",
+    "JEV_NOT_CONFIGURED",
     "BRIEF_JUDGE_EVIDENCE_MISSING",
     "BRIEF_JUDGE_DECISION_INVALID",
     "BRIEF_HALLUCINATION_QUOTE_MISSING",

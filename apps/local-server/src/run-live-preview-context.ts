@@ -2,6 +2,7 @@ import { outboundEvidenceIncomplete } from "@cortex-eval/contracts/src/e2e-evide
 import type { StoredRestCaseResult } from "@cortex-eval/application/src/features/runs/platform-run-models.ts";
 import type { RunLivePreview, RunReview } from "@cortex-eval/contracts/src/run-review-contracts.ts";
 import { outboundA2ui } from "./run-auto-capture-model.ts";
+import { convertBriefA2ui, cortexRootFor } from "./run-brief-a2ui-converter.ts";
 import { runRendererSource } from "./run-renderer-source.ts";
 import type { RunLivePreviewService } from "./run-live-preview-service.ts";
 
@@ -17,6 +18,18 @@ export async function livePreviewContext(
     if (result.status === "SUCCEEDED" && result.providerOutput.parsedOutput !== undefined)
       payloads = outboundA2ui(result.providerOutput.parsedOutput);
     else error = "本次执行没有保存可用的出站数据。";
+    // Brief replay 不落交付态 A2UI；在预览时把 output.public_results 投影为 A2UI 供人工复核。
+    // 转换结果只进预览响应，不回写执行证据，裁判输入不受影响。
+    if (payloads.length === 0 && error === null) {
+      const brief = await convertBriefA2ui(
+        result.providerOutput?.parsedOutput,
+        cortexRootFor(renderer.staticRoot)
+      );
+      if (brief !== null) {
+        payloads = brief.payloads;
+        error = brief.error;
+      }
+    }
   } catch {
     error = "已记录的 A2UI 数据格式无效，无法渲染。";
   }
@@ -49,6 +62,7 @@ export async function livePreviewContext(
   } else
     error ??=
       "本次执行未记录 A2UI 卡片，无需视觉复核。要求出卡或禁止出卡由 Case 断言检查；人工仍可依据执行链路与文字证据给出最终结论。";
+  // 转换得到的 Brief 卡片来自同一证据哈希下的结构化结果，供人工复核卡面；未真实交付给用户。
   const incomplete =
     result.status === "SUCCEEDED" &&
     (!result.providerOutput.ok || outboundEvidenceIncomplete(result.providerOutput.parsedOutput));

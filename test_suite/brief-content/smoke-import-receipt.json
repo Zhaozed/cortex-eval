@@ -1,0 +1,8 @@
+{
+  "suiteId": "01a0cd92-a552-754b-8a7d-57d93e3ff3a0",
+  "suiteName": "Brief 内容评测｜Daily 单条冒烟",
+  "caseKey": "brief-daily-smoke-001",
+  "judge": "LLM",
+  "caseCreated": true,
+  "runStarted": false
+}

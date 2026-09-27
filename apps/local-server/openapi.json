@@ -90424,13 +90424,76 @@
                                                       },
                                                       "required": ["allowedGenerationStatuses"],
                                                       "type": "object"
+                                                    },
+                                                    "judge": {
+                                                      "enum": ["JEV", "LLM"],
+                                                      "type": "string"
+                                                    },
+                                                    "judgePrompt": {
+                                                      "maxLength": 30000,
+                                                      "minLength": 1,
+                                                      "type": "string"
+                                                    },
+                                                    "rubric": {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "dimensions": {
+                                                          "items": {
+                                                            "additionalProperties": false,
+                                                            "properties": {
+                                                              "assertion": {
+                                                                "minLength": 1,
+                                                                "type": "string"
+                                                              },
+                                                              "id": {
+                                                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                                "type": "string"
+                                                              },
+                                                              "sourceRefs": {
+                                                                "items": {
+                                                                  "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                                  "type": "string"
+                                                                },
+                                                                "minItems": 1,
+                                                                "type": "array"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "id",
+                                                              "assertion",
+                                                              "sourceRefs"
+                                                            ],
+                                                            "type": "object"
+                                                          },
+                                                          "minItems": 1,
+                                                          "type": "array"
+                                                        },
+                                                        "failOnZeroDimension": {
+                                                          "type": "boolean"
+                                                        },
+                                                        "hardFailRules": {
+                                                          "items": {
+                                                            "minLength": 1,
+                                                            "type": "string"
+                                                          },
+                                                          "minItems": 1,
+                                                          "type": "array"
+                                                        },
+                                                        "minTotalScore": {
+                                                          "maximum": 9007199254740991,
+                                                          "minimum": 0,
+                                                          "type": "integer"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "dimensions",
+                                                        "minTotalScore",
+                                                        "hardFailRules"
+                                                      ],
+                                                      "type": "object"
                                                     }
                                                   },
-                                                  "required": [
-                                                    "briefType",
-                                                    "checklist",
-                                                    "constraints"
-                                                  ],
+                                                  "required": ["briefType", "constraints"],
                                                   "type": "object"
                                                 },
                                                 "context": {
@@ -93105,9 +93168,61 @@
                                         },
                                         "required": ["allowedGenerationStatuses"],
                                         "type": "object"
+                                      },
+                                      "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                                      "judgePrompt": {
+                                        "maxLength": 30000,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "rubric": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "dimensions": {
+                                            "items": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "assertion": { "minLength": 1, "type": "string" },
+                                                "id": {
+                                                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                  "type": "string"
+                                                },
+                                                "sourceRefs": {
+                                                  "items": {
+                                                    "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                    "type": "string"
+                                                  },
+                                                  "minItems": 1,
+                                                  "type": "array"
+                                                }
+                                              },
+                                              "required": ["id", "assertion", "sourceRefs"],
+                                              "type": "object"
+                                            },
+                                            "minItems": 1,
+                                            "type": "array"
+                                          },
+                                          "failOnZeroDimension": { "type": "boolean" },
+                                          "hardFailRules": {
+                                            "items": { "minLength": 1, "type": "string" },
+                                            "minItems": 1,
+                                            "type": "array"
+                                          },
+                                          "minTotalScore": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "required": [
+                                          "dimensions",
+                                          "minTotalScore",
+                                          "hardFailRules"
+                                        ],
+                                        "type": "object"
                                       }
                                     },
-                                    "required": ["briefType", "checklist", "constraints"],
+                                    "required": ["briefType", "constraints"],
                                     "type": "object"
                                   },
                                   "context": {
@@ -93661,13 +93776,76 @@
                                                       },
                                                       "required": ["allowedGenerationStatuses"],
                                                       "type": "object"
+                                                    },
+                                                    "judge": {
+                                                      "enum": ["JEV", "LLM"],
+                                                      "type": "string"
+                                                    },
+                                                    "judgePrompt": {
+                                                      "maxLength": 30000,
+                                                      "minLength": 1,
+                                                      "type": "string"
+                                                    },
+                                                    "rubric": {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "dimensions": {
+                                                          "items": {
+                                                            "additionalProperties": false,
+                                                            "properties": {
+                                                              "assertion": {
+                                                                "minLength": 1,
+                                                                "type": "string"
+                                                              },
+                                                              "id": {
+                                                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                                "type": "string"
+                                                              },
+                                                              "sourceRefs": {
+                                                                "items": {
+                                                                  "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                                  "type": "string"
+                                                                },
+                                                                "minItems": 1,
+                                                                "type": "array"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "id",
+                                                              "assertion",
+                                                              "sourceRefs"
+                                                            ],
+                                                            "type": "object"
+                                                          },
+                                                          "minItems": 1,
+                                                          "type": "array"
+                                                        },
+                                                        "failOnZeroDimension": {
+                                                          "type": "boolean"
+                                                        },
+                                                        "hardFailRules": {
+                                                          "items": {
+                                                            "minLength": 1,
+                                                            "type": "string"
+                                                          },
+                                                          "minItems": 1,
+                                                          "type": "array"
+                                                        },
+                                                        "minTotalScore": {
+                                                          "maximum": 9007199254740991,
+                                                          "minimum": 0,
+                                                          "type": "integer"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "dimensions",
+                                                        "minTotalScore",
+                                                        "hardFailRules"
+                                                      ],
+                                                      "type": "object"
                                                     }
                                                   },
-                                                  "required": [
-                                                    "briefType",
-                                                    "checklist",
-                                                    "constraints"
-                                                  ],
+                                                  "required": ["briefType", "constraints"],
                                                   "type": "object"
                                                 },
                                                 "context": {
@@ -96342,9 +96520,61 @@
                                         },
                                         "required": ["allowedGenerationStatuses"],
                                         "type": "object"
+                                      },
+                                      "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                                      "judgePrompt": {
+                                        "maxLength": 30000,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "rubric": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "dimensions": {
+                                            "items": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "assertion": { "minLength": 1, "type": "string" },
+                                                "id": {
+                                                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                  "type": "string"
+                                                },
+                                                "sourceRefs": {
+                                                  "items": {
+                                                    "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                    "type": "string"
+                                                  },
+                                                  "minItems": 1,
+                                                  "type": "array"
+                                                }
+                                              },
+                                              "required": ["id", "assertion", "sourceRefs"],
+                                              "type": "object"
+                                            },
+                                            "minItems": 1,
+                                            "type": "array"
+                                          },
+                                          "failOnZeroDimension": { "type": "boolean" },
+                                          "hardFailRules": {
+                                            "items": { "minLength": 1, "type": "string" },
+                                            "minItems": 1,
+                                            "type": "array"
+                                          },
+                                          "minTotalScore": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "required": [
+                                          "dimensions",
+                                          "minTotalScore",
+                                          "hardFailRules"
+                                        ],
+                                        "type": "object"
                                       }
                                     },
-                                    "required": ["briefType", "checklist", "constraints"],
+                                    "required": ["briefType", "constraints"],
                                     "type": "object"
                                   },
                                   "context": {
@@ -96898,13 +97128,76 @@
                                                       },
                                                       "required": ["allowedGenerationStatuses"],
                                                       "type": "object"
+                                                    },
+                                                    "judge": {
+                                                      "enum": ["JEV", "LLM"],
+                                                      "type": "string"
+                                                    },
+                                                    "judgePrompt": {
+                                                      "maxLength": 30000,
+                                                      "minLength": 1,
+                                                      "type": "string"
+                                                    },
+                                                    "rubric": {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "dimensions": {
+                                                          "items": {
+                                                            "additionalProperties": false,
+                                                            "properties": {
+                                                              "assertion": {
+                                                                "minLength": 1,
+                                                                "type": "string"
+                                                              },
+                                                              "id": {
+                                                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                                "type": "string"
+                                                              },
+                                                              "sourceRefs": {
+                                                                "items": {
+                                                                  "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                                  "type": "string"
+                                                                },
+                                                                "minItems": 1,
+                                                                "type": "array"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "id",
+                                                              "assertion",
+                                                              "sourceRefs"
+                                                            ],
+                                                            "type": "object"
+                                                          },
+                                                          "minItems": 1,
+                                                          "type": "array"
+                                                        },
+                                                        "failOnZeroDimension": {
+                                                          "type": "boolean"
+                                                        },
+                                                        "hardFailRules": {
+                                                          "items": {
+                                                            "minLength": 1,
+                                                            "type": "string"
+                                                          },
+                                                          "minItems": 1,
+                                                          "type": "array"
+                                                        },
+                                                        "minTotalScore": {
+                                                          "maximum": 9007199254740991,
+                                                          "minimum": 0,
+                                                          "type": "integer"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "dimensions",
+                                                        "minTotalScore",
+                                                        "hardFailRules"
+                                                      ],
+                                                      "type": "object"
                                                     }
                                                   },
-                                                  "required": [
-                                                    "briefType",
-                                                    "checklist",
-                                                    "constraints"
-                                                  ],
+                                                  "required": ["briefType", "constraints"],
                                                   "type": "object"
                                                 },
                                                 "context": {
@@ -99768,13 +100061,76 @@
                                                       },
                                                       "required": ["allowedGenerationStatuses"],
                                                       "type": "object"
+                                                    },
+                                                    "judge": {
+                                                      "enum": ["JEV", "LLM"],
+                                                      "type": "string"
+                                                    },
+                                                    "judgePrompt": {
+                                                      "maxLength": 30000,
+                                                      "minLength": 1,
+                                                      "type": "string"
+                                                    },
+                                                    "rubric": {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "dimensions": {
+                                                          "items": {
+                                                            "additionalProperties": false,
+                                                            "properties": {
+                                                              "assertion": {
+                                                                "minLength": 1,
+                                                                "type": "string"
+                                                              },
+                                                              "id": {
+                                                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                                "type": "string"
+                                                              },
+                                                              "sourceRefs": {
+                                                                "items": {
+                                                                  "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                                  "type": "string"
+                                                                },
+                                                                "minItems": 1,
+                                                                "type": "array"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "id",
+                                                              "assertion",
+                                                              "sourceRefs"
+                                                            ],
+                                                            "type": "object"
+                                                          },
+                                                          "minItems": 1,
+                                                          "type": "array"
+                                                        },
+                                                        "failOnZeroDimension": {
+                                                          "type": "boolean"
+                                                        },
+                                                        "hardFailRules": {
+                                                          "items": {
+                                                            "minLength": 1,
+                                                            "type": "string"
+                                                          },
+                                                          "minItems": 1,
+                                                          "type": "array"
+                                                        },
+                                                        "minTotalScore": {
+                                                          "maximum": 9007199254740991,
+                                                          "minimum": 0,
+                                                          "type": "integer"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "dimensions",
+                                                        "minTotalScore",
+                                                        "hardFailRules"
+                                                      ],
+                                                      "type": "object"
                                                     }
                                                   },
-                                                  "required": [
-                                                    "briefType",
-                                                    "checklist",
-                                                    "constraints"
-                                                  ],
+                                                  "required": ["briefType", "constraints"],
                                                   "type": "object"
                                                 },
                                                 "context": {
@@ -107132,9 +107488,57 @@
                                       },
                                       "required": ["allowedGenerationStatuses"],
                                       "type": "object"
+                                    },
+                                    "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                                    "judgePrompt": {
+                                      "maxLength": 30000,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    },
+                                    "rubric": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "dimensions": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "assertion": { "minLength": 1, "type": "string" },
+                                              "id": {
+                                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                "type": "string"
+                                              },
+                                              "sourceRefs": {
+                                                "items": {
+                                                  "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                  "type": "string"
+                                                },
+                                                "minItems": 1,
+                                                "type": "array"
+                                              }
+                                            },
+                                            "required": ["id", "assertion", "sourceRefs"],
+                                            "type": "object"
+                                          },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "failOnZeroDimension": { "type": "boolean" },
+                                        "hardFailRules": {
+                                          "items": { "minLength": 1, "type": "string" },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "minTotalScore": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": ["dimensions", "minTotalScore", "hardFailRules"],
+                                      "type": "object"
                                     }
                                   },
-                                  "required": ["briefType", "checklist", "constraints"],
+                                  "required": ["briefType", "constraints"],
                                   "type": "object"
                                 },
                                 "context": {
@@ -107461,9 +107865,57 @@
                                       },
                                       "required": ["allowedGenerationStatuses"],
                                       "type": "object"
+                                    },
+                                    "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                                    "judgePrompt": {
+                                      "maxLength": 30000,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    },
+                                    "rubric": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "dimensions": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "assertion": { "minLength": 1, "type": "string" },
+                                              "id": {
+                                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                "type": "string"
+                                              },
+                                              "sourceRefs": {
+                                                "items": {
+                                                  "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                  "type": "string"
+                                                },
+                                                "minItems": 1,
+                                                "type": "array"
+                                              }
+                                            },
+                                            "required": ["id", "assertion", "sourceRefs"],
+                                            "type": "object"
+                                          },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "failOnZeroDimension": { "type": "boolean" },
+                                        "hardFailRules": {
+                                          "items": { "minLength": 1, "type": "string" },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "minTotalScore": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": ["dimensions", "minTotalScore", "hardFailRules"],
+                                      "type": "object"
                                     }
                                   },
-                                  "required": ["briefType", "checklist", "constraints"],
+                                  "required": ["briefType", "constraints"],
                                   "type": "object"
                                 },
                                 "context": {
@@ -130446,9 +130898,61 @@
                                         },
                                         "required": ["allowedGenerationStatuses"],
                                         "type": "object"
+                                      },
+                                      "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                                      "judgePrompt": {
+                                        "maxLength": 30000,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "rubric": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "dimensions": {
+                                            "items": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "assertion": { "minLength": 1, "type": "string" },
+                                                "id": {
+                                                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                  "type": "string"
+                                                },
+                                                "sourceRefs": {
+                                                  "items": {
+                                                    "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                    "type": "string"
+                                                  },
+                                                  "minItems": 1,
+                                                  "type": "array"
+                                                }
+                                              },
+                                              "required": ["id", "assertion", "sourceRefs"],
+                                              "type": "object"
+                                            },
+                                            "minItems": 1,
+                                            "type": "array"
+                                          },
+                                          "failOnZeroDimension": { "type": "boolean" },
+                                          "hardFailRules": {
+                                            "items": { "minLength": 1, "type": "string" },
+                                            "minItems": 1,
+                                            "type": "array"
+                                          },
+                                          "minTotalScore": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "required": [
+                                          "dimensions",
+                                          "minTotalScore",
+                                          "hardFailRules"
+                                        ],
+                                        "type": "object"
                                       }
                                     },
-                                    "required": ["briefType", "checklist", "constraints"],
+                                    "required": ["briefType", "constraints"],
                                     "type": "object"
                                   },
                                   "context": {
@@ -134279,9 +134783,57 @@
                                   },
                                   "required": ["allowedGenerationStatuses"],
                                   "type": "object"
+                                },
+                                "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                                "judgePrompt": {
+                                  "maxLength": 30000,
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "rubric": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "dimensions": {
+                                      "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "assertion": { "minLength": 1, "type": "string" },
+                                          "id": {
+                                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                            "type": "string"
+                                          },
+                                          "sourceRefs": {
+                                            "items": {
+                                              "pattern": "^\\/(?:[^~]|~[01])*$",
+                                              "type": "string"
+                                            },
+                                            "minItems": 1,
+                                            "type": "array"
+                                          }
+                                        },
+                                        "required": ["id", "assertion", "sourceRefs"],
+                                        "type": "object"
+                                      },
+                                      "minItems": 1,
+                                      "type": "array"
+                                    },
+                                    "failOnZeroDimension": { "type": "boolean" },
+                                    "hardFailRules": {
+                                      "items": { "minLength": 1, "type": "string" },
+                                      "minItems": 1,
+                                      "type": "array"
+                                    },
+                                    "minTotalScore": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": ["dimensions", "minTotalScore", "hardFailRules"],
+                                  "type": "object"
                                 }
                               },
-                              "required": ["briefType", "checklist", "constraints"],
+                              "required": ["briefType", "constraints"],
                               "type": "object"
                             },
                             "context": {
@@ -138042,9 +138594,61 @@
                                         },
                                         "required": ["allowedGenerationStatuses"],
                                         "type": "object"
+                                      },
+                                      "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                                      "judgePrompt": {
+                                        "maxLength": 30000,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "rubric": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "dimensions": {
+                                            "items": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "assertion": { "minLength": 1, "type": "string" },
+                                                "id": {
+                                                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                  "type": "string"
+                                                },
+                                                "sourceRefs": {
+                                                  "items": {
+                                                    "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                    "type": "string"
+                                                  },
+                                                  "minItems": 1,
+                                                  "type": "array"
+                                                }
+                                              },
+                                              "required": ["id", "assertion", "sourceRefs"],
+                                              "type": "object"
+                                            },
+                                            "minItems": 1,
+                                            "type": "array"
+                                          },
+                                          "failOnZeroDimension": { "type": "boolean" },
+                                          "hardFailRules": {
+                                            "items": { "minLength": 1, "type": "string" },
+                                            "minItems": 1,
+                                            "type": "array"
+                                          },
+                                          "minTotalScore": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "required": [
+                                          "dimensions",
+                                          "minTotalScore",
+                                          "hardFailRules"
+                                        ],
+                                        "type": "object"
                                       }
                                     },
-                                    "required": ["briefType", "checklist", "constraints"],
+                                    "required": ["briefType", "constraints"],
                                     "type": "object"
                                   },
                                   "context": {
@@ -142522,7 +143126,63 @@
                   "description": { "maxLength": 2000, "type": "string" },
                   "mode": { "enum": ["RETRY_FAILED", "FORCE"], "type": "string" },
                   "name": { "maxLength": 120, "minLength": 1, "type": "string" },
-                  "reevaluateOnly": { "type": "boolean" }
+                  "reevaluateOnly": { "type": "boolean" },
+                  "reevaluation": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "evaluatorConfigId": {
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      "evaluatorPrompt": {
+                        "anyOf": [
+                          { "maxLength": 30000, "minLength": 1, "type": "string" },
+                          { "type": "null" }
+                        ]
+                      },
+                      "judgePrompt": { "maxLength": 30000, "minLength": 1, "type": "string" },
+                      "rubric": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "dimensions": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "assertion": { "minLength": 1, "type": "string" },
+                                "id": {
+                                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                  "type": "string"
+                                },
+                                "sourceRefs": {
+                                  "items": { "pattern": "^\\/(?:[^~]|~[01])*$", "type": "string" },
+                                  "minItems": 1,
+                                  "type": "array"
+                                }
+                              },
+                              "required": ["id", "assertion", "sourceRefs"],
+                              "type": "object"
+                            },
+                            "minItems": 1,
+                            "type": "array"
+                          },
+                          "failOnZeroDimension": { "type": "boolean" },
+                          "hardFailRules": {
+                            "items": { "minLength": 1, "type": "string" },
+                            "minItems": 1,
+                            "type": "array"
+                          },
+                          "minTotalScore": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        },
+                        "required": ["dimensions", "minTotalScore", "hardFailRules"],
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  }
                 },
                 "required": ["mode"],
                 "type": "object"
@@ -165008,9 +165668,57 @@
                                 },
                                 "required": ["allowedGenerationStatuses"],
                                 "type": "object"
+                              },
+                              "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                              "judgePrompt": {
+                                "maxLength": 30000,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "rubric": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "dimensions": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "assertion": { "minLength": 1, "type": "string" },
+                                        "id": {
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                          "type": "string"
+                                        },
+                                        "sourceRefs": {
+                                          "items": {
+                                            "pattern": "^\\/(?:[^~]|~[01])*$",
+                                            "type": "string"
+                                          },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": ["id", "assertion", "sourceRefs"],
+                                      "type": "object"
+                                    },
+                                    "minItems": 1,
+                                    "type": "array"
+                                  },
+                                  "failOnZeroDimension": { "type": "boolean" },
+                                  "hardFailRules": {
+                                    "items": { "minLength": 1, "type": "string" },
+                                    "minItems": 1,
+                                    "type": "array"
+                                  },
+                                  "minTotalScore": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": ["dimensions", "minTotalScore", "hardFailRules"],
+                                "type": "object"
                               }
                             },
-                            "required": ["briefType", "checklist", "constraints"],
+                            "required": ["briefType", "constraints"],
                             "type": "object"
                           },
                           "context": {
@@ -165280,9 +165988,57 @@
                                       },
                                       "required": ["allowedGenerationStatuses"],
                                       "type": "object"
+                                    },
+                                    "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                                    "judgePrompt": {
+                                      "maxLength": 30000,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    },
+                                    "rubric": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "dimensions": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "assertion": { "minLength": 1, "type": "string" },
+                                              "id": {
+                                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                "type": "string"
+                                              },
+                                              "sourceRefs": {
+                                                "items": {
+                                                  "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                  "type": "string"
+                                                },
+                                                "minItems": 1,
+                                                "type": "array"
+                                              }
+                                            },
+                                            "required": ["id", "assertion", "sourceRefs"],
+                                            "type": "object"
+                                          },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "failOnZeroDimension": { "type": "boolean" },
+                                        "hardFailRules": {
+                                          "items": { "minLength": 1, "type": "string" },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "minTotalScore": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": ["dimensions", "minTotalScore", "hardFailRules"],
+                                      "type": "object"
                                     }
                                   },
-                                  "required": ["briefType", "checklist", "constraints"],
+                                  "required": ["briefType", "constraints"],
                                   "type": "object"
                                 },
                                 "context": {
@@ -170098,9 +170854,57 @@
                                   },
                                   "required": ["allowedGenerationStatuses"],
                                   "type": "object"
+                                },
+                                "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                                "judgePrompt": {
+                                  "maxLength": 30000,
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "rubric": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "dimensions": {
+                                      "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "assertion": { "minLength": 1, "type": "string" },
+                                          "id": {
+                                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                            "type": "string"
+                                          },
+                                          "sourceRefs": {
+                                            "items": {
+                                              "pattern": "^\\/(?:[^~]|~[01])*$",
+                                              "type": "string"
+                                            },
+                                            "minItems": 1,
+                                            "type": "array"
+                                          }
+                                        },
+                                        "required": ["id", "assertion", "sourceRefs"],
+                                        "type": "object"
+                                      },
+                                      "minItems": 1,
+                                      "type": "array"
+                                    },
+                                    "failOnZeroDimension": { "type": "boolean" },
+                                    "hardFailRules": {
+                                      "items": { "minLength": 1, "type": "string" },
+                                      "minItems": 1,
+                                      "type": "array"
+                                    },
+                                    "minTotalScore": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": ["dimensions", "minTotalScore", "hardFailRules"],
+                                  "type": "object"
                                 }
                               },
-                              "required": ["briefType", "checklist", "constraints"],
+                              "required": ["briefType", "constraints"],
                               "type": "object"
                             },
                             "context": {
@@ -172612,9 +173416,57 @@
                                 },
                                 "required": ["allowedGenerationStatuses"],
                                 "type": "object"
+                              },
+                              "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                              "judgePrompt": {
+                                "maxLength": 30000,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "rubric": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "dimensions": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "assertion": { "minLength": 1, "type": "string" },
+                                        "id": {
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                          "type": "string"
+                                        },
+                                        "sourceRefs": {
+                                          "items": {
+                                            "pattern": "^\\/(?:[^~]|~[01])*$",
+                                            "type": "string"
+                                          },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": ["id", "assertion", "sourceRefs"],
+                                      "type": "object"
+                                    },
+                                    "minItems": 1,
+                                    "type": "array"
+                                  },
+                                  "failOnZeroDimension": { "type": "boolean" },
+                                  "hardFailRules": {
+                                    "items": { "minLength": 1, "type": "string" },
+                                    "minItems": 1,
+                                    "type": "array"
+                                  },
+                                  "minTotalScore": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": ["dimensions", "minTotalScore", "hardFailRules"],
+                                "type": "object"
                               }
                             },
-                            "required": ["briefType", "checklist", "constraints"],
+                            "required": ["briefType", "constraints"],
                             "type": "object"
                           },
                           "context": {
@@ -172889,9 +173741,57 @@
                                       },
                                       "required": ["allowedGenerationStatuses"],
                                       "type": "object"
+                                    },
+                                    "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                                    "judgePrompt": {
+                                      "maxLength": 30000,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    },
+                                    "rubric": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "dimensions": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "assertion": { "minLength": 1, "type": "string" },
+                                              "id": {
+                                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                "type": "string"
+                                              },
+                                              "sourceRefs": {
+                                                "items": {
+                                                  "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                  "type": "string"
+                                                },
+                                                "minItems": 1,
+                                                "type": "array"
+                                              }
+                                            },
+                                            "required": ["id", "assertion", "sourceRefs"],
+                                            "type": "object"
+                                          },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "failOnZeroDimension": { "type": "boolean" },
+                                        "hardFailRules": {
+                                          "items": { "minLength": 1, "type": "string" },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "minTotalScore": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": ["dimensions", "minTotalScore", "hardFailRules"],
+                                      "type": "object"
                                     }
                                   },
-                                  "required": ["briefType", "checklist", "constraints"],
+                                  "required": ["briefType", "constraints"],
                                   "type": "object"
                                 },
                                 "context": {
@@ -175493,9 +176393,57 @@
                                       },
                                       "required": ["allowedGenerationStatuses"],
                                       "type": "object"
+                                    },
+                                    "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                                    "judgePrompt": {
+                                      "maxLength": 30000,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    },
+                                    "rubric": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "dimensions": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "assertion": { "minLength": 1, "type": "string" },
+                                              "id": {
+                                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                                "type": "string"
+                                              },
+                                              "sourceRefs": {
+                                                "items": {
+                                                  "pattern": "^\\/(?:[^~]|~[01])*$",
+                                                  "type": "string"
+                                                },
+                                                "minItems": 1,
+                                                "type": "array"
+                                              }
+                                            },
+                                            "required": ["id", "assertion", "sourceRefs"],
+                                            "type": "object"
+                                          },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "failOnZeroDimension": { "type": "boolean" },
+                                        "hardFailRules": {
+                                          "items": { "minLength": 1, "type": "string" },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "minTotalScore": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": ["dimensions", "minTotalScore", "hardFailRules"],
+                                      "type": "object"
                                     }
                                   },
-                                  "required": ["briefType", "checklist", "constraints"],
+                                  "required": ["briefType", "constraints"],
                                   "type": "object"
                                 },
                                 "context": {
@@ -178059,9 +179007,57 @@
                                 },
                                 "required": ["allowedGenerationStatuses"],
                                 "type": "object"
+                              },
+                              "judge": { "enum": ["JEV", "LLM"], "type": "string" },
+                              "judgePrompt": {
+                                "maxLength": 30000,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "rubric": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "dimensions": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "assertion": { "minLength": 1, "type": "string" },
+                                        "id": {
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                          "type": "string"
+                                        },
+                                        "sourceRefs": {
+                                          "items": {
+                                            "pattern": "^\\/(?:[^~]|~[01])*$",
+                                            "type": "string"
+                                          },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": ["id", "assertion", "sourceRefs"],
+                                      "type": "object"
+                                    },
+                                    "minItems": 1,
+                                    "type": "array"
+                                  },
+                                  "failOnZeroDimension": { "type": "boolean" },
+                                  "hardFailRules": {
+                                    "items": { "minLength": 1, "type": "string" },
+                                    "minItems": 1,
+                                    "type": "array"
+                                  },
+                                  "minTotalScore": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": ["dimensions", "minTotalScore", "hardFailRules"],
+                                "type": "object"
                               }
                             },
-                            "required": ["briefType", "checklist", "constraints"],
+                            "required": ["briefType", "constraints"],
                             "type": "object"
                           },
                           "context": {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BriefEvaluationProfileSchema } from "./brief-evaluation-contracts.ts";
 
 import {
   ArtifactManifestV1Schema,
@@ -67,19 +68,29 @@ export const CreatePlatformRunRequestV1Schema = PlatformRunSelectionV1Schema.ext
   runExecutionLimits: RunExecutionLimitsV1Schema.optional()
 });
 
+/** Only scoring can change; input bundles and saved outputs are never accepted from clients. */
+export const BriefReevaluationOptionsSchema = z.strictObject({
+  evaluatorConfigId: UuidV7Schema.optional(),
+  rubric: BriefEvaluationProfileSchema.shape.rubric,
+  judgePrompt: z.string().trim().min(1).max(30000).optional(),
+  evaluatorPrompt: z.string().trim().min(1).max(30000).nullable().optional()
+});
+export type BriefReevaluationOptions = z.infer<typeof BriefReevaluationOptionsSchema>;
+
 /** Create a new immutable Retry/Force Run from one terminal source Run. */
 export const CreatePlatformRerunRequestV1Schema = z
   .strictObject({
     ...RunMetadataInputV1Schema.shape,
     mode: z.enum(["RETRY_FAILED", "FORCE"]),
     caseKey: BusinessKeySchema.optional(),
-    reevaluateOnly: z.boolean().optional()
+    reevaluateOnly: z.boolean().optional(),
+    reevaluation: BriefReevaluationOptionsSchema.optional()
   })
   .superRefine((value, context) => {
     if ((value.caseKey !== undefined || value.reevaluateOnly) && value.mode !== "FORCE")
       context.addIssue({ code: "custom", message: "CASE_RERUN_REQUIRES_FORCE" });
-    if (value.reevaluateOnly && !value.caseKey)
-      context.addIssue({ code: "custom", message: "CASE_RERUN_REQUIRES_CASE" });
+    if (value.reevaluation && !value.reevaluateOnly)
+      context.addIssue({ code: "custom", message: "JUDGE_OVERRIDE_REQUIRES_REEVALUATION" });
   });
 
 const PlatformRerunCountsV1Schema = z

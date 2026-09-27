@@ -1,3 +1,5 @@
+import type { BriefReevaluationOptions } from "@cortex-eval/contracts/src/run-api-contracts.ts";
+import { BriefReevaluationForm } from "./run-brief-reevaluation.tsx";
 import { RunAnalysisControl } from "./run-analysis-control.tsx";
 import type { ReactElement } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -96,9 +98,19 @@ export function RunCaseDrawer({
     return (): void => cancelAnimationFrame(frame);
   }, [tab, traceTarget, review.data]);
   const runAgain = useMutation({
-    mutationFn: async (onlyEval: boolean) => {
+    mutationFn: async (
+      request: boolean | { reevaluation: BriefReevaluationOptions; name: string }
+    ) => {
+      const onlyEval = request !== false;
       if (!api.createCaseRerun) throw new Error("UNAVAILABLE");
-      return api.createCaseRerun(runId, row.caseKey, onlyEval, new AbortController().signal);
+      return api.createCaseRerun(
+        runId,
+        row.caseKey,
+        onlyEval,
+        new AbortController().signal,
+        typeof request === "object" ? request.reevaluation : undefined,
+        typeof request === "object" ? request.name : undefined
+      );
     },
     onSuccess: (result) => onNavigate(`/runs/${encodeURIComponent(result.runId)}`)
   });
@@ -108,6 +120,30 @@ export function RunCaseDrawer({
     inputTurns = conversationTurns(fullRow),
     inputRounds = inputTurns.filter((turn) => turn.kind === "user"),
     turnEvidence = records(payload(fullRow).turns).length > 0;
+  // Brief 任务只有冻结材料包，没有用户输入；输入材料由 RunBriefInput 结构化展示。
+  const isBriefCase =
+    definition?.semanticEvaluation?.brief !== undefined ||
+    (definition?.metadata.business_module ?? "").startsWith("brief");
+  if (confirm === "reeval" && definition?.semanticEvaluation?.brief) {
+    return (
+      <SheetContent className="brief-calibration-sheet">
+        <SheetHeader>
+          <SheetTitle>新建裁判版本</SheetTitle>
+          <SheetDescription>单条样本 · {row.caseKey}</SheetDescription>
+        </SheetHeader>
+        <BriefReevaluationForm
+          key={`${runId}:${row.caseKey}`}
+          profile={definition.semanticEvaluation.brief}
+          evaluatorPrompt={definition.semanticEvaluation.evaluatorPrompt}
+          sourceRunId={runId}
+          pending={runAgain.isPending}
+          failed={runAgain.isError}
+          onSubmit={(value, name) => runAgain.mutate({ reevaluation: value, name })}
+          onCancel={() => setConfirm(null)}
+        />
+      </SheetContent>
+    );
+  }
   return (
     <SheetContent className={`run-case-drawer${wide ? " run-case-drawer-wide" : ""}`}>
       <SheetHeader>
@@ -240,64 +276,106 @@ export function RunCaseDrawer({
             </>
           ) : (
             <>
-              <section className="run-case-input">
-                <div className="run-case-input-head">
-                  <h3>用户输入</h3>
-                  <span className="run-input-mode" data-multi={inputRounds.length > 1}>
-                    {inputRounds.length > 1
-                      ? `多轮 · ${inputRounds.length} 轮`
-                      : inputRounds.length === 1
-                        ? "单轮"
-                        : "未记录"}
-                  </span>
-                </div>
-                {inputTurns.length === 0 ? (
-                  <p className="run-readable">未记录可读输入，请展开原始请求</p>
-                ) : inputTurns.length === 1 ? (
-                  <p className="run-readable">{inputTurns[0]?.text}</p>
-                ) : (
-                  <ol className="run-input-turns">
-                    {inputTurns.map((turn, index) =>
-                      turn.kind === "user" ? (
-                        <li className="run-input-turn" key={index}>
-                          <span className="run-input-turn-index">第 {turn.round} 轮</span>
-                          <p>{turn.text}</p>
-                        </li>
-                      ) : (
-                        <li className="run-input-context" key={index}>
-                          <span>
-                            {turn.role === "assistant" ? "Agent 历史" : `${turn.role} 历史`}
-                          </span>
-                          <p>{turn.text}</p>
-                        </li>
-                      )
-                    )}
-                  </ol>
-                )}
-                <details>
-                  <summary>前置条件 / 测试数据</summary>
-                  <p className="run-muted">保存的 Case 请求条件，不代表环境已自动准备。</p>
-                  <EvidenceJson
-                    value={{
-                      time: object(definition?.vars.request_body).time,
-                      timezone: object(definition?.vars.request_body).timezone,
-                      task: definition?.vars.task,
-                      metadata: definition?.metadata,
-                      preconditions: object(definition?.vars.request_body).preconditions ?? "未记录"
-                    }}
+              {!isBriefCase && (
+                <section className="run-case-input">
+                  <div className="run-case-input-head">
+                    <h3>用户输入</h3>
+                    <span className="run-input-mode" data-multi={inputRounds.length > 1}>
+                      {inputRounds.length > 1
+                        ? `多轮 · ${inputRounds.length} 轮`
+                        : inputRounds.length === 1
+                          ? "单轮"
+                          : "未记录"}
+                    </span>
+                  </div>
+                  {inputTurns.length === 0 ? (
+                    <p className="run-readable">未记录可读输入，请展开原始请求</p>
+                  ) : inputTurns.length === 1 ? (
+                    <p className="run-readable">{inputTurns[0]?.text}</p>
+                  ) : (
+                    <ol className="run-input-turns">
+                      {inputTurns.map((turn, index) =>
+                        turn.kind === "user" ? (
+                          <li className="run-input-turn" key={index}>
+                            <span className="run-input-turn-index">第 {turn.round} 轮</span>
+                            <p>{turn.text}</p>
+                          </li>
+                        ) : (
+                          <li className="run-input-context" key={index}>
+                            <span>
+                              {turn.role === "assistant" ? "Agent 历史" : `${turn.role} 历史`}
+                            </span>
+                            <p>{turn.text}</p>
+                          </li>
+                        )
+                      )}
+                    </ol>
+                  )}
+                  <details>
+                    <summary>前置条件 / 测试数据</summary>
+                    <p className="run-muted">保存的 Case 请求条件，不代表环境已自动准备。</p>
+                    <EvidenceJson
+                      value={{
+                        time: object(definition?.vars.request_body).time,
+                        timezone: object(definition?.vars.request_body).timezone,
+                        task: definition?.vars.task,
+                        metadata: definition?.metadata,
+                        preconditions:
+                          object(definition?.vars.request_body).preconditions ?? "未记录"
+                      }}
+                    />
+                  </details>
+                </section>
+              )}
+              {isBriefCase ? (
+                <>
+                  {/* Brief 复核：验收检查独占顶部，输入材料与生成内容并列。 */}
+                  <div className="run-brief-acceptance">
+                    <RunCaseOutput
+                      key={`verdict-${row.caseKey}`}
+                      mode="verdict"
+                      row={fullRow}
+                      review={fullRow.review}
+                      reviewError={review.isError}
+                    />
+                    <RunCaseChecks row={fullRow} />
+                    <RunCaseOutput
+                      key={`judge-${row.caseKey}`}
+                      mode="judge"
+                      row={fullRow}
+                      review={fullRow.review}
+                      reviewError={review.isError}
+                    />
+                  </div>
+                  <div className="run-brief-io-grid">
+                    <RunCaseOutput
+                      key={`input-${row.caseKey}`}
+                      mode="input"
+                      row={fullRow}
+                      review={fullRow.review}
+                      reviewError={review.isError}
+                    />
+                    <RunCaseOutput
+                      key={`output-${row.caseKey}`}
+                      mode="messages"
+                      row={fullRow}
+                      review={fullRow.review}
+                      reviewError={review.isError}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="run-case-results-grid">
+                  <RunCaseChecks row={fullRow} />
+                  <RunCaseOutput
+                    key={row.caseKey}
+                    mode="messages"
+                    row={fullRow}
+                    review={fullRow.review}
+                    reviewError={review.isError}
                   />
-                </details>
-              </section>
-              <div className="run-case-results-grid">
-                <RunCaseChecks row={fullRow} />
-                <RunCaseOutput
-                  key={row.caseKey}
-                  mode="messages"
-                  row={fullRow}
-                  review={fullRow.review}
-                  reviewError={review.isError}
-                />
-              </div>
+                </div>
+              )}
               <RunCaseOutput
                 key={`cards-${row.caseKey}-${fullRow.review?.revision ?? 0}`}
                 mode="cards"

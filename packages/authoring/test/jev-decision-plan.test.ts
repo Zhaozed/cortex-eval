@@ -49,4 +49,36 @@ describe("JEV decision plan compiler", () => {
     expect(plan.questions).toHaveLength(2);
     expect(plan.questions.every((item) => item.question.length > 0)).toBe(true);
   });
+
+  it("compiles brief rubric dimensions into 0-2 SCORE questions", () => {
+    const contract = SemanticEvaluationContractV1Schema.parse({
+      contractVersion: SEMANTIC_EVALUATION_CONTRACT_V1,
+      goal: "生成每日简报",
+      successCriteria: ["内容准确"],
+      enabledDimensions: ["response"],
+      brief: {
+        briefType: "daily",
+        rubric: {
+          dimensions: [
+            { id: "accuracy", assertion: "事实准确", sourceRefs: ["/material/facts"] },
+            { id: "ordering", assertion: "顺序合理", sourceRefs: ["/material/facts"] }
+          ],
+          minTotalScore: 3,
+          hardFailRules: ["捏造事实"]
+        },
+        constraints: { allowedGenerationStatuses: ["generated"] }
+      }
+    });
+    const plan = compileJevDecisionPlan(contract);
+    expect(plan.questions.map((item) => item.id)).toEqual([
+      "brief.rubric.accuracy",
+      "brief.rubric.ordering"
+    ]);
+    for (const item of plan.questions) {
+      expect(item.kind).toBe("SCORE");
+      expect(item.scale).toEqual({ min: 0, max: 2, step: 1 });
+      expect(item.question).toContain("来源：/material/facts");
+    }
+    expect(plan.questions[0]?.question).toContain("事实准确");
+  });
 });

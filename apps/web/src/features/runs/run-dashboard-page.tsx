@@ -1,3 +1,4 @@
+import { BriefBatchReevaluation } from "./run-brief-batch-reevaluation.tsx";
 import { RunBriefSummary } from "./run-brief-summary.tsx";
 import { RunDiagnosticControl } from "./run-diagnostic-control.tsx";
 import { ArrowLeft } from "lucide-react";
@@ -45,6 +46,7 @@ export interface RunDashboardPageProps {
 export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPageProps): ReactElement {
   const client = useQueryClient();
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [briefReevalOpen, setBriefReevalOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [rerunOpen, setRerunOpen] = useState(false);
   const [bucket, setBucket] = useState<ResultBucket | "ALL">("ALL");
@@ -197,6 +199,14 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
     run.stage === "DONE" &&
     run.completedAt !== null &&
     run.rest.completed === run.rest.total;
+  const canBriefReeval =
+    canRerun &&
+    api.createBriefReevaluation &&
+    rows.length === run.suite.caseCount &&
+    rows.length > 0 &&
+    rows.every(
+      (row) => row.rest.status === "SUCCEEDED" && row.definition?.semanticEvaluation?.brief
+    );
   const canStart =
     run.status === "READY" &&
     run.stage !== "DONE" &&
@@ -287,6 +297,11 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
               {message("rd.rerun")}
             </Button>
           )}
+          {canBriefReeval && (
+            <Button size="sm" variant="outline" onClick={() => setBriefReevalOpen(true)}>
+              仅重评 · 换裁判
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -355,6 +370,21 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
         </p>
       </header>
       <RunProgressTracker run={run} hasReport={hasReport} />
+      {canBriefReeval && (
+        <section className="brief-calibration-entry" aria-label="Brief 裁判校准">
+          <div>
+            <h2>固定样本 · 裁判校准</h2>
+            <p>保留这次 Brief 的输入与真实输出，只调整评判方式。</p>
+            <div className="brief-entry-tags">
+              <span>{rows.length} 个样本已固定</span>
+              <span>可换模型 / Prompt / Rubric</span>
+              <span>不调用生成接口</span>
+            </div>
+          </div>
+          <Button onClick={() => setBriefReevalOpen(true)}>配置新裁判 →</Button>
+        </section>
+      )}
+
       {operation.isError && (
         <Alert variant="destructive">
           <AlertTitle>
@@ -407,7 +437,7 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
           </div>
           {rows.some((row) => row.evaluation?.semanticEvaluation) && (
             <div>
-              <span>JEV 评测模型</span>
+              <span>语义裁判模型</span>
               <strong>
                 {[
                   ...new Set(
@@ -520,6 +550,17 @@ export function RunDashboardPage({ api, runId, onNavigate }: RunDashboardPagePro
           api={api}
           run={run}
           onClose={() => setRerunOpen(false)}
+          onNavigate={onNavigate}
+        />
+      )}
+      {canBriefReeval && (
+        <BriefBatchReevaluation
+          api={api}
+          runId={runId}
+          rows={rows}
+          sourceModel={run.evaluator.config.model}
+          open={briefReevalOpen}
+          onClose={() => setBriefReevalOpen(false)}
           onNavigate={onNavigate}
         />
       )}

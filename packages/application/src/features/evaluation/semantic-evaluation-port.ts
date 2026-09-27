@@ -1,3 +1,4 @@
+import type { FrozenRunEvaluator } from "../runs/platform-run-models.ts";
 import type { CaseDefinition, ProviderOutput } from "@cortex-eval/domain/src/domain-evaluation.ts";
 
 export type { CaseDefinition, ProviderOutput } from "@cortex-eval/domain/src/domain-evaluation.ts";
@@ -55,6 +56,8 @@ export interface PlatformSemanticEvaluator {
   readonly evaluate: (input: {
     readonly caseDefinition: CaseDefinition;
     readonly providerOutput: ProviderOutput;
+    /** Frozen Run evaluator, used only when the Case selects the LLM judge. */
+    readonly evaluator?: FrozenRunEvaluator;
     /** REST wall-clock duration, supplied separately because it is not part of ProviderOutput. */
     readonly durationMs?: number;
     readonly signal: AbortSignal;

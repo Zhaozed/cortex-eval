@@ -70,6 +70,25 @@ it("does not mistake requested display mode for an actually generated card", () 
   expect(
     hasObservedCards(evidenceRow({ delivered_messages: [{ a2ui: { surfaceId: "s" } }] }))
   ).toBe(true);
+  // Brief replay 证据不带交付态 A2UI，但 output.public_results 可投影为卡片供人工复核。
+  expect(
+    hasObservedCards(
+      evidenceRow({
+        brief_type: "daily",
+        presentation_status: "cards",
+        output: { public_results: [{ cards: [{ card_type: "overview" }] }] }
+      })
+    )
+  ).toBe(true);
+  expect(
+    hasObservedCards(
+      evidenceRow({
+        brief_type: "daily",
+        presentation_status: "plain_text",
+        output: { public_results: [{ cards: [{ card_type: "overview" }] }] }
+      })
+    )
+  ).toBe(false);
 });
 it("actual cards require review; obsolete capture states do not create a requirement", () => {
   const base = evidenceRow({});
@@ -275,4 +294,113 @@ it("capture opt-in without any card no longer parks an automatic PASS in review"
   ).toBe("PASS");
   // A real card still requires a human eye; the flag itself never does.
   expect(evaluationState(evidenceRow({ a2ui: { surfaceId: "s" } }))).toBe("REVIEW_PENDING");
+});
+
+import {
+  briefRubricSummary,
+  isBriefSemanticEvaluation
+} from "../src/features/runs/run-output-model.ts";
+
+function rubricDecision(
+  id: string,
+  value: number,
+  extra: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    questionId: `brief.rubric.${id}`,
+    kind: "SCORE",
+    value,
+    applicable: true,
+    reason: `理由 ${id}`,
+    evidence: [`引文 ${id}`],
+    evidenceRefs: [`/material/snapshot/memories/0/content`],
+    platformReason: `维度断言 ${id}`,
+    ...extra
+  };
+}
+
+it("parses rubric totals, checks and blocking failure classes", () => {
+  const result = {
+    decisions: [
+      rubricDecision("coverage", 2),
+      rubricDecision("faithfulness", 1),
+      rubricDecision("noise", 0),
+      {
+        questionId: "brief.structure",
+        kind: "BOOLEAN",
+        value: true,
+        applicable: true,
+        evidence: [],
+        evidenceRefs: []
+      },
+      {
+        questionId: "brief.generation",
+        kind: "BOOLEAN",
+        value: false,
+        applicable: true,
+        evidence: [],
+        evidenceRefs: []
+      },
+      { questionId: "brief.metric.total", kind: "SCORE", value: 3, applicable: true },
+      { questionId: "brief.metric.rubric", kind: "SCORE", value: 0.5, applicable: true }
+    ],
+    blockingFailures: [
+      "brief.hard_fail: 编造了不存在的会议",
+      "brief.rubric.noise: 维度得分为0",
+      "brief.score: 总分3低于通过线"
+    ]
+  };
+  const summary = briefRubricSummary(
+    result as unknown as Parameters<typeof briefRubricSummary>[0]
+  );
+  expect(summary?.dimensions.map((d) => d.questionId)).toEqual([
+    "brief.rubric.coverage",
+    "brief.rubric.faithfulness",
+    "brief.rubric.noise"
+  ]);
+  expect(summary?.total).toBe(3);
+  expect(summary?.maxTotal).toBe(6);
+  expect(summary?.ratio).toBe(0.5);
+  expect(summary?.checks.map((d) => d.questionId)).toEqual(["brief.structure", "brief.generation"]);
+  expect(summary?.hardFails).toEqual(["编造了不存在的会议"]);
+  expect(summary?.blockingNotes).toEqual(["noise: 维度得分为0", "总分3低于通过线"]);
+});
+
+it("returns null for legacy P0/P1 checklist results so the old table keeps rendering", () => {
+  const legacy = {
+    decisions: [
+      {
+        questionId: "brief.P0.time",
+        kind: "BOOLEAN",
+        value: true,
+        applicable: true,
+        evidence: [],
+        evidenceRefs: []
+      },
+      { questionId: "brief.metric.P0", kind: "SCORE", value: 1, applicable: true }
+    ],
+    blockingFailures: []
+  };
+  expect(briefRubricSummary(legacy as unknown as Parameters<typeof briefRubricSummary>[0])).toBe(
+    null
+  );
+});
+
+it("recognizes brief semantic evaluation by plan version or decision ids", () => {
+  expect(isBriefSemanticEvaluation(undefined)).toBe(false);
+  expect(
+    isBriefSemanticEvaluation({
+      planVersion: "cortex.semantic-evaluation-contract.v1",
+      result: { decisions: [{ questionId: "task-outcome.completed" }] }
+    })
+  ).toBe(false);
+  expect(
+    isBriefSemanticEvaluation({ planVersion: "cortex.brief-rubric-plan.v1", result: { decisions: [] } })
+  ).toBe(true);
+  expect(
+    isBriefSemanticEvaluation({
+      planVersion: "cortex.semantic-evaluation-contract.v1",
+      result: { decisions: [{ questionId: "brief.metric.total" }] }
+    })
+  ).toBe(true);
 });

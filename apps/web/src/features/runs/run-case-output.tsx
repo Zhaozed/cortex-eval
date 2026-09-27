@@ -1,4 +1,4 @@
-import { RunBriefContent } from "./run-brief-content.tsx";
+import { RunBriefContent, RunBriefEvaluation, RunBriefInput, RunBriefVerdict } from "./run-brief-content.tsx";
 import { BriefReplayOutputSchema } from "@cortex-eval/contracts/src/brief-evaluation-contracts.ts";
 import { executionIssue } from "./run-execution-issue.ts";
 import { RunLiveCard } from "./run-live-card.tsx";
@@ -8,9 +8,11 @@ import type { DashboardCase } from "./run-dashboard-model.ts";
 import { conversationTurns, object, payload, records } from "./run-evidence-model.ts";
 import {
   cardEventSummary,
+  briefPublicResults,
   hasCardData,
   observedReplies,
   outputDegraded,
+  isBriefSemanticEvaluation,
   visualReviewRequired,
   type CardEventSummary,
   type ObservedReply
@@ -121,12 +123,10 @@ export function RunCaseOutput({
   readonly row: DashboardCase;
   readonly review: RunReview | undefined;
   readonly reviewError: boolean;
-  readonly mode?: "messages" | "cards" | "all";
+  readonly mode?: "messages" | "cards" | "all" | "verdict" | "judge" | "input";
 }): ReactElement {
   const replies = observedReplies(row),
-    p = payload(row),
-    [rendererVersion, setRendererVersion] = useState<string | null>(null);
-  const visual = visualReviewRequired(row);
+    p = payload(row);
   const issue = executionIssue(row);
   const degraded = outputDegraded(row);
   const cards = cardEventSummary(row);
@@ -134,14 +134,52 @@ export function RunCaseOutput({
   // Replies are labelled by round only when execution turns map 1:1 onto the sent user rounds.
   const rounds = conversationTurns(row).filter((turn) => turn.kind === "user").length,
     perRound = rounds > 1 && records(p.turns).length === rounds;
-  if (BriefReplayOutputSchema.safeParse(p).success)
-    return <RunBriefContent row={row} mode={mode} />;
+  const briefSemantic = row.evaluation?.semanticEvaluation;
+  if (BriefReplayOutputSchema.safeParse(p).success || isBriefSemanticEvaluation(briefSemantic)) {
+    const briefResults = briefPublicResults(p);
+    return (
+      <>
+        {(mode === "all" || mode === "verdict") && briefSemantic && (
+          <RunBriefVerdict semantic={briefSemantic} />
+        )}
+        {(mode === "all" || mode === "messages") && <RunBriefContent row={row} mode="messages" />}
+        {(mode === "all" || mode === "judge") && briefSemantic && (
+          <RunBriefEvaluation semantic={briefSemantic} />
+        )}
+        {(mode === "all" || mode === "input") && <RunBriefInput row={row} />}
+        {(mode === "all" || mode === "cards") && (
+          <section
+            className="run-result-panel run-output-panel run-card-workbench"
+            aria-label="卡片与视觉复核"
+          >
+            <RunCaseCardReview
+              row={row}
+              review={review}
+              reviewError={reviewError}
+              liveNote="由本次执行的 Brief 结构化卡片经 Cortex 转换器投影生成 · 未真实交付给用户"
+              rawDetails={
+                briefResults.length > 0 ? (
+                  <details>
+                    <summary>卡片结构化数据（A2UI 投影来源）</summary>
+                    <EvidenceJson value={briefResults} />
+                  </details>
+                ) : null
+              }
+            />
+          </section>
+        )}
+      </>
+    );
+  }
+  const showMessages = mode === "all" || mode === "messages";
+  const showCards = mode === "all" || mode === "cards";
+  if (!showMessages && !showCards) return <></>;
   return (
     <section
       className={`run-result-panel run-output-panel${mode === "cards" ? " run-card-workbench" : ""}`}
       aria-label={mode === "cards" ? "卡片与视觉复核" : "实际输出"}
     >
-      {mode !== "cards" && (
+      {showMessages && (
         <>
           <div className="run-panel-heading">
             <h3>实际输出</h3>
@@ -182,46 +220,68 @@ export function RunCaseOutput({
           </div>
         </>
       )}
-      {mode !== "messages" && (
-        <div id="case-a2ui-evidence" tabIndex={-1} className="run-output-capture">
-          {reviewError ? (
-            <p role="alert">卡片及人工审核记录读取失败，当前仅展示自动结果。</p>
-          ) : !review ? (
-            <p className="run-muted">正在读取卡片记录…</p>
-          ) : (
-            <>
-              {visual ? (
-                <>
-                  <RunLiveCard review={review} onReady={setRendererVersion} />
-                  <ReviewForm
-                    review={review}
-                    visual
-                    rendererVersion={rendererVersion}
-                    autoStatus={row.evaluation?.status}
-                  />
-                </>
-              ) : (
-                <p className="run-muted">
-                  本次执行未记录 A2UI 卡片。要求出卡或禁止出卡由 Case 断言检查。
-                </p>
-              )}
-            </>
-          )}
-          {(hasCardData(p) ||
+      {showCards && (
+        <RunCaseCardReview
+          row={row}
+          review={review}
+          reviewError={reviewError}
+          rawDetails={
+            hasCardData(p) ||
             replies.some((r) => hasCardData(r.data)) ||
-            Object.keys(object(p.a2ui)).length > 0) && (
-            <details>
-              <summary>A2UI 原始数据</summary>
-              <EvidenceJson
-                value={{
-                  a2ui: p.a2ui,
-                  messages: replies.filter((r) => hasCardData(r.data)).map((r) => r.data)
-                }}
-              />
-            </details>
-          )}
-        </div>
+            Object.keys(object(p.a2ui)).length > 0 ? (
+              <details>
+                <summary>A2UI 原始数据</summary>
+                <EvidenceJson
+                  value={{
+                    a2ui: p.a2ui,
+                    messages: replies.filter((r) => hasCardData(r.data)).map((r) => r.data)
+                  }}
+                />
+              </details>
+            ) : null
+          }
+        />
       )}
     </section>
+  );
+}
+
+/** 卡片回放与人工视觉复核；对话证据与 Brief replay 输出共用。 */
+export function RunCaseCardReview({
+  row,
+  review,
+  reviewError,
+  liveNote,
+  rawDetails
+}: {
+  readonly row: DashboardCase;
+  readonly review: RunReview | undefined;
+  readonly reviewError: boolean;
+  readonly liveNote?: string;
+  readonly rawDetails?: ReactElement | null;
+}): ReactElement {
+  const [rendererVersion, setRendererVersion] = useState<string | null>(null);
+  const visual = visualReviewRequired(row);
+  return (
+    <div id="case-a2ui-evidence" tabIndex={-1} className="run-output-capture">
+      {reviewError ? (
+        <p role="alert">卡片及人工审核记录读取失败，当前仅展示自动结果。</p>
+      ) : !review ? (
+        <p className="run-muted">正在读取卡片记录…</p>
+      ) : visual ? (
+        <>
+          <RunLiveCard review={review} note={liveNote} onReady={setRendererVersion} />
+          <ReviewForm
+            review={review}
+            visual
+            rendererVersion={rendererVersion}
+            autoStatus={row.evaluation?.status}
+          />
+        </>
+      ) : (
+        <p className="run-muted">本次执行未记录 A2UI 卡片。要求出卡或禁止出卡由 Case 断言检查。</p>
+      )}
+      {rawDetails}
+    </div>
   );
 }

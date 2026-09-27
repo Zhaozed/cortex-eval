@@ -68,7 +68,7 @@ it("keeps platform results, snapshot and controls on a single page", async () =>
   mount(<RunDashboardPage api={api} runId={RUN_ID} onNavigate={vi.fn()} />);
   expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("客服回归集");
   expect(screen.getByText("Agent 分支 / 版本")).toBeVisible();
-  expect(screen.getAllByText("评测模型", { exact: true })[0]).toBeVisible();
+  expect(screen.getAllByText("断言评测模型（配置）", { exact: true })[0]).toBeVisible();
   expect(screen.queryByText("执行与配置", { exact: true })).not.toBeInTheDocument();
 });
 it("only starts explicitly selected Run-wide analysis and invalidates Case evidence without navigating", async () => {

@@ -1,3 +1,4 @@
+import { freezeBriefReevaluation } from "./brief-reevaluation.ts";
 import type { DiagnosticSnapshot } from "@cortex-eval/contracts/src/diagnostic-report-contracts.ts";
 import {
   DiagnosticReportService,
@@ -49,7 +50,7 @@ import {
   DEFAULT_ENDPOINT as JEV_DEFAULT_ENDPOINT,
   DEFAULT_MODEL as JEV_DEFAULT_MODEL
 } from "@cortex-eval/evaluation-adapters/src/jev-http-provider.ts";
-import { createJevSemanticEvaluator } from "@cortex-eval/evaluation-adapters/src/jev-semantic-evaluator.ts";
+import { createConfigurableSemanticEvaluator } from "@cortex-eval/evaluation-adapters/src/configurable-semantic-evaluator.ts";
 import { createFrozenAnalyzerModelClient } from "@cortex-eval/evaluation-adapters/src/frozen-analyzer-model-client.ts";
 import {
   PROMPTFOO_CAPABILITY_MATRIX_HASH,
@@ -304,16 +305,19 @@ export async function createLocalServerRuntime(
       process.env.CORTEX_JEV_ENDPOINT !== undefined ||
       process.env.CORTEX_JEV_MODEL !== undefined ||
       jevApiKeyEnv !== undefined;
-    const semanticEvaluator = !jevEnabled
-      ? undefined
-      : createJevSemanticEvaluator({
-          provider: createJevHttpProvider({
-            providerType: "HTTP",
-            endpoint: jevEndpoint,
-            model: jevModel,
-            ...(jevApiKeyEnv === undefined ? {} : { apiKeyEnv: jevApiKeyEnv })
-          })
-        });
+    const semanticEvaluator = createConfigurableSemanticEvaluator({
+      readSecret: (key) => process.env[key],
+      ...(jevEnabled
+        ? {
+            jevProvider: createJevHttpProvider({
+              providerType: "HTTP",
+              endpoint: jevEndpoint,
+              model: jevModel,
+              ...(jevApiKeyEnv === undefined ? {} : { apiKeyEnv: jevApiKeyEnv })
+            })
+          }
+        : {})
+    });
     const evaluations = new PlatformEvaluationService({
       runTransactionManager,
       evalTransactionManager: storage.createEvalTransactionManager(),
@@ -366,6 +370,7 @@ export async function createLocalServerRuntime(
       pipelineEvaluationStarter: evaluations
     });
     const reruns = new PlatformRerunService({
+      prepareBriefReevaluation: freezeBriefReevaluation,
       runTransactionManager,
       evalTransactionManager: storage.createEvalTransactionManager(),
       artifactStore,

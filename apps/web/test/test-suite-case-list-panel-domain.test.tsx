@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, type RenderResult } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { TestSuiteCaseListPanel } from "../src/features/test-suites/test-suite-case-list-panel.tsx";
 import { parseCaseListSearch } from "../src/lib/web-route.ts";
@@ -58,6 +58,7 @@ function renderPanel(): RenderResult {
       nextCursor={null}
       mutationDisabled={false}
       onListStateChange={() => undefined}
+      onView={vi.fn()}
       onEdit={() => undefined}
       onCopy={() => undefined}
       onDelete={() => undefined}
@@ -90,6 +91,7 @@ describe("Case 列表「域」列与断言分层徽章", () => {
         nextCursor={null}
         mutationDisabled={false}
         onListStateChange={() => undefined}
+        onView={vi.fn()}
         onEdit={() => undefined}
         onCopy={() => undefined}
         onDelete={() => undefined}

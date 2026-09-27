@@ -47,6 +47,7 @@ import {
 import { parseCaseListSearch } from "../../lib/web-route.ts";
 import { loadCaseFilterOptions, EMPTY_CASE_FILTER_OPTIONS } from "./case-filter-options.ts";
 import { CaseEditor, type CaseEditorExternalSaveError } from "./case-editor.tsx";
+import { CaseDetailSheet } from "./case-detail-sheet.tsx";
 import { CaseCopyDialog } from "./case-copy-dialog.tsx";
 import { CaseDeleteDialog } from "./case-delete-dialog.tsx";
 import { CaseImportDialog } from "./case-import-dialog.tsx";
@@ -115,6 +116,7 @@ export function TestSuiteDetailPage({
   const [listState, setListState] = useState(() =>
     parseCaseListSearch(new URLSearchParams(window.location.search))
   );
+  const [viewingCaseKey, setViewingCaseKey] = useState<string | null>(null);
   const [editingCaseKey, setEditingCaseKey] = useState<string | null>(null);
   const [createDefinition, setCreateDefinition] = useState<CaseDefinitionV1 | null>(null);
   const [createCaseError, setCreateCaseError] = useState<ApiClientError | null>(null);
@@ -181,6 +183,9 @@ export function TestSuiteDetailPage({
     queryFn: ({ signal }) => loadCaseFilterOptions(api, suiteId, signal)
   });
   // Stable row actions prevent asynchronous facet loads from remounting a pressed button.
+  const openCaseDetails = useCallback((resource: CaseSummary): void => {
+    setViewingCaseKey(resource.caseKey);
+  }, []);
   const openCaseEditor = useCallback((resource: CaseSummary): void => {
     setEditError(false);
     setCaseEditExternalError(null);
@@ -487,10 +492,20 @@ export function TestSuiteDetailPage({
         nextCursor={cases.data.nextCursor}
         mutationDisabled={suiteDeleteBlocked}
         onListStateChange={setListState}
+        onView={openCaseDetails}
         onEdit={openCaseEditor}
         onCopy={openCaseCopy}
         onDelete={openCaseDelete}
       />
+      {viewingCaseKey !== null ? (
+        <CaseDetailSheet
+          key={viewingCaseKey}
+          api={api}
+          suiteId={suiteId}
+          caseKey={viewingCaseKey}
+          onClose={() => setViewingCaseKey(null)}
+        />
+      ) : null}
       <Sheet
         open={editingCaseKey !== null}
         onOpenChange={(open) => {

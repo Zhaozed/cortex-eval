@@ -16,7 +16,12 @@ export function newBriefContract(briefType: "daily" | "meeting"): SemanticEvalua
     successCriteria: ["关键事实准确覆盖、排除无关信息、不捏造"],
     enabledDimensions: ["response"],
     scorePassThreshold: 0.85,
-    brief: { briefType, checklist: [], constraints: { allowedGenerationStatuses: ["generated"] } }
+    brief: {
+      briefType,
+      judge: "JEV",
+      checklist: [],
+      constraints: { allowedGenerationStatuses: ["generated"] }
+    }
   };
 }
 
@@ -78,6 +83,23 @@ export function BriefCaseFields({
       <p className="field-hint">切换模式会替换语义规则，不修改请求材料及通用检查项。</p>
       {profile && (
         <>
+          <label htmlFor="brief-judge">内容裁判</label>
+          <select
+            id="brief-judge"
+            value={profile.judge ?? "JEV"}
+            onChange={(e) =>
+              onChange({ ...value, brief: { ...profile, judge: e.target.value as "JEV" | "LLM" } })
+            }
+          >
+            <option value="JEV">JEV</option>
+            <option value="LLM">LLM（使用 Run 的 Evaluator 模型）</option>
+          </select>
+          <p className="field-hint">
+            {profile.judge === "LLM"
+              ? "创建 Run 时选择 Evaluator 模型。该配置会冻结到 Run；不使用 JEV，也不会失败后切换裁判。"
+              : "使用服务端已有 JEV 配置；Run 的 Evaluator 模型不会替换 JEV。"}
+            两种裁判共用下方 GT、证据校验和打分规则。
+          </p>
           <label htmlFor="brief-type">Brief 类型</label>
           <select
             id="brief-type"
@@ -123,6 +145,8 @@ export function BriefCaseFields({
             导入并替换请求材料
           </Button>
           {error && <p role="alert">{error}</p>}
+          {profile.rubric === undefined && (
+          <>
           <h3>原子 GT</h3>
           <p>
             P0 必须覆盖；P1 补充；P2 应排除。来源填写相对 bundle 的 JSON
@@ -140,11 +164,11 @@ export function BriefCaseFields({
                 </tr>
               </thead>
               <tbody>
-                {profile.checklist.map((item, index) => {
+                {(profile.checklist ?? []).map((item, index) => {
                   const patch = (part: Partial<typeof item>): void =>
                     update({
                       ...profile,
-                      checklist: profile.checklist.map((old, i) =>
+                      checklist: (profile.checklist ?? []).map((old, i) =>
                         i === index ? { ...old, ...part } : old
                       )
                     });
@@ -189,7 +213,7 @@ export function BriefCaseFields({
                           onClick={() =>
                             update({
                               ...profile,
-                              checklist: profile.checklist.filter((_, i) => i !== index)
+                              checklist: (profile.checklist ?? []).filter((_, i) => i !== index)
                             })
                           }
                         >
@@ -209,7 +233,7 @@ export function BriefCaseFields({
               update({
                 ...profile,
                 checklist: [
-                  ...profile.checklist,
+                  ...(profile.checklist ?? []),
                   {
                     id: `fact_${crypto.randomUUID().slice(0, 8)}`,
                     tier: "P0",
@@ -222,6 +246,8 @@ export function BriefCaseFields({
           >
             添加原子断言
           </Button>
+          </>
+          )}
           <h3>确定性检查与计分</h3>
           <p>
             P0 50% / P1 20% / 噪音抑制 30%；空层级权重归一化。噪音抑制为 P2

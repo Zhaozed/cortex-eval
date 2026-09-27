@@ -4,7 +4,7 @@
     "uid": "2075490654049271808",
     "version": "1.0.0",
     "timezone": "Asia/Shanghai",
-    "case_count": 11
+    "case_count": 17
   },
   "case_ids": [
     "FT-T01",
@@ -12,7 +12,13 @@
     "FT-T03",
     "FT-T04",
     "FT-T05",
+    "FT-T05-COL",
+    "FT-T05-BATCH",
+    "FT-T05-COL-BATCH",
     "FT-T06",
+    "FT-T06-TITLE",
+    "FT-T06-DUE",
+    "FT-T06-REOPEN",
     "FT-T07",
     "FT-T08",
     "FT-T09",
@@ -20,10 +26,32 @@
     "FT-LC02"
   ],
   "mode": {
-    "isolated": ["FT-T01", "FT-T02", "FT-T03", "FT-T05", "FT-T06", "FT-T08", "FT-T09"],
-    "client": ["FT-T04", "FT-T07", "FT-LC01", "FT-LC02"]
+    "isolated": [
+      "FT-T01",
+      "FT-T02",
+      "FT-T03",
+      "FT-T05",
+      "FT-T05-COL",
+      "FT-T05-BATCH",
+      "FT-T05-COL-BATCH",
+      "FT-T06",
+      "FT-T06-TITLE",
+      "FT-T06-DUE",
+      "FT-T06-REOPEN",
+      "FT-T08",
+      "FT-T09"
+    ],
+    "client": [
+      "FT-T04",
+      "FT-T07",
+      "FT-LC01",
+      "FT-LC02"
+    ]
   },
-  "long_chain": ["FT-LC01", "FT-LC02"],
+  "long_chain": [
+    "FT-LC01",
+    "FT-LC02"
+  ],
   "rules": [
     "真实tool_executions优先",
     "collection_id只来自成功清单结果",
@@ -31,16 +59,5 @@
     "空结果/权限/分页/部分失败分开",
     "未知写结果先回读不重试"
   ],
-  "cleanup": "创建/更新/删除类按真实task_id精确回读与清理",
-  "suite_id": "01a0c236-10c7-761f-a62d-82c39f70a933",
-  "imported_revision": 3,
-  "suite_hash": "7eb550bd2f0b3bf09f4240fd85ca1627bcf9c270b61c176f958058952df488b6",
-  "last_import": {
-    "added": 0,
-    "modified": 4,
-    "removed": 0,
-    "unchanged": 7,
-    "reordered": 0
-  },
-  "run_status": "NOT_EXECUTED"
+  "cleanup": "创建/更新/删除类按真实task_id精确回读与清理"
 }

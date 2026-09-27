@@ -366,3 +366,162 @@ it("persists optional Run labels across reopening without changing execution ide
     expect((await tx.runs.getPlatformRun(RUN_A))?.suite).toEqual(original.suite);
   });
 });
+
+it("persists batch Brief calibration with changed Judge hashes, unchanged evidence, and source provenance", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "cortex-brief-calibration-"));
+  const storage = await initializeSqliteStorage({ projectRoot });
+  openStorages.push(storage);
+  seedCurrentResources(storage.databasePath);
+  const manager = storage.createRunTransactionManager();
+  const makeCases = (version: number): PlatformRun["suite"]["cases"] =>
+    ["daily", "meeting"].map((type, ordinal) => {
+      const caseKey = `brief-${type}`;
+      const definition = {
+        ...DEFINITION,
+        caseKey,
+        requestBody: {
+          bundle: {
+            version: 1,
+            brief_type: type,
+            context: { current_time: "2026-09-24" },
+            material: { facts: ["fact"] }
+          }
+        },
+        semanticEvaluation: {
+          contractVersion: "cortex.semantic-evaluation-contract.v1",
+          goal: "Brief",
+          successCriteria: ["准确"],
+          enabledDimensions: ["response"],
+          brief: {
+            briefType: type,
+            judge: "LLM",
+            judgePrompt: `Judge v${version}`,
+            constraints: { allowedGenerationStatuses: ["generated"] },
+            rubric: {
+              dimensions: [
+                { id: "facts", assertion: `事实准确 v${version}`, sourceRefs: ["/material"] }
+              ],
+              minTotalScore: version,
+              hardFailRules: ["编造"]
+            }
+          }
+        }
+      };
+      return {
+        caseKey,
+        ordinal,
+        definition,
+        definitionHash: hashCaseDefinition({
+          contractVersion: "cortex.case-definition.v1",
+          caseKey,
+          definition: caseDefinitionJson(definition)
+        })
+      };
+    });
+  const makeRun = (id: string, version: number): PlatformRun => {
+    const base = platformRun(id, version === 1 ? null : RUN_A, version === 1 ? "NONE" : "FORCE");
+    const cases = makeCases(version);
+    const suite = {
+      ...base.suite,
+      cases,
+      suiteHash: hashSuite({ contractVersion: "cortex.suite.v1", cases })
+    };
+    const config = { ...base.evaluator.definition, model: `judge-${version}` };
+    const evaluator = {
+      ...base.evaluator,
+      definition: config,
+      configHash: hashLlmConfig({ contractVersion: "cortex.llm-config.v1", config })
+    };
+    return {
+      ...base,
+      suite,
+      evaluator,
+      restCompletedCount: version === 1 ? 0 : 2,
+      runContextHash: hashRunContext({
+        contractVersion: "cortex.run-context.v1",
+        suiteHash: suite.suiteHash,
+        endpointConfigHash: ENDPOINT_HASH,
+        evaluatorConfigHash: evaluator.configHash,
+        rubricPromptSetHash: RUBRIC_SET_HASH,
+        promptfooVersion: base.promptfooVersion,
+        runExecutionLimits: LIMITS
+      })
+    };
+  };
+  const source = makeRun(RUN_A, 1),
+    target = makeRun(RUN_B, 2);
+  const results = (run: PlatformRun): StoredRestCaseResult[] =>
+    run.suite.cases.map((item) => {
+      const result = successResult(run.id);
+      if (result.status !== "SUCCEEDED") throw new Error("fixture");
+      return {
+        ...result,
+        ...item,
+        caseDefinitionHash: item.definitionHash,
+        resultHash: hashRestResult({
+          contractVersion: "cortex.rest-result.v1",
+          caseKey: item.caseKey,
+          caseDefinitionHash: item.definitionHash,
+          result: {
+            status: "SUCCEEDED",
+            httpStatus: result.httpStatus,
+            providerOutput: result.providerOutput
+          }
+        })
+      };
+    });
+  const originals = results(source);
+  const reused = results(target).map((item, i) => ({
+    ...item,
+    provenance: {
+      sourceKind: "RUN" as const,
+      sourceId: RUN_A,
+      sourceResultHash: requiredCalibration(originals[i]).resultHash
+    }
+  }));
+  await manager.execute(async (tx) => {
+    await tx.runs.insertPlatformRun(source);
+    await tx.runs.claimStage(RUN_A, 0, SECOND_TIME);
+    for (const item of originals) await tx.runs.recordRestResult(item, SECOND_TIME);
+    await tx.runs.insertPlatformRerun(target, reused);
+  });
+  const saved = await manager.execute((tx) => tx.runs.getPlatformRun(RUN_B));
+  expect(saved?.evaluator.definition.model).toBe("judge-2");
+  expect(saved?.suite.cases[0]?.definition.semanticEvaluation?.brief).toMatchObject({
+    judgePrompt: "Judge v2"
+  });
+  for (const original of originals) {
+    const copy = await manager.execute((tx) => tx.runs.getRestResult(RUN_B, original.caseKey));
+    expect(copy?.providerOutput).toEqual(original.providerOutput);
+    expect(copy?.definition.requestBody).toEqual(original.definition.requestBody);
+    expect(copy?.resultHash).not.toBe(original.resultHash);
+    expect(copy?.provenance?.sourceResultHash).toBe(original.resultHash);
+  }
+  // Even a correctly rehashed output substitution must be rejected.
+  const tampered = reused.map((r) => ({ ...r, runId: RUN_C }));
+  const first = requiredCalibration(tampered[0]);
+  if (first.status !== "SUCCEEDED") throw new Error("fixture");
+  const providerOutput = { ok: false as const, errorMessage: "substituted" };
+  tampered[0] = {
+    ...first,
+    providerOutput,
+    resultHash: hashRestResult({
+      contractVersion: "cortex.rest-result.v1",
+      caseKey: first.caseKey,
+      caseDefinitionHash: first.caseDefinitionHash,
+      result: { status: "SUCCEEDED", httpStatus: first.httpStatus, providerOutput }
+    })
+  };
+  await expect(
+    manager.execute((tx) => tx.runs.insertPlatformRerun({ ...target, id: RUN_C }, tampered))
+  ).rejects.toThrow();
+  expect(await manager.execute((tx) => tx.runs.getPlatformRun(RUN_C))).toBeNull();
+  expect((await manager.execute((tx) => tx.runs.getPlatformRun(RUN_A)))?.suite).toEqual(
+    source.suite
+  );
+});
+
+function requiredCalibration<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error("fixture");
+  return value;
+}

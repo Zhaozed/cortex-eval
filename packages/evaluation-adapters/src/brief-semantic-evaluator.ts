@@ -55,6 +55,114 @@ export async function evaluateBrief(input: {
   )
     throw new Error("BRIEF_JUDGE_DECISION_INVALID");
   const decisions: JevDecisionResultV1[] = [];
+  const add = (questionId: string, value: boolean, reason: string): void => {
+    decisions.push(
+      JevDecisionResultV1Schema.parse({
+        questionId,
+        kind: "BOOLEAN",
+        value,
+        reason,
+        platformReason: reason,
+        evidenceRefs: ["generated"]
+      })
+    );
+  };
+  const c = profile.constraints;
+  const count = output.output.cards.length;
+  const maxCardChars = c.maxCardChars;
+  const structure =
+    (c.minCards === undefined || count >= c.minCards) &&
+    (c.maxCards === undefined || count <= c.maxCards) &&
+    (c.maxTextChars === undefined || length(output.output.text) <= c.maxTextChars) &&
+    (maxCardChars === undefined ||
+      output.output.cards.every(
+        (card) => strings(card).reduce((n, text) => n + length(text), 0) <= maxCardChars
+      ));
+  const generation = c.allowedGenerationStatuses.includes(output.generation_status);
+  if (profile.rubric) {
+    const rubric = profile.rubric;
+    const leaves = strings(output.output);
+    let total = 0;
+    for (const dimension of rubric.dimensions) {
+      const questionId = `brief.rubric.${dimension.id}`;
+      const answer = answers.find((a) => a.questionId === questionId);
+      if (
+        answer?.kind !== "SCORE" ||
+        typeof answer.value !== "number" ||
+        ![0, 1, 2].includes(answer.value)
+      )
+        throw new Error("BRIEF_JUDGE_DECISION_INVALID");
+      const reason = answer.providerReason ?? answer.reason;
+      const evidence = [...(answer.evidence ?? [])];
+      const quotes =
+        answer.providerResponse === undefined
+          ? evidence
+          : strings(answer.providerResponse.evidence);
+      if (
+        answer.value >= 1 &&
+        !quotes.some((q) => q.trim().length > 0 && leaves.some((text) => text.includes(q)))
+      )
+        throw new Error(`BRIEF_JUDGE_EVIDENCE_MISSING:${dimension.id}`);
+      total += answer.value;
+      decisions.push(
+        JevDecisionResultV1Schema.parse({
+          questionId,
+          kind: "SCORE",
+          value: answer.value,
+          reason: reason ?? "见裁判证据",
+          evidence,
+          applicable: true,
+          evidenceRefs: dimension.sourceRefs.map((ref) => `bundle${ref}`),
+          platformReason: dimension.assertion
+        })
+      );
+    }
+    add(
+      "brief.structure",
+      structure,
+      `卡片数 ${count}；文本字符数 ${length(output.output.text)}；按本Case配置检查，不套用通用1–3张限制`
+    );
+    add("brief.generation", generation, `生成状态 ${output.generation_status}；未向用户交付`);
+    const fullScore = 2 * rubric.dimensions.length;
+    const score = total / fullScore;
+    decisions.push(
+      JevDecisionResultV1Schema.parse({
+        questionId: "brief.metric.total",
+        kind: "SCORE",
+        value: total,
+        reason: `六维总分，满分 ${fullScore}`
+      })
+    );
+    decisions.push(
+      JevDecisionResultV1Schema.parse({
+        questionId: "brief.metric.rubric",
+        kind: "SCORE",
+        value: score,
+        reason: "代码确定性计算"
+      })
+    );
+    const hardFailReasons = [...new Set(answers.flatMap((a) => [...(a.hardFailReasons ?? [])]))];
+    const blockingFailures: string[] = [];
+    for (const reason of hardFailReasons) blockingFailures.push(`brief.hard_fail:${reason}`);
+    if (rubric.failOnZeroDimension ?? true) {
+      for (const dimension of rubric.dimensions) {
+        const answer = answers.find((a) => a.questionId === `brief.rubric.${dimension.id}`);
+        if (answer?.value === 0) blockingFailures.push(`brief.rubric.${dimension.id}:维度得分为0`);
+      }
+    }
+    if (total < rubric.minTotalScore)
+      blockingFailures.push(`brief.score:六维总分${total}低于准入阈值${rubric.minTotalScore}`);
+    if (!structure) blockingFailures.push("brief.structure:容量约束不符合");
+    if (!generation) blockingFailures.push("brief.generation:生成状态不符合Case要求");
+    return JevEvaluationResultV1Schema.parse({
+      contractVersion: contract.contractVersion,
+      passed: blockingFailures.length === 0,
+      score,
+      decisions,
+      blockingFailures,
+      warnings: []
+    });
+  }
   const warnings: string[] = [];
   for (const question of plan.questions) {
     const answer = answers.find((a) => a.questionId === question.id);
@@ -89,7 +197,7 @@ export async function evaluateBrief(input: {
             : "BRIEF_JUDGE_EVIDENCE_MISSING"
         );
     }
-    const atomic = profile.checklist.find(
+    const atomic = profile.checklist?.find(
       (item) => question.id === `brief.${item.tier}.${item.id}`
     );
     decisions.push(
@@ -109,35 +217,11 @@ export async function evaluateBrief(input: {
       })
     );
   }
-  const add = (questionId: string, value: boolean, reason: string): void => {
-    decisions.push(
-      JevDecisionResultV1Schema.parse({
-        questionId,
-        kind: "BOOLEAN",
-        value,
-        reason,
-        platformReason: reason,
-        evidenceRefs: ["generated"]
-      })
-    );
-  };
-  const c = profile.constraints;
-  const count = output.output.cards.length;
-  const maxCardChars = c.maxCardChars;
-  const structure =
-    (c.minCards === undefined || count >= c.minCards) &&
-    (c.maxCards === undefined || count <= c.maxCards) &&
-    (c.maxTextChars === undefined || length(output.output.text) <= c.maxTextChars) &&
-    (maxCardChars === undefined ||
-      output.output.cards.every(
-        (card) => strings(card).reduce((n, text) => n + length(text), 0) <= maxCardChars
-      ));
   add(
     "brief.structure",
     structure,
     `卡片数 ${count}；文本字符数 ${length(output.output.text)}；按本Case配置检查，不套用通用1–3张限制`
   );
-  const generation = c.allowedGenerationStatuses.includes(output.generation_status);
   add("brief.generation", generation, `生成状态 ${output.generation_status}；未向用户交付`);
   const ratio = (prefix: string): number | null => {
     const items = decisions.filter((d) => d.questionId.startsWith(prefix));

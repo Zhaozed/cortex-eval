@@ -102,3 +102,10 @@ Report 重试只接受 `FAILED/DONE` 的 `REPORT_STAGE_FAILED` 或 `REPORT_RECON
 ## Brief 内容评测
 
 Brief 复用现有 Case、Endpoint 与运行快照，不新增独立执行系统。原子标注、最终内容展示及裁判异常语义见 [Brief 内容评测](../PACKAGES/BRIEF_EVALUATION.md)。
+
+
+## Brief scoring-only calibration
+
+`FORCE + reevaluateOnly: true` 接受可选 `caseKey`；不传表示整批。`reevaluation` 可指定 `evaluatorConfigId`、`judgePrompt`、`evaluatorPrompt`（null 清除）和 `rubric`。Application 通过注入的 `PrepareBriefReevaluation` port 验证并重建评分快照，不依赖 Contracts；Local Server 边界验证 Brief schema、材料引用与总分阈值。
+
+仅放行上述裁判字段变化，重新计算 Case/Suite/Run context hash，并在新 REST 记录中绑定新 Case hash；provider output、输入、endpoint 和生成参数不变。Provenance 保存立即来源的 result hash，不伪称新绑定 hash 等于旧 hash。所有选中 REST 必须成功，预置必须完整；每个 Case 均重新评测，不复用旧 Eval。新增模型配置不存在或非 Brief override 一律拒绝，原 run 不变。

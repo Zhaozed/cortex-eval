@@ -20,7 +20,7 @@ export function summarizeBriefRows(rows: readonly DashboardCase[]): BriefSummary
         (row) => row.definition?.semanticEvaluation?.brief?.briefType === type
       );
       const judged = selected.flatMap((row) =>
-        row.evaluation?.semanticEvaluation?.planVersion === "cortex.brief-atomic-plan.v1"
+        row.evaluation?.semanticEvaluation?.planVersion.startsWith("cortex.brief") === true
           ? [row.evaluation.semanticEvaluation.result]
           : []
       );
@@ -69,43 +69,77 @@ export function RunBriefSummary({
   const groups = summarizeBriefRows(rows);
   if (!ready || groups.length === 0) return null;
   return (
-    <section className="run-result-panel" aria-label="Brief 分类汇总">
-      <h3>Brief 分类汇总</h3>
-      <p>
-        按已加载且含冻结定义的 Case 统计；命中率按原子条目累计，噪音抑制按已判定 Case
-        平均。裁判异常单列，不当作内容零分。
-      </p>
-      <div className="brief-table-scroll">
-        <table className="brief-checklist">
-          <thead>
-            <tr>
-              <th>类型</th>
-              <th>已判定 / 已加载</th>
-              <th>裁判异常</th>
-              <th>P0 命中</th>
-              <th>P1 命中</th>
-              <th>噪音抑制</th>
-              <th>幻觉 Case</th>
-              <th>容量不合规</th>
-            </tr>
-          </thead>
-          <tbody>
-            {groups.map((g) => (
-              <tr key={g.type}>
-                <td>{g.type}</td>
-                <td>
-                  {g.judged}/{g.total}
-                </td>
-                <td>{g.errors}</td>
-                <td>{g.p0}</td>
-                <td>{g.p1}</td>
-                <td>{g.noise}</td>
-                <td>{g.hallucinations}</td>
-                <td>{g.structureFailures}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <section className="run-result-panel brief-summary" aria-label="Brief 分类汇总">
+      <header className="brief-summary-heading">
+        <div>
+          <span className="brief-summary-eyebrow">质量概览</span>
+          <h3>Brief 分类汇总</h3>
+        </div>
+        <p>按已加载且含冻结定义的 Case 统计；裁判异常单列，不计入内容命中率。</p>
+      </header>
+      <div className="brief-summary-groups">
+        {groups.map((group) => {
+          const coverage = group.total === 0 ? 0 : (group.judged / group.total) * 100;
+          return (
+            <article className="brief-summary-card" key={group.type}>
+              <div className="brief-summary-card-heading">
+                <span className="brief-summary-type">
+                  {group.type === "daily" ? "Daily Brief" : "Pre-meeting Brief"}
+                </span>
+                <span className="brief-summary-case-count">{group.total} 个样本</span>
+              </div>
+              <div className="brief-summary-coverage">
+                <strong>
+                  {group.judged}
+                  <span> / {group.total}</span>
+                </strong>
+                <span>已判定样本</span>
+              </div>
+              <div
+                className="brief-summary-progress"
+                aria-label={`判定覆盖率 ${coverage.toFixed(0)}%`}
+              >
+                <span style={{ width: `${coverage}%` }} />
+              </div>
+              <div className="brief-summary-metrics">
+                <div className="brief-summary-metric">
+                  <span>P0 命中</span>
+                  <strong>{group.p0}</strong>
+                  <small>原子条目命中 / 适用条目</small>
+                </div>
+                <div className="brief-summary-metric">
+                  <span>P1 命中</span>
+                  <strong>{group.p1}</strong>
+                  <small>原子条目命中 / 适用条目</small>
+                </div>
+                <div className="brief-summary-metric">
+                  <span>噪音抑制</span>
+                  <strong>{group.noise}</strong>
+                  <small>已判定样本平均</small>
+                </div>
+                <div className={`brief-summary-metric${group.errors > 0 ? " is-alert" : ""}`}>
+                  <span>裁判异常</span>
+                  <strong>{group.errors}</strong>
+                  <small>不计入内容评分</small>
+                </div>
+                <div
+                  className={`brief-summary-metric${group.hallucinations > 0 ? " is-alert" : ""}`}
+                >
+                  <span>幻觉 Case</span>
+                  <strong>{group.hallucinations}</strong>
+                  <small>未通过事实依据检查</small>
+                </div>
+                <div
+                  className={`brief-summary-metric${group.structureFailures > 0 ? " is-alert" : ""}`}
+                >
+                  <span>容量不合规</span>
+                  <strong>{group.structureFailures}</strong>
+                  <small>未通过结构检查</small>
+                </div>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );

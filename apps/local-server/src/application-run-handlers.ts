@@ -511,7 +511,8 @@ export function createApplicationRunHandlers(
         name: body.value.name,
         description: body.value.description,
         caseKey: body.value.caseKey,
-        reevaluateOnly: body.value.reevaluateOnly
+        reevaluateOnly: body.value.reevaluateOnly,
+        reevaluation: body.value.reevaluation
       });
       if (!result.ok) {
         const code = result.error.code;

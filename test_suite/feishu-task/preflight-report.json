@@ -13,7 +13,28 @@
   "blocking_for_run": [
     "Feishu Task provider authorization and runtime fixture availability must be verified before starting a real run."
   ],
-  "revision": 3,
-  "suite_hash": "7eb550bd2f0b3bf09f4240fd85ca1627bcf9c270b61c176f958058952df488b6",
-  "modified_cases": ["FT-T04", "FT-T07", "FT-LC01", "FT-LC02"]
+  "revision": 6,
+  "suite_hash": "49ebf0f1945305c01341d7a63a5efa82e6c70926497be40e5cda590d20e70dd7",
+  "modified_cases": [
+    "FT-T01",
+    "FT-T02",
+    "FT-T03",
+    "FT-T04",
+    "FT-T05",
+    "FT-T06",
+    "FT-T07",
+    "FT-T08",
+    "FT-T09",
+    "FT-LC02"
+  ],
+  "case_count": 17,
+  "added_cases": [
+    "FT-T05-COL",
+    "FT-T05-BATCH",
+    "FT-T05-COL-BATCH",
+    "FT-T06-TITLE",
+    "FT-T06-DUE",
+    "FT-T06-REOPEN"
+  ],
+  "llm_rubric_count": 0
 }

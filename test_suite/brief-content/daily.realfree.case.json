@@ -1,0 +1,535 @@
+{
+  "assert": [
+    {
+      "metric": "Brief replay 成功",
+      "type": "javascript",
+      "value": "const body = typeof output === \"string\" ? JSON.parse(output) : output; return body.ok === true && body.task_name === \"EVAL_BRIEF_REPLAY\";",
+      "weight": 1
+    }
+  ],
+  "contractVersion": "cortex.case-definition.v1",
+  "description": "Daily Brief Reference-Free｜2026-09-24 真实材料：snapshot 导出于 2026-09-24 10:25 CST（46条记忆/6项目/9人物），业务时间固定为 2026-09-24 09:00 +08:00；无人工 GT，裁判依据输入包按六维 Rubric 判分（v2：uid 改用 int64 哨兵修复精度）",
+  "metadata": {
+    "a2ui_capture": true,
+    "business_module": "brief_daily",
+    "case_id": "daily-brief-20260924-realfree-001",
+    "req_id": "daily-brief-20260924-realfree-001",
+    "scenario_tag": "reference_free_real_material",
+    "task_id": "brief-replay"
+  },
+  "threshold": 1,
+  "vars": {
+    "request_body": {
+      "bundle": {
+        "brief_type": "daily",
+        "context": {
+          "current_time": "2026-09-24T09:00:00+08:00",
+          "lang": "zh-Hans",
+          "recent_conversation_messages": [],
+          "timezone": "Asia/Shanghai",
+          "uid": {
+            "__cortex_eval_int64": "2075490654049271808"
+          }
+        },
+        "material": {
+          "preparation_capabilities": [
+            "SEARCH_MAIL",
+            "REFRESH_CALENDAR",
+            "SEARCH_FILES",
+            "LOOK_UP_CONTACT"
+          ],
+          "snapshot": {
+            "as_of": "2026-09-24T02:25:17.156094Z",
+            "memories": [
+              {
+                "content": "负责跟进中国版登录及新增文案的多语言翻译工作，并在表格中同步需翻译的文案。",
+                "domain": "PERSON",
+                "memory_kind": "person.responsibility",
+                "semantic_memory_ref": "lm_memory_1Gx-B2kiiDt1qNpLfL9YILmW1Zd1F_Ca",
+                "subject_id": "person-236d5e48-b646-4ef3-a5dd-ee6f0516ab94"
+              },
+              {
+                "content": "DM软件测试项目中面临的风险包括：\\n1. 通讯录查询非本人时报 41050 no user authority 错误（由于控制台授权范围未覆盖对方，导致单聊 chat_name 为空、查他人 profile 失败，代码无法绕过）；\\n2. 评测平台存在 LLM 耗时长、一次只能获取 20 条聊天数据，以及相同输入下 Agent 输出与 WebUI 不一致的风险。",
+                "domain": "PROJECT",
+                "memory_kind": "project.risk",
+                "semantic_memory_ref": "lm_memory_1vHGXZdL5eM6D0UcQZCGiC0YCqvAnBd6",
+                "subject_id": "project-8d323416-f003-4361-a01c-cdbed59dceb3"
+              },
+              {
+                "content": "秦宇龙是研发团队成员，负责飞书 Agent 工具集开发（维护 lark_tools 及 zhouzhuang-feishu、QYL/lark_tools 分支）、A2UI 交互与卡片模板调整、测试用例文档更新，并主导设计了 LiveMem 轻量前台产品 Echo「留声」的产品定位与方案。",
+                "domain": "PERSON",
+                "memory_kind": "person.profile",
+                "semantic_memory_ref": "lm_memory_39HtWcZoHsnoUDXL8NRs2EmxJBWXqbUl",
+                "subject_id": "person-1ff76149-c51a-4e43-b41f-2f58d4b1ea0a"
+              },
+              {
+                "content": "Echo「留声」的目标是减少用户在专注工作时的打断与心理记忆负担，保留用户对记忆候选的控制权（支持修改、合并、删除），提高长期记忆沉淀质量，实现“不打断当下，先把想法留住；等合适的时候，再让它回到眼前”。",
+                "domain": "PROJECT",
+                "memory_kind": "project.goal",
+                "semantic_memory_ref": "lm_memory_5U2qczmJrQ_jCWjhurU58Bmg1r9Upyij",
+                "subject_id": "project-138363b4-000b-47b0-9aab-30019c8add59"
+              },
+              {
+                "content": "DM软件测试下一步计划包括：\\n1. 对飞书新增的 task 工具及秦宇龙更新后的 task case 进行测试验证；\\n2. 针对飞书持续进行 E2E 测试验证并产出每轮验证文档；\\n3. 整理当前评测平台内容提交 Gitea 并产出平台 spec；\\n4. 整理 XYX-MO 中 mental offload 评测文档。",
+                "domain": "PROJECT",
+                "memory_kind": "project.next_step",
+                "semantic_memory_ref": "lm_memory_6VXo2RZOlqaY3zrUgk3_O9FJwSNP7dma",
+                "subject_id": "project-8d323416-f003-4361-a01c-cdbed59dceb3"
+              },
+              {
+                "content": "在完成产品定位与背景整理后，下一步继续定义记忆候选表字段、状态机以及后台 Extract 的验收规则。",
+                "domain": "PROJECT",
+                "memory_kind": "project.next_step",
+                "semantic_memory_ref": "lm_memory_6xT2Thw-RSspb614rkgOykoyiJvMHfUt",
+                "subject_id": "project-138363b4-000b-47b0-9aab-30019c8add59"
+              },
+              {
+                "content": "在电脑端国内版项目中：\\n- 凡向阳：负责发布中国版 Debug 0.9.2 版本更新，并推进待机管理、设置页及微信域名等优化；\\n- 用户（OWNER）：负责管理 TestFlight 测试内部团队成员添加以配合新主体开发者账号启用。",
+                "domain": "PROJECT",
+                "memory_kind": "project.people_context",
+                "semantic_memory_ref": "lm_memory_8n0a6o65kmxzyVbv06-nOMWXu-QAa1Nr",
+                "subject_id": "project-6a6b5d38-309c-4116-a55a-5fd42e202d95"
+              },
+              {
+                "content": "Project 2 当前待执行的工作与会议安排包括：\\n1. 【工作】实现任务到期前飞书卡片自动提醒机制：结合 proactive 模块与任务提醒逻辑实现（优先级 urgent，截止时间 2026-09-15T07:00:00+00:00）；\\n2. 【会议】Q4 季度技术专项规划会：评估多模态与大模型本地化推理演进路线（优先级 high，截止时间 2026-09-17T02:00:00+00:00）；\\n3. 【工作】准备技术评审汇报材料与 Demo 演示：汇总近期版本交付亮点与质量覆盖率数据（优先级 normal，截止时间 2026-09-20T09:30:00+00:00）。",
+                "domain": "PROJECT",
+                "memory_kind": "project.next_step",
+                "semantic_memory_ref": "lm_memory_AzodqFnyCZQ9s3dtqVxIdJJs6xm7RZx5",
+                "subject_id": "project-291d8297-13f8-4a7e-873b-74a45d6e547b"
+              },
+              {
+                "content": "用户真实姓名为赵泽宇（泽宇），个人邮箱为 18032098113@163.com。在团队中负责 Agent 评测、测试集准备与断言维护、评测平台功能开发与自动化测试，以及产研翻译小助手服务的维护与部署。",
+                "domain": "USER",
+                "memory_kind": "user.profile",
+                "semantic_memory_ref": "lm_memory_cTN07ZYAi4wGnAQS1QSsm6zyLjXzapBS",
+                "subject_id": "2075490654049271808"
+              },
+              {
+                "content": "负责电脑端国内版（Windows 与 Mac 端）安装包的打包与发包提测工作。",
+                "domain": "PERSON",
+                "memory_kind": "person.responsibility",
+                "semantic_memory_ref": "lm_memory_dtD-TZvBxo-8s9XWJKXzprOKr-9HLBGY",
+                "subject_id": "person-80299d48-51da-49d0-92dd-b8cb4f09ff8f"
+              },
+              {
+                "content": "在DM软件测试项目中，负责“构建测试平台”工作。",
+                "domain": "PERSON",
+                "memory_kind": "person.responsibility",
+                "semantic_memory_ref": "lm_memory_dVKeY1969R_WFTrrtFv7XejJZA7jsYXT",
+                "subject_id": "person-85d6d1a9-d061-4324-86f0-ca8fc86eb838"
+              },
+              {
+                "content": "1. 删掉飞书文档《发布方案 V2》最后 10 条备选方案并保留其他内容后，将最新版链接发送给秦宇龙；\\n2. 秦宇龙需在 2026-09-18 当天完成新版本验证，以配合新版本在周五（2026-09-18）如期发布。",
+                "domain": "PROJECT",
+                "memory_kind": "project.next_step",
+                "semantic_memory_ref": "lm_memory_EHPJqCPcdVbdA-d42ST3NBoX-5jZlTi8",
+                "subject_id": "project-1e201130-d76f-4248-bcdb-53f26fadc34c"
+              },
+              {
+                "content": "用户当前重点推进“新版本发布”工作，包括在 2026-09-18（周五）协调秦宇龙（身份未验证）完成新版本验证、取消由其在飞书组织的发布评审并释放会议室，以及处理并向秦宇龙同步《发布方案 V2》飞书文档（删掉最后 10 条备选方案，其他保留）。",
+                "domain": "USER",
+                "memory_kind": "user.overview",
+                "semantic_memory_ref": "lm_memory_fv2rL2NavSYiXUY0d1S5hGjsiX_6YscZ",
+                "subject_id": "2075490654049271808"
+              },
+              {
+                "content": "新版本计划于周五正式发布。围绕该版本发布，飞书文档《发布方案 V2》（包含产品组版本等，曾更名为《发布方案 V2｜正式版》，“上线计划”日期已调整为周五）作为核心方案载体，已整理追加与秦宇龙关于产品问题的讨论、删除了最后 10 条备选方案（保留其他内容），向秦宇龙与用户发送了最新版链接（注明“请看最新”），并向“飞书测试”群分享了访问权限。当前推进形态包括：通过飞书通知协作人员秦宇龙（未验证身份）在通知当天完成新版本验证；用户已确认取消原定由其在飞书组织的发布评审会议并释放会议室；在飞书查找产品组方案文档并确认删除与发送相关内容。",
+                "domain": "PROJECT",
+                "memory_kind": "project.overview",
+                "semantic_memory_ref": "lm_memory_FyqVH5hgIJf3yZhiAOApKrqhKMTr3bDZ",
+                "subject_id": "project-1e201130-d76f-4248-bcdb-53f26fadc34c"
+              },
+              {
+                "content": "在DM软件测试项目中，负责“构建测试平台”工作。",
+                "domain": "PERSON",
+                "memory_kind": "person.responsibility",
+                "semantic_memory_ref": "lm_memory_gWWmkrwM1KbJDc5oVq395MS7cr1e3MNq",
+                "subject_id": "person-388ab361-34a2-4d93-8796-3ce7ddc503d9"
+              },
+              {
+                "content": "电脑端中国版/国内版（包括 Windows 端与 Mac 端，统一命名为“Loona 桌面助理”）上线与提测专项，涉及 test-api 环境流程测试、版本迭代优化（待机亮度管理与恢复逻辑优化、进出设置页眼睛转动效果与等待缩短、待机连续观察中断修复、引导页返回设置、微信绑定冲突与协议提示完善、中国版签名团队及微信回调域名更新等）、设置页面体验优化（涉及素材播放等）、服务器部署切换以及多语言翻译协同，目标是随 deskmate 国内版同步上线。",
+                "domain": "PROJECT",
+                "memory_kind": "project.overview",
+                "semantic_memory_ref": "lm_memory_IjHuKoxRwPEr5sjY-hMwQDIKMa5ntlto",
+                "subject_id": "project-6a6b5d38-309c-4116-a55a-5fd42e202d95"
+              },
+              {
+                "content": "DM软件测试启动会明确的分工职责如下：\\n1. 构建测试平台：由刘雪峰（@liuxuefeng）与刘旭（@liuxu）负责；\\n2. 构建eval set：由熊雅雪（@xiongyaxue）负责；\\n3. 构建rubic：由熊雅雪（@xiongyaxue）负责。",
+                "domain": "PROJECT",
+                "memory_kind": "project.responsibility",
+                "semantic_memory_ref": "lm_memory_J1ubg9eXfwmpbt7Ql4JNjXjfyQTskTZn",
+                "subject_id": "project-8d323416-f003-4361-a01c-cdbed59dceb3"
+              },
+              {
+                "content": "在DM软件测试项目中，负责“构建eval set”与“构建rubic”工作。",
+                "domain": "PERSON",
+                "memory_kind": "person.responsibility",
+                "semantic_memory_ref": "lm_memory_j7sorTWxeEtmOMOIeAxwF4OTWWGoIn0c",
+                "subject_id": "person-5d170275-41c9-44ee-9d49-9d180c19dac4"
+              },
+              {
+                "content": "承诺整理测试用例与测试报告、协调合并分支，并修改 A2UI 模板名称与规则以支持后续测试。",
+                "domain": "PERSON",
+                "memory_kind": "person.commitment",
+                "semantic_memory_ref": "lm_memory_KLppt8VmSfwA2QMKuMuGm50YSgS4iAML",
+                "subject_id": "person-1ff76149-c51a-4e43-b41f-2f58d4b1ea0a"
+              },
+              {
+                "content": "用户对产品的性格表现持积极态度，认为产品“有点脾气”挺好的，可以作为其产品特点。",
+                "domain": "USER",
+                "memory_kind": "user.preference",
+                "semantic_memory_ref": "lm_memory_KO2-cdq1uD3_ZFl4ke9-8UM1PtncjcGj",
+                "subject_id": "2075490654049271808"
+              },
+              {
+                "content": "秦宇龙（未验证身份，unverified）：作为项目协作人员，参与新版本发布验证与产品问题讨论；用户已将其讨论整理追加至《发布方案 V2》飞书文档末尾，向其同步文档最新版链接（正文注明“请看最新”）并在文档中 @ 提醒；用户通过飞书向其发送通知要求新版本周五发布并请在当天（含 2026-09-18、2026-09-20）完成验证。\\n用户（OWNER）：在飞书组织并确认取消了发布评审会议及释放会议室；负责获取产品组《发布方案 V2》文档并进行内容删减（删掉最后 10 条备选方案，其他保留），向秦宇龙及自己同步文档最新版链接（正文注明“请看最新”）及验证要求，并在飞书查找产品组方案文档及确认删除与发送。\\n“飞书测试”群：已获得《发布方案 V2》飞书文档的访问权限。",
+                "domain": "PROJECT",
+                "memory_kind": "project.people_context",
+                "semantic_memory_ref": "lm_memory_kO8XtniMuKehkGqxqTbH6y3ehKxYUxBf",
+                "subject_id": "project-1e201130-d76f-4248-bcdb-53f26fadc34c"
+              },
+              {
+                "content": "主动任务 review 的主要目标与复盘要点包括：\\n1. 测试功能；\\n2. 验证可行性。",
+                "domain": "PROJECT",
+                "memory_kind": "project.goal",
+                "semantic_memory_ref": "lm_memory_KtVIGCrJwu1uy52U19dHbJxcd-Qgp8Qt",
+                "subject_id": "project-846644a5-ced2-4ea7-aad7-82266a5214bf"
+              },
+              {
+                "content": "1. 2026-09-01：安排并进行了 Agent 功能走查（涉及 mental offload）；\n2. 2026-09-09：团队召开“DM软件测试启动会”（kickoff），明确了构建测试平台、构建 eval set 及构建 rubic 等核心启动任务分工；\n3. 2026-09-18：完成了飞书日程工具合并到 event、消息工具合并到 chat、文档工具合并到 docs；针对前期测试暴露的日历任务连续性与取消闭环、忙闲空闲时间卡、日程地点重复、消息发送重复确认与展示等 4 个根问题及 7 个具体表现进行了归因分析与规则调整；\n4. 2026-09-21：在飞书任务相关评测用例执行中完成了多次检索与“发布”相关的飞书任务并查看描述与截止时间、查找标题为“周五前完成发布方案”的飞书任务并确认删除锁定的飞书任务、查询今天和明天未完成的飞书任务，以及完成“EVAL-FT-LC02-发布方案链路”测试任务的全链路验证（创建截止时间为2026年9月25日18点的任务、修改描述为“已交付”、标记为已完成、重新打开、读取任务详情并清理测试数据删除该任务），随后再次查找发布相关飞书任务并查看了第二个待办任务的 due；并在后续飞书任务用例推进中执行了读取任务详情并清理测试数据确认删除飞书任务、查找发布相关飞书任务并查看“发布计划1”的 due、检索标题为“中秋节假期”的飞书任务（先指示不删除后指示删除并确认）、查询今天和明天未完成的飞书任务以及再次查找发布相关飞书任务。",
+                "domain": "PROJECT",
+                "memory_kind": "project.history",
+                "semantic_memory_ref": "lm_memory_kxyq3h2hM8QFmPXeLi58EUeA3TW1XjsP",
+                "subject_id": "project-8d323416-f003-4361-a01c-cdbed59dceb3"
+              },
+              {
+                "content": "Echo「留声」的产品要求包括：\\n1. 遵循轻打扰原则：默认安静承接，仅通过 Toast/角标提示；后台 Extract 默认静默执行，专注结束不自动 TTS 播报，仅在用户明确操作或主动查询时反馈；\\n2. 隐私与数据规范：不长期保存用户原声，仅保存转写文本、上下文与结构化信息；\\n3. 定位限制：不作为无授权监听工具或自动执行器。",
+                "domain": "PROJECT",
+                "memory_kind": "project.requirement",
+                "semantic_memory_ref": "lm_memory_KxyU8cwzrC5cl4tGlL9JIH1dSYNpNuMb",
+                "subject_id": "project-138363b4-000b-47b0-9aab-30019c8add59"
+              },
+              {
+                "content": "用户负责维护 Agent 评测平台测试用例与断言规则、执行自动化及 E2E 测试，并在 Mac mini 上部署和维护产研翻译小助手等基础工具服务；同时因启用新的主体开发者账号，负责在 TestFlight 安装中协助添加测试内部团队成员。",
+                "domain": "USER",
+                "memory_kind": "user.responsibility",
+                "semantic_memory_ref": "lm_memory_LptvCw753cDTZJAbJkutGEKyxyPoXvbS",
+                "subject_id": "2075490654049271808"
+              },
+              {
+                "content": "负责中国版应用授权界面支持审核与主体评估，以及 pre 和 release 版本管理与 mental offload 功能上新进度对齐。",
+                "domain": "PERSON",
+                "memory_kind": "person.responsibility",
+                "semantic_memory_ref": "lm_memory_lsYkyJxW0zpafOAvPBf2elVWYWM_1NJf",
+                "subject_id": "person-2dcba175-334e-4d9c-be34-f17bc1dc9821"
+              },
+              {
+                "content": "截至 2026-09-20，新版本发布项目的最新推进状态如下：\\n1. 团队于 2026-09-17、2026-09-18 及 2026-09-20 多次通知“新版本周五发布，请今天完成验证”，并同步《发布方案 V2》最新文档链接推进相关成员完成验证；\\n2. 2026-09-18：新版本安排周五发布；飞书文档《发布方案 V2》完成产品问题讨论追加并删掉最后 10 条备选方案（其他保留），访问权限已共享至“飞书测试”群；用户确认删除并发送相关内容，并在飞书协助查找产品组方案文档；\\n3. 2026-09-20：用户通过飞书向秦宇龙发送了“新版本周五发布，请今天完成验证”的消息；确认取消在飞书由用户组织的那场发布评审会议并释放会议室；将《发布方案 V2》飞书文档链接发送给秦宇龙和用户自己，正文注明“请看最新”；确认删掉飞书文档《发布方案 V2》最后 10 条备选方案（其他保留），并将最新版链接发送给秦宇龙。",
+                "domain": "PROJECT",
+                "memory_kind": "project.status",
+                "semantic_memory_ref": "lm_memory_M5vQqh7PpWA9HU2M1gr775CcT_WX-g9y",
+                "subject_id": "project-1e201130-d76f-4248-bcdb-53f26fadc34c"
+              },
+              {
+                "content": "DM软件测试最新推进进展如下：\n1. 飞书工具链与用例：飞书新增 task 功能（底层复用 ClickUp 逻辑），秦宇龙已更新飞书 task case，处于目前可测状态；持续推进飞书 Agent 的 E2E 回归测试与 A2UI 出卡排查，排查中确认 UI 错误已修复，工具调用仅调用了 search_docs、未调用 getdoc；飞书提示需重新授权，测试账号当天更新额度后剩余 19%；\n2. 回归测试与邮箱配置：Outlook 邮箱已完成测试联系人添加（秦宇龙已添加 3 个联系人以及赵泽宇真实邮箱 18032098113@163.com）用于支持 bug 回归；2026-09-20 及 2026-09-21 回归测试均确认“今天已经通过”，用户已通过 Outlook 账号向秦宇龙、刘宗林及赵泽宇（2026-09-21 再次向赵泽宇同步）发送了主题为“回归”、正文为“今天已经通过”的邮件；\n3. 评测用例执行历史：\n- 2026-09-20：从网上查找最近 Agent 发展趋势的科技新闻整理成要点并创建飞书文档《EVAL-1548 科技新闻资料》；查询飞书云盘中的文档列表；整理附近好吃的餐厅生成飞书文档并将链接分别发送给秦宇龙、刘雪峰与用户自己（正文注明“请查看餐厅攻略”）；查找高级餐厅创建飞书文档《EVAL-1554 餐厅攻略》并删掉最后两个餐厅后发送给秦宇龙与刘雪峰；在 Notion《吃什么》页面末尾追加“下周五完成发布”；使用 Outlook 创建三个日程（明天下午2点周会、下午4点评审会、晚上8点和刘宗林吃饭）并完成批量删除；查询最近 Zoom 会议；\n- 2026-09-21：从网上查找科技新闻整理成要点并创建标题为《EVAL-1548 科技新闻资料》的飞书文档；查询飞书云盘中包含的文档列表；将整理的餐厅内容生成飞书文档并将链接发送给刘雪峰和用户自己（正文注明“请查看餐厅攻略”），已确认发送；将餐厅内容整理成飞书文档《EVAL-1554 餐厅攻略》并在删掉最后两个餐厅后将最新文档链接发送给刘雪峰（已确认修改与发送）；打开 Notion 的《吃什么》页面并在末尾追加“下周五完成发布”；使用 Outlook 账号向赵泽宇发送主题为“回归”、正文为“今天已经通过”的邮件并确认发送；使用 Outlook 创建三个日程（明天下午2点周会、下午4点评审会、晚上8点和刘宗林吃饭）并查询明天日程安排；执行批量删除 Outlook 里明天的三个日程并已确认删除；查询最近 Zoom 会议；查找发布相关的飞书任务并打开查看了第一条描述和截止时间；查找标题为“周五前完成发布方案”的飞书任务并先锁定后确认删除；查询今天和明天未完成的飞书任务；完整执行“EVAL-FT-LC02-发布方案链路”测试任务的生命周期（创建截止时间为2026年9月25日18点的任务、修改描述为“已交付”、标记已完成、重新打开、读取任务详情及最终清理测试数据删除任务）；再次查找发布相关的飞书任务并查看了第二个待办任务的 due，以及查看“发布计划1”的 due。",
+                "domain": "PROJECT",
+                "memory_kind": "project.status",
+                "semantic_memory_ref": "lm_memory_No3nqnboLxpZN054Rm5aIVphnoK_fDJr",
+                "subject_id": "project-8d323416-f003-4361-a01c-cdbed59dceb3"
+              },
+              {
+                "content": "负责电脑端国内版的排期同步与服务器部署规划（规划2026年9月18日提测、9月23日部署至正式服务器并同步产品走查、9月28日随 deskmate 国内版同步上线），并协同推进设置页面体验优化。",
+                "domain": "PERSON",
+                "memory_kind": "person.responsibility",
+                "semantic_memory_ref": "lm_memory_NoPoAres9ou-Xy1ULNa_fapAZJf2j5no",
+                "subject_id": "person-883085d4-b562-4805-afe3-602397a5d1b9"
+              },
+              {
+                "content": "电脑端国内版关键里程碑节点包括：\\n1. 2026-09-18：电脑端国内版提测；\\n2. 2026-09-23（预计）：部署至正式服务器并同步产品走查；\\n3. 2026-09-28：随 deskmate 国内版同步上线。",
+                "domain": "PROJECT",
+                "memory_kind": "project.milestone",
+                "semantic_memory_ref": "lm_memory_NXTtv55pkicU2TBABg83NfSFFUVzn-mS",
+                "subject_id": "project-6a6b5d38-309c-4116-a55a-5fd42e202d95"
+              },
+              {
+                "content": "截至 2026-09-20，Project 2 下的多项任务均处于 open（native_status: to do）状态：\\n1. 紧急（urgent）任务“【工作】实现任务到期前飞书卡片自动提醒机制”，截止时间（due）为 2026-09-15T07:00:00+00:00；\\n2. 高优先级（high）任务“【会议】Q4 季度技术专项规划会”，截止时间（due）为 2026-09-17T02:00:00+00:00；\\n3. 普通优先级（normal）任务“【工作】准备技术评审汇报材料与 Demo 演示”，截止时间（due）为 2026-09-20T09:30:00+00:00。",
+                "domain": "PROJECT",
+                "memory_kind": "project.status",
+                "semantic_memory_ref": "lm_memory_PRoinWmTnYIx4XaNrQDZyVIGqgejlaf7",
+                "subject_id": "project-291d8297-13f8-4a7e-873b-74a45d6e547b"
+              },
+              {
+                "content": "负责跟进团队周报提交，并关注产研翻译小助手等工具服务的运行状态。",
+                "domain": "PERSON",
+                "memory_kind": "person.responsibility",
+                "semantic_memory_ref": "lm_memory_Ql9NZZhsFV7RUgBjzTV6ulKuAtPcpENn",
+                "subject_id": "person-002d4da8-b970-4250-a7b3-8906fbdabc4a"
+              },
+              {
+                "content": "主动任务专项围绕主动任务展开讨论复盘，核心工作对象与范围包括测试功能与验证可行性。",
+                "domain": "PROJECT",
+                "memory_kind": "project.overview",
+                "semantic_memory_ref": "lm_memory_rjkJO6upfdz_DtLxtW2VRetxYhyk2_gW",
+                "subject_id": "project-846644a5-ced2-4ea7-aad7-82266a5214bf"
+              },
+              {
+                "content": "负责飞书日程（event）、飞书消息（chat）、飞书文档（docs）工具的合并开发与分支管理，整理测试用例与测试反馈归因（涵盖日历任务连续性、空闲时间卡、地点去重及消息发送链路确认），并推进 Echo「留声」的产品方案与规则设计。",
+                "domain": "PERSON",
+                "memory_kind": "person.responsibility",
+                "semantic_memory_ref": "lm_memory_ruTC5_TjZBo6S_YYOGpr3uT0TdtesXPs",
+                "subject_id": "person-1ff76149-c51a-4e43-b41f-2f58d4b1ea0a"
+              },
+              {
+                "content": "项目涉及服务器更换且测试人力有限，遇到风险需及时告警。",
+                "domain": "PROJECT",
+                "memory_kind": "project.risk",
+                "semantic_memory_ref": "lm_memory_TyzmBDOLwMD90kONkXpCB6_S-k0n3c6u",
+                "subject_id": "project-6a6b5d38-309c-4116-a55a-5fd42e202d95"
+              },
+              {
+                "content": "在DM软件测试启动会、测试体系推进与评测执行中：\n- 用户（赵泽宇/OWNER）：负责评测平台运行、生成测试集、断言维护、导出报告与自动化验证；与秦宇龙紧密协作推进测试确认、用例执行与问题排查（排查并确认工具调用中只调用了 search_docs、未调用 getdoc）；执行并确认了科技新闻整理与创建飞书文档《EVAL-1548 科技新闻资料》、查询飞书云盘文档列表及当前文档、整理并发送餐厅飞书文档链接（向秦宇龙、刘雪峰与用户自己发送，正文注明“请查看餐厅攻略”）、创建《EVAL-1554 餐厅攻略》飞书文档并在删掉最后两个餐厅后向秦宇龙与刘雪峰发送最新链接及确认修改与发送；在 Notion《吃什么》页面末尾追加“下周五完成发布”；使用 Outlook 账号向刘宗林及赵泽宇发送回归测试邮件（主题为“回归”，正文为“今天已经通过”）；在 Outlook 中创建明天三个日程（明天下午2点周会、下午4点评审会、晚上8点和刘宗林吃饭）并执行查询与批量删除确认；查询最近 Zoom 会议；多次查找发布相关的飞书任务并查看描述与截止时间、查找标题为“周五前完成发布方案”的飞书任务并指示先不要删除；\n- 赵泽宇：在测试用例中作为回归测试邮件接收人，接收通过 Outlook 发送的主题为“回归”、正文为“今天已经通过”的邮件（含 2026-09-20 与 2026-09-21 同步）；\n- 刘宗林（未验证身份）：在测试用例中作为邮件接收人与日程协作对象，用户通过 Outlook 账号向其发送了主题为“回归”、正文为“今天已经通过”的邮件，并在 Outlook 中创建了“晚上8点和刘宗林吃饭”的日程；\n- 刘雪峰（@liuxuefeng，未验证身份）：与刘旭共同负责构建测试平台，并就测试体系安排及 Agent 测试用例落库规则与用户同步；同时在评测用例中作为协作对象与文档接收方，接收用户发送的餐厅飞书文档链接（正文注明“请查看餐厅攻略”）以及删掉最后两个餐厅后的《EVAL-1554 餐厅攻略》最新飞书文档链接并确认接收；\n- 刘旭（@liuxu）：共同负责构建测试平台；\n- 秦宇龙：负责工具代码修改、case 文档维护（维护 QYL/lark_tools 分支）与交互逻辑梳理，完成了飞书 task 工具新增与 task case 更新，并在 Outlook 邮箱中协助配置测试联系人配合回归测试；同时在评测用例中作为协作对象与文档/邮件接收方（未验证身份，unverified），接收用户发送的餐厅飞书文档链接（正文注明“请查看餐厅攻略”）、删掉最后两个餐厅后的《EVAL-1554 餐厅攻略》最新文档链接，以及用户通过 Outlook 账号发送的主题为“回归”、正文为“今天已经通过”的回归测试邮件通知；\n- 熊雅雪（@xiongyaxue）：负责构建 eval set 与构建 rubic，并负责 mental offload 进度对齐；\n- 周壮：协同提供评测报告与代码合并（维护 zhouzhuang-feishu 分支）。",
+                "domain": "PROJECT",
+                "memory_kind": "project.people_context",
+                "semantic_memory_ref": "lm_memory_u5WXgSMEEc9qUotb8zQedIDcQBzoy66N",
+                "subject_id": "project-8d323416-f003-4361-a01c-cdbed59dceb3"
+              },
+              {
+                "content": "围绕新版本发布与飞书文档《发布方案 V2》确定并执行了以下决策与调整：\\n1. 将“上线计划”中的发布日期修改为周五，此前曾确定更名为《发布方案 V2｜正式版》；\\n2. 将用户与秦宇龙关于产品问题的讨论整理追加至文档末尾；\\n3. 删掉文档最后 10 条备选方案并保留其他内容，将最新版链接发给秦宇龙及用户自己，正文注明“请看最新”；\\n4. 将文档访问权限分享给“飞书测试”群；\\n5. 2026-09-18：确认删除并发送《发布方案 V2》相关内容；\\n6. 2026-09-20：确定新版本周五发布，并通过飞书通知秦宇龙请当天完成验证；决定取消飞书上由用户组织的那场发布评审会议并释放会议室；确认将《发布方案 V2》飞书文档链接发送给秦宇龙和用户自己（正文注明“请看最新”）；用户决定并确认删掉飞书文档《发布方案 V2》最后 10 条备选方案（其他保留），并将最新版链接发送给秦宇龙。",
+                "domain": "PROJECT",
+                "memory_kind": "project.decision",
+                "semantic_memory_ref": "lm_memory_UKgKEGCQ4o79fx7TCIDW4Mud8c5QPadO",
+                "subject_id": "project-1e201130-d76f-4248-bcdb-53f26fadc34c"
+              },
+              {
+                "content": "在电脑端国内版项目中，因启用新的主体开发者账号，用户负责在 TestFlight 安装中协助添加测试内部团队成员。",
+                "domain": "PROJECT",
+                "memory_kind": "project.responsibility",
+                "semantic_memory_ref": "lm_memory_utSGo56M6z2E3P2-V06xhwbekUUdxZvo",
+                "subject_id": "project-6a6b5d38-309c-4116-a55a-5fd42e202d95"
+              },
+              {
+                "content": "DM软件测试规范及评测用例执行要求：\n1. 测试体系与用例管理规范：把测试用例和断言规则（request_body + assertion_rules_json）落进数据库统一管理，测试执行结果按 Trial 留证据，ERROR 不计入通过率、也不静默吞掉；\n2. 评测用例执行与文档处理要求：\n- 回归测试邮件发送：使用 Outlook 账号向赵泽宇发送邮件，主题要求为“回归”，正文要求为“今天已经通过”；\n- 科技新闻整理：从网上查找最近 Agent 发展趋势/科技新闻整理成要点，创建标题为《EVAL-1548 科技新闻资料》的飞书文档；\n- 餐厅文档处理与发送：整理附近餐厅生成飞书文档，向秦宇龙、刘雪峰和用户自己发送文档链接时正文明确要求注明“请查看餐厅攻略”；查找高级餐厅/整理餐厅内容创建《EVAL-1554 餐厅攻略》，要求删掉文档中最后两个餐厅后将最新文档链接发送给秦宇龙与刘雪峰并确认修改与发送；\n- Notion 页面编辑：在 Notion《吃什么》页面末尾追加“下周五完成发布”；\n- 日程创建与查询：使用 Outlook 创建三个日程（明天下午2点周会、下午4点评审会、晚上8点和刘宗林吃饭），并查看/查询明天 Outlook 的日程。",
+                "domain": "PROJECT",
+                "memory_kind": "project.requirement",
+                "semantic_memory_ref": "lm_memory_vdT93vv1owI8Ug2jQ2gS8Or_x1RLzn3I",
+                "subject_id": "project-8d323416-f003-4361-a01c-cdbed59dceb3"
+              },
+              {
+                "content": "DM软件测试项目旨在建立规范的软件及Agent测试体系，聚焦飞书 Agent 工具链（包含日程 event、消息 chat、文档 docs、新增的 task 工具（底层复用 ClickUp 逻辑））、A2UI 交互出卡、mental offload 评测以及自动化测试平台的构建与验证。项目核心工作涵盖构建测试平台、构建 eval set 与 rubic、准备测试集、维护断言规则、日志简单归因与产出 E2E 验证文档；明确要求把测试用例和断言规则（request_body + assertion_rules_json）落进数据库统一管理，执行结果按 Trial 留证据，ERROR 不计入通过率、也不静默吞掉，且评测报告输出需包含一份人类可读的报告和一份 log 的 JSON 文件。当前推进形态涵盖通过飞书文档整理（如科技新闻与餐厅攻略文档处理）、task case 全流程链路验证（包含任务创建、修改描述、完成与重开、详情读取、清理删除及发布任务 due 查询）、Notion 页面编辑、Outlook 邮件发送及 Outlook 日程管理等具体评测指令进行多工具功能验证与用例执行。",
+                "domain": "PROJECT",
+                "memory_kind": "project.overview",
+                "semantic_memory_ref": "lm_memory_vhkESl3TQvZYXS72Qv6TLwmfVy9iTwe2",
+                "subject_id": "project-8d323416-f003-4361-a01c-cdbed59dceb3"
+              },
+              {
+                "content": "Project 2 包含多项处于 open（to do）状态的技术规划与开发工作任务，涵盖：结合 proactive 模块与任务提醒逻辑实现任务到期前飞书卡片自动提醒机制；召开 Q4 季度技术专项规划会评估多模态与大模型本地化推理演进路线；以及准备技术评审汇报材料与 Demo 演示（汇总近期版本交付亮点与质量覆盖率数据）。",
+                "domain": "PROJECT",
+                "memory_kind": "project.overview",
+                "semantic_memory_ref": "lm_memory_vOUJRquTxWS_v7o3koQq94LOVm7Nnpu-",
+                "subject_id": "project-291d8297-13f8-4a7e-873b-74a45d6e547b"
+              },
+              {
+                "content": "新版本发布关键里程碑节点包括：\n1. 2026-09-18：新版本原计划于周五正式发布（《发布方案 V2｜正式版》上线计划节点），并明确要求秦宇龙在当天完成新版本验证；\n2. 2026-09-20：在 Notion 的《测试计划》页面末尾追加并确认了发布里程碑节点，调整为下周五完成发布。",
+                "domain": "PROJECT",
+                "memory_kind": "project.milestone",
+                "semantic_memory_ref": "lm_memory_x2q6rcVeDbL4L5d5Gp3lSQTwga4eppiN",
+                "subject_id": "project-1e201130-d76f-4248-bcdb-53f26fadc34c"
+              },
+              {
+                "content": "新版本发布及方案文档处理要求如下：\\n1. 新版本定于周五发布，明确要求秦宇龙在通知当天（含 2026-09-18 / 2026-09-20）完成新版本验证；\\n2. 飞书文档《发布方案 V2》处理与同步要求：删掉最后 10 条备选方案，其他内容必须保留；将文档链接发送给秦宇龙和用户自己时，正文必须注明“请看最新”。",
+                "domain": "PROJECT",
+                "memory_kind": "project.requirement",
+                "semantic_memory_ref": "lm_memory_xTuqiiIRi-ojeW283Oy84yeW7yJWGSW8",
+                "subject_id": "project-1e201130-d76f-4248-bcdb-53f26fadc34c"
+              },
+              {
+                "content": "2026-09-20 发布 LoonaDM-中国版-Debug 0.9.2 (202609201802)（版本号更新为 0.9.2（202609201800）），更新说明包括：\\n1. 优化待机亮度管理及返回前台后的恢复逻辑；\\n2. 优化进出设置页的眼睛转动效果，缩短进入等待；\\n3. 修复待机连续观察中断处理；\\n4. 支持从交互引导首页返回系统设置；\\n5. 完善微信绑定冲突提示及登录协议未勾选提示；\\n6. 更新中国版签名团队及微信回调域名；\\n7. 中国版应用名称统一为“Loona 桌面助理”，所有语言保持一致（待合入）。",
+                "domain": "PROJECT",
+                "memory_kind": "project.status",
+                "semantic_memory_ref": "lm_memory_YYqQ2CEr6uNwsYYVOpI1ocRcS2gC8iQj",
+                "subject_id": "project-6a6b5d38-309c-4116-a55a-5fd42e202d95"
+              },
+              {
+                "content": "Echo「留声」是 LiveMem 面向用户的轻量前台与记忆候选收件箱。它面向专注和碎片化场景，让用户通过自然语言快速创建、查看、修改和删除记忆候选；内容先在前台轻量承接并进入可编辑、可撤回的记忆候选表，后台定期 Extract 沉淀为 LiveMem 长期记忆，在合适的时间与上下文中重新唤醒。",
+                "domain": "PROJECT",
+                "memory_kind": "project.overview",
+                "semantic_memory_ref": "lm_memory_zdcdqVzkyPgZusdK431IZ_QOGOT5f-Ew",
+                "subject_id": "project-138363b4-000b-47b0-9aab-30019c8add59"
+              },
+              {
+                "content": "DM软件测试评测与体系规范中确定并执行了以下决策：\n1. 2026-09-20 评测体系决策：确定评测报告附带 log，输出格式采用“一个人类可读的报告”加“一个 log 的 JSON”，兼顾排查定位与 AI 读取；确定可以使用 ChatGPT 6pro 生成测试用例，利用其性能高且不占用既有额度的优势；\n2. 2026-09-20 用例执行决策：\n- 确定将 Agent 发展趋势科技新闻整理要点创建为标题叫《EVAL-1548 科技新闻资料》的飞书文档；\n- 确定将餐厅飞书文档链接发送给秦宇龙、刘雪峰以及用户自己，正文附“请查看餐厅攻略”，并确认发送；\n- 确定将餐厅内容整理成标题叫《EVAL-1554 餐厅攻略》的高级餐厅飞书文档，决定删掉文档中最后两个餐厅后将最新文档链接发送给秦宇龙与刘雪峰，并确认修改与发送；\n- 确定在 Notion 的《吃什么》页面末尾追加“下周五完成发布”；\n- 确定使用 Outlook 账号向刘宗林及赵泽宇发送主题为“回归”、正文为“今天已经通过”的邮件，并确认发送；\n- 确定使用 Outlook 创建三个日程（明天下午2点周会、下午4点评审会、晚上8点和刘宗林吃饭），并在查询明天 Outlook 日程后，决定批量删除明天的三个日程并确认删除；\n3. 2026-09-21 用例执行决策：\n- 确定将科技新闻整理要点创建为标题叫《EVAL-1548 科技新闻资料》的飞书文档；\n- 确定将整理的餐厅内容生成飞书文档，并将文档链接发送给刘雪峰与用户自己（正文写“请查看餐厅攻略”），并确认发送；\n- 确定将餐厅内容整理成标题叫《EVAL-1554 餐厅攻略》的飞书文档，决定删掉最后两个餐厅后将最新文档链接发给刘雪峰，并确认修改与发送；\n- 确定在 Notion 的《吃什么》页面末尾追加“下周五完成发布”；\n- 确定使用 Outlook 账号向赵泽宇发送主题为“回归”、正文为“今天已经通过”的邮件，并确认发送；\n- 确定使用 Outlook 创建三个日程（明天下午2点周会、下午4点评审会、晚上8点和刘宗林吃饭）；\n- 确定批量删除 Outlook 里明天的三个日程，并确认删除；\n- 确定查找和发布相关的飞书任务，并打开搜索结果里的第一条查看描述和截止时间；\n- 确定查找标题为“周五前完成发布方案”的飞书任务，指示先不要删除，随后决定删掉该待办并确认删除；\n- 决定先查看今天和明天未完成的飞书任务；\n- 决定创建飞书任务“EVAL-FT-LC02-发布方案链路”，指定截止时间为2026年9月25日18点；\n- 决定把刚才创建的任务描述改成“已交付”；\n- 决定将该任务标记为已完成、重新打开任务、读取该任务详情，并最终清理测试数据删除该条飞书任务；\n- 确定再次查找和发布相关的飞书任务，并查看第二个待办任务的 due；\n- 确定读取任务详情，并决定清理测试数据、确认删除该飞书任务；\n- 确定查找和发布相关的飞书任务，并查看“发布计划1”的 due；\n- 确定查找标题为“中秋节假期”的飞书任务并指示先不要删除，随后决定删掉该待办并确认删除；\n- 决定先查看今天和明天未完成的飞书任务，并确定再次查找和发布相关的飞书任务。",
+                "domain": "PROJECT",
+                "memory_kind": "project.decision",
+                "semantic_memory_ref": "lm_memory_ZGcmwwdPdlLHJKVotQ2rgFOXVTQ7DlMK",
+                "subject_id": "project-8d323416-f003-4361-a01c-cdbed59dceb3"
+              }
+            ],
+            "owner_user_id": "2075490654049271808",
+            "person_ids": [
+              "person-2dcba175-334e-4d9c-be34-f17bc1dc9821",
+              "person-388ab361-34a2-4d93-8796-3ce7ddc503d9",
+              "person-883085d4-b562-4805-afe3-602397a5d1b9",
+              "person-5d170275-41c9-44ee-9d49-9d180c19dac4",
+              "person-80299d48-51da-49d0-92dd-b8cb4f09ff8f",
+              "person-85d6d1a9-d061-4324-86f0-ca8fc86eb838",
+              "person-1ff76149-c51a-4e43-b41f-2f58d4b1ea0a",
+              "person-002d4da8-b970-4250-a7b3-8906fbdabc4a",
+              "person-236d5e48-b646-4ef3-a5dd-ee6f0516ab94"
+            ],
+            "persons": [
+              {
+                "display_name": "程楠",
+                "person_id": "person-002d4da8-b970-4250-a7b3-8906fbdabc4a"
+              },
+              {
+                "display_name": "秦宇龙",
+                "person_id": "person-1ff76149-c51a-4e43-b41f-2f58d4b1ea0a"
+              },
+              {
+                "display_name": "凡向阳",
+                "person_id": "person-236d5e48-b646-4ef3-a5dd-ee6f0516ab94"
+              },
+              {
+                "display_name": "熊雅雪",
+                "person_id": "person-2dcba175-334e-4d9c-be34-f17bc1dc9821"
+              },
+              {
+                "display_name": "",
+                "person_id": "person-388ab361-34a2-4d93-8796-3ce7ddc503d9"
+              },
+              {
+                "display_name": "",
+                "person_id": "person-5d170275-41c9-44ee-9d49-9d180c19dac4"
+              },
+              {
+                "display_name": "邓旭东",
+                "person_id": "person-80299d48-51da-49d0-92dd-b8cb4f09ff8f"
+              },
+              {
+                "display_name": "",
+                "person_id": "person-85d6d1a9-d061-4324-86f0-ca8fc86eb838"
+              },
+              {
+                "display_name": "王文俊",
+                "person_id": "person-883085d4-b562-4805-afe3-602397a5d1b9"
+              }
+            ],
+            "projects": [
+              {
+                "project_id": "project-138363b4-000b-47b0-9aab-30019c8add59",
+                "project_ref": "lm_project_lXSn4hpIanz2uFIhv5ZqmTaaHHBzkquk",
+                "title": "Echo留声"
+              },
+              {
+                "project_id": "project-1e201130-d76f-4248-bcdb-53f26fadc34c",
+                "project_ref": "lm_project_5CyUejjXC5ipkzsuKUA0M7RgoRTSEnqG",
+                "title": "新版本发布"
+              },
+              {
+                "project_id": "project-291d8297-13f8-4a7e-873b-74a45d6e547b",
+                "project_ref": "lm_project_JcYwlZgcm-euhoG4-Znf3XwNJ99rBZqu",
+                "title": "Project 2"
+              },
+              {
+                "project_id": "project-6a6b5d38-309c-4116-a55a-5fd42e202d95",
+                "project_ref": "lm_project_sVCl5-7nhNRdu6fFthKPI1vv07NBeWwj",
+                "title": "电脑端国内版"
+              },
+              {
+                "project_id": "project-846644a5-ced2-4ea7-aad7-82266a5214bf",
+                "project_ref": "lm_project_nLW2uiftBYRQQVZ4aNpgBwf_V4srBo-6",
+                "title": "主动任务"
+              },
+              {
+                "project_id": "project-8d323416-f003-4361-a01c-cdbed59dceb3",
+                "project_ref": "lm_project_mCfK7Cxqg_36tkkfhIZBMEPvWJrZFydS",
+                "title": "DM软件测试"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "timeout_seconds": 180
+    },
+    "task": "生成 daily brief"
+  },
+  "semanticEvaluation": {
+    "contractVersion": "cortex.semantic-evaluation-contract.v1",
+    "goal": "基于冻结输入包生成中文 daily 简报，按六维锚点做 reference-free 质量评判",
+    "successCriteria": [
+      "六维总分≥10，无0分维度，无Hard Fail"
+    ],
+    "enabledDimensions": [
+      "response"
+    ],
+    "brief": {
+      "briefType": "daily",
+      "judge": "LLM",
+      "rubric": {
+        "minTotalScore": 10,
+        "failOnZeroDimension": true,
+        "hardFailRules": [
+          "编造受保护事实：时间、人物、金额、状态、完成或执行结果，且输入包中没有依据",
+          "错误归并事项：把输入中不同 matter_ref 的事项合并表达，而输入没有明确证据表明它们服务于同一用户目标",
+          "声称某个动作已经发生或已执行",
+          "把需要用户最终确认的动作写成仅由系统准备即可完成",
+          "擅自创建任务或声称已创建",
+          "在面向用户的可见文案中暴露内部 ref（如 fact_ref、matter_ref、memory id）",
+          "用“等待”凑可执行步骤"
+        ],
+        "dimensions": [
+          {
+            "id": "priority_and_order",
+            "assertion": "高价值事项的召回与排序是否恰当",
+            "sourceRefs": [
+              "/material/snapshot",
+              "/context/current_time"
+            ]
+          },
+          {
+            "id": "matter_grouping",
+            "assertion": "事项合并且不串味，不同事项不互相污染",
+            "sourceRefs": [
+              "/material/snapshot"
+            ]
+          },
+          {
+            "id": "why_now",
+            "assertion": "每条事项“为什么是现在”的重要性与时间说明有输入事实依据",
+            "sourceRefs": [
+              "/material/snapshot",
+              "/context/current_time"
+            ]
+          },
+          {
+            "id": "step_specificity_and_sequence",
+            "assertion": "下一步建议具体、有事实依据、顺序有用",
+            "sourceRefs": [
+              "/material/snapshot"
+            ]
+          },
+          {
+            "id": "loona_boundary",
+            "assertion": "只描述已授权的准备性工作，不声称已执行",
+            "sourceRefs": [
+              "/material/preparation_capabilities"
+            ]
+          },
+          {
+            "id": "user_language_clarity",
+            "assertion": "使用用户语言（context.lang）的简洁自然表达，无内部术语",
+            "sourceRefs": [
+              "/context/lang"
+            ]
+          }
+        ]
+      },
+      "constraints": {
+        "allowedGenerationStatuses": [
+          "generated"
+        ]
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@ import { useState, type ReactElement } from "react";
 import type { DashboardCase } from "./run-dashboard-model.ts";
 import { Badge } from "../../components/ui/badge.tsx";
 import { EvidenceJson } from "./run-trace-panel.tsx";
-import { RunBriefEvaluation } from "./run-brief-content.tsx";
+import { isBriefSemanticEvaluation } from "./run-output-model.ts";
 
 const JEV_DIMENSION_LABELS: Readonly<Record<string, string>> = {
   "task-outcome": "任务结果",
@@ -245,13 +245,8 @@ export function RunSemanticEvaluation({
   const [open, setOpen] = useState(true);
   const semantic = evaluation.semanticEvaluation;
   if (!semantic) return null;
-  if (semantic.planVersion === "cortex.brief-atomic-plan.v1")
-    return (
-      <>
-        <JevMetrics semantic={semantic} />
-        <RunBriefEvaluation semantic={semantic} />
-      </>
-    );
+  // Brief 裁判结论随输出流展示（结论带 → 输出 → 裁判 → 输入材料），这里只留评测用量。
+  if (isBriefSemanticEvaluation(semantic)) return <JevMetrics semantic={semantic} />;
   const { result } = semantic;
   const checks = result.decisions.map((decision) => ({
     decision,

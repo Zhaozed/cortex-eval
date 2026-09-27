@@ -1,0 +1,13 @@
+{
+  "count": 3,
+  "suite": {
+    "id": "01a0c894-8ce0-74bc-b788-d9cacc9737e3",
+    "name": "飞书-任务 JEV 冒烟评测",
+    "description": "复用飞书任务评测的三个只读 Case，验证 JEV 对路由、工具选择/顺序、时效、A2UI、回复和安全性的语义评估。",
+    "caseCount": 3,
+    "suiteHash": "74d00b5984ba8e09195e0e35151138004632337848c742d8610a866dd7297d1c",
+    "revision": 2,
+    "createdAt": "2026-09-22T10:06:13.728Z",
+    "updatedAt": "2026-09-22T10:16:27.457Z"
+  }
+}

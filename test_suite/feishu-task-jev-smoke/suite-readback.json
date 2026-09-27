@@ -1,0 +1,27 @@
+{
+  "suite": {
+    "id": "01a0c894-8ce0-74bc-b788-d9cacc9737e3",
+    "name": "飞书-任务 JEV 冒烟评测",
+    "description": "复用飞书任务评测的三个只读 Case，验证 JEV 对路由、工具选择/顺序、时效、A2UI、回复和安全性的语义评估。",
+    "caseCount": 3,
+    "suiteHash": "cf06ed28cd018a8c05af088b227819e0145e643b2690315349f8dd4e66d2dda7",
+    "revision": 1,
+    "createdAt": "2026-09-22T10:06:13.728Z",
+    "updatedAt": "2026-09-22T10:06:13.802Z"
+  },
+  "caseCount": 3,
+  "caseIds": [
+    "FT-JEV-S01",
+    "FT-JEV-S02",
+    "FT-JEV-S03"
+  ],
+  "expectedCaseIds": [
+    "FT-JEV-S01",
+    "FT-JEV-S02",
+    "FT-JEV-S03"
+  ],
+  "missing": [],
+  "extra": [],
+  "ok": true,
+  "url": "http://127.0.0.1:4310/test-suites/01a0c894-8ce0-74bc-b788-d9cacc9737e3"
+}

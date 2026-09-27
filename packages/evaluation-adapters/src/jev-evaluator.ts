@@ -20,6 +20,8 @@ export type JevProviderDecision = Omit<
   "applicable" | "evidence" | "evidenceRefs"
 > & {
   readonly evidence?: readonly string[];
+  /** Rubric mode only: hard-fail rules hit by the judged output, identical on every decision. */
+  readonly hardFailReasons?: readonly string[];
 };
 
 export interface JevRequestUsage {

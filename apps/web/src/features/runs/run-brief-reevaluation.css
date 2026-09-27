@@ -1,0 +1,697 @@
+/* Scoped to Brief calibration; does not restyle the existing Case evidence drawer. */
+.brief-calibration-sheet[data-slot="sheet-content"] {
+  inset: 24px 24px 24px auto;
+  width: min(1140px, calc(100vw - 48px));
+  height: auto;
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  gap: 0;
+  border: 1px solid #dce4ea;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  color: #193547;
+}
+.brief-calibration-sheet [data-slot="sheet-header"] {
+  padding: 22px 28px 18px;
+  border-bottom: 1px solid #e7ecf0;
+}
+.brief-calibration-sheet [data-slot="sheet-title"] {
+  font-family: inherit;
+  font-size: 21px;
+  letter-spacing: -0.4px;
+}
+.brief-calibration-sheet [data-slot="sheet-description"] {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.brief-reevaluation-form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  font-size: 13px;
+}
+.brief-reevaluation-form p,
+.brief-reevaluation-form h3 {
+  margin: 0;
+}
+.brief-reevaluation-form svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.brief-reevaluation-form label {
+  display: grid;
+  gap: 8px;
+  font-weight: 500;
+}
+.brief-reevaluation-form input:not([type="radio"]):not([type="checkbox"]),
+.brief-reevaluation-form select,
+.brief-reevaluation-form textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d7e0e7;
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #193547;
+  font: inherit;
+  line-height: 1.6;
+}
+.brief-reevaluation-form textarea {
+  resize: vertical;
+}
+.brief-reevaluation-form :is(input, select, textarea):focus-visible {
+  outline: 2px solid #2d818d;
+  outline-offset: 2px;
+}
+.brief-reevaluation-form input:is([type="radio"], [type="checkbox"]) {
+  width: 15px;
+  height: 15px;
+  min-height: 0;
+  margin: 0;
+  accent-color: #237781;
+  flex-shrink: 0;
+}
+.brief-reevaluation-form fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.brief-reevaluation-form :disabled {
+  cursor: not-allowed;
+}
+.brief-evidence-lock {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: #f1f8f7;
+  border-bottom: 1px solid #dcece8;
+  padding: 16px 28px;
+}
+.brief-lock-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #cbe1dc;
+  border-radius: 10px;
+  color: #237781;
+  background: #fff;
+  flex-shrink: 0;
+}
+.brief-evidence-lock strong {
+  font-size: 13px;
+}
+.brief-evidence-lock strong span {
+  font-weight: 400;
+  color: #53786f;
+  margin-left: 10px;
+}
+.brief-evidence-lock p {
+  color: #657b7a;
+  font-size: 12px;
+  margin-top: 5px;
+}
+.brief-lock-check {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #34776b;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.brief-calibration-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.brief-version-panel {
+  padding: 24px;
+  background: #f8fafc;
+  border-right: 1px solid #e7ecf0;
+  overflow-y: auto;
+}
+.brief-panel-eyebrow {
+  color: #758596;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+}
+.brief-version-panel > label {
+  margin-bottom: 20px;
+}
+.brief-version-panel input,
+.brief-version-panel select {
+  font-size: 12px !important;
+}
+.brief-model-meta {
+  padding: 12px;
+  border: 1px solid #e2e9ee;
+  border-radius: 8px;
+  background: #fff;
+}
+.brief-model-meta > span {
+  display: block;
+  color: #738695;
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+.brief-model-meta > strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.brief-model-meta p {
+  font-size: 11px;
+  color: #7a8b97;
+  line-height: 1.7;
+  margin-top: 7px;
+}
+.brief-version-flow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #657c8b;
+  margin: 28px 0 16px;
+}
+.brief-version-flow span:last-child {
+  background: #e6f1ef;
+  color: #266e68;
+  padding: 5px 8px;
+  border-radius: 5px;
+}
+.brief-version-facts {
+  margin: 0;
+  display: grid;
+  gap: 11px;
+}
+.brief-version-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+.brief-version-facts dt {
+  color: #7c8b98;
+}
+.brief-version-facts dd {
+  margin: 0;
+}
+.brief-calibration-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  border-top: 1px solid #e1e8ed;
+  padding-top: 18px;
+  margin-top: 24px !important;
+  color: #7a8b96;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.brief-calibration-tip svg {
+  margin-top: 2px;
+  width: 14px;
+}
+.brief-scoring-panel {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.brief-editor-tabs {
+  display: flex;
+  gap: 24px;
+  padding: 0 24px;
+  border-bottom: 1px solid #e7ecf0;
+  flex-shrink: 0;
+}
+.brief-editor-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 0 15px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: #7c8a96;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.brief-editor-tabs button[aria-selected="true"] {
+  color: #1f717b;
+  border-bottom-color: #2c7b85;
+}
+.brief-editor-tabs button:focus-visible {
+  outline: 2px solid #2d818d;
+  outline-offset: -2px;
+}
+.brief-editor-tabs button > span {
+  background: #edf3f5;
+  padding: 2px 6px;
+  font-size: 10px;
+  border-radius: 4px;
+}
+.brief-editor-body {
+  padding: 22px 24px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+.brief-reevaluation-form .brief-rubric-scope {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.brief-rubric-scope legend {
+  font-size: 12px;
+  color: #647b8b;
+  margin-bottom: 10px;
+}
+.brief-rubric-scope label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #dde5eb;
+  border-radius: 9px;
+  padding: 12px;
+  cursor: pointer;
+}
+.brief-rubric-scope label[data-selected="true"] {
+  background: #f0f8f6;
+  border-color: #7aada5;
+}
+.brief-rubric-scope strong {
+  display: block;
+  font-size: 12px;
+}
+.brief-rubric-scope small {
+  display: block;
+  color: #7d8f98;
+  font-size: 10px;
+  margin-top: 4px;
+}
+.brief-retained-note {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  color: #7b8c98;
+  font-size: 11px;
+  line-height: 1.7;
+  margin-bottom: 18px;
+}
+.brief-rubric-policy {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  background: #f7f9fc;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 24px;
+}
+.brief-reevaluation-form .brief-threshold {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.brief-threshold > span {
+  white-space: nowrap;
+  color: #728696;
+}
+.brief-reevaluation-form .brief-threshold input {
+  width: 56px !important;
+  padding: 4px 6px !important;
+  text-align: center;
+  font-weight: 700;
+}
+.brief-reevaluation-form .brief-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 400;
+}
+.brief-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.brief-section-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.brief-section-heading h3 > span {
+  color: #7b909e;
+  font-weight: 400;
+}
+.brief-section-heading p {
+  color: #82919e;
+  font-size: 11px;
+  margin-top: 5px;
+  line-height: 1.7;
+}
+.brief-dimensions {
+  display: grid;
+  gap: 12px;
+}
+.brief-dimension {
+  padding: 14px;
+  border: 1px solid #dfe6ec;
+  border-radius: 10px;
+  background: #fff;
+}
+.brief-dimension-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.brief-dimension-number {
+  font-size: 11px;
+  color: #8497a6;
+  font-variant-numeric: tabular-nums;
+}
+.brief-reevaluation-form input.brief-dimension-id {
+  padding: 3px 6px;
+  border-color: transparent;
+  font-weight: 650;
+  flex: 1;
+}
+.brief-reevaluation-form input.brief-dimension-id:not(:disabled):hover {
+  border-color: #d7e0e7;
+}
+.brief-dimension-top button {
+  width: 28px;
+  height: 28px;
+  color: #85939e;
+}
+.brief-score-badge {
+  font-size: 10px;
+  color: #778c9a;
+  background: #f1f5f8;
+  padding: 4px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.brief-dimension > textarea {
+  background: #fbfcfd;
+  font-size: 12px;
+}
+.brief-source-refs {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #7c8e9b;
+}
+.brief-source-refs summary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  list-style: none;
+}
+.brief-source-refs summary svg {
+  width: 12px;
+  height: 12px;
+}
+.brief-source-refs summary > span {
+  margin-left: auto;
+}
+.brief-source-refs[open] > label {
+  margin-top: 12px;
+  font-size: 11px;
+}
+.brief-source-refs p {
+  margin-top: 8px;
+  font-size: 10px;
+}
+.brief-hard-fails {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid #e5ebf0;
+}
+.brief-hard-fails h3 svg {
+  color: #b38455;
+}
+.brief-hard-fail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.brief-hard-fail > span {
+  color: #9c8874;
+  font-size: 11px;
+}
+.brief-hard-fail textarea {
+  font-size: 12px;
+  background: #fffcf8;
+  border-color: #eae3d9;
+}
+.brief-hard-fail button {
+  width: 28px;
+  height: 28px;
+  color: #85939e;
+}
+.brief-json-preview {
+  margin-top: 24px;
+  font-size: 11px;
+  color: #8393a0;
+}
+.brief-json-preview summary {
+  cursor: pointer;
+}
+.brief-json-preview pre {
+  padding: 12px;
+  background: #f7f9fb;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 240px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.brief-prompt-editor > textarea {
+  min-height: 240px;
+  line-height: 1.9;
+  font-size: 13px;
+}
+.brief-prompt-editor > label {
+  margin-top: 22px;
+}
+.brief-optional {
+  color: #8396a4;
+  font-size: 11px;
+  font-weight: 400;
+}
+.brief-protocol-note {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px !important;
+  color: #7c8f9b;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.brief-checklist-empty {
+  text-align: center;
+  padding: 50px 15px;
+  color: #7a8e9d;
+}
+.brief-checklist-empty > svg {
+  margin: 0 auto 15px;
+  width: 28px;
+  height: 28px;
+}
+.brief-checklist-empty h3 {
+  color: #314c5e;
+  margin-bottom: 10px;
+}
+.brief-checklist-empty button {
+  margin-top: 20px;
+}
+.brief-calibration-footer {
+  flex-shrink: 0;
+  border-top: 1px solid #e1e8ed;
+  background: #fff;
+  padding: 16px 24px;
+  box-shadow: 0 -4px 16px #18344405;
+}
+.brief-calibration-footer > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.brief-calibration-footer p strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+}
+.brief-calibration-footer p span {
+  display: block;
+  font-size: 11px;
+  color: #8093a0;
+  margin-top: 4px;
+}
+.brief-reevaluation-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.brief-reevaluation-actions button:last-child {
+  background: #216d77;
+}
+.brief-reevaluation-actions button:last-child:hover {
+  background: #195962;
+}
+.brief-reevaluation-form .brief-form-error {
+  color: #a83431;
+  background: #fff2f1;
+  border-radius: 6px;
+  padding: 9px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+.brief-calibration-entry {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 22px 24px;
+  border: 1px solid #d0e4df;
+  border-radius: 12px;
+  background: linear-gradient(110deg, #f0f8f5, #fff 75%);
+  margin: 18px 0;
+}
+.brief-calibration-entry h2 {
+  font-size: 16px;
+  margin: 0 0 6px;
+  color: #204f51;
+  font-weight: 650;
+}
+.brief-calibration-entry p {
+  font-size: 12px;
+  margin: 0;
+  color: #738b89;
+}
+.brief-calibration-entry > button {
+  margin-left: auto;
+  background: #216d77;
+  color: white;
+}
+.brief-entry-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.brief-entry-tags span {
+  font-size: 10px;
+  border: 1px solid #dae7e3;
+  border-radius: 4px;
+  background: white;
+  color: #5b827b;
+  padding: 3px 8px;
+}
+@media (max-width: 800px) {
+  .brief-calibration-sheet[data-slot="sheet-content"] {
+    inset: 8px;
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: 12px;
+  }
+  .brief-calibration-sheet [data-slot="sheet-header"] {
+    padding: 18px 20px 14px;
+    padding-right: 52px;
+  }
+  .brief-evidence-lock {
+    padding: 14px 20px;
+  }
+  .brief-lock-check {
+    display: none;
+  }
+  .brief-calibration-layout {
+    display: block;
+    overflow-y: auto;
+  }
+  .brief-version-panel {
+    padding: 18px 20px;
+    border-right: 0;
+    border-bottom: 1px solid #e7ecf0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .brief-panel-eyebrow,
+  .brief-version-flow,
+  .brief-version-facts,
+  .brief-calibration-tip {
+    display: none;
+  }
+  .brief-version-panel > label {
+    margin: 0;
+  }
+  .brief-model-meta {
+    grid-column: 1 / -1;
+  }
+  .brief-model-meta p {
+    display: none;
+  }
+  .brief-editor-body {
+    overflow: visible;
+    padding: 18px 20px;
+  }
+  .brief-editor-tabs {
+    padding: 0 20px;
+  }
+  .brief-calibration-footer {
+    padding: 12px 20px;
+  }
+  .brief-calibration-footer > div {
+    flex-wrap: wrap;
+  }
+  .brief-calibration-footer p strong {
+    display: none;
+  }
+  .brief-reevaluation-actions {
+    margin-left: auto;
+  }
+}
+@media (max-width: 480px) {
+  .brief-evidence-lock strong span {
+    display: block;
+    margin: 3px 0 0;
+    font-size: 11px;
+  }
+  .brief-version-panel {
+    grid-template-columns: 1fr;
+  }
+  .brief-rubric-policy {
+    flex-wrap: wrap;
+  }
+  .brief-reevaluation-form .brief-rubric-scope {
+    grid-template-columns: 1fr;
+  }
+  .brief-calibration-footer p span {
+    font-size: 10px;
+  }
+  .brief-calibration-entry {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .brief-calibration-entry > button {
+    margin-left: 0;
+  }
+}

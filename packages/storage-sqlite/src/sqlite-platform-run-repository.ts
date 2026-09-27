@@ -1,3 +1,6 @@
+import { sameBriefGenerationCase } from "@cortex-eval/domain/src/domain-brief-calibration.ts";
+import { caseDefinitionJson } from "@cortex-eval/domain/src/domain-case-projection.ts";
+import { hashCaseDefinition } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 import { isDeepStrictEqual } from "node:util";
 import type {
   ClaimRunStageResult,
@@ -97,34 +100,51 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
       value.restErrorCount !== 0 ||
       (value.rerunMode === "FORCE" &&
         reusedRestResults.length !== 0 &&
-        (value.suite.cases.length !== 1 || reusedRestResults.length !== 1))
+        value.suite.cases.length !== reusedRestResults.length)
     ) {
       throw new SqliteRowInvalidError();
     }
     const source = await this.getPlatformRun(sourceRunId);
-    // FORCE may select one frozen Case. Seeded REST on that one Case means
-    // re-evaluate saved evidence; evaluation reuse remains disabled for FORCE.
+    // FORCE with all selected REST facts seeded is evaluation-only; never reuse scores.
+    const reevaluation = value.rerunMode === "FORCE" && reusedRestResults.length > 0;
+    const calibration =
+      reevaluation &&
+      value.suite.cases.every((target) => {
+        const original = source?.suite.cases.find((item) => item.caseKey === target.caseKey);
+        return (
+          original !== undefined && sameBriefGenerationCase(original.definition, target.definition)
+        );
+      });
     const singleCase = value.rerunMode === "FORCE" && value.suite.cases.length === 1;
     if (
       source === null ||
       !isDeepStrictEqual(source.endpoint, value.endpoint) ||
-      !isDeepStrictEqual(source.evaluator, value.evaluator) ||
+      (!calibration && !isDeepStrictEqual(source.evaluator, value.evaluator)) ||
       !isDeepStrictEqual(source.rubricPrompts, value.rubricPrompts) ||
       !isDeepStrictEqual(source.runExecutionLimits, value.runExecutionLimits) ||
       source.runMode !== value.runMode ||
       source.suite.id !== value.suite.id ||
       (!singleCase &&
+        !reevaluation &&
         (source.runContextHash !== value.runContextHash ||
           source.suite.cases.length !== value.suite.cases.length)) ||
       value.suite.cases.some((target, index) => {
-        const original = singleCase
-          ? source.suite.cases.find((item) => item.caseKey === target.caseKey)
-          : source.suite.cases[index];
+        const original =
+          singleCase || reevaluation
+            ? source.suite.cases.find((item) => item.caseKey === target.caseKey)
+            : source.suite.cases[index];
         return (
           target.ordinal !== index ||
           original?.caseKey !== target.caseKey ||
-          original.definitionHash !== target.definitionHash ||
-          !isDeepStrictEqual(original.definition, target.definition)
+          (calibration
+            ? !sameBriefGenerationCase(original.definition, target.definition) ||
+              hashCaseDefinition({
+                contractVersion: "cortex.case-definition.v1",
+                caseKey: target.caseKey,
+                definition: caseDefinitionJson(target.definition)
+              }) !== target.definitionHash
+            : original.definitionHash !== target.definitionHash ||
+              !isDeepStrictEqual(original.definition, target.definition))
         );
       })
     )
@@ -137,12 +157,18 @@ export class SqlitePlatformRunRepository implements PlatformRunRepository {
         result.status !== "SUCCEEDED" ||
         provenance?.sourceKind !== "RUN" ||
         provenance.sourceId !== sourceRunId ||
-        provenance.sourceResultHash !== result.resultHash ||
-        sourceResult?.status !== "SUCCEEDED" ||
+        provenance.sourceResultHash !== sourceResult?.resultHash ||
+        sourceResult.status !== "SUCCEEDED" ||
         value.suite.cases[result.ordinal]?.caseKey !== result.caseKey ||
         !platformRestResultHashMatches(result) ||
-        sourceResult.caseDefinitionHash !== result.caseDefinitionHash ||
-        sourceResult.resultHash !== result.resultHash
+        result.caseDefinitionHash !== value.suite.cases[result.ordinal]?.definitionHash ||
+        !isDeepStrictEqual(result.definition, value.suite.cases[result.ordinal]?.definition) ||
+        !isDeepStrictEqual(sourceResult.providerOutput, result.providerOutput) ||
+        sourceResult.httpStatus !== result.httpStatus ||
+        sourceResult.durationMs !== result.durationMs ||
+        (!calibration &&
+          (sourceResult.caseDefinitionHash !== result.caseDefinitionHash ||
+            sourceResult.resultHash !== result.resultHash))
       ) {
         throw new SqliteRowInvalidError();
       }

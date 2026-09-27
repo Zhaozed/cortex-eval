@@ -48,7 +48,7 @@ export function RunTokenSummary({
       </div>
       {jev.expected > 0 && (
         <div className="run-usage-part">
-          <span>JEV {jevKnown && !jev.complete ? "（已知部分）" : ""}</span>
+          <span>语义裁判 {jevKnown && !jev.complete ? "（已知部分）" : ""}</span>
           <strong>{format(jev.total, jevKnown)}</strong>
         </div>
       )}
@@ -85,7 +85,7 @@ export function RunTokenSummary({
               </tr>
               {jev.expected > 0 && (
                 <tr>
-                  <td>JEV{!jev.complete ? "（未完整采集）" : ""}</td>
+                  <td>语义裁判{!jev.complete ? "（未完整采集）" : ""}</td>
                   <td>{format(jev.input, ready && jev.inputKnown)}</td>
                   <td>{format(jev.output, ready && jev.outputKnown)}</td>
                   <td>{format(jev.total, jevKnown)}</td>

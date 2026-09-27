@@ -1,6 +1,11 @@
+import type {
+  BriefReevaluationOptions,
+  PrepareBriefReevaluation
+} from "./brief-reevaluation-port.ts";
+import type { FrozenRunCase } from "./run-rest-models.ts";
 import { validateRunMetadata } from "@cortex-eval/domain/src/domain-run-metadata.ts";
 import { hashSuite, hashRubricPromptSet } from "@cortex-eval/domain/src/domain-resource-hashes.ts";
-import { hashRunContext } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
+import { hashRestResult, hashRunContext } from "@cortex-eval/domain/src/domain-hash-inputs.ts";
 import type { Clock, IdGenerator } from "../../application-ports.ts";
 
 import { readArtifactBackedEvaluationResults } from "../evaluation/platform-evaluation-reuse-reader.ts";
@@ -20,6 +25,7 @@ export interface CreatePlatformRerunInput {
   readonly mode: "RETRY_FAILED" | "FORCE";
   readonly caseKey?: string | undefined;
   readonly reevaluateOnly?: boolean | undefined;
+  readonly reevaluation?: BriefReevaluationOptions | undefined;
 }
 
 /** Closed internal rerun creation result. */
@@ -34,6 +40,7 @@ export type CreatePlatformRerunResult =
 
 /** Explicit dependencies for side-effectful rerun creation. */
 export interface PlatformRerunServiceDependencies {
+  readonly prepareBriefReevaluation?: PrepareBriefReevaluation;
   /** Run read and atomic target insert boundary. */
   readonly runTransactionManager: PlatformRunTransactionManager;
   /** Source Evaluation read boundary. */
@@ -58,11 +65,27 @@ function reusedRestResult(
   targetRunId: string,
   sourceRunId: string,
   source: StoredRestCaseResult,
-  completedAt: string
+  completedAt: string,
+  frozen: FrozenRunCase
 ): StoredRestCaseResult {
   if (source.status !== "SUCCEEDED") throw new Error("RERUN_REST_REUSE_INVALID");
   return {
     ...source,
+    definition: frozen.definition,
+    caseDefinitionHash: frozen.definitionHash,
+    resultHash:
+      frozen.definitionHash === source.caseDefinitionHash
+        ? source.resultHash
+        : hashRestResult({
+            contractVersion: "cortex.rest-result.v1",
+            caseKey: source.caseKey,
+            caseDefinitionHash: frozen.definitionHash,
+            result: {
+              status: "SUCCEEDED",
+              httpStatus: source.httpStatus,
+              providerOutput: source.providerOutput
+            }
+          }),
     runId: targetRunId,
     completedAt,
     provenance: {
@@ -85,6 +108,7 @@ export class PlatformRerunService {
   readonly #ids: IdGenerator;
   /** Timestamp source. */
   readonly #clock: Clock;
+  readonly #prepareBriefReevaluation: PrepareBriefReevaluation | undefined;
 
   /** Bind all internal rerun dependencies. */
   public constructor(dependencies: PlatformRerunServiceDependencies) {
@@ -93,10 +117,16 @@ export class PlatformRerunService {
     this.#artifacts = dependencies.artifactStore;
     this.#ids = dependencies.idGenerator;
     this.#clock = dependencies.clock;
+    this.#prepareBriefReevaluation = dependencies.prepareBriefReevaluation;
   }
 
   /** Create one READY/REST Retry or Force target without mutating the source. */
   public async create(input: CreatePlatformRerunInput): Promise<CreatePlatformRerunResult> {
+    if (
+      (input.reevaluation && !input.reevaluateOnly) ||
+      ((input.caseKey !== undefined || input.reevaluateOnly) && input.mode !== "FORCE")
+    )
+      return { ok: false, error: { code: "VALIDATION_FAILED" } };
     const metadata = validateRunMetadata({
       name: input.name,
       description: input.description
@@ -151,8 +181,55 @@ export class PlatformRerunService {
         run: { ...source.run, suite, runContextHash },
         restResults: [{ ...stored, ordinal: 0 }]
       };
-    } else if (input.reevaluateOnly)
+    }
+    if (input.reevaluateOnly && source.restResults.some((item) => item.status !== "SUCCEEDED"))
       return { ok: false, error: { code: "RERUN_SOURCE_INCOMPLETE" } };
+    if (input.reevaluation) {
+      const cases = this.#prepareBriefReevaluation?.(source.run.suite.cases, input.reevaluation);
+      if (!cases) return { ok: false, error: { code: "VALIDATION_FAILED" } };
+      let evaluator = source.run.evaluator;
+      const evaluatorConfigId = input.reevaluation.evaluatorConfigId;
+      if (evaluatorConfigId) {
+        const config = await this.#runTransactions.execute((tx) =>
+          tx.resources.getConfiguration("LLM", evaluatorConfigId)
+        );
+        if (config?.kind !== "LLM") return { ok: false, error: { code: "VALIDATION_FAILED" } };
+        evaluator = {
+          sourceId: config.id,
+          name: config.name,
+          configHash: config.semanticHash,
+          definition: config.definition
+        };
+      }
+      const suite = {
+        ...source.run.suite,
+        cases,
+        suiteHash: hashSuite({ contractVersion: "cortex.suite.v1", cases })
+      };
+      source = {
+        ...source,
+        run: {
+          ...source.run,
+          suite,
+          evaluator,
+          runContextHash: hashRunContext({
+            contractVersion: "cortex.run-context.v1",
+            suiteHash: suite.suiteHash,
+            endpointConfigHash: source.run.endpoint.configHash,
+            evaluatorConfigHash: evaluator.configHash,
+            rubricPromptSetHash: hashRubricPromptSet({
+              contractVersion: "cortex.rubric-prompt-set.v1",
+              prompts: source.run.rubricPrompts.map((p) => ({
+                promptKey: p.definition.promptKey,
+                promptHash: p.promptHash
+              }))
+            }),
+            promptfooVersion: source.run.promptfooVersion,
+            runExecutionLimits: source.run.runExecutionLimits
+          })
+        }
+      };
+    }
     const evaluations =
       input.mode === "RETRY_FAILED"
         ? await readArtifactBackedEvaluationResults({
@@ -183,7 +260,12 @@ export class PlatformRerunService {
           action: "REUSE_REST_REEVALUATE" as const,
           restReuse: { sourceRunId: source.run.id, sourceResultHash: item.rest.resultHash }
         })),
-        counts: { reuseRest: 1, executeRest: 0, reuseEval: 0, executeEval: 1 }
+        counts: {
+          reuseRest: sourceCases.length,
+          executeRest: 0,
+          reuseEval: 0,
+          executeEval: sourceCases.length
+        }
       };
     const createdAt = this.#clock.now();
     const runId = this.#ids.nextId();
@@ -191,7 +273,9 @@ export class PlatformRerunService {
       if (!item.action.startsWith("REUSE_REST")) return [];
       const rest = source.restResults[item.ordinal];
       if (rest?.caseKey !== item.caseKey) throw new Error("RERUN_REST_ALIGNMENT");
-      return [reusedRestResult(runId, source.run.id, rest, createdAt)];
+      const frozen = source.run.suite.cases[item.ordinal];
+      if (!frozen) throw new Error("RERUN_REST_ALIGNMENT");
+      return [reusedRestResult(runId, source.run.id, rest, createdAt, frozen)];
     });
     const run: PlatformRun = {
       ...source.run,

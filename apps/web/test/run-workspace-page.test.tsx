@@ -67,7 +67,7 @@ for (const status of ["PRESENT", "MISSING", "CORRUPTED"] as const) {
     expect(screen.queryByRole("navigation", { name: "运行视图" })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Token 汇总" })).toHaveTextContent("Agent未采集");
     expect(screen.getByText("Agent 分支 / 版本")).toBeVisible();
-    expect(within(config).getByText("评测模型")).toBeVisible();
+    expect(within(config).getByText("断言评测模型（配置）")).toBeVisible();
     expect(reports).toHaveBeenCalledTimes(status === "PRESENT" ? 1 : 0);
     if (status === "PRESENT") {
       await userEvent.click(screen.getByRole("button", { name: /未通过\s*0/ }));

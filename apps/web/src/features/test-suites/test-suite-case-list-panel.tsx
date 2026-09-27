@@ -1,6 +1,6 @@
 import type { CaseSummaryV1Schema } from "@cortex-eval/contracts/src/resource-api-contracts.ts";
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
-import { Copy, Edit3, Filter, Trash2, X } from "lucide-react";
+import { Copy, Edit3, Eye, Filter, Trash2, X } from "lucide-react";
 import { useMemo, type ReactElement } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
@@ -61,6 +61,8 @@ export interface TestSuiteCaseListPanelProps {
   readonly mutationDisabled: boolean;
   /** Commit one new filter or cursor state to the owner. */
   readonly onListStateChange: (state: CaseListUrlState) => void;
+  /** Open one current Case for read-only inspection. */
+  readonly onView: (resource: CaseSummary) => void;
   /** Open one current Case for editing. */
   readonly onEdit: (resource: CaseSummary) => void;
   /** Open one current Case copy Draft. */
@@ -99,6 +101,7 @@ export function TestSuiteCaseListPanel({
   nextCursor,
   mutationDisabled,
   onListStateChange,
+  onView,
   onEdit,
   onCopy,
   onDelete
@@ -106,7 +109,21 @@ export function TestSuiteCaseListPanel({
   const filters = useForm<CaseFilterForm>({ defaultValues: filterValues(listState) });
   const columns = useMemo<ColumnDef<CaseSummary>[]>(
     () => [
-      { accessorKey: "caseKey", header: message("caseList.caseId") },
+      {
+        accessorKey: "caseKey",
+        header: message("caseList.caseId"),
+        cell: ({ row }): ReactElement => (
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto p-0 text-left"
+            aria-label={`查看 Case ${row.original.caseKey}`}
+            onClick={() => onView(row.original)}
+          >
+            {row.original.caseKey}
+          </Button>
+        )
+      },
       {
         // Domain is read off the Case ID prefix; legacy IDs simply show a dash.
         id: "domain",
@@ -188,6 +205,16 @@ export function TestSuiteCaseListPanel({
               type="button"
               size="sm"
               variant="outline"
+              aria-label={`查看详情 ${row.original.caseKey}`}
+              onClick={() => onView(row.original)}
+            >
+              <Eye aria-hidden="true" />
+              查看详情
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
               disabled={mutationDisabled}
               aria-label={formatMessage("caseList.edit", { caseKey: row.original.caseKey })}
               onClick={() => onEdit(row.original)}
@@ -218,7 +245,7 @@ export function TestSuiteCaseListPanel({
         )
       }
     ],
-    [mutationDisabled, onCopy, onDelete, onEdit]
+    [mutationDisabled, onCopy, onDelete, onEdit, onView]
   );
   const table = useReactTable({
     data: items,

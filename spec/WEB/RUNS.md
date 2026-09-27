@@ -105,7 +105,7 @@ REST 展示总数、完成、成功和错误；逐 Case 表只显示真实结果
 ## 单 Case 重跑、仅重评与对比
 
 - 重跑单 Case：冻结原始 Case 与原 Run 配置创建独立 READY Run，ordinal 从 0 开始；原测试集、原执行与原评测不变。无自动业务数据初始化/清理能力，确认区明确说明副作用，创建后仍需用户开始执行。
-- 仅重新评测：只接受保存完整且 REST 成功的源 Case，预置带来源 Hash 的旧 REST，执行阶段不再请求 Agent；评测采用新记录，仍可能调用配置的 Judge。沿用 `FORCE` 强制重新评测语义，持久层仅允许精确匹配的一条冻结 Case 预置 REST，不允许整批 FORCE 偷偷复用。评测复用仍只允许 RETRY_FAILED。
+- 仅重新评测：只接受保存完整且 REST 成功的源 Case，预置带来源 Hash 的旧 REST，执行阶段不再请求 Agent；评测采用新记录，仍可能调用配置的 Judge。沿用 `FORCE` 强制重新评测语义，支持单 Case 或整批预置 REST；持久层要求全部选中 Case 均有来源一致的成功 REST，拒绝部分预置。Brief 校准仅允许修改裁判字段，输入及输出必须与来源精确一致。评测复用仍只允许 RETRY_FAILED。
 - 对比基准运行与当前运行，按 caseKey + definitionHash 对齐，内容变化/新增/缺失分开，不纳入同条件结论变化；记录不完整时不进行对比。配置差异折叠，列表展示自动结论、执行耗时、Agent/Judge 用量变化；人工结果不混入自动对比。部分用量仍明确标识为已记录值。
 
 相关验证：[用量与映射](../../apps/web/test/run-evidence-model.test.ts)、[审核存储](../../apps/local-server/test/run-review-store.test.ts)、[审核路由](../../apps/local-server/test/run-review-routes.test.ts)、[重跑服务](../../packages/application/test/platform-rerun-planner.test.ts)、[真实 SQLite 边界](../../packages/storage-sqlite/test/sqlite-platform-case-rerun.test.ts)。
@@ -188,3 +188,11 @@ REST 展示总数、完成、成功和错误；逐 Case 表只显示真实结果
 ## Brief 内容评测
 
 Brief 复用现有 Case、Endpoint 与运行快照，不新增独立执行系统。原子标注、最终内容展示及裁判异常语义见 [Brief 内容评测](../PACKAGES/BRIEF_EVALUATION.md)。
+
+
+## Brief 固定样本裁判校准
+
+- Daily Brief / Pre-meeting Brief 详情中的「仅重新评测」可编辑版本名称、Judge 模型、评分主指令、补充指令与可视化 Rubric（评分维度、阈值、一票否决规则、材料引用；JSON 只读）。页面「固定样本 · 裁判校准」入口打开独立配置抽屉，支持全批次；默认保留每个 Case 的 Rubric，选择「统一编辑 Rubric」后才统一覆盖。整批模型、主指令和补充指令统一应用。
+- 新建独立 READY Run，不调用生成接口、不改源 run 或评测集；手动开始后才调用 Judge。缺输出或生成请求失败的样本不能仅重评，必须先生成并保存输出。
+- 新配置快照与实际评测绑定。评分主指令可编辑，但 JSON 输出协议、证据验证和不可信材料防护固定。
+- 对比页直接核对冻结请求与完整输出，一致时标记「输入与输出一致 · 裁判对比」，允许 Case Hash 因评分规则改变而不同。展示原始分项、总分、阻断项与两版规则；分数变化不代表生成质量改善，也不等于裁判更准确。

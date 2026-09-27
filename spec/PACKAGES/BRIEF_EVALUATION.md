@@ -18,9 +18,9 @@ Bundle 是 Cortex 已采集的有界材料快照，不等于用户全部长期�
 
 确认事实捏造后质量得分为零。容量和生成状态单独作为通过门禁，不任意修改质量分。字符数按 Unicode 码点统计，卡片累计字符串值而非序列化字符或渲染尺寸。
 
-裁判必须返回可解释的判断；事实命中和捏造、噪音出现判断还必须提供能匹配最终输出的引文。UNKNOWN、缺失回答或无效证据由 [错误映射](../../packages/application/src/features/evaluation/brief-evaluation-error.ts) 转为该 Case 的 EVALUATION_ERROR，分数为空，不当作内容零分。[评测编排](../../packages/application/src/features/evaluation/platform-evaluation-service.ts) 继续提交批次结果，用户可沿既有流程重试。取消仍中断；未配置裁判仍属于运行配置故障。
+裁判必须返回可解释的判断；事实命中和捏造、噪音出现判断还必须提供能匹配最终输出的引文。UNKNOWN、缺失回答或无效证据由 [错误映射](../../packages/application/src/features/evaluation/brief-evaluation-error.ts) 转为该 Case 的 EVALUATION_ERROR，分数为空，不当作内容零分。[评测编排](../../packages/application/src/features/evaluation/platform-evaluation-service.ts) 继续提交批次结果，用户可沿既有流程重试。取消仍中断；未配置裁判以单 Case 配置错误记录。
 
-当前复用既有 HTTP JEV Provider；其实际服务必须支持返回 reason/evidence。只返回选择与概率的服务不能完成本链路的可审计评测。仓库 Mock 验证协议与错误路径，不代表真实供应商能力或端到端联调已验收。
+JEV 模式复用既有 HTTP JEV Provider，LLM 模式使用冻结的 Run Evaluator；两者均须提供 reason/evidence。只返回选择与概率的服务不能完成本链路的可审计评测。仓库 Mock 验证协议与错误路径，不代表真实供应商能力或端到端联调已验收。
 
 ## 界面与验收入口
 
@@ -29,3 +29,23 @@ Bundle 是 Cortex 已采集的有界材料快照，不等于用户全部长期�
 [结果视图](../../apps/web/src/features/runs/run-brief-content.tsx) 展示最终文本、卡片 JSON、原子判断与证据；[分类汇总](../../apps/web/src/features/runs/run-brief-summary.tsx) 分别统计 Daily/Meeting，裁判异常不进入质量分母。
 
 验收入口为 [合约测试](../../packages/contracts/test/brief-evaluation-contracts.test.ts)、[评分测试](../../packages/evaluation-adapters/test/brief-semantic-evaluator.test.ts)、[编排隔离测试](../../packages/application/test/brief-evaluation-orchestration.test.ts)、[存储测试](../../packages/storage-sqlite/test/sqlite-brief-roundtrip.test.ts) 和 [界面测试](../../apps/web/test/brief-content.test.tsx)。[接入样例](../../test_suite/brief-content/README.md) 均为合成材料，不包含真实用户记忆。
+
+## 可配置裁判
+
+- `semanticEvaluation.brief.judge`: `JEV | LLM`；不填保持旧 JEV 行为。
+- Endpoint 只控制被测生成请求，不能决定裁判。GT 与 judge 不进入 `vars.request_body`。
+- JEV 使用既有服务端配置。LLM 使用 Run 中冻结的 Evaluator 配置，复用现有模型配置资源，不引入第二套密钥管理。
+- 调度器按 Case 选择一种 Provider，不回退到另一种。LLM 不依赖任何 JEV 环境变量。
+- LLM 必须返回严格 JSON、完整且唯一的 questionId、PASS/FAIL/UNKNOWN、reason/evidence；与 JEV 复用原子打分和引文验证。
+- LLM 超时按冻结配置限制；取消信号传至客户端。配置缺失、无效结果、UNKNOWN、证据不合格均隔离为单 Case EVALUATION_ERROR。
+- Report 显示实际 Provider 与模型；用量归类为语义裁判，避免 LLM 被标成 JEV。
+- 单条合成冒烟：[daily.smoke.case.json](../../test_suite/brief-content/daily.smoke.case.json)。仅接线验证，不是质量基线。
+
+
+## 固定样本重评与 Judge prompt 版本
+
+`brief.judgePrompt` 是可选的评分主指令（1–30000 字符）；缺省使用默认指令。评分数据仍仅包含冻结材料、最终输出、目标与 Rubric，不暴露 model_input。安全约束、结构化返回协议、证据逐字校验不由自定义主指令覆盖。
+
+校准通过 run 的 scoring-only rerun 创建独立版本，支持更换冻结的 LLM 配置、Rubric、主指令和补充指令。输入与生成输出不变，规则差异保存在 Case 级语义评测快照；不使用通用 Rubric Prompt 库替代该快照。仅重评不生成缺失输出：缺输出时先正常执行生成，再以保存的输出做校准。
+
+对比不同规则仅能证明评分变化；判断裁判是否更准确仍需独立人工标注/期望评分作为校准基准。

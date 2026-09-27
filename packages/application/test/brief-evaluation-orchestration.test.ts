@@ -85,6 +85,7 @@ describe("Brief per-case judge failure isolation", () => {
     });
     if (ok) {
       expect(evaluate).toHaveBeenCalledTimes(1);
+      expect(evaluate.mock.calls[0]?.[0].evaluator).toEqual(original.evaluator);
       expect(repository.completeInput?.results[0]).toMatchObject({
         status: "EVALUATION_ERROR",
         score: null,

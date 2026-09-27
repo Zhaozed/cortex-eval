@@ -1,14 +1,1 @@
-{
-  "count": 11,
-  "suite": {
-    "id": "01a0c236-10c7-761f-a62d-82c39f70a933",
-    "name": "飞书-任务评测",
-    "description": "UID=2075490654049271808；11例覆盖T01-T09，并新增2条组合长链路。7例isolated只读/单动作，4例client用于跨轮可信身份、确认与长链路。规则：真实tool_executions优先；collection_id只来自成功清单结果；Feishu仅返回一级任务；空结果、权限失败、分页未完成和部分失败分开表达；未知写结果先回读不重试。创建/更新/删除类按真实task_id精确清理。",
-    "caseCount": 11,
-    "suiteHash": "226d2eb3bc889aa1c5a463851c9ab489f8080319a75e68936499a066d086efca",
-    "revision": 2,
-    "createdAt": "2026-09-21T04:25:18.279Z",
-    "updatedAt": "2026-09-21T04:28:02.067Z"
-  },
-  "preview": { "added": 0, "modified": 4, "removed": 0, "unchanged": 7, "reordered": 0 }
-}
+{"count":17,"suite":{"id":"01a0c236-10c7-761f-a62d-82c39f70a933","name":"飞书-任务评测","description":"UID=2075490654049271808；17例覆盖T01-T09，新增T05个人单任务、清单单任务、个人批量创建、清单批量创建，以及T06标题、描述、截止时间、完成、重新打开；保留2条组合长链路。13例isolated，4例client。全部使用确定性JavaScript断言，删除类场景强制校验确认卡后才可调用delete_tasks。规则：真实tool_executions优先；collection_id只来自成功清单结果；Feishu仅一级任务；空结果、权限失败、分页未完成和部分失败分开表达；未知写结果先回读不重试。","caseCount":17,"suiteHash":"5b0189a49eabda052562f3c722dbe350d21e0ee0113ba7fb28553e743df5992b","revision":12,"createdAt":"2026-09-21T04:25:18.279Z","updatedAt":"2026-09-21T09:44:11.604Z"},"preview":{"added":0,"modified":2,"removed":0,"unchanged":15,"reordered":0}}

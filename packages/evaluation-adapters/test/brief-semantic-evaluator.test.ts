@@ -93,7 +93,7 @@ describe("Brief atomic replay evaluator", () => {
       expect(result.score).toBeCloseTo(1);
       expect(input.plan.questions.every((q) => q.id.startsWith("brief."))).toBe(true);
       expect(input.plan.questions).toHaveLength(
-        required(input.contract.brief).checklist.length + 2
+        required(required(input.contract.brief).checklist).length + 2
       );
       const call = vi.mocked(input.provider).evaluate.mock.calls[0];
       expect(call?.[0].trace.raw).toEqual({
@@ -102,7 +102,9 @@ describe("Brief atomic replay evaluator", () => {
       });
       expect(
         result.decisions.find((d) => d.questionId === "brief.P0.core_cases")?.evidenceRefs
-      ).toContain(`bundle${required(required(input.contract.brief).checklist[0]).sourceRefs[0]}`);
+      ).toContain(
+        `bundle${required(required(required(input.contract.brief).checklist)[0]).sourceRefs[0]}`
+      );
     }
   );
   it("scores missing P0 independently without making optional P1 a veto", async () => {
@@ -124,9 +126,9 @@ describe("Brief atomic replay evaluator", () => {
   });
   it("renormalizes empty tiers instead of gifting recall", async () => {
     const input = setup();
-    required(input.contract.brief).checklist = required(input.contract.brief).checklist.filter(
-      (c) => c.tier === "P2"
-    );
+    required(input.contract.brief).checklist = required(
+      required(input.contract.brief).checklist
+    ).filter((c) => c.tier === "P2");
     input.plan = compileJevDecisionPlan(input.contract);
     const result = await evaluateBrief(input);
     expect(result.score).toBeCloseTo(1);
@@ -222,7 +224,7 @@ describe("Brief atomic replay evaluator", () => {
       const input = setup();
       if (variant === "type") required(input.contract.brief).briefType = "meeting";
       if (variant === "source")
-        required(required(input.contract.brief).checklist[0]).sourceRefs = ["/not-there"];
+        required(required(required(input.contract.brief).checklist)[0]).sourceRefs = ["/not-there"];
       if (variant === "leak") input.requestBody.ground_truth = {};
       await expect(evaluateBrief(input)).rejects.toThrow(/BRIEF_/);
       expect(vi.mocked(input.provider).evaluate.mock.calls).toHaveLength(0);
@@ -301,5 +303,114 @@ describe("Brief atomic replay evaluator", () => {
     );
     expect(JSON.parse(new TextDecoder().decode(request.body))).toEqual(input.requestBody);
     expect(new TextDecoder().decode(request.body)).not.toContain("checklist");
+  });
+});
+
+describe("Brief rubric replay evaluator", () => {
+  const DIMENSIONS = [
+    "accuracy",
+    "completeness",
+    "ordering",
+    "safety",
+    "specificity",
+    "actionability"
+  ];
+  function rubricSetup(options: {
+    scores?: Record<string, number>;
+    hardFailReasons?: string[];
+    evidence?: string;
+    minTotalScore?: number;
+    failOnZeroDimension?: boolean;
+  }): ReturnType<typeof setup> {
+    const input = setup();
+    const brief = required(input.contract.brief);
+    const sourceRefs = required(required(brief.checklist)[0]).sourceRefs;
+    brief.checklist = undefined;
+    brief.rubric = {
+      dimensions: DIMENSIONS.map((id) => ({ id, assertion: `维度${id}达标`, sourceRefs })),
+      minTotalScore: options.minTotalScore ?? 10,
+      failOnZeroDimension: options.failOnZeroDimension ?? true,
+      hardFailRules: ["捏造事实", "泄露隐私"]
+    };
+    input.plan = compileJevDecisionPlan(input.contract);
+    input.provider.evaluate = vi.fn(
+      (request: JevEvaluationRequestV1): Promise<readonly JevProviderDecision[]> =>
+        Promise.resolve(
+          request.plan.questions.map((q) => {
+            const score = options.scores?.[q.id] ?? 2;
+            return {
+              questionId: q.id,
+              kind: "SCORE" as const,
+              value: score,
+              reason: `维度评分${score}分`,
+              evidence: score >= 1 ? [options.evidence ?? "确认20个核心案例"] : [],
+              hardFailReasons: options.hardFailReasons ?? []
+            };
+          })
+        )
+    );
+    return input;
+  }
+
+  it("passes with all dimensions at 2 and reports deterministic metrics", async () => {
+    const input = rubricSetup({});
+    const result = await evaluateBrief(input);
+    expect(result.passed).toBe(true);
+    expect(result.score).toBe(1);
+    expect(input.plan.questions.map((q) => q.id)).toEqual(
+      DIMENSIONS.map((id) => `brief.rubric.${id}`)
+    );
+    expect(input.plan.questions.every((q) => q.kind === "SCORE")).toBe(true);
+    const dimension = result.decisions.find((d) => d.questionId === "brief.rubric.accuracy");
+    expect(dimension?.kind).toBe("SCORE");
+    expect(dimension?.value).toBe(2);
+    expect(dimension?.platformReason).toBe("维度accuracy达标");
+    expect(dimension?.evidenceRefs).toEqual(
+      required(required(input.contract.brief).rubric).dimensions[0]?.sourceRefs.map(
+        (ref) => `bundle${ref}`
+      )
+    );
+    expect(result.decisions.find((d) => d.questionId === "brief.metric.total")?.value).toBe(12);
+    expect(result.decisions.find((d) => d.questionId === "brief.metric.rubric")?.value).toBe(1);
+  });
+  it("blocks on judge-reported hard failures", async () => {
+    const result = await evaluateBrief(rubricSetup({ hardFailReasons: ["捏造事实"] }));
+    expect(result.passed).toBe(false);
+    expect(result.blockingFailures).toContain("brief.hard_fail:捏造事实");
+  });
+  it("blocks a zero-scored dimension only when failOnZeroDimension is on", async () => {
+    const scores = { "brief.rubric.accuracy": 0 };
+    const blocked = await evaluateBrief(rubricSetup({ scores }));
+    expect(blocked.passed).toBe(false);
+    expect(blocked.blockingFailures).toContain("brief.rubric.accuracy:维度得分为0");
+    expect(blocked.score).toBeCloseTo(10 / 12);
+    const allowed = await evaluateBrief(rubricSetup({ scores, failOnZeroDimension: false }));
+    expect(allowed.passed).toBe(true);
+  });
+  it("blocks when the total score is below minTotalScore", async () => {
+    const result = await evaluateBrief(
+      rubricSetup({
+        scores: {
+          "brief.rubric.accuracy": 1,
+          "brief.rubric.completeness": 1,
+          "brief.rubric.ordering": 1
+        }
+      })
+    );
+    expect(result.passed).toBe(false);
+    expect(result.blockingFailures).toContain("brief.score:六维总分9低于准入阈值10");
+  });
+  it("requires a verbatim output quote for scores of 1 or 2", async () => {
+    await expect(evaluateBrief(rubricSetup({ evidence: "不存在的引文" }))).rejects.toThrow(
+      "BRIEF_JUDGE_EVIDENCE_MISSING:accuracy"
+    );
+  });
+  it("rejects judge answers whose question IDs do not match the rubric plan", async () => {
+    const input = rubricSetup({});
+    input.provider.evaluate = (): Promise<readonly JevProviderDecision[]> =>
+      Promise.resolve([
+        { questionId: "brief.rubric.unknown", kind: "SCORE", value: 2, reason: "评分理由" }
+      ]);
+    await expect(evaluateBrief(input)).rejects.toThrow("BRIEF_JUDGE_DECISION_INVALID");
   });
 });

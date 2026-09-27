@@ -66,7 +66,10 @@ export function createJevSemanticEvaluator(input: {
           });
       return {
         provider: input.provider.id,
-        model: contract.model ?? input.model ?? input.provider.model ?? "unknown",
+        model:
+          contract.brief?.judge === "LLM"
+            ? (input.provider.model ?? "unknown")
+            : (contract.model ?? input.model ?? input.provider.model ?? "unknown"),
         planVersion: contract.brief ? "cortex.brief-atomic-plan.v1" : contract.contractVersion,
         result,
         metrics: {

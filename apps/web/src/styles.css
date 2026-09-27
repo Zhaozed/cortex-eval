@@ -7404,6 +7404,198 @@ a {
   gap: 1rem;
 }
 
+/* Brief 人工复核：结论带、维度得分徽章与输入材料分节。 */
+.run-brief-verdict {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 14px;
+}
+.run-brief-verdict[data-status="PASS"] {
+  border-left: 3px solid var(--pass);
+}
+.run-brief-verdict[data-status="FAIL"] {
+  border-left: 3px solid var(--danger);
+}
+.run-brief-verdict-score {
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+.brief-score-badge {
+  display: inline-block;
+  min-width: 2.8em;
+  padding: 2px 9px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+.brief-score-badge[data-score="0"] {
+  background: var(--danger-soft);
+  color: var(--danger-dark);
+}
+.brief-score-badge[data-score="1"] {
+  background: var(--warn-soft);
+  color: var(--warn-dark);
+}
+.brief-score-badge[data-score="2"] {
+  background: #e3f3ea;
+  color: var(--pass-dark);
+}
+.brief-score-badge[data-score="na"] {
+  background: var(--paper-deep);
+  color: var(--muted);
+}
+.brief-rubric blockquote,
+.brief-checklist blockquote {
+  margin: 4px 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--line-strong);
+  color: var(--muted);
+  font-size: 11px;
+}
+/* Brief 复核布局：验收检查独占顶部，输入材料与生成内容两列并列。 */
+.run-brief-acceptance {
+  display: grid;
+  gap: 14px;
+}
+.run-brief-io-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+@media (max-width: 900px) {
+  .run-brief-io-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 生成内容：文档卡片式呈现，状态收进标题行。 */
+.brief-output-status {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--paper-deep);
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  white-space: nowrap;
+}
+.brief-output-doc {
+  margin: 12px 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--focus);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 44, 61, 0.06);
+}
+.brief-output-doc p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+}
+.brief-output-doc p:last-child {
+  margin-bottom: 0;
+}
+.brief-output-note {
+  margin: 0 14px 12px;
+}
+
+/* 输入材料：context 键值栅格 + 材料卡片列表。 */
+.brief-input-hint {
+  color: var(--muted);
+  font-size: 11px;
+}
+.brief-input-body {
+  display: grid;
+  gap: 14px;
+  padding: 12px 14px 14px;
+}
+.brief-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+.brief-kv-item {
+  display: grid;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+}
+.brief-kv-key {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.brief-kv-value {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.brief-material h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.brief-count {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--soft-soft);
+  color: var(--soft);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+.brief-judge-body {
+  padding: 12px 14px 14px;
+}
+.brief-judge-body h4 {
+  margin: 14px 0 8px;
+  font-size: 12px;
+}
+.brief-bundle-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.brief-bundle-item {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.brief-bundle-item > p {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+}
+.brief-bundle-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.brief-bundle-meta code {
+  color: var(--muted);
+  font-size: 10px;
+}
+.run-brief-blocking-notes {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--warn-dark);
+  font-size: 12px;
+}
+
 /* JEV: keep every verdict visible; hide only verbose audit material. */
 .run-jev-check-list {
   display: grid;
@@ -7502,5 +7694,162 @@ a {
   .run-jev-check-columns {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+}
+
+/* Brief quality overview: category-first hierarchy, readable on narrow dashboards. */
+.brief-summary {
+  background: #fff;
+}
+.brief-summary-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e8edf1;
+  background: linear-gradient(110deg, #f5faf9, #fafbfd 72%);
+}
+.brief-summary-heading h3 {
+  margin: 2px 0 0;
+  color: #193547;
+  font-size: 16px;
+}
+.brief-summary-heading p {
+  max-width: 540px;
+  margin: 0;
+  color: #71818d;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: right;
+}
+.brief-summary-eyebrow {
+  color: #328078;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.brief-summary-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+.brief-summary-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e7edf0;
+  border-radius: 9px;
+  background: #fff;
+}
+.brief-summary-card-heading,
+.brief-summary-coverage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.brief-summary-type {
+  color: #234555;
+  font-size: 13px;
+  font-weight: 700;
+}
+.brief-summary-case-count {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #f1f5f7;
+  color: #71818d;
+  font-size: 10px;
+}
+.brief-summary-coverage {
+  justify-content: flex-start;
+  gap: 9px;
+  margin-top: 14px;
+}
+.brief-summary-coverage strong {
+  color: #1d5962;
+  font-size: 22px;
+  line-height: 1;
+}
+.brief-summary-coverage strong span {
+  color: #8a9aa4;
+  font-size: 13px;
+  font-weight: 500;
+}
+.brief-summary-coverage > span {
+  color: #71818d;
+  font-size: 11px;
+}
+.brief-summary-progress {
+  height: 4px;
+  margin: 10px 0 12px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #edf1f3;
+}
+.brief-summary-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #4a9b8c;
+}
+.brief-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.brief-summary-metric {
+  display: flex;
+  min-width: 0;
+  min-height: 74px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 9px 10px;
+  border: 1px solid #edf1f3;
+  border-radius: 7px;
+  background: #fbfcfd;
+}
+.brief-summary-metric > span {
+  color: #71818d;
+  font-size: 10px;
+}
+.brief-summary-metric > strong {
+  color: #294653;
+  font-size: 16px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.brief-summary-metric > small {
+  color: #98a5ad;
+  font-size: 9px;
+  line-height: 1.35;
+}
+.brief-summary-metric.is-alert {
+  border-color: #f0dfd9;
+  background: #fffaf8;
+}
+.brief-summary-metric.is-alert > strong {
+  color: #ad6049;
+}
+@media (max-width: 640px) {
+  .brief-summary-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .brief-summary-heading p {
+    text-align: left;
+  }
+  .brief-summary-groups {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 9px;
+  }
+  .brief-summary-card {
+    padding: 11px;
+  }
+  .brief-summary-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

@@ -1,3 +1,4 @@
+import type { BriefReevaluationOptions } from "@cortex-eval/contracts/src/run-api-contracts.ts";
 import type {
   CreatePlatformRerunRequestV1Schema,
   CreatePlatformRunRequestV1Schema,
@@ -195,7 +196,16 @@ export interface RunApi {
     sourceRunId: string,
     caseKey: string,
     reevaluateOnly: boolean,
-    signal: AbortSignal
+    signal: AbortSignal,
+    reevaluation?: BriefReevaluationOptions,
+    name?: string
+  ) => Promise<z.infer<typeof PlatformRerunCreatedV1Schema>>;
+  /** Re-score every saved Case without generating new Brief output. */
+  readonly createBriefReevaluation?: (
+    sourceRunId: string,
+    reevaluation: BriefReevaluationOptions,
+    signal: AbortSignal,
+    name: string
   ) => Promise<z.infer<typeof PlatformRerunCreatedV1Schema>>;
   /** Create one new Retry/Force Run from an immutable platform source. */
   readonly createRerun: (
@@ -415,11 +425,28 @@ export function createRunApi(
         fetcher,
         (output) => output.runId === runId && output.caseKey === caseKey
       ),
-    createCaseRerun: (sourceRunId, caseKey, reevaluateOnly, signal) =>
+    createCaseRerun: (sourceRunId, caseKey, reevaluateOnly, signal, reevaluation, name) =>
       apiRequestJson(
         `/api/v1/runs/${encodeURIComponent(sourceRunId)}/reruns`,
         PlatformRerunCreatedV1Schema,
-        jsonRequest({ mode: "FORCE", caseKey, reevaluateOnly }, signal),
+        jsonRequest(
+          {
+            mode: "FORCE",
+            caseKey,
+            reevaluateOnly,
+            ...(name ? { name } : {}),
+            ...(reevaluation ? { reevaluation } : {})
+          },
+          signal
+        ),
+        fetcher,
+        (output) => output.sourceRunId === sourceRunId && output.rerunMode === "FORCE"
+      ),
+    createBriefReevaluation: (sourceRunId, reevaluation, signal, name) =>
+      apiRequestJson(
+        `/api/v1/runs/${encodeURIComponent(sourceRunId)}/reruns`,
+        PlatformRerunCreatedV1Schema,
+        jsonRequest({ mode: "FORCE", reevaluateOnly: true, reevaluation, name }, signal),
         fetcher,
         (output) => output.sourceRunId === sourceRunId && output.rerunMode === "FORCE"
       ),

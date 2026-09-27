@@ -373,7 +373,20 @@ export function outputDegraded(row: DashboardCase): boolean {
 }
 export function hasObservedCards(row: DashboardCase): boolean {
   const p = payload(row);
-  return hasCardData(p) || records(p.delivered_messages).some(hasCardData);
+  return (
+    hasCardData(p) ||
+    records(p.delivered_messages).some(hasCardData) ||
+    briefPublicResults(p).length > 0
+  );
+}
+/**
+ * Brief replay 证据中的结构化卡片结果。平台在预览时经 Cortex 转换器投影为 A2UI，
+ * 因此人工复核视角视同已观测到卡片。
+ */
+export function briefPublicResults(p: Record<string, unknown>): Record<string, unknown>[] {
+  if (p.brief_type !== "daily" && p.brief_type !== "meeting") return [];
+  if (p.presentation_status !== "cards") return [];
+  return records(object(p.output).public_results).filter((item) => records(item.cards).length > 0);
 }
 /** Only real cards create a visual review; the capture opt-in flag alone does not. */
 export function visualReviewRequired(row: DashboardCase): boolean {
@@ -465,4 +478,80 @@ export function conversationRounds(row: DashboardCase): ConversationRound[] {
       cards: scopeCardSummary(turnPayload)
     };
   });
+}
+
+import type { JevDecisionResultV1 } from "@cortex-eval/contracts/src/semantic-evaluation-contracts.ts";
+
+/** Parsed view of the reference-free six-dimension Brief judge result (0-2 per dimension). */
+export interface BriefRubricSummary {
+  /** `brief.rubric.*` SCORE decisions, one per rubric dimension. */
+  readonly dimensions: readonly JevDecisionResultV1[];
+  /** `brief.metric.total` raw value; null when the judge did not record it. */
+  readonly total: number | null;
+  /** Full mark is always 2 per dimension. */
+  readonly maxTotal: number;
+  /** `brief.metric.rubric` 0-1 ratio; null when not recorded. */
+  readonly ratio: number | null;
+  /** `brief.structure` / `brief.generation` deterministic BOOLEAN checks. */
+  readonly checks: readonly JevDecisionResultV1[];
+  /** `brief.hard_fail:` blocking failures with the machine prefix stripped. */
+  readonly hardFails: readonly string[];
+  /** Remaining blocking failures (zero dimensions, insufficient total), prefix stripped. */
+  readonly blockingNotes: readonly string[];
+}
+
+const BRIEF_HARD_FAIL_PREFIX = "brief.hard_fail:";
+
+function metricNumber(
+  decisions: readonly JevDecisionResultV1[],
+  questionId: string
+): number | null {
+  const decision = decisions.find((item) => item.questionId === questionId);
+  return decision && typeof decision.value === "number" ? decision.value : null;
+}
+
+/**
+ * Structured view of rubric-mode Brief judge output. Returns null for legacy P0/P1/P2 checklist
+ * results so callers keep the historical table untouched.
+ */
+export function briefRubricSummary(result: {
+  readonly decisions: readonly JevDecisionResultV1[];
+  readonly blockingFailures: readonly string[];
+}): BriefRubricSummary | null {
+  const dimensions = result.decisions.filter(
+    (decision) => decision.questionId.startsWith("brief.rubric.") && decision.kind === "SCORE"
+  );
+  if (dimensions.length === 0) return null;
+  return {
+    dimensions,
+    total: metricNumber(result.decisions, "brief.metric.total"),
+    maxTotal: dimensions.length * 2,
+    ratio: metricNumber(result.decisions, "brief.metric.rubric"),
+    checks: result.decisions.filter(
+      (decision) =>
+        decision.questionId === "brief.structure" || decision.questionId === "brief.generation"
+    ),
+    hardFails: result.blockingFailures
+      .filter((failure) => failure.startsWith(BRIEF_HARD_FAIL_PREFIX))
+      .map((failure) => failure.slice(BRIEF_HARD_FAIL_PREFIX.length).trim()),
+    blockingNotes: result.blockingFailures
+      .filter((failure) => !failure.startsWith(BRIEF_HARD_FAIL_PREFIX))
+      .map((failure) => failure.replace(/^brief\.(?:rubric\.|score:)/, "").trim())
+  };
+}
+
+/** Brief results are recognized by plan version or decision IDs, never by Case metadata. */
+export function isBriefSemanticEvaluation(
+  semantic:
+    | {
+        readonly planVersion: string;
+        readonly result: { readonly decisions: readonly { readonly questionId: string }[] };
+      }
+    | undefined
+): boolean {
+  if (!semantic) return false;
+  return (
+    semantic.planVersion.startsWith("cortex.brief") ||
+    semantic.result.decisions.some((decision) => decision.questionId.startsWith("brief."))
+  );
 }

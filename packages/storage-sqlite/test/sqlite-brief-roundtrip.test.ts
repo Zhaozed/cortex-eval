@@ -16,27 +16,46 @@ function fixture(type: string): ReturnType<typeof CaseDefinitionV1Schema.parse> 
   );
 }
 describe("Frozen Brief storage boundary", () => {
-  it.each(["daily", "meeting"])("roundtrips %s bundle, GT and scoring profile", (type) => {
-    const source = fixture(type);
-    const frozen = caseFromV1(CaseDefinitionV1Schema.parse(source));
-    expect(caseDefinitionJson(frozen)).toEqual(source);
-    const before = hashCaseDefinition({
-      contractVersion: "cortex.case-definition.v1",
-      caseKey: frozen.caseKey,
-      definition: caseDefinitionJson(frozen)
-    });
-    const atom = source.semanticEvaluation?.brief?.checklist[0];
-    if (!atom) throw new Error("fixture");
-    atom.assertion += "修改";
-    const after = caseFromV1(CaseDefinitionV1Schema.parse(source));
-    expect(
-      hashCaseDefinition({
+  it.each(["daily", "meeting", "daily.smoke"])(
+    "roundtrips %s bundle, GT and scoring profile",
+    (type) => {
+      const source = fixture(type);
+      const frozen = caseFromV1(CaseDefinitionV1Schema.parse(source));
+      expect(caseDefinitionJson(frozen)).toEqual(source);
+      const before = hashCaseDefinition({
         contractVersion: "cortex.case-definition.v1",
         caseKey: frozen.caseKey,
-        definition: caseDefinitionJson(after)
-      })
-    ).not.toBe(before);
-    expect(frozen.semanticEvaluation).not.toEqual(after.semanticEvaluation);
+        definition: caseDefinitionJson(frozen)
+      });
+      const atom = source.semanticEvaluation?.brief?.checklist?.[0];
+      if (!atom) throw new Error("fixture");
+      atom.assertion += "修改";
+      const after = caseFromV1(CaseDefinitionV1Schema.parse(source));
+      expect(
+        hashCaseDefinition({
+          contractVersion: "cortex.case-definition.v1",
+          caseKey: frozen.caseKey,
+          definition: caseDefinitionJson(after)
+        })
+      ).not.toBe(before);
+      expect(frozen.semanticEvaluation).not.toEqual(after.semanticEvaluation);
+    }
+  );
+  it("judge selection survives storage and changes the Case identity", () => {
+    const source = fixture("daily.smoke");
+    const brief = source.semanticEvaluation?.brief;
+    if (!brief) throw new Error("fixture");
+    const hash = (): string => {
+      const frozen = caseFromV1(CaseDefinitionV1Schema.parse(source));
+      return hashCaseDefinition({
+        contractVersion: "cortex.case-definition.v1",
+        caseKey: frozen.caseKey,
+        definition: caseDefinitionJson(frozen)
+      });
+    };
+    const llmHash = hash();
+    brief.judge = "JEV";
+    expect(hash()).not.toBe(llmHash);
   });
   it("preserves atomic evidence and not-applicable metrics in result JSON", () => {
     const value = {

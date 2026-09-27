@@ -13,6 +13,7 @@ export function RunCaseUsage({
 }): ReactElement {
   const evaluation = row.evaluation;
   const jev = evaluation?.semanticEvaluation;
+  const judgeName = jev?.provider.startsWith("llm:") ? "LLM" : "JEV";
   const metrics = jev?.metrics;
   const jevTotal =
     metrics?.inputTokens !== undefined && metrics.outputTokens !== undefined
@@ -22,7 +23,7 @@ export function RunCaseUsage({
   return (
     <details className="run-usage-detail">
       <summary>
-        <strong>评测用量 · 断言评测{jev ? " / JEV" : ""}</strong>
+        <strong>评测用量 · 断言评测{jev ? ` / ${judgeName}` : ""}</strong>
         <span>
           {jev ? (
             "分项查看耗时与 Token"
@@ -48,7 +49,7 @@ export function RunCaseUsage({
             </thead>
             <tbody>
               <tr>
-                <td>断言评测（不含 JEV）</td>
+                <td>断言评测（不含语义裁判）</td>
                 <td>{duration(evaluation?.latencyMs)}</td>
                 <td>{num(evaluation?.tokenUsage?.inputTokens)}</td>
                 <td>{num(evaluation?.tokenUsage?.outputTokens)}</td>
@@ -56,7 +57,10 @@ export function RunCaseUsage({
               </tr>
               {jev && (
                 <tr>
-                  <td>JEV{metrics && !metrics.usageComplete ? "（统计不完整）" : ""}</td>
+                  <td>
+                    {judgeName}
+                    {metrics && !metrics.usageComplete ? "（统计不完整）" : ""}
+                  </td>
                   <td>{duration(metrics?.durationMs)}</td>
                   <td>{num(metrics?.inputTokens)}</td>
                   <td>{num(metrics?.outputTokens)}</td>
@@ -68,7 +72,7 @@ export function RunCaseUsage({
         </div>
 
         <p className="run-muted">
-          断言评测与 JEV 分开统计，不含 Agent 消耗；缺失用量显示未采集，不作为 0。
+          断言评测与语义裁判分开统计，不含 Agent 消耗；缺失用量显示未采集，不作为 0。
         </p>
         <Button size="sm" variant="link" onClick={() => onTrace("case-trace-usage")}>
           查看 Agent 逐模型耗时与 Token → 执行链路

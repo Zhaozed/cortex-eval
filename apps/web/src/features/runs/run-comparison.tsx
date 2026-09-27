@@ -1,3 +1,4 @@
+import { sameBriefEvidence, BriefJudgeComparison } from "./run-brief-comparison.tsx";
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -21,7 +22,7 @@ import { message } from "../../messages/messages.ts";
 
 export interface ComparedCase {
   key: string;
-  kind: "SAME" | "CHANGED" | "ADDED" | "MISSING";
+  kind: "FROZEN" | "SAME" | "CHANGED" | "ADDED" | "MISSING";
   before?: DashboardCase;
   after?: DashboardCase;
 }
@@ -47,9 +48,11 @@ export function compareCases(
         ? "ADDED"
         : !right
           ? "MISSING"
-          : definitionHash(left) && definitionHash(left) === definitionHash(right)
-            ? "SAME"
-            : "CHANGED",
+          : sameBriefEvidence(left, right)
+            ? "FROZEN"
+            : definitionHash(left) && definitionHash(left) === definitionHash(right)
+              ? "SAME"
+              : "CHANGED",
       ...(left ? { before: left } : {}),
       ...(right ? { after: right } : {})
     };
@@ -73,11 +76,11 @@ function config(run: PlatformRunDetail): Record<string, string> {
     评测模型: run.evaluator.config.model,
     "Endpoint 配置快照": run.endpoint.configHash,
     评测配置快照: run.evaluator.configHash,
-    "Rubric 内容快照":
+    "通用 Prompt 库快照":
       run.rubricPrompts
         .map((p) => `${p.promptKey}: ${p.promptHash}`)
         .sort()
-        .join("\n") || "不适用",
+        .join("\n") || "未使用通用 Prompt 库；Brief Rubric / Judge prompt 见样本对比详情",
     执行参数: JSON.stringify(run.runExecutionLimits)
   };
 }
@@ -138,7 +141,7 @@ export function RunComparison({
         <SheetHeader>
           <SheetTitle>对比运行</SheetTitle>
           <SheetDescription>
-            基准运行 → 当前运行。只对内容一致的 Case 比较结果与用量。
+            基准运行 → 当前运行。固定输入和输出的 Brief 可跨 Rubric、prompt 与模型比较评分。
           </SheetDescription>
         </SheetHeader>
         <label className="run-compare-picker">
@@ -196,7 +199,7 @@ export function RunComparison({
               </table>
             </details>
             <p className="run-muted">
-              {comparison.filter((c) => c.kind === "SAME").length} 条可对齐 ·{" "}
+              {comparison.filter((c) => c.kind === "SAME" || c.kind === "FROZEN").length} 条可对齐 ·{" "}
               {comparison.filter((c) => c.kind === "CHANGED").length} 条内容变化 ·{" "}
               {comparison.filter((c) => c.kind === "ADDED").length} 条新增 ·{" "}
               {comparison.filter((c) => c.kind === "MISSING").length} 条缺失
@@ -206,20 +209,20 @@ export function RunComparison({
               为已记录用量，部分历史记录可能不完整。执行耗时不包含评测耗时。
             </p>
             <p className="run-comparison-outcomes">
-              改善{" "}
+              FAIL → PASS{" "}
               {
                 comparison.filter(
                   (c) =>
-                    c.kind === "SAME" &&
+                    (c.kind === "SAME" || c.kind === "FROZEN") &&
                     c.before?.evaluation?.status === "FAIL" &&
                     c.after?.evaluation?.status === "PASS"
                 ).length
               }{" "}
-              · 退化{" "}
+              · PASS → FAIL{" "}
               {
                 comparison.filter(
                   (c) =>
-                    c.kind === "SAME" &&
+                    (c.kind === "SAME" || c.kind === "FROZEN") &&
                     c.before?.evaluation?.status === "PASS" &&
                     c.after?.evaluation?.status === "FAIL"
                 ).length
@@ -250,14 +253,15 @@ export function RunComparison({
                       <td>
                         {
                           {
-                            SAME: "内容一致",
+                            FROZEN: "输入与输出一致 · 裁判对比",
+                            SAME: "Case 定义一致",
                             CHANGED: "内容已变化",
                             ADDED: "新增",
                             MISSING: "缺失"
                           }[c.kind]
                         }
                       </td>
-                      {c.kind === "SAME" && c.before && c.after ? (
+                      {(c.kind === "SAME" || c.kind === "FROZEN") && c.before && c.after ? (
                         <>
                           <td>
                             {message(
@@ -266,6 +270,9 @@ export function RunComparison({
                             →{" "}
                             {message(
                               `rd.eval.${evaluationState({ ...c.after, review: undefined })}`
+                            )}
+                            {c.kind === "FROZEN" && (
+                              <BriefJudgeComparison before={c.before} after={c.after} />
                             )}
                           </td>
                           <td>{diff(c.before.rest.durationMs, c.after.rest.durationMs)}</td>

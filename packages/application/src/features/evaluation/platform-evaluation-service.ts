@@ -416,11 +416,12 @@ export class PlatformEvaluationService {
           if (item.status !== "PASS" && item.status !== "FAIL") return item;
           const rest = pendingByOrdinal.get(item.ordinal);
           if (rest?.status !== "SUCCEEDED") return item;
-          if (this.#semanticEvaluator === undefined) throw new Error("JEV_NOT_CONFIGURED");
           const isBrief = frozen.definition.semanticEvaluation.brief !== undefined;
           if (isBrief && !rest.providerOutput.ok) return item;
           try {
+            if (this.#semanticEvaluator === undefined) throw new Error("JEV_NOT_CONFIGURED");
             const semanticEvaluation = await this.#semanticEvaluator.evaluate({
+              evaluator: run.evaluator,
               caseDefinition: frozen.definition,
               providerOutput: rest.providerOutput,
               durationMs: rest.durationMs,

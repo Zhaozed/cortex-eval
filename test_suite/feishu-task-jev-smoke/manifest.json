@@ -1,0 +1,22 @@
+{
+  "suite": {
+    "name": "飞书-任务 JEV 冒烟评测",
+    "uid": "2075490654049271808",
+    "version": "1.0.0",
+    "timezone": "Asia/Shanghai",
+    "case_count": 3,
+    "description": "复用飞书任务评测的三个只读 Case，验证 JEV 对路由、工具选择/顺序、时效、A2UI、回复和安全性的语义评估。"
+  },
+  "case_ids": ["FT-JEV-S01", "FT-JEV-S02", "FT-JEV-S03"],
+  "mode": {
+    "isolated": ["FT-JEV-S01", "FT-JEV-S02", "FT-JEV-S03"],
+    "client": []
+  },
+  "long_chain": [],
+  "rules": [
+    "JEV 只读取 Agent Trace，不执行工具",
+    "确定性断言与 JEV 结果同时生效",
+    "工具策略由每个 Case 的 semanticEvaluation.toolPolicy 约束"
+  ],
+  "cleanup": "本冒烟集只读，不创建、更新或删除飞书任务。"
+}

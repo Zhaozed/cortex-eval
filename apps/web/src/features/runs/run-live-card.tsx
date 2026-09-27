@@ -18,9 +18,11 @@ const renderErrors: Readonly<Record<string, string>> = {
 /** Live read-only production rendering. No PNG generation/upload, no Agent or tool requests. */
 export function RunLiveCard({
   review,
+  note,
   onReady
 }: {
   readonly review: RunReview;
+  readonly note?: string | undefined;
   readonly onReady: (version: string | null) => void;
 }): ReactElement {
   const frame = useRef<HTMLIFrameElement>(null);
@@ -164,7 +166,9 @@ export function RunLiveCard({
           </Button>
         </div>
       </header>
-      <p className="run-muted">本次执行的真实出站数据 · 可滚动、切换和展开 · 不执行真实业务操作</p>
+      <p className="run-muted">
+        {note ?? "本次执行的真实出站数据"} · 可滚动、切换和展开 · 不执行真实业务操作
+      </p>
       {frames.length > 1 && (
         <div className="run-card-navigator">
           <div>
